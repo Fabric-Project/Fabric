@@ -105,14 +105,20 @@ struct SubgraphEmbeddingTests
         #expect(deferred.ports.contains { $0 === deferred.outputDepthTexture }, sourceLocation: sourceLocation)
     }
 
+    /// The wire in `graph` from the port under `outletID` to the one under
+    /// `inletID`. Create Subgraph makes the wires it moves again, so a wire is
+    /// found by the ports it joins rather than held across the edit.
     private func connection(in graph: Graph, from outletID: UUID, to inletID: UUID) -> Connection?
     {
         graph.connections.first { $0.outletPortID == outletID && $0.inletPortID == inletID }
     }
 
+    /// The embedded topology, checked, as the ids of the wires in the graph and
+    /// in the sub graph.
+    @discardableResult
     private func expectEmbeddedTopology(_ fixture: Fixture,
                                         container: SubgraphNode,
-                                        sourceLocation: SourceLocation = #_sourceLocation) throws
+                                        sourceLocation: SourceLocation = #_sourceLocation) throws -> Set<UUID>
     {
         #expect(fixture.graph.nodes.contains { $0 === container }, sourceLocation: sourceLocation)
         #expect(fixture.firstMovedNode.graph === container.subGraph, sourceLocation: sourceLocation)
@@ -121,13 +127,23 @@ struct SubgraphEmbeddingTests
         #expect(container.subGraph.nodes.contains { $0 === fixture.secondMovedNode }, sourceLocation: sourceLocation)
 
         #expect(fixture.graph.connections.count == 2, sourceLocation: sourceLocation)
-        #expect(Set(fixture.graph.connections) == Set([
-            fixture.incomingConnection,
-            fixture.outgoingConnection,
-        ]), sourceLocation: sourceLocation)
-        #expect(container.subGraph.connections == [fixture.internalConnection], sourceLocation: sourceLocation)
-        #expect(fixture.internalConnection.graph === container.subGraph, sourceLocation: sourceLocation)
-        #expect(fixture.internalConnection.active == false, sourceLocation: sourceLocation)
+        #expect(container.subGraph.connections.count == 1, sourceLocation: sourceLocation)
+        let incomingConnection = try #require(
+            connection(in: fixture.graph, from: fixture.upstream.outputNumber.id, to: fixture.firstMovedNode.inputNumber1.id),
+            sourceLocation: sourceLocation
+        )
+        let internalConnection = try #require(
+            connection(in: container.subGraph, from: fixture.firstMovedNode.outputNumber.id, to: fixture.secondMovedNode.inputNumber1.id),
+            sourceLocation: sourceLocation
+        )
+        let outgoingConnection = try #require(
+            connection(in: fixture.graph, from: fixture.secondMovedNode.outputNumber.id, to: fixture.downstream.inputNumber1.id),
+            sourceLocation: sourceLocation
+        )
+        #expect(internalConnection.graph === container.subGraph, sourceLocation: sourceLocation)
+        #expect(internalConnection.active == false, sourceLocation: sourceLocation)
+        #expect(internalConnection.outletPort === fixture.firstMovedNode.outputNumber, sourceLocation: sourceLocation)
+        #expect(internalConnection.inletPort === fixture.secondMovedNode.inputNumber1, sourceLocation: sourceLocation)
 
         let inletProxy = try #require(
             container.ports.first { $0.id == fixture.firstMovedNode.inputNumber1.id },
@@ -140,19 +156,75 @@ struct SubgraphEmbeddingTests
 
         #expect(inletProxy is any ProxyPortProtocol, sourceLocation: sourceLocation)
         #expect(outletProxy is any ProxyPortProtocol, sourceLocation: sourceLocation)
-        #expect(fixture.incomingConnection.inletPort === inletProxy, sourceLocation: sourceLocation)
-        #expect(fixture.outgoingConnection.outletPort === outletProxy, sourceLocation: sourceLocation)
-        #expect(fixture.incomingConnection.graph === fixture.graph, sourceLocation: sourceLocation)
-        #expect(fixture.outgoingConnection.graph === fixture.graph, sourceLocation: sourceLocation)
+        #expect(incomingConnection.inletPort === inletProxy, sourceLocation: sourceLocation)
+        #expect(outgoingConnection.outletPort === outletProxy, sourceLocation: sourceLocation)
+        #expect(incomingConnection.graph === fixture.graph, sourceLocation: sourceLocation)
+        #expect(outgoingConnection.graph === fixture.graph, sourceLocation: sourceLocation)
         #expect(fixture.firstMovedNode.inputNumber1.connections.isEmpty, sourceLocation: sourceLocation)
         #expect(fixture.secondMovedNode.outputNumber.connections.isEmpty, sourceLocation: sourceLocation)
-        #expect(inletProxy.connections == [fixture.incomingConnection], sourceLocation: sourceLocation)
-        #expect(outletProxy.connections == [fixture.outgoingConnection], sourceLocation: sourceLocation)
+        #expect(inletProxy.connections.count == 1 && inletProxy.connections.first === incomingConnection,
+                sourceLocation: sourceLocation)
+        #expect(outletProxy.connections.count == 1 && outletProxy.connections.first === outgoingConnection,
+                sourceLocation: sourceLocation)
+        #expect(fixture.upstream.outputNumber.connections.count == 1 && fixture.upstream.outputNumber.connections.first === incomingConnection,
+                sourceLocation: sourceLocation)
+        #expect(fixture.downstream.inputNumber1.connections.count == 1 && fixture.downstream.inputNumber1.connections.first === outgoingConnection,
+                sourceLocation: sourceLocation)
         #expect(fixture.firstMovedNode.inputNumber1.published, sourceLocation: sourceLocation)
         #expect(fixture.secondMovedNode.outputNumber.published, sourceLocation: sourceLocation)
         #expect(fixture.firstMovedNode.inputNumber1.publishedName == fixture.originalIncomingPublishedName,
                 sourceLocation: sourceLocation)
 
+        try expectDeferredPortsRemainIntact(on: container, sourceLocation: sourceLocation)
+        return [incomingConnection.id, internalConnection.id, outgoingConnection.id]
+    }
+
+    /// The topology before the embedding: the fixture's wires, under their
+    /// own ids, on the moved nodes' own ports.
+    private func expectUnembeddedTopology(_ fixture: Fixture,
+                                          container: SubgraphNode,
+                                          sourceLocation: SourceLocation = #_sourceLocation) throws
+    {
+        #expect(fixture.graph.nodes.contains { $0 === fixture.firstMovedNode }, sourceLocation: sourceLocation)
+        #expect(fixture.graph.nodes.contains { $0 === fixture.secondMovedNode }, sourceLocation: sourceLocation)
+        #expect(fixture.graph.nodes.contains { $0 === container } == false, sourceLocation: sourceLocation)
+        #expect(Set(fixture.graph.connections.map(\.id)) == Set([
+            fixture.incomingConnection.id,
+            fixture.internalConnection.id,
+            fixture.outgoingConnection.id,
+        ]), sourceLocation: sourceLocation)
+
+        let incomingConnection = try #require(
+            fixture.graph.connections.first { $0.id == fixture.incomingConnection.id }, sourceLocation: sourceLocation
+        )
+        let internalConnection = try #require(
+            fixture.graph.connections.first { $0.id == fixture.internalConnection.id }, sourceLocation: sourceLocation
+        )
+        let outgoingConnection = try #require(
+            fixture.graph.connections.first { $0.id == fixture.outgoingConnection.id }, sourceLocation: sourceLocation
+        )
+        #expect(incomingConnection.outletPort === fixture.upstream.outputNumber, sourceLocation: sourceLocation)
+        #expect(incomingConnection.inletPort === fixture.firstMovedNode.inputNumber1, sourceLocation: sourceLocation)
+        #expect(internalConnection.outletPort === fixture.firstMovedNode.outputNumber, sourceLocation: sourceLocation)
+        #expect(internalConnection.inletPort === fixture.secondMovedNode.inputNumber1, sourceLocation: sourceLocation)
+        #expect(internalConnection.active == false, sourceLocation: sourceLocation)
+        #expect(outgoingConnection.outletPort === fixture.secondMovedNode.outputNumber, sourceLocation: sourceLocation)
+        #expect(outgoingConnection.inletPort === fixture.downstream.inputNumber1, sourceLocation: sourceLocation)
+        #expect(fixture.firstMovedNode.inputNumber1.connections.first === incomingConnection, sourceLocation: sourceLocation)
+        #expect(fixture.firstMovedNode.outputNumber.connections.first === internalConnection, sourceLocation: sourceLocation)
+        #expect(fixture.secondMovedNode.inputNumber1.connections.first === internalConnection, sourceLocation: sourceLocation)
+        #expect(fixture.secondMovedNode.outputNumber.connections.first === outgoingConnection, sourceLocation: sourceLocation)
+        #expect(fixture.firstMovedNode.inputNumber1.connections.count == 1, sourceLocation: sourceLocation)
+        #expect(fixture.firstMovedNode.outputNumber.connections.count == 1, sourceLocation: sourceLocation)
+        #expect(fixture.secondMovedNode.inputNumber1.connections.count == 1, sourceLocation: sourceLocation)
+        #expect(fixture.secondMovedNode.outputNumber.connections.count == 1, sourceLocation: sourceLocation)
+        #expect(fixture.firstMovedNode.inputNumber1.published == false, sourceLocation: sourceLocation)
+        #expect(fixture.secondMovedNode.outputNumber.published == false, sourceLocation: sourceLocation)
+        #expect(fixture.firstMovedNode.inputNumber1.publishedName == fixture.originalIncomingPublishedName,
+                sourceLocation: sourceLocation)
+        #expect(!container.ports.contains { $0 is any ProxyPortProtocol }, sourceLocation: sourceLocation)
+        #expect(container.subGraph.nodes.isEmpty, sourceLocation: sourceLocation)
+        #expect(container.subGraph.connections.isEmpty, sourceLocation: sourceLocation)
         try expectDeferredPortsRemainIntact(on: container, sourceLocation: sourceLocation)
     }
 
@@ -183,37 +255,22 @@ struct SubgraphEmbeddingTests
         fixture.graph.undoManager = undoManager
 
         let container = try embed(fixture, as: kind)
-        try expectEmbeddedTopology(fixture, container: container)
+        let embeddedConnectionIDs = try expectEmbeddedTopology(fixture, container: container)
+        #expect(undoManager.undoActionName == "Create Subgraph")
 
         undoManager.undo()
-
-        #expect(fixture.graph.nodes.contains { $0 === fixture.firstMovedNode })
-        #expect(fixture.graph.nodes.contains { $0 === fixture.secondMovedNode })
-        #expect(fixture.graph.nodes.contains { $0 === container } == false)
-        #expect(Set(fixture.graph.connections) == Set([
-            fixture.incomingConnection,
-            fixture.internalConnection,
-            fixture.outgoingConnection,
-        ]))
-        #expect(fixture.incomingConnection.inletPort === fixture.firstMovedNode.inputNumber1)
-        #expect(fixture.internalConnection.outletPort === fixture.firstMovedNode.outputNumber)
-        #expect(fixture.internalConnection.inletPort === fixture.secondMovedNode.inputNumber1)
-        #expect(fixture.outgoingConnection.outletPort === fixture.secondMovedNode.outputNumber)
-        #expect(fixture.firstMovedNode.inputNumber1.connections == [fixture.incomingConnection])
-        #expect(fixture.firstMovedNode.outputNumber.connections == [fixture.internalConnection])
-        #expect(fixture.secondMovedNode.inputNumber1.connections == [fixture.internalConnection])
-        #expect(fixture.secondMovedNode.outputNumber.connections == [fixture.outgoingConnection])
-        #expect(fixture.firstMovedNode.inputNumber1.published == false)
-        #expect(fixture.secondMovedNode.outputNumber.published == false)
-        #expect(fixture.firstMovedNode.inputNumber1.publishedName == fixture.originalIncomingPublishedName)
-        try expectDeferredPortsRemainIntact(on: container)
+        try expectUnembeddedTopology(fixture, container: container)
+        #expect(undoManager.redoActionName == "Create Subgraph")
 
         undoManager.redo()
-        try expectEmbeddedTopology(fixture, container: container)
+        #expect(try expectEmbeddedTopology(fixture, container: container) == embeddedConnectionIDs)
+        #expect(undoManager.undoActionName == "Create Subgraph")
 
         undoManager.undo()
+        try expectUnembeddedTopology(fixture, container: container)
         undoManager.redo()
-        try expectEmbeddedTopology(fixture, container: container)
+        #expect(try expectEmbeddedTopology(fixture, container: container) == embeddedConnectionIDs)
+        #expect(!undoManager.canRedo)
     }
 
     @Test("Embedded topology remains stable across two serialization round trips", arguments: ContainerKind.allCases)
@@ -223,11 +280,14 @@ struct SubgraphEmbeddingTests
         let fixture = try makeFixture(context: context)
         let container = try embed(fixture, as: kind)
 
-        let expectedConnectionIDs = Set([
-            fixture.incomingConnection.id,
-            fixture.internalConnection.id,
-            fixture.outgoingConnection.id,
-        ])
+        let expectedConnectionIDs = try expectEmbeddedTopology(fixture, container: container)
+        let internalConnectionID = try #require(container.subGraph.connections.first?.id)
+        let incomingConnectionID = try #require(
+            connection(in: fixture.graph, from: fixture.upstream.outputNumber.id, to: fixture.firstMovedNode.inputNumber1.id)?.id
+        )
+        let outgoingConnectionID = try #require(
+            connection(in: fixture.graph, from: fixture.secondMovedNode.outputNumber.id, to: fixture.downstream.inputNumber1.id)?.id
+        )
         var encodedGraph = try JSONEncoder().encode(fixture.graph)
 
         for _ in 0..<2
@@ -251,7 +311,7 @@ struct SubgraphEmbeddingTests
                     .union(decodedContainer.subGraph.connections.map(\.id)) == expectedConnectionIDs)
 
             let decodedInternalConnection = try #require(decodedContainer.subGraph.connections.first)
-            #expect(decodedInternalConnection.id == fixture.internalConnection.id)
+            #expect(decodedInternalConnection.id == internalConnectionID)
             #expect(decodedInternalConnection.graph === decodedContainer.subGraph)
             #expect(decodedInternalConnection.active == false)
             #expect(decodedInternalConnection.outletPort === decodedFirstMovedNode.outputNumber)
@@ -264,10 +324,10 @@ struct SubgraphEmbeddingTests
                 decodedContainer.ports.first { $0.id == decodedSecondMovedNode.outputNumber.id }
             )
             let decodedIncomingConnection = try #require(
-                decodedGraph.connections.first { $0.id == fixture.incomingConnection.id }
+                decodedGraph.connections.first { $0.id == incomingConnectionID }
             )
             let decodedOutgoingConnection = try #require(
-                decodedGraph.connections.first { $0.id == fixture.outgoingConnection.id }
+                decodedGraph.connections.first { $0.id == outgoingConnectionID }
             )
 
             #expect(decodedInletProxy is any ProxyPortProtocol)
@@ -289,6 +349,34 @@ struct SubgraphEmbeddingTests
 
             encodedGraph = try JSONEncoder().encode(decodedGraph)
         }
+    }
+
+    @Test("A boundary port published here under a name keeps that name inside, through undo and redo", arguments: ContainerKind.allCases)
+    func boundaryPortKeepsItsPublishedName(kind: ContainerKind) throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = try makeFixture(context: context)
+        let port = fixture.secondMovedNode.outputNumber
+        fixture.graph.setPublished(true, on: port)
+        fixture.graph.setPublishedName("Gain", on: port)
+        let undoManager = UndoManager()
+        fixture.graph.undoManager = undoManager
+
+        func expectNamedInside(_ container: SubgraphNode, _ comment: Comment)
+        {
+            #expect(port.published && port.publishedName == "Gain", comment)
+            #expect(container.ports.contains { $0.id == port.id && $0 is any ProxyPortProtocol && $0.displayName == "Gain" }, comment)
+        }
+
+        let container = try embed(fixture, as: kind)
+        expectNamedInside(container, "created")
+
+        undoManager.undo()
+        #expect(port.node?.graph === fixture.graph)
+        #expect(port.published && port.publishedName == "Gain", "undone")
+
+        undoManager.redo()
+        expectNamedInside(container, "redone")
     }
 
     @Test("A port unpublished and published again by undo has its new proxy take the parent's wire back", arguments: ContainerKind.allCases)

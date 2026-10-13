@@ -87,8 +87,6 @@ internal import AnyCodable
     public private(set) var connectionRevision = 0
     internal private(set) var connectionTopologyGeneration = 0
     internal private(set) var executionTopologyGeneration = 0
-    @ObservationIgnored private var connectionTopologyBatchDepth = 0
-    @ObservationIgnored private var hasPendingBatchedConnectionTopologyChange = false
 
     /// Nodes whose membership, connections or published ports changed since
     /// GraphRenderer last reviewed their lifecycle. Holding them strongly keeps
@@ -112,12 +110,6 @@ internal import AnyCodable
 
     public func markConnectionTopologyChanged()
     {
-        if connectionTopologyBatchDepth > 0
-        {
-            hasPendingBatchedConnectionTopologyChange = true
-            return
-        }
-
         connectionRevision += 1
         pendingConnectionSceneSync = true
         connectionTopologyGeneration += 1
@@ -822,7 +814,11 @@ internal import AnyCodable
 
     
     
-    public func delete(node:Node, disconnect:Bool = true)
+    /// Takes `node` out of this graph as one undo step. Its published ports
+    /// leave the published set first, taking their proxies, and its wires are
+    /// disconnected, each registering its own step in the group; the delete's
+    /// own step only puts the node back.
+    public func delete(node:Node)
     {
         guard let savedIndex = nodes.firstIndex(where: { $0 === node }) else { return }
 
@@ -835,7 +831,7 @@ internal import AnyCodable
             }
 
             let nodePortIDs = Set(node.ports.map(\.id))
-            for connection in connections where disconnect && (nodePortIDs.contains(connection.outletPortID) || nodePortIDs.contains(connection.inletPortID))
+            for connection in connections where nodePortIDs.contains(connection.outletPortID) || nodePortIDs.contains(connection.inletPortID)
             {
                 self.disconnect(connection)
             }
@@ -1121,15 +1117,6 @@ internal import AnyCodable
             markNodeForLifecycleReview(outletNode)
             markNodeForLifecycleReview(inletNode)
         }
-    }
-
-    private func transferConnection(_ connection: Connection, to destination: Graph)
-    {
-        connections.removeAll { $0 === connection }
-        if !destination.connections.contains(where: { $0 === connection }) {
-            destination.connections.append(connection)
-        }
-        connection.graph = destination
     }
 
     private func rebindConnection(_ connection: Connection, replacing oldPort: Port, with newPort: Port)
@@ -1607,42 +1594,18 @@ internal import AnyCodable
         }
     }
 
-    private struct PublishedPortState
-    {
-        let port: Port
-        let published: Bool
-        let publishedName: String?
-    }
-
-    private struct BoundaryConnectionState
-    {
-        let connection: Connection
-        let innerPort: Port
-        var usesProxy = false
-    }
-
-    private final class SubgraphEmbedding
-    {
-        let nodes: [Node]
-        let subgraphNode: SubgraphNode
-        let internalConnections: [Connection]
-        var boundaryConnections: [BoundaryConnectionState]
-        let publishedPortStates: [PublishedPortState]
-
-        init(nodes: [Node],
-             subgraphNode: SubgraphNode,
-             internalConnections: [Connection],
-             boundaryConnections: [BoundaryConnectionState],
-             publishedPortStates: [PublishedPortState])
-        {
-            self.nodes = nodes
-            self.subgraphNode = subgraphNode
-            self.internalConnections = internalConnections
-            self.boundaryConnections = boundaryConnections
-            self.publishedPortStates = publishedPortStates
-        }
-    }
-
+    /// Moves `nodes`, nodes of this graph, into the sub graph of a new
+    /// `subgraphClass` node standing where `node` stands, as one undo group
+    /// of ordinary edits. A wire between moved nodes is made again inside; a
+    /// moved port wired across the boundary is published inside, under the
+    /// published name it had here, and its wires are made again on the proxy
+    /// standing for it here. A moved port published in this graph leaves the
+    /// published set first, so that inside only the boundary is published.
+    /// A moved inlet sees its wire disconnected and connected again within
+    /// the edit, so a node that acts on either sees both.
+    ///
+    /// Throws, changing nothing, where `nodes` is empty, a node is not in
+    /// this graph, or a boundary port is of a type no proxy can stand for.
     @discardableResult
     public func createSubgraph(from nodes: [Node],
                                centeredOn node: Node,
@@ -1660,168 +1623,91 @@ internal import AnyCodable
             throw recoverableGraphError(.nodeNotInGraph,
                                         message: "Node \(node.id) does not belong to this graph.")
         }
+        var selectedNodeIDs = Set<UUID>()
+        let nodes = nodes.filter { selectedNodeIDs.insert($0.id).inserted }
 
-        let selectedNodeIDs = Set(nodes.map(\.id))
-        let relevantConnections = connections.filter { connection in
-            guard let outletNodeID = connection.outletPort?.node?.id,
-                  let inletNodeID = connection.inletPort?.node?.id
-            else { return false }
-            return selectedNodeIDs.contains(outletNodeID) || selectedNodeIDs.contains(inletNodeID)
-        }
-        let internalConnections = relevantConnections.filter { connection in
-            guard let outletNodeID = connection.outletPort?.node?.id,
-                  let inletNodeID = connection.inletPort?.node?.id
-            else { return false }
-            return selectedNodeIDs.contains(outletNodeID) && selectedNodeIDs.contains(inletNodeID)
-        }
-        let internalConnectionIDs = Set(internalConnections.map(\.id))
-        let boundaryConnections = relevantConnections
-            .filter { !internalConnectionIDs.contains($0.id) }
-            .compactMap { connection -> BoundaryConnectionState? in
-                let movedPort: Port?
-                if let outlet = connection.outletPort,
-                   let outletNodeID = outlet.node?.id,
-                   selectedNodeIDs.contains(outletNodeID)
-                {
-                    movedPort = outlet
-                }
-                else if let inlet = connection.inletPort,
-                        let inletNodeID = inlet.node?.id,
-                        selectedNodeIDs.contains(inletNodeID)
-                {
-                    movedPort = inlet
-                }
-                else
-                {
-                    movedPort = nil
-                }
-                return movedPort.map { BoundaryConnectionState(connection: connection, innerPort: $0) }
-            }
-        let publishedPortStates = Dictionary(
-            boundaryConnections.map { ($0.innerPort.id, $0.innerPort) },
+        let movedPortsByID = Dictionary(nodes.flatMap(\.ports).map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let outsidePortsByID = Dictionary(
+            self.nodes.filter { !selectedNodeIDs.contains($0.id) }.flatMap(\.ports).map { ($0.id, $0) },
             uniquingKeysWith: { first, _ in first }
-        ).values.map {
-            PublishedPortState(port: $0, published: $0.published, publishedName: $0.publishedName)
+        )
+        let wires = self.connections
+            .filter { movedPortsByID[$0.outletPortID] != nil || movedPortsByID[$0.inletPortID] != nil }
+            .map(Wire.init)
+        let internalWires = wires.filter { movedPortsByID[$0.outletPortID] != nil && movedPortsByID[$0.inletPortID] != nil }
+        let boundaryWires = wires.filter { (movedPortsByID[$0.outletPortID] != nil) != (movedPortsByID[$0.inletPortID] != nil) }
+
+        // In the order their wires stand, which the proxies take.
+        var boundaryPortIDs = Set<UUID>()
+        let boundaryPorts = boundaryWires.compactMap { wire -> Port? in
+            let port = movedPortsByID[wire.outletPortID] ?? movedPortsByID[wire.inletPortID]
+            return port.flatMap { boundaryPortIDs.insert($0.id).inserted ? $0 : nil }
         }
-
-        let subgraphNode = subgraphClass.init(context: context)
-        subgraphNode.offset = node.offset
-        subgraphNode.subGraph.undoManager = undoManager
-        let embedding = SubgraphEmbedding(nodes: nodes,
-                                          subgraphNode: subgraphNode,
-                                          internalConnections: internalConnections,
-                                          boundaryConnections: boundaryConnections,
-                                          publishedPortStates: publishedPortStates)
-
-        applyEmbedding(embedding)
-        self.registerUndo { graph in
-            graph.revertEmbedding(embedding)
+        for port in boundaryPorts where !SubgraphNode.canProxy(port)
+        {
+            throw recoverableGraphError(.portCannotBeProxied,
+                                        message: "Port \(port.name) (\(port.id)) has a type a sub graph cannot publish.")
         }
-        undoManager?.setActionName("Create Subgraph")
-        return subgraphNode
-    }
+        let boundaryPublishedNames = boundaryPorts.map(\.publishedName)
 
-    private func applyEmbedding(_ embedding: SubgraphEmbedding)
-    {
-        performWithBatchedConnectionTopologyChanges {
-            embedding.subgraphNode.subGraph.performWithBatchedConnectionTopologyChanges {
-                withoutUndoRegistration {
-                    self.addNode(embedding.subgraphNode)
-                    for node in embedding.nodes {
-                        self.delete(node: node, disconnect: false)
-                        embedding.subgraphNode.subGraph.addNode(node)
-                    }
+        return self.performEdit(named: "Create Subgraph") {
 
-                    for connection in embedding.internalConnections {
-                        self.transferConnection(connection, to: embedding.subgraphNode.subGraph)
-                    }
-
-                    for state in embedding.publishedPortStates {
-                        embedding.subgraphNode.subGraph.setPublished(true, on: state.port)
-                    }
-                    embedding.subgraphNode.subGraph.rebuildPublishedParameterGroup()
-
-                    for index in embedding.boundaryConnections.indices {
-                        let state = embedding.boundaryConnections[index]
-                        if let proxy = embedding.subgraphNode.ports.first(where: {
-                            $0.id == state.innerPort.id && $0 is any ProxyPortProtocol
-                        }) {
-                            self.rebindConnection(state.connection, replacing: state.innerPort, with: proxy)
-                            embedding.boundaryConnections[index].usesProxy = true
-                        }
-                        else if let outlet = state.connection.outletPort,
-                                let inlet = state.connection.inletPort
-                        {
-                            outlet.sendBoxed(nil, force: true)
-                            self.detachConnection(state.connection, outlet: outlet, inlet: inlet)
-                            embedding.boundaryConnections[index].usesProxy = false
-                        }
-                    }
-
-                    self.markConnectionTopologyChanged()
-                    embedding.subgraphNode.subGraph.markConnectionTopologyChanged()
+            for movedNode in nodes
+            {
+                for port in movedNode.ports where port.published
+                {
+                    self.setPublished(false, on: port)
                 }
             }
+            for movedNode in nodes
+            {
+                self.delete(node: movedNode)
+            }
+
+            let subgraphNode = subgraphClass.init(context: self.context)
+            subgraphNode.offset = node.offset
+            // Added before anything is made inside it: a step registered in the
+            // sub graph finds its way back through this node.
+            self.addNode(subgraphNode)
+
+            let subGraph = subgraphNode.subGraph
+            for movedNode in nodes
+            {
+                subGraph.addNode(movedNode)
+            }
+            for wire in internalWires
+            {
+                subGraph.reconnect(wire) { movedPortsByID[$0] }
+            }
+            for (port, publishedName) in zip(boundaryPorts, boundaryPublishedNames)
+            {
+                subGraph.setPublished(true, on: port, name: publishedName)
+            }
+            let proxiesByInnerPortID = Dictionary(
+                subgraphNode.ports.compactMap { port in
+                    (port as? any ProxyPortProtocol).map { ($0.innerPortID, port) }
+                },
+                uniquingKeysWith: { first, _ in first }
+            )
+            for wire in boundaryWires
+            {
+                self.reconnect(wire) { proxiesByInnerPortID[$0] ?? outsidePortsByID[$0] }
+            }
+
+            return subgraphNode
         }
     }
 
-    private func revertEmbedding(_ embedding: SubgraphEmbedding)
+    /// Connects the ports `port(_:)` finds for the ends of `wire` in this
+    /// graph, disabled if `wire` was: a new connection, under a new id.
+    private func reconnect(_ wire: Wire, findingPortsWith port: (UUID) -> Port?)
     {
-        let boundaryProxiesByInnerPortID = embedding.boundaryConnections.reduce(into: [UUID: Port]()) { proxies, state in
-            guard state.usesProxy,
-                  proxies[state.innerPort.id] == nil,
-                  let proxy = embedding.subgraphNode.ports.first(where: {
-                      $0.id == state.innerPort.id && $0 is any ProxyPortProtocol
-                  })
-            else { return }
+        guard let outlet = port(wire.outletPortID),
+              let inlet = port(wire.inletPortID),
+              let connection = self.connect(outlet, to: inlet)
+        else { return }
 
-            proxies[state.innerPort.id] = proxy
-        }
-
-        performWithBatchedConnectionTopologyChanges {
-            embedding.subgraphNode.subGraph.performWithBatchedConnectionTopologyChanges {
-                withoutUndoRegistration {
-                    self.delete(node: embedding.subgraphNode, disconnect: false)
-                    for node in embedding.nodes {
-                        embedding.subgraphNode.subGraph.delete(node: node, disconnect: false)
-                        self.addNode(node)
-                    }
-
-                    for connection in embedding.internalConnections {
-                        embedding.subgraphNode.subGraph.transferConnection(connection, to: self)
-                    }
-
-                    for state in embedding.boundaryConnections {
-                        let proxy = boundaryProxiesByInnerPortID[state.innerPort.id]
-
-                        if state.usesProxy, let proxy
-                        {
-                            self.rebindConnection(state.connection, replacing: proxy, with: state.innerPort)
-                        }
-                        else if !state.usesProxy,
-                                let outlet = self.nodePort(forID: state.connection.outletPortID),
-                                let inlet = self.nodePort(forID: state.connection.inletPortID)
-                        {
-                            self.attachConnection(state.connection, outlet: outlet, inlet: inlet)
-                            outlet.sendBoxed(outlet.snapshotValue(), force: true)
-                        }
-                    }
-
-                    for state in embedding.publishedPortStates {
-                        state.port.setPublishing(state.published, name: state.publishedName)
-                    }
-                    embedding.subgraphNode.subGraph.rebuildPublishedParameterGroup()
-
-                    self.markConnectionTopologyChanged()
-                    embedding.subgraphNode.subGraph.markConnectionTopologyChanged()
-                }
-            }
-        }
-
-        self.registerUndo { graph in
-            graph.applyEmbedding(embedding)
-        }
-        undoManager?.setActionName("Create Subgraph")
+        if !wire.active { self.setConnection(connection, active: false) }
     }
 
     internal func withoutUndoRegistration(_ operation: () -> Void)
@@ -1835,20 +1721,6 @@ internal import AnyCodable
         operation()
     }
 
-    private func performWithBatchedConnectionTopologyChanges(_ operation: () -> Void)
-    {
-        connectionTopologyBatchDepth += 1
-        defer {
-            connectionTopologyBatchDepth -= 1
-            if connectionTopologyBatchDepth == 0, hasPendingBatchedConnectionTopologyChange
-            {
-                hasPendingBatchedConnectionTopologyChange = false
-                markConnectionTopologyChanged()
-            }
-        }
-        operation()
-    }
-    
     // Theres a possible race condition here, as a node
     // may not have a object loaded yet
     // ( lazy loading, needs execution, isnt connected)

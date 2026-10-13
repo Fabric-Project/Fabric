@@ -102,7 +102,9 @@ For all development:
   - Settings should have a custom Init override, and be exposed as a enum or struct that can be set via the procedural Node / Graph API. This avoids UI only configuration.
   - A node with settings exposes them as one `NodeSettings` value through `settings` and `apply(_:)`, and offers `init(context:settings:)`. `apply` brings the node, its ports included, to the value; a port whose registry key survives keeps its identity. A subclass takes its own type out of the existential and calls super; a base class reads its part through a protocol on the value, as `StrategySettings` carries the strategy. `Node.encode(to:)` writes the value flattened into the node's own container; `init(from:)` decodes it before `super.init`. State saved with the node that the settings view does not edit, such as a device's reconnect record, stays in `encode(to:)`.
   - A settings view commits a draft through `Graph.setSettings`: on each change for pickers, steppers and buttons, after a pause and when editing ends for text and code (`NodeSettingsDraft`). The node is not written until the commit. A draft takes the node's value when `settingsChangedSubject` fires.
+  - Every edit registers, through the graph it was made in. A compound edit is an undo group; nothing inside it is suppressed.
   - Undo and redo are driven through `Graph.undo()` / `redo()`, which commit pending drafts first; an app provides its Undo and Redo commands on them.
+  - A handler re-applies through the public API. What it registers goes to the redo stack. Registration is suspended only around construction, decode and the primitives a handler has no API for.
   - A step holds ids and values and finds what it acts on by id. It does not hold wires, proxies or other steps' work: a settings step holds the settings either side and the states of the ports the change touched, and the wires and proxies those ports take register steps of their own in the same group.
 
 - Important Node subclasses
@@ -208,6 +210,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 - [ ] Node metadata present and stable  
 - [ ] `registerPorts(context:)` calls `super`, order intentional  
 - [ ] Lifecycle overrides call `super` after their own work; editing code never calls them
+- [ ] Every edit registers, through the graph it was made in; a compound edit is an undo group, and nothing inside it suspends registration. `withoutUndoRegistration` is only for construction, decode and the primitives an undo handler has no API for
 - [ ] Undo steps register through `Graph.registerUndo(_:)` (or `registerUndo(on:_:)` for a node) on the graph the edit was made in, never on the undo manager directly: the graph is the one place that sees every edit (`UndoRegistrationTests` checks core code). A step holds ids and values and finds what it acts on in the graph it is handed, never holding the graph's nodes, ports, wires or notes: something may have put another object under the same id by the time it runs
 - [ ] ParameterPorts seed and subscribe once  
 - [ ] `execute` idempotent per frame, no allocations  

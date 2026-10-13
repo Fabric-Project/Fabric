@@ -190,6 +190,39 @@ struct GraphNodeLifecycleTests
         #expect(second.lifecycleCalls == ["enable", "start"])
     }
 
+    @Test("A running node Create Subgraph moves across a boundary wire stays started through undo and redo")
+    func embeddingAcrossABoundaryDoesNotRestart() throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let graph = Graph(context: harness.context)
+        let renderer = harness.graphRenderer(for: graph)
+        let undoManager = UndoManager()
+        let upstream = LifecycleRecordingNode(context: harness.context)
+        let moved = LifecycleRecordingNode(context: harness.context)
+        graph.addNode(upstream)
+        graph.addNode(moved)
+        graph.connect(upstream.output, to: moved.input)
+        try renderer.startExecution()
+        graph.undoManager = undoManager
+
+        // Its one wire crosses the boundary: inside, a published port is what keeps it connected.
+        try graph.createSubgraph(from: [moved], centeredOn: moved, usingClass: SubgraphNode.self)
+        try renderer.synchronizeLifecycle()
+        #expect(moved.input.published)
+        #expect(moved.executionState == .started)
+
+        undoManager.undo()
+        try renderer.synchronizeLifecycle()
+        undoManager.redo()
+        try renderer.synchronizeLifecycle()
+        undoManager.undo()
+        try renderer.synchronizeLifecycle()
+
+        #expect(moved.graph === graph)
+        #expect(moved.lifecycleCalls == ["enable", "start"])
+        #expect(upstream.lifecycleCalls == ["enable", "start"])
+    }
+
     @Test("Deleting a subgraph node stops and disables the nodes inside it")
     func deletingSubgraphRetiresItsChildren() throws
     {

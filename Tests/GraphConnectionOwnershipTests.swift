@@ -4,6 +4,27 @@ import Testing
 @testable import Fabric
 import Satin
 
+/// Ports of a type no proxy can stand for: an array of arrays.
+private final class NestedArrayNode: Node
+{
+    override class var name: String { "Nested Array" }
+    override class var nodeType: Node.NodeType { .Utility }
+    override class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override class var nodeTimeMode: Node.TimeMode { .None }
+    override class var nodeDescription: String { "Ports of a type no proxy stands for" }
+
+    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
+    {
+        super.registerPorts(context: context) + [
+            ("input", NodePort<ContiguousArray<ContiguousArray<Float>>>(name: "Input", kind: .Inlet)),
+            ("output", NodePort<ContiguousArray<ContiguousArray<Float>>>(name: "Output", kind: .Outlet)),
+        ]
+    }
+
+    var input: NodePort<ContiguousArray<ContiguousArray<Float>>> { port(named: "input") }
+    var output: NodePort<ContiguousArray<ContiguousArray<Float>>> { port(named: "output") }
+}
+
 @Suite("Graph Connection Ownership")
 struct GraphConnectionOwnershipTests
 {
@@ -392,7 +413,7 @@ struct GraphConnectionOwnershipTests
         #expect(sink.inputNumber1.connections == [connection])
     }
 
-    @Test("Embedding transfers internal wires and undo restores their identity")
+    @Test("Embedding makes internal wires again inside, and undo and redo restore each under its own id")
     func embeddingTransfersInternalConnections() throws
     {
         guard let context = makeContext() else { return }
@@ -411,17 +432,20 @@ struct GraphConnectionOwnershipTests
         let subgraphNode = try graph.createSubgraph(from: [source, sink],
                                                     centeredOn: source,
                                                     usingClass: SubgraphNode.self)
-        #expect(graph.connectionRevision == revisionBeforeEmbedding + 1)
+        #expect(graph.connectionRevision > revisionBeforeEmbedding)
         #expect(graph.connections.isEmpty)
-        #expect(subgraphNode.subGraph.connections == [connection])
-        #expect(connection.graph === subgraphNode.subGraph)
-        #expect(!connection.active)
+        #expect(subgraphNode.subGraph.connections.count == 1)
+        let embedded = try #require(subgraphNode.subGraph.connections.first)
+        #expect(embedded.graph === subgraphNode.subGraph)
+        #expect(embedded.outletPort === source.outputNumber)
+        #expect(embedded.inletPort === sink.inputNumber1)
+        #expect(!embedded.active)
 
         let canvasContext = GraphCanvasContext(rootGraph: graph)
         canvasContext.enter(subgraphNode)
         let pairs = canvasContext.connectionPairs(for: canvasContext.currentGraph)
         #expect(pairs.count == 1)
-        #expect(pairs.first?.connection === connection)
+        #expect(pairs.first?.connection === embedded)
 
         let encoded = try JSONEncoder().encode(graph)
         let decoder = JSONDecoder()
@@ -430,24 +454,28 @@ struct GraphConnectionOwnershipTests
         let decodedSubgraph = try #require(decoded.nodes.first { $0.id == subgraphNode.id } as? SubgraphNode)
         let decodedConnection = try #require(decodedSubgraph.subGraph.connections.first)
         #expect(decoded.connections.isEmpty)
-        #expect(decodedConnection.id == connection.id)
+        #expect(decodedConnection.id == embedded.id)
         #expect(decodedConnection.graph === decodedSubgraph.subGraph)
         #expect(!decodedConnection.active)
 
         let revisionBeforeUndo = graph.connectionRevision
         undoManager.undo()
-        #expect(graph.connectionRevision == revisionBeforeUndo + 1)
+        #expect(graph.connectionRevision > revisionBeforeUndo)
         #expect(graph.nodes.contains { $0 === source })
         #expect(graph.nodes.contains { $0 === sink })
-        #expect(graph.connections == [connection])
-        #expect(connection.graph === graph)
+        #expect(graph.connections.map(\.id) == [connection.id])
+        #expect(graph.connections.first?.graph === graph)
+        #expect(graph.connections.first?.outletPort === source.outputNumber)
+        #expect(graph.connections.first?.inletPort === sink.inputNumber1)
+        #expect(graph.connections.first?.active == false)
 
         let revisionBeforeRedo = graph.connectionRevision
         undoManager.redo()
-        #expect(graph.connectionRevision == revisionBeforeRedo + 1)
+        #expect(graph.connectionRevision > revisionBeforeRedo)
         #expect(graph.nodes.contains { $0 === subgraphNode })
-        #expect(subgraphNode.subGraph.connections == [connection])
-        #expect(connection.graph === subgraphNode.subGraph)
+        #expect(subgraphNode.subGraph.connections.map(\.id) == [embedded.id])
+        #expect(subgraphNode.subGraph.connections.first?.graph === subgraphNode.subGraph)
+        #expect(subgraphNode.subGraph.connections.first?.active == false)
     }
 
     @Test("Invalid subgraph selections use the shared Fabric graph error domain")
@@ -488,6 +516,69 @@ struct GraphConnectionOwnershipTests
         }
     }
 
+    @Test("A boundary port no proxy can stand for refuses the embedding, changing nothing")
+    func unproxyableBoundaryRefusesEmbedding() throws
+    {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let upstream = NestedArrayNode(context: context)
+        let moved = NestedArrayNode(context: context)
+        graph.addNode(upstream)
+        graph.addNode(moved)
+        let wire = try #require(graph.connect(upstream.output, to: moved.input))
+        #expect(!SubgraphNode.canProxy(moved.input))
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        graph.undoManager = undoManager
+
+        do
+        {
+            _ = try graph.createSubgraph(from: [moved], centeredOn: moved, usingClass: SubgraphNode.self)
+            Issue.record("Expected a port error")
+        }
+        catch let error as FabricError
+        {
+            #expect(error.kind == .graph(.portCannotBeProxied))
+            #expect(error.severity == .recoverable)
+            #expect(error.localizedDescription.contains(moved.input.id.uuidString))
+        }
+
+        #expect(graph.nodes.map(\.id) == [upstream.id, moved.id])
+        #expect(graph.connections.map(\.id) == [wire.id])
+        #expect(!moved.input.published)
+        #expect(!undoManager.canUndo)
+
+        // A supported type passes the same check.
+        let supported = NumberBinaryOperator(context: context)
+        #expect(SubgraphNode.canProxy(supported.inputNumber1))
+    }
+
+    @Test("A node given twice is moved once")
+    func duplicateSelectionMovesOnce() throws
+    {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let upstream = NumberBinaryOperator(context: context)
+        let moved = NumberBinaryOperator(context: context)
+        graph.addNode(upstream)
+        graph.addNode(moved)
+        graph.connect(upstream.outputNumber, to: moved.inputNumber1)
+        let undoManager = UndoManager()
+        graph.undoManager = undoManager
+
+        let subgraphNode = try graph.createSubgraph(from: [moved, moved], centeredOn: moved, usingClass: SubgraphNode.self)
+        #expect(subgraphNode.subGraph.nodes.map(\.id) == [moved.id])
+        #expect(graph.nodes.map(\.id) == [upstream.id, subgraphNode.id])
+        #expect(graph.connections.count == 1)
+        #expect(subgraphNode.ports.filter { $0 is any ProxyPortProtocol }.map(\.id) == [moved.inputNumber1.id])
+
+        undoManager.undo()
+        #expect(graph.nodes.map(\.id) == [upstream.id, moved.id])
+        #expect(graph.connections.count == 1)
+    }
+
     @Test("Embedding rebinds incoming and outgoing boundaries to proxies")
     func embeddingRebindsBoundaryConnections() throws
     {
@@ -513,8 +604,10 @@ struct GraphConnectionOwnershipTests
 
         #expect(inletProxy is any ProxyPortProtocol)
         #expect(outletProxy is any ProxyPortProtocol)
-        #expect(incoming.inletPort === inletProxy)
-        #expect(outgoing.outletPort === outletProxy)
+        let embeddedIncoming = try #require(upstream.outputNumber.connections.first)
+        let embeddedOutgoing = try #require(downstream.inputNumber1.connections.first)
+        #expect(embeddedIncoming.inletPort === inletProxy)
+        #expect(embeddedOutgoing.outletPort === outletProxy)
         #expect(moved.inputNumber1.connections.isEmpty)
         #expect(moved.outputNumber.connections.isEmpty)
         #expect(graph.connections.count == 2)
@@ -526,16 +619,18 @@ struct GraphConnectionOwnershipTests
         #expect(moved.inputNumber1.value == 21)
 
         undoManager.undo()
-        #expect(incoming.inletPort === moved.inputNumber1)
-        #expect(outgoing.outletPort === moved.outputNumber)
+        #expect(moved.inputNumber1.connections.map(\.id) == [incoming.id])
+        #expect(moved.outputNumber.connections.map(\.id) == [outgoing.id])
+        #expect(moved.inputNumber1.connections.first?.outletPort === upstream.outputNumber)
+        #expect(moved.outputNumber.connections.first?.inletPort === downstream.inputNumber1)
         #expect(!moved.inputNumber1.published)
         #expect(!moved.outputNumber.published)
-        #expect(moved.inputNumber1.connections == [incoming])
-        #expect(moved.outputNumber.connections == [outgoing])
 
         undoManager.redo()
-        #expect(incoming.inletPort?.node === subgraphNode)
-        #expect(outgoing.outletPort?.node === subgraphNode)
+        #expect(upstream.outputNumber.connections.map(\.id) == [embeddedIncoming.id])
+        #expect(downstream.inputNumber1.connections.map(\.id) == [embeddedOutgoing.id])
+        #expect(upstream.outputNumber.connections.first?.inletPort?.node === subgraphNode)
+        #expect(downstream.inputNumber1.connections.first?.outletPort?.node === subgraphNode)
         #expect(graph.connections.count == 2)
     }
 }
