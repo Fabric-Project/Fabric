@@ -10,7 +10,7 @@ import SwiftUI
 
 @Observable public class Note : Codable, Hashable, Identifiable, Equatable
 {
-    public let id = UUID()
+    public let id: UUID
     public var note:String
     public var rect:CGRect
 //    let color:Color // do we actually care?
@@ -27,8 +27,9 @@ import SwiftUI
         return lhs.id == rhs.id && lhs.note == rhs.note && lhs.rect == rhs.rect
     }
     
-    public init(note: String, rect: CGRect)
+    public init(note: String, rect: CGRect, id: UUID = UUID())
     {
+        self.id = id
         self.note = note
         self.rect = rect
     }
@@ -36,6 +37,9 @@ import SwiftUI
     required public init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        // Encoded since notes were added; read back so a note keeps its
+        // identity across a save, as nodes and ports do.
+        self.id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
         self.note = try container.decode(String.self, forKey: .note)
         self.rect = try container.decode(CGRect.self, forKey: .rect)
     }
