@@ -159,4 +159,68 @@ struct EditUndoTests
         #expect(note.note == "Typed")
     }
 
+    @Test("A parameter set through its control is one undo step per change, or per edit while one is in progress")
+    @MainActor
+    func parameterEditsUndo() throws
+    {
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        guard let context = makeContext() else { return }
+        let graph = Graph(context: context)
+        let node = NumberBinaryOperator(context: context)
+        graph.addNode(node)
+        graph.undoManager = undoManager
+        let parameter = try #require(node.inputNumber1.parameter as? FloatParameter)
+        parameter.label = "Amount"
+        parameter.value = 1
+        let model = ParameterObservableModel(label: parameter.label,
+                                             get: { parameter.value },
+                                             set: { parameter.value = $0 },
+                                             publisher: parameter.valuePublisher,
+                                             graph: graph,
+                                             undoParameter: parameter)
+
+        // A discrete change.
+        step(undoManager) { model.uiValue = 2 }
+        #expect(undoManager.undoActionName == "Change Amount")
+
+        // A drag: many changes, one step.
+        step(undoManager) {
+            model.setEditing(true)
+            model.uiValue = 3
+            model.uiValue = 4
+            model.uiValue = 5
+            model.setEditing(false)
+        }
+
+        undoManager.undo()
+        #expect(parameter.value == 2)
+        undoManager.undo()
+        #expect(parameter.value == 1)
+        #expect(!undoManager.canUndo)
+        undoManager.redo()
+        undoManager.redo()
+        #expect(parameter.value == 5)
+    }
+
+    @Test("A momentary control's changes are not undo steps")
+    @MainActor
+    func untargetedParameterEditsRegisterNothing()
+    {
+        let parameter = BoolParameter("Fire", false, .button, "")
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        guard let context = makeContext() else { return }
+        let graph = Graph(context: context)
+        graph.undoManager = undoManager
+        let model = ParameterObservableModel(label: parameter.label,
+                                             get: { parameter.value },
+                                             set: { parameter.value = $0 },
+                                             publisher: parameter.valuePublisher,
+                                             graph: graph)
+
+        step(undoManager) { model.uiValue = true }
+        undoManager.undo()
+        #expect(parameter.value)
+    }
 }

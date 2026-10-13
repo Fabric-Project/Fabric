@@ -100,6 +100,7 @@ For all development:
   - Nodes may opt into a QC like ’Settings View’
   - Any Node whose execution logic would change the  type, or number of ports should have only have that logic fire via changing a Setting, NOT at runtime
   - Settings should have a custom Init override, and be exposed as a enum or struct that can be set via the procedural Node / Graph API. This avoids UI only configuration.
+  - Undo and redo are driven through `Graph.undo()` / `redo()`, which commit pending drafts first; an app provides its Undo and Redo commands on them.
 
 - Important Node subclasses
   - StrategyNode / TypeAgnosticNode - useful for Nodes that can change their port type on demand

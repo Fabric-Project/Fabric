@@ -19,12 +19,14 @@ struct StringMenu: View
 
     @State private var selectedOption: String? = nil
 
-    init(parameter: StringParameter)
+    init(parameter: StringParameter, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: parameter.label,
                                            get: { parameter.value },
                                            set: { parameter.value = $0 },
-                                           publisher: parameter.valuePublisher )
+                                           publisher: parameter.valuePublisher,
+                                           graph: graph,
+                                           undoParameter: parameter)
         
         self.optionsVm = ParameterObservableModel(label: parameter.label,
                                            get: { parameter.options },

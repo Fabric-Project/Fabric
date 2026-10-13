@@ -501,6 +501,31 @@ internal import AnyCodable
         }
     }
 
+    /// Undoes the last step on the undo manager this graph's edits record on.
+    /// Undo is driven through here, not the undo manager: a change a control
+    /// holds for its pause, half-typed text, is committed first, so the undo
+    /// takes it back rather than passing over it.
+    public func undo()
+    {
+        guard let undoManager = self.effectiveUndoManager else { return }
+        PendingCommit.commitAll(on: undoManager)
+        undoManager.undo()
+    }
+
+    /// Redoes the last step undone; see undo().
+    public func redo()
+    {
+        guard let undoManager = self.effectiveUndoManager else { return }
+        PendingCommit.commitAll(on: undoManager)
+        undoManager.redo()
+    }
+
+    public var canUndo: Bool { self.effectiveUndoManager?.canUndo ?? false }
+
+    /// Reading this posts the undo manager's checkpoint notification, so a
+    /// menu that validates on it should read it as the manager's
+    /// notifications come instead.
+    public var canRedo: Bool { self.effectiveUndoManager?.canRedo ?? false }
 
     /// The undo manager edits made in this graph record on: its own, or the
     /// root's until the canvas gives it its own. withoutUndoRegistration(_:)
@@ -564,6 +589,39 @@ internal import AnyCodable
         }
     }
 
+    /// Records a change already made to `parameter`'s value, from `previous`,
+    /// as an undo step. The parameter is a port's, on a node in this graph or
+    /// in a graph inside it, as a published parameter shown further up is.
+    public func registerValueChange<Value: Codable & Equatable>(of parameter: GenericParameter<Value>,
+                                                               from previous: Value,
+                                                               label: String)
+    {
+        guard let owner = self.graph(holdingPortOf: parameter) else { return }
+        let portID = parameter.id
+        let current = parameter.value
+        owner.registerUndo { graph in
+            guard let parameter = graph.nodePort(forID: portID)?.parameter as? GenericParameter<Value> else { return }
+            parameter.value = previous
+            graph.registerValueChange(of: parameter, from: current, label: label)
+        }
+        owner.effectiveUndoManager?.setActionName("Change \(label)")
+    }
+
+    /// The graph, this one or one inside it, with the port `parameter` is
+    /// the parameter of. A proxy shares its inner port's parameter, and is
+    /// passed over for it.
+    private func graph(holdingPortOf parameter: any Parameter) -> Graph?
+    {
+        let holdsPort = self.nodes.contains { node in
+            node.ports.contains { $0.parameter === parameter && !($0 is any ProxyPortProtocol) }
+        }
+        if holdsPort { return self }
+        for case let subgraphNode as SubgraphNode in self.nodes
+        {
+            if let graph = subgraphNode.subGraph.graph(holdingPortOf: parameter) { return graph }
+        }
+        return nil
+    }
 
     /// Where an undo step acts: the root graph, and the ids of the subgraph
     /// nodes from it down to the graph the edit was made in.

@@ -15,6 +15,8 @@ fileprivate struct SimpleIntSlider<T : SignedInteger & CVarArg>: View
     @Binding var value:T
     @Binding var min:T
     @Binding var max:T
+    /// True as a drag starts, false as it ends.
+    var onEditingChanged: (Bool) -> Void = { _ in }
     
     @State var sliderForegroundColor:Color = .black.opacity(0.25)
     @State var recorderForegroundColor:Color = .orange
@@ -59,6 +61,7 @@ fileprivate struct SimpleIntSlider<T : SignedInteger & CVarArg>: View
                 .frame(width: sliderWidth, height: self.sliderHeight)
                 .gesture(DragGesture(minimumDistance: 0)
                     .onChanged({ v in
+                        self.onEditingChanged(true)
                         let normalizedValue = Swift.min(Swift.max(0.0, Float(v.location.x / sliderWidth )), 1.0)
                         
                         self.value = T(remap(normalizedValue,
@@ -67,7 +70,9 @@ fileprivate struct SimpleIntSlider<T : SignedInteger & CVarArg>: View
                                            Float(self.min),
                                            Float(self.max)))
                     })
+                    .onEnded({ _ in self.onEditingChanged(false) })
                 )
+                .onDisappear { self.onEditingChanged(false) }
             }
             .cornerRadius(cornerRadius)
         }
@@ -82,12 +87,14 @@ struct IntSlider: View, Equatable
     @Bindable var vmMin: ParameterObservableModel<Int>
     @Bindable var vmMax: ParameterObservableModel<Int>
 
-    init(param: IntParameter)
+    init(param: IntParameter, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
-                                           publisher:param.valuePublisher )
+                                           publisher:param.valuePublisher,
+                                           graph: graph,
+                                           undoParameter: param)
         
         self.vmMin = ParameterObservableModel(label: param.label,
                                               get: { param.min },
@@ -102,7 +109,7 @@ struct IntSlider: View, Equatable
     
     var body: some View
     {
-        SimpleIntSlider<Int>(label: self.vm.label, value: self.$vm.uiValue, min: self.$vmMin.uiValue, max: self.$vmMax.uiValue)
+        SimpleIntSlider<Int>(label: self.vm.label, value: self.$vm.uiValue, min: self.$vmMin.uiValue, max: self.$vmMax.uiValue, onEditingChanged: self.vm.setEditing)
     }
 }
 
@@ -115,12 +122,14 @@ struct Int2Slider: View, Equatable
     @Bindable var vmMin: ParameterObservableModel<simd_int2>
     @Bindable var vmMax: ParameterObservableModel<simd_int2>
 
-    init(param: Int2Parameter)
+    init(param: Int2Parameter, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
-                                           publisher:param.valuePublisher )
+                                           publisher:param.valuePublisher,
+                                           graph: graph,
+                                           undoParameter: param)
         
         self.vmMin = ParameterObservableModel(label: param.label,
                                               get: { param.min },
@@ -138,8 +147,8 @@ struct Int2Slider: View, Equatable
        
         VStack
         {
-            SimpleIntSlider<Int32>(label: self.vm.label + "X", value: self.$vm.uiValue.x, min: self.$vmMin.uiValue.x, max: self.$vmMax.uiValue.x)
-            SimpleIntSlider<Int32>(label: self.vm.label + "Y", value: self.$vm.uiValue.y, min: self.$vmMin.uiValue.y, max: self.$vmMax.uiValue.y)
+            SimpleIntSlider<Int32>(label: self.vm.label + "X", value: self.$vm.uiValue.x, min: self.$vmMin.uiValue.x, max: self.$vmMax.uiValue.x, onEditingChanged: self.vm.setEditing)
+            SimpleIntSlider<Int32>(label: self.vm.label + "Y", value: self.$vm.uiValue.y, min: self.$vmMin.uiValue.y, max: self.$vmMax.uiValue.y, onEditingChanged: self.vm.setEditing)
 
         }
         .frame(height:50)
@@ -154,12 +163,14 @@ struct Int3Slider: View, Equatable
     @Bindable var vmMin: ParameterObservableModel<simd_int3>
     @Bindable var vmMax: ParameterObservableModel<simd_int3>
 
-    init(param: Int3Parameter)
+    init(param: Int3Parameter, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
-                                           publisher:param.valuePublisher )
+                                           publisher:param.valuePublisher,
+                                           graph: graph,
+                                           undoParameter: param)
         
         self.vmMin = ParameterObservableModel(label: param.label,
                                               get: { param.min },
@@ -176,9 +187,9 @@ struct Int3Slider: View, Equatable
     {
         VStack
         {
-            SimpleIntSlider<Int32>(label: self.vm.label + "X", value: self.$vm.uiValue.x, min: self.$vmMin.uiValue.x, max: self.$vmMax.uiValue.x)
-            SimpleIntSlider<Int32>(label: self.vm.label + "Y", value: self.$vm.uiValue.y, min: self.$vmMin.uiValue.y, max: self.$vmMax.uiValue.y)
-            SimpleIntSlider<Int32>(label: self.vm.label + "Z", value: self.$vm.uiValue.z, min: self.$vmMin.uiValue.z, max: self.$vmMax.uiValue.z)
+            SimpleIntSlider<Int32>(label: self.vm.label + "X", value: self.$vm.uiValue.x, min: self.$vmMin.uiValue.x, max: self.$vmMax.uiValue.x, onEditingChanged: self.vm.setEditing)
+            SimpleIntSlider<Int32>(label: self.vm.label + "Y", value: self.$vm.uiValue.y, min: self.$vmMin.uiValue.y, max: self.$vmMax.uiValue.y, onEditingChanged: self.vm.setEditing)
+            SimpleIntSlider<Int32>(label: self.vm.label + "Z", value: self.$vm.uiValue.z, min: self.$vmMin.uiValue.z, max: self.$vmMax.uiValue.z, onEditingChanged: self.vm.setEditing)
         }
         .frame(height:80)
     }
@@ -192,12 +203,14 @@ struct Int4Slider: View, Equatable
     @Bindable var vmMin: ParameterObservableModel<simd_int4>
     @Bindable var vmMax: ParameterObservableModel<simd_int4>
 
-    init(param: Int4Parameter)
+    init(param: Int4Parameter, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
-                                           publisher:param.valuePublisher )
+                                           publisher:param.valuePublisher,
+                                           graph: graph,
+                                           undoParameter: param)
         
         self.vmMin = ParameterObservableModel(label: param.label,
                                               get: { param.min },
@@ -214,10 +227,10 @@ struct Int4Slider: View, Equatable
     {
         VStack
         {
-            SimpleIntSlider<Int32>(label: self.vm.label + "X", value: self.$vm.uiValue.x, min: self.$vmMin.uiValue.x, max: self.$vmMax.uiValue.x)
-            SimpleIntSlider<Int32>(label: self.vm.label + "Y", value: self.$vm.uiValue.y, min: self.$vmMin.uiValue.y, max: self.$vmMax.uiValue.y)
-            SimpleIntSlider<Int32>(label: self.vm.label + "Z", value: self.$vm.uiValue.z, min: self.$vmMin.uiValue.z, max: self.$vmMax.uiValue.z)
-            SimpleIntSlider<Int32>(label: self.vm.label + "W", value: self.$vm.uiValue.w, min: self.$vmMin.uiValue.w, max: self.$vmMax.uiValue.w)
+            SimpleIntSlider<Int32>(label: self.vm.label + "X", value: self.$vm.uiValue.x, min: self.$vmMin.uiValue.x, max: self.$vmMax.uiValue.x, onEditingChanged: self.vm.setEditing)
+            SimpleIntSlider<Int32>(label: self.vm.label + "Y", value: self.$vm.uiValue.y, min: self.$vmMin.uiValue.y, max: self.$vmMax.uiValue.y, onEditingChanged: self.vm.setEditing)
+            SimpleIntSlider<Int32>(label: self.vm.label + "Z", value: self.$vm.uiValue.z, min: self.$vmMin.uiValue.z, max: self.$vmMax.uiValue.z, onEditingChanged: self.vm.setEditing)
+            SimpleIntSlider<Int32>(label: self.vm.label + "W", value: self.$vm.uiValue.w, min: self.$vmMin.uiValue.w, max: self.$vmMax.uiValue.w, onEditingChanged: self.vm.setEditing)
         }
         .frame(height:100)
     }
