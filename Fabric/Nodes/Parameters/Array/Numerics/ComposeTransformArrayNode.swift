@@ -101,24 +101,12 @@ public class ComposeTransformArrayNode: StrategyNode
             if count >= concurrentThreshold {
                 output.withUnsafeMutableBufferPointer { buf in
                     DispatchQueue.concurrentPerform(iterations: count) { i in
-                        let s = scales[i]
-                        var m = matrix_float4x4(simd_quatf(safeVector: orientations[i]))
-                        m.columns.0 *= s.x
-                        m.columns.1 *= s.y
-                        m.columns.2 *= s.z
-                        m.columns.3 = simd_float4(positions[i], 1)
-                        buf[i] = m
+                        buf[i] = simd_float4x4(translation: positions[i], rotation: simd_quatf(safeVector: orientations[i]), scale: scales[i])
                     }
                 }
             } else {
                 for i in 0..<count {
-                    let s = scales[i]
-                    var m = matrix_float4x4(simd_quatf(safeVector: orientations[i]))
-                    m.columns.0 *= s.x
-                    m.columns.1 *= s.y
-                    m.columns.2 *= s.z
-                    m.columns.3 = simd_float4(positions[i], 1)
-                    output[i] = m
+                    output[i] = simd_float4x4(translation: positions[i], rotation: simd_quatf(safeVector: orientations[i]), scale: scales[i])
                 }
             }
             outputTransforms.send(output)

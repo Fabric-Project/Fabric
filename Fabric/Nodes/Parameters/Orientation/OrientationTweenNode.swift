@@ -42,11 +42,8 @@ public class OrientationTweenNode : Node
     public var outputOrientation:NodePort<simd_float4> { port(named: "outputOrientation") }
     public var outputProgress:NodePort<Float> { port(named: "outputProgress") }
 
-    // Interpolation is slerp; endpoints are stored as normalized quaternion
-    // vectors so the shared driver can hold them as plain `simd_float4`.
-    private let driver = TweenDriver<simd_float4>(interpolate: {
-        simd_slerp(simd_quatf(vector: $0), simd_quatf(vector: $1), $2).vector
-    })
+    // Quaternions, so the driver slerps; the ports carry them as float4.
+    private let driver = TweenDriver<simd_quatf>()
 
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
@@ -57,11 +54,11 @@ public class OrientationTweenNode : Node
         let time = executionInfo.timing.time
 
         if self.inputTarget.valueDidChange, let targetVec = self.inputTarget.value {
-            driver.setTarget(simd_quatf(safeVector: targetVec).vector, at: time)
+            driver.setTarget(simd_quatf(safeVector: targetVec), at: time)
         }
 
         if let result = driver.update(time: time, duration: self.inputDuration.value, easingName: self.inputEasing.value) {
-            self.outputOrientation.send(result.value)
+            self.outputOrientation.send(result.value.vector)
             self.outputProgress.send(result.progress)
         }
     }

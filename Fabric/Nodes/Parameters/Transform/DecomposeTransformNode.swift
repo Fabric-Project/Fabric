@@ -82,7 +82,7 @@ public class DecomposeTransformNode: StrategyNode
                   let outputRotation: NodePort<simd_float4> = findPort(named: "outputRotation")
             else { return }
 
-            let (translation, orientation, scale) = transform.decomposedTRS
+            let (translation, orientation, scale) = transform.decomposed
 
             outputTranslation.send(translation)
             outputScale.send(scale)

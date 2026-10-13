@@ -88,7 +88,7 @@ public class DecomposeTransformArrayNode: StrategyNode
             var rotations = ContiguousArray<simd_float4>(); rotations.reserveCapacity(transforms.count)
 
             for transform in transforms {
-                let (translation, orientation, scale) = transform.decomposedTRS
+                let (translation, orientation, scale) = transform.decomposed
 
                 translations.append(translation)
                 scales.append(scale)

@@ -52,23 +52,15 @@ struct TweenState
     }
 }
 
-/// Drives a single-value tween toward a target using `TweenState` plus a
-/// supplied interpolation function, so the tween nodes share one state machine.
-/// `Value` is the emitted type; the interpolation closure may decode/encode
-/// internally (e.g. quaternion slerp on a packed float4).
-final class TweenDriver<Value: Equatable>
+/// Drives a single-value tween toward a target using `TweenState`, so the tween
+/// nodes share one state machine. Values interpolate with Satin's `Lerpable`
+/// (orientations slerp).
+final class TweenDriver<Value: Equatable & Lerpable>
 {
     private var tween = TweenState()
     private var from: Value?
     private var to: Value?
     private var current: Value?
-    private let interpolate: (Value, Value, Float) -> Value
-
-    init(interpolate: @escaping (Value, Value, Float) -> Value)
-    {
-        self.interpolate = interpolate
-    }
-
     /// First call snaps to `target`; a later, distinct target tweens from the
     /// current value.
     func setTarget(_ target: Value, at time: TimeInterval)
@@ -92,7 +84,7 @@ final class TweenDriver<Value: Equatable>
         if let duration, let easingName,
            let result = tween.update(time: time, duration: duration, easingName: easingName)
         {
-            let value = result.t >= 1.0 ? to : interpolate(from, to, result.easedT)
+            let value = result.t >= 1.0 ? to : Value.lerp(from, to, result.easedT)
             self.current = value
             return (value, result.t)
         }
@@ -103,7 +95,7 @@ final class TweenDriver<Value: Equatable>
 /// Array equivalent of `TweenDriver`: per-element endpoints sharing one clock.
 /// Emits once per settle (not every idle frame); emits an empty array before
 /// the first target. When the target count grows, new elements start at target.
-final class TweenArrayDriver<Value: Equatable>
+final class TweenArrayDriver<Value: Equatable & Lerpable>
 {
     private var tween = TweenState()
     private var from: [Value] = []
@@ -111,13 +103,6 @@ final class TweenArrayDriver<Value: Equatable>
     private var current: [Value] = []
     private var initialized = false
     private var pendingEmit = true
-    private let interpolate: (Value, Value, Float) -> Value
-
-    init(interpolate: @escaping (Value, Value, Float) -> Value)
-    {
-        self.interpolate = interpolate
-    }
-
     func setTargets(_ targets: [Value], at time: TimeInterval)
     {
         if !initialized {
@@ -146,7 +131,7 @@ final class TweenArrayDriver<Value: Equatable>
             var output = ContiguousArray<Value>()
             output.reserveCapacity(to.count)
             for i in 0..<to.count {
-                let value = result.t >= 1.0 ? to[i] : interpolate(from[i], to[i], result.easedT)
+                let value = result.t >= 1.0 ? to[i] : Value.lerp(from[i], to[i], result.easedT)
                 current[i] = value
                 output.append(value)
             }

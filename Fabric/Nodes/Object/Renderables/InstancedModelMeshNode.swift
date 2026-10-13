@@ -1,5 +1,5 @@
 //
-//  ModelMeshNode.swift
+//  InstancedModelMeshNode.swift
 //  Fabric
 //
 //  Created by Anton Marini on 5/25/25.
@@ -17,7 +17,7 @@ public class InstancedModelMeshNode : InstancedMeshNode
     public override class var nodeType:Node.NodeType { .Object(objectType: .Loader) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Consumer }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Load an 3D model file from disk, rendering it to the scene multiple times via instances"}
+    override public class var nodeDescription: String { "Load a 3D model file from disk, rendering it to the scene multiple times via instances. An animated model (skeletons or moving parts) poses at Time, every instance alike."}
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
@@ -30,10 +30,14 @@ public class InstancedModelMeshNode : InstancedMeshNode
         return ports +
         [
             ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the 3D model file to load"))),
+            ("inputTime", ParameterPort(parameter: FloatParameter("Time", 0.0, .inputfield, "Seconds from the start of the model's animation; held at the first or last pose outside it"))),
+            ("outputDuration", NodePort<Float>(name: "Duration", kind: .Outlet, description: "Length of the model's animation in seconds; 0 when it has none")),
         ]
     }
 
     public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
+    public var inputTime:ParameterPort<Float>  { port(named: "inputTime") }
+    public var outputDuration:NodePort<Float>  { port(named: "outputDuration") }
     
     private var textureLoader:MTKTextureLoader
     private var url: URL? = nil
@@ -42,6 +46,13 @@ public class InstancedModelMeshNode : InstancedMeshNode
         return model
     }
     
+    /// The loaded model's skeletons and animated objects; nil when nothing in it moves.
+    private var animation: AssetAnimation? = nil
+
+    /// Each mesh as loaded, which animation moves and poses, and the instanced mesh drawing it.
+    /// The loaded meshes are not drawn: they place their instanced meshes.
+    private var parts: [(source: Mesh, instanced: InstancedMesh)] = []
+
     private var model: Object? = nil
     {
         didSet
@@ -112,21 +123,33 @@ public class InstancedModelMeshNode : InstancedMeshNode
         if let model = self.model
         {
             let _ = self.evaluate(object: model, atTime: executionInfo.timing.time)
-            
-            if self.inputTransforms.valueDidChange,
-                let transforms = self.inputTransforms.value
+
+            let timeChanged = self.inputTime.valueDidChange || self.inputFilePathParam.valueDidChange
+            if timeChanged, let animation = self.animation
             {
-                
-                model.getChildren(true).forEach { child in
-                    
-                    if let subMesh = child as? InstancedMesh
-                    {
-                        
-                        subMesh.setInstanceMatrices(Array(transforms))
-                        subMesh.drawCount = transforms.count
-                    }
-                }
+                let start = animation.timeRange?.lowerBound ?? 0
+                animation.setTime(start + Double(self.inputTime.value ?? 0))
             }
+
+            if self.inputTransforms.valueDidChange || (timeChanged && self.animation != nil)
+            {
+                self.placeInstances()
+            }
+        }
+    }
+
+    /// Each instance of a part is the instance's transform applied to the part as posed, so
+    /// parts keep their places within the model and follow its animation.
+    private func placeInstances()
+    {
+        // Without transforms yet, one instance shows the model where it was loaded.
+        let transforms = self.inputTransforms.value ?? [matrix_identity_float4x4]
+
+        for part in self.parts
+        {
+            let partMatrix = part.source.worldMatrix
+            part.instanced.setInstanceMatrices(transforms.map { simd_mul($0, partMatrix) })
+            part.instanced.drawCount = transforms.count
         }
     }
     
@@ -138,6 +161,8 @@ public class InstancedModelMeshNode : InstancedMeshNode
             guard let url = self.graph?.resolveFileReference(path)
                 ?? DocumentFileReference.resolve(path, relativeTo: nil) else
             {
+                self.animation = nil
+                self.parts = []
                 self.model = nil
                 throw FabricError(.execution(.fileNotFound),
                                   severity: .recoverable,
@@ -150,35 +175,41 @@ public class InstancedModelMeshNode : InstancedMeshNode
 
             if FileManager.default.fileExists(atPath: url.standardizedFileURL.path(percentEncoded: false))
             {
-                let unflattenedModelObject = loadAsset(url: url, context: self.context, textureLoader: self.textureLoader)
-                
-                if let unflattenedModelObject
-                {
-                    let object = Object.flatten(unflattenedModelObject)
-                    
-                    var instancedChildren:[InstancedMesh] = []
-                    
-                    object.getChildren(true).forEach { child in
-                        
-                        if let subMesh = child as? Mesh,
-                           let geometry = subMesh.geometry
-                        {
-                            let material = subMesh.material
+                // An animated model keeps its hierarchy, since animated objects and skeleton
+                // anchors move the meshes within it; a still one is flattened.
+                let loadedAsset = loadAnimatedAsset(url: url, context: self.context, textureLoader: self.textureLoader)
+                let sourceRoot = loadedAsset.animation == nil ? Object.flatten(loadedAsset.root) : loadedAsset.root
 
-                            let instancedMesh = InstancedMesh(context:self.context, geometry: geometry, material: material, count: 1)
-                            
-                            subMesh.removeFromParent()
-                            
-                            instancedChildren.append(instancedMesh)
-                        }
-                    }
-                    
-                    object.add(instancedChildren)
-                    
+                // Instanced meshes share their source's geometry, so a skinned one shares its pose.
+                let parts: [(source: Mesh, instanced: InstancedMesh)] = sourceRoot.getChildren(true).compactMap { child in
+                    guard let sourceMesh = child as? Mesh, let geometry = sourceMesh.geometry else { return nil }
+                    return (sourceMesh, InstancedMesh(context: self.context, geometry: geometry, material: sourceMesh.material, count: 1))
+                }
+
+                if parts.isEmpty == false
+                {
+                    let object = Object(context: self.context, label: sourceRoot.label)
+                    object.add(parts.map(\.instanced))
+
+                    self.animation = loadedAsset.animation
+                    self.parts = parts
                     self.model = object
+
+                    if let timeRange = loadedAsset.animation?.timeRange
+                    {
+                        self.outputDuration.send(Float(timeRange.upperBound - timeRange.lowerBound))
+                    }
+                    else
+                    {
+                        self.outputDuration.send(0)
+                    }
+
+                    self.placeInstances()
                 }
                 else
                 {
+                    self.animation = nil
+                    self.parts = []
                     self.model = nil
                     throw FabricError(.execution(.failed),
                                       severity: .recoverable,
@@ -192,6 +223,8 @@ public class InstancedModelMeshNode : InstancedMeshNode
             }
             else
             {
+                self.animation = nil
+                self.parts = []
                 self.model = nil
                 throw FabricError(.execution(.fileNotFound),
                                   severity: .recoverable,

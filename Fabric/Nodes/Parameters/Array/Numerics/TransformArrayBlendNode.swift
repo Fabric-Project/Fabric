@@ -67,25 +67,9 @@ public class TransformArrayBlendNode: StrategyNode
         markDirty()
     }
 
-    /// One transform between `a` and `b`: translation and scale mix linearly and rotation
-    /// slerps, so the result stays a rotation without skew at any factor.
-    public static func blended(_ a: simd_float4x4, _ b: simd_float4x4, factor: Float) -> simd_float4x4
-    {
-        let first = a.decomposedTRS
-        let second = b.decomposedTRS
-        let translation = simd_mix(first.translation, second.translation, simd_float3(repeating: factor))
-        let scale = simd_mix(first.scale, second.scale, simd_float3(repeating: factor))
-        let rotation = simd_slerp(first.rotation, second.rotation, factor)
-        var result = simd_float4x4(rotation)
-        result.columns.0 *= scale.x
-        result.columns.1 *= scale.y
-        result.columns.2 *= scale.z
-        result.columns.3 = simd_float4(translation, 1)
-        return result
-    }
-
     /// `a` and `b` blended per element by `factors[i]`, as long as the longer array; a
-    /// missing transform is identity and a missing factor is the last one given.
+    /// missing transform is identity and a missing factor is the last one given. Each pair
+    /// blends with `simd_float4x4.lerp`, so the results stay rigid at any factor.
     public static func blended(_ a: ContiguousArray<simd_float4x4>, _ b: ContiguousArray<simd_float4x4>, factors: ContiguousArray<Float>) -> ContiguousArray<simd_float4x4>
     {
         let count = max(a.count, b.count)
@@ -96,7 +80,7 @@ public class TransformArrayBlendNode: StrategyNode
             let first = index < a.count ? a[index] : matrix_identity_float4x4
             let second = index < b.count ? b[index] : matrix_identity_float4x4
             let factor = index < factors.count ? factors[index] : (factors.last ?? 0)
-            output.append(blended(first, second, factor: factor.isFinite ? factor : 0))
+            output.append(.lerp(first, second, factor.isFinite ? factor : 0))
         }
         return output
     }
