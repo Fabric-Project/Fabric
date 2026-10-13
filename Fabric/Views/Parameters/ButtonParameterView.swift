@@ -15,12 +15,14 @@ struct ButtonParameterView: View, Equatable {
 
     @Bindable var vm: ParameterObservableModel<Bool>
     
-    init(param: BoolParameter)
+    init(param: BoolParameter, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
-                                           publisher:param.valuePublisher )
+                                           publisher:param.valuePublisher,
+                                           graph: graph,
+                                           undoParameter: param.controlType == .button ? nil : param)
     }
     
     var body: some View

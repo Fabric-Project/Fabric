@@ -26,7 +26,7 @@ public struct NodeSelectionInspector: View
         {
             InspectorSection("Published")
             {
-                ParameterGroupView(parameterGroup:currentGraph.publishedParameterGroup)
+                ParameterGroupView(parameterGroup: currentGraph.publishedParameterGroup, graph: currentGraph)
                     // publishedParameterGroup is a plain class rebuilt in
                     // place, invisible to observation — but every rebuild
                     // bumps connectionRevision, so re-identify just this
@@ -90,7 +90,8 @@ private struct SelectedNodeCard: View
                     Divider()
 
                     ParameterGroupView(parameterGroup: nodeViewModel.parameterGroup,
-                                       fileContentTypes: fileContentTypes)
+                                       fileContentTypes: fileContentTypes,
+                                       graph: nodeViewModel.node.graph)
                         .id(portSignature)
                 }
             }

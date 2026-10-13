@@ -18,12 +18,14 @@ struct XYPad: View, Equatable {
     @Bindable var vmMax: ParameterObservableModel<simd_float2>
 
 
-    init(param:Float2Parameter)
+    init(param:Float2Parameter, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
-                                           publisher:param.valuePublisher )
+                                           publisher:param.valuePublisher,
+                                           graph: graph,
+                                           undoParameter: param)
 
         self.vmMin = ParameterObservableModel(label: param.label,
                                            get: { param.min },
@@ -79,6 +81,7 @@ struct XYPad: View, Equatable {
 //            }
             .gesture(DragGesture(minimumDistance: 0)
                 .onChanged({ v in
+                    self.vm.setEditing(true)
                     let normalizedValueX = min(max(0.0, Float(v.location.x / width )), 1.0)
                     let normalizedValueY = min(max(0.0, Float(v.location.y / height )), 1.0)
                     
@@ -96,7 +99,9 @@ struct XYPad: View, Equatable {
                     
                     self.vm.uiValue = simd_float2(x, y)
                     
-                }))
+                })
+                .onEnded({ _ in self.vm.setEditing(false) }))
+            .onDisappear { self.vm.setEditing(false) }
         }
         .frame(height:200)
     }
