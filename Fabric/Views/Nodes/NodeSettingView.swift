@@ -7,7 +7,8 @@ import SwiftUI
 
 /// The standard chrome wrapper shown around a node's custom settings view.
 /// Displays the node's type name as a header, a close button, and delegates the
-/// content to NodeViewModel.settingsView().
+/// content to NodeViewModel.settingsView(). The content commits what it edits
+/// itself; see NodeSettingsDraft.
 struct NodeSettingView: View
 {
     @Bindable var nodeViewModel: NodeViewModel

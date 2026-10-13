@@ -14,6 +14,7 @@ public final class DistanceNode: NumericTypeAgnosticNode
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Computes a domain-aware distance between two numeric values. Choose the value type in Settings." }
     public override class var supportedPortTypes: [PortType] { singleNumericTypes }
+    public override class var specializingInletNames: [String] { ["inputA", "inputB"] }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
     {
@@ -42,7 +43,7 @@ public final class DistanceNode: NumericTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputA") || specializeFromConnectedPort(named: "inputB") { return }
+        if specializeFromConnectedInlets() { return }
         guard let inputA: Port = findPort(named: "inputA"),
               let inputB: Port = findPort(named: "inputB"),
               inputA.valueDidChange || inputB.valueDidChange || inputMetric.valueDidChange,

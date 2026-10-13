@@ -53,8 +53,8 @@ struct MathExpressionView: View
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
         .onAppear { rebuildMessages() }
-        .onChange(of: model.diagnostics) { rebuildMessages() }
         .onChange(of: model.stringExpression) { rebuildMessages() }
+        .onDisappear { model.draft.commit() }
     }
 
     // Simple: single-line field, an "edit as code" affordance, and the compact
@@ -65,6 +65,7 @@ struct MathExpressionView: View
         HStack(spacing: 6)
         {
             TextField("Expression", text: $model.stringExpression)
+                .onSubmit { model.draft.commit() }
                 .font(.system(size: 11, design: .monospaced))
                 .textFieldStyle(.roundedBorder)
                 .autocorrectionDisabled(true)
@@ -93,6 +94,7 @@ struct MathExpressionView: View
                    messages: $editorMessages,
                    language: .mathExpressionLanguage(self.languageService))
             .codeEditorChrome()
+            .withoutTypingUndo()
             .frame(maxWidth: .infinity, minHeight: 300)
             .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.secondary.opacity(0.4)))
 
@@ -169,6 +171,18 @@ struct MathExpressionView: View
                               summary: diagnostic.message,
                               description: nil)
         return TextLocated(location: TextLocation(zeroBasedLine: line, column: column), entity: message)
+    }
+}
+
+// MARK: - Settings
+
+public struct MathExpressionSettings: NodeSettings
+{
+    public var stringExpression: String
+
+    public init(stringExpression: String)
+    {
+        self.stringExpression = stringExpression
     }
 }
 
@@ -337,11 +351,13 @@ public class MathExpressionNode: Node
         self.compileAndSync()
     }
 
-    public override func encode(to encoder: Encoder) throws
+    override public var settings: (any NodeSettings)? { MathExpressionSettings(stringExpression: self.stringExpression) }
+
+    override public func apply(_ settings: any NodeSettings)
     {
-        try super.encode(to: encoder)
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.stringExpression, forKey: .stringExpression)
+        guard let settings = settings as? MathExpressionSettings else { return }
+        self.stringExpression = settings.stringExpression
+        super.apply(settings)
     }
 
     public required init(context: Context)
@@ -359,21 +375,38 @@ public class MathExpressionNode: Node
         self.compileAndSync()
     }
 
+    public convenience init(context: Context, settings: MathExpressionSettings)
+    {
+        self.init(context: context, expression: settings.stringExpression)
+    }
+
     // MARK: - Settings
 
+    /// The settings view's draft of the expression, committed after a pause
+    /// in typing. Its diagnostics are the draft's, so the view reports on
+    /// what is typed before it reaches the node.
+    @MainActor
     @Observable final class SettingsModel
     {
+        let draft: NodeSettingsDraft<MathExpressionSettings>
+
         var stringExpression: String
         {
-            didSet
-            {
-                guard stringExpression != node?.stringExpression else { return }
-                node?.stringExpression = stringExpression
-            }
+            get { draft.value.stringExpression }
+            set { draft.value.stringExpression = newValue }
         }
 
-        /// Compiler diagnostics for the current expression, surfaced in the UI.
-        var diagnostics: [Diagnostic] = []
+        /// Compiler diagnostics for the draft.
+        var diagnostics: [Diagnostic]
+        {
+            let source = self.stringExpression
+            if let cached = self.diagnosticsCache, cached.source == source { return cached.diagnostics }
+            let diagnostics = compile(source).diagnostics
+            self.diagnosticsCache = (source, diagnostics)
+            return diagnostics
+        }
+
+        @ObservationIgnored private var diagnosticsCache: (source: String, diagnostics: [Diagnostic])?
 
         /// Whether the user explicitly expanded the code editor. Observable so
         /// both the settings view and the node's `settingsSize` react to it.
@@ -386,24 +419,23 @@ public class MathExpressionNode: Node
             expandedToCode || stringExpression.contains(";") || stringExpression.contains("\n")
         }
 
-        private weak var node: MathExpressionNode?
-
         init(node: MathExpressionNode)
         {
-            self.node = node
-            self.stringExpression = node.stringExpression
-            self.diagnostics = node.compiled?.diagnostics ?? []
+            self.draft = NodeSettingsDraft(of: MathExpressionSettings(stringExpression: node.stringExpression),
+                                           on: node,
+                                           commit: .afterPause)
         }
     }
 
-    internal lazy var _settingsModel: SettingsModel = SettingsModel(node: self)
+    // Made for the settings view, and read for its size, on the main thread.
+    internal lazy var _settingsModel: SettingsModel = MainActor.assumeIsolated { SettingsModel(node: self) }
 
     override public func providesSettingsView() -> Bool { true }
     override public func settingsView() -> AnyView { AnyView(MathExpressionView(model: _settingsModel)) }
     override public var settingsSize: SettingsViewSize
     {
         // Compact for the single-line field; wide + tall for the code editor.
-        _settingsModel.showsCode
+        MainActor.assumeIsolated { _settingsModel.showsCode }
             ? .Custom(size: CGSize(width: 760, height: 540))
             : .Custom(size: CGSize(width: 480, height: 210))
     }
@@ -438,13 +470,6 @@ public class MathExpressionNode: Node
                      ? Self.invalidExpressionMessage
                      : errors.map(\.message).joined(separator: "\n"))
 
-        // Keep the settings model mirroring the node, not just model → node.
-        // Its didSet guards on equality, so this cannot loop.
-        if self._settingsModel.stringExpression != self.stringExpression
-        {
-            self._settingsModel.stringExpression = self.stringExpression
-        }
-        self._settingsModel.diagnostics = result.diagnostics
         self.subtitleSubject.send()
     }
 

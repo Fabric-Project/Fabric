@@ -9,7 +9,7 @@ import Foundation
 /// controller profile entry, a configured MIDI control. Codable because a
 /// device is absent at decode time: the document carries the descriptors and
 /// the node rebuilds its ports from them.
-public struct DeviceOutputPortDescriptor: Codable, Equatable
+public struct DeviceOutputPortDescriptor: Codable, Equatable, Sendable
 {
     public let name: String
     public let isButton: Bool

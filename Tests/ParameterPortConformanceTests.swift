@@ -77,7 +77,7 @@ struct ParameterPortConformanceTests
             {
                 guard let node = try? wrapper.initializeNode(context: context) as? StrategyNode else { continue }
 
-                node.strategy = strategy
+                node.setStrategy(strategy)
                 body(label(wrapper, strategy: strategy), node)
             }
         }
@@ -202,7 +202,7 @@ struct ParameterPortConformanceTests
                 })
                 for port in node.ports { port.setPublishing(true, name: port.publishedName) }
 
-                node.strategy = strategy
+                node.setStrategy(strategy)
 
                 for port in node.ports
                 {

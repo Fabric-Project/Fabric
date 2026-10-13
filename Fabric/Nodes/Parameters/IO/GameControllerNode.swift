@@ -95,6 +95,20 @@ struct GameControllerNodeView: View
 
 // MARK: - Game Controller Node
 
+/// The settings of a Game Controller node: the controller selected and the
+/// ports its profile gives, which stand for it while it is unplugged.
+public struct GameControllerSettings: NodeSettings
+{
+    public var selectedControllerID: String?
+    public var portDescriptors: [DeviceOutputPortDescriptor]
+
+    public init(selectedControllerID: String?, portDescriptors: [DeviceOutputPortDescriptor])
+    {
+        self.selectedControllerID = selectedControllerID
+        self.portDescriptors = portDescriptors
+    }
+}
+
 public class GameControllerNode: Node
 {
     override public static var name: String { "Game Controller" }
@@ -147,9 +161,6 @@ public class GameControllerNode: Node
         try super.encode(to: encoder)
 
         var container = encoder.container(keyedBy: GameControllerCodingKeys.self)
-        try container.encodeIfPresent(self.selectedControllerID, forKey: .selectedControllerID)
-        try container.encode(self.currentPortDescriptors(), forKey: .portDescriptors)
-
         // The reconnect record has to outlive the hardware: saving with the
         // controller unplugged — or before enableExecution has ever discovered
         // one — must not erase what the document already knew.
@@ -162,17 +173,47 @@ public class GameControllerNode: Node
         super.init(context: context)
     }
 
+    public convenience init(context: Context, settings: GameControllerSettings)
+    {
+        self.init(context: context)
+        self.apply(settings)
+    }
+
+    // MARK: - Settings
+
+    override public var settings: (any NodeSettings)?
+    {
+        GameControllerSettings(selectedControllerID: selectedControllerID, portDescriptors: currentPortDescriptors())
+    }
+
+    /// The saved port set stands for a controller that is unplugged.
+    override public func apply(_ settings: any NodeSettings)
+    {
+        guard let settings = settings as? GameControllerSettings else { return }
+        if settings.selectedControllerID != selectedControllerID { selectedControllerID = settings.selectedControllerID }
+        synchronizePorts(to: settings.portDescriptors)
+        _settingsModelStorage?.outputPortCount = outputPorts().count
+        super.apply(settings)
+    }
+
+    /// The settings selecting `controllerID`, with the ports its profile gives.
+    fileprivate func settingsSelecting(_ controllerID: String?) -> GameControllerSettings
+    {
+        let controller = controllerID.flatMap { controllerID in GCController.controllers().first { $0.uniqueID == controllerID } }
+        return GameControllerSettings(selectedControllerID: controllerID,
+                                      portDescriptors: controller.map(Self.portDescriptors(for:)) ?? [])
+    }
+
     // MARK: - Properties
 
     private var savedControllerInfo: GameControllerInfo?
     private var currentController: GCController?
 
-    fileprivate var selectedControllerID: String?
+    fileprivate private(set) var selectedControllerID: String?
     {
         didSet
         {
             setupController()
-            _settingsModelStorage?.selectedControllerID = selectedControllerID
             _settingsModelStorage?.outputPortCount = outputPorts().count
             // `subtitle` is derived from the selected controller; notify so the title refreshes.
             self.subtitleSubject.send()
@@ -199,7 +240,8 @@ public class GameControllerNode: Node
 
     override public func settingsView() -> AnyView
     {
-        if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
+        // The settings view is made on the main thread.
+        if _settingsModelStorage == nil { _settingsModelStorage = MainActor.assumeIsolated { SettingsModel(node: self) } }
         return AnyView(GameControllerNodeView(model: _settingsModelStorage!))
     }
 
@@ -207,25 +249,31 @@ public class GameControllerNode: Node
 
     // MARK: - Settings Model
 
+    /// The controller picker commits each choice; the controller list and the
+    /// output count are the node's.
+    // Not isolated as a whole: the node sets the lists and runtime state it
+    // shows from wherever they change. What touches the draft is main-thread.
     @Observable final class SettingsModel
     {
-        var selectedControllerID: String?
-        {
-            didSet
-            {
-                guard selectedControllerID != node?.selectedControllerID else { return }
-                node?.selectedControllerID = selectedControllerID
-            }
-        }
+        let draft: NodeSettingsDraft<GameControllerSettings>
         var availableControllers: [GameControllerInfo] = []
         var outputPortCount: Int = 0
 
-        private weak var node: GameControllerNode?
+        @MainActor var selectedControllerID: String?
+        {
+            get { draft.value.selectedControllerID }
+            set { node.map { draft.value = $0.settingsSelecting(newValue) } }
+        }
 
-        init(node: GameControllerNode)
+        @ObservationIgnored private weak var node: GameControllerNode?
+
+        @MainActor init(node: GameControllerNode)
         {
             self.node = node
-            self.selectedControllerID = node.selectedControllerID
+            self.draft = NodeSettingsDraft(of: GameControllerSettings(selectedControllerID: node.selectedControllerID,
+                                                                      portDescriptors: node.currentPortDescriptors()),
+                                           on: node,
+                                           commit: .eachChange)
             self.availableControllers = node.availableControllers
             self.outputPortCount = node.outputPorts().count
         }
@@ -250,7 +298,9 @@ public class GameControllerNode: Node
                 $0.vendorName == savedInfo.vendorName && $0.productCategory == savedInfo.productCategory
             })
             {
+                // A reconnect, not an edit: the view follows it.
                 selectedControllerID = matching.id
+                settingsChangedSubject.send()
             }
         }
         try super.enableExecution(renderer: renderer)
@@ -337,28 +387,28 @@ public class GameControllerNode: Node
         print("[GameController] Selected: \(controller.vendorName ?? "Unknown")")
 
         // Setup based on profile
-        let descriptors: [DeviceOutputPortDescriptor]
         if let gamepad = controller.extendedGamepad
         {
-            descriptors = Self.extendedGamepadPortDescriptors(gamepad)
             gamepad.valueChangedHandler = { [weak self] gamepad, element in
                 self?.handleExtendedGamepadChange(gamepad, element: element)
             }
         }
         else if let microGamepad = controller.microGamepad
         {
-            descriptors = Self.microGamepadPortDescriptors()
             microGamepad.valueChangedHandler = { [weak self] gamepad, element in
                 self?.handleMicroGamepadChange(gamepad, element: element)
             }
         }
-        else
-        {
-            descriptors = []
-        }
 
-        self.synchronizePorts(to: descriptors)
+        self.synchronizePorts(to: Self.portDescriptors(for: controller))
         _settingsModelStorage?.outputPortCount = outputPorts().count
+    }
+
+    private static func portDescriptors(for controller: GCController) -> [DeviceOutputPortDescriptor]
+    {
+        if let gamepad = controller.extendedGamepad { return extendedGamepadPortDescriptors(gamepad) }
+        if controller.microGamepad != nil { return microGamepadPortDescriptors() }
+        return []
     }
 
     // MARK: - Extended Gamepad Setup
@@ -476,7 +526,7 @@ public class GameControllerNode: Node
 
     /// The persisted projection of the port set: encode derives it from the
     /// live ports rather than storing a parallel list that could drift.
-    private func currentPortDescriptors() -> [DeviceOutputPortDescriptor]
+    fileprivate func currentPortDescriptors() -> [DeviceOutputPortDescriptor]
     {
         outputPorts().map { port in
             DeviceOutputPortDescriptor(name: port.name, isButton: port is NodePort<Bool>)

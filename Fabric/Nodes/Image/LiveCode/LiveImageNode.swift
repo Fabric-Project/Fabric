@@ -10,6 +10,38 @@ import Metal
 import Satin
 import SwiftUI
 
+/// The settings of a Live Image node: its shader source.
+public struct LiveImageSettings: NodeSettings
+{
+    public var shaderSource: String
+
+    public init(shaderSource: String)
+    {
+        self.shaderSource = shaderSource
+    }
+
+    private enum CodingKeys: String, CodingKey
+    {
+        case shaderSource
+        case shaderSchemaVersion
+    }
+
+    private static let shaderSchemaVersion = 1
+
+    public init(from decoder: Decoder) throws
+    {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.shaderSource = try container.decode(String.self, forKey: .shaderSource)
+    }
+
+    public func encode(to encoder: Encoder) throws
+    {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(self.shaderSource, forKey: .shaderSource)
+        try container.encode(Self.shaderSchemaVersion, forKey: .shaderSchemaVersion)
+    }
+}
+
 public class LiveImageNode: BaseImageNode
 {
     override public class var name: String { "Live Image" }
@@ -23,10 +55,7 @@ public class LiveImageNode: BaseImageNode
 
     enum CodingKeys: String, CodingKey {
         case shaderSource
-        case shaderSchemaVersion
     }
-
-    private static let shaderSchemaVersion = 1
     private static let rootWorkspaceURL = URL(filePath: "/tmp/fabric-live-shaders", directoryHint: .isDirectory)
     private static let staleWorkspaceTTL: TimeInterval = 24 * 60 * 60
 
@@ -42,7 +71,7 @@ public class LiveImageNode: BaseImageNode
     private let workspaceInstanceID = UUID()
 
     private var workspaceURL: URL?
-    private var shaderFileURL: URL?
+    private(set) var shaderFileURL: URL?
     private var workspaceError: (any Error)?
     {
         didSet { self.subtitleSubject.send() }
@@ -57,6 +86,12 @@ public class LiveImageNode: BaseImageNode
     }
 
     required init(context: Context) {
+        super.init(context: context)
+        self.postInit()
+    }
+
+    public init(context: Context, settings: LiveImageSettings) {
+        self.shaderSource = settings.shaderSource
         super.init(context: context)
         self.postInit()
     }
@@ -93,13 +128,26 @@ public class LiveImageNode: BaseImageNode
         self.cleanupWorkspace()
     }
 
-    override public func encode(to encoder: Encoder) throws {
-        try self.captureShaderSourceFromDiskIfAvailable()
-        try super.encode(to: encoder)
+    /// The shader file can be edited on disk as well as in the settings view.
+    /// Takes what is on disk as an edit, an undo step an open editor follows,
+    /// when it differs from the source held: as the settings view opens, and
+    /// before a document is saved. Encoding writes the source held, so a copy
+    /// or an export changes nothing.
+    @MainActor
+    @discardableResult
+    public func takeShaderSourceFromDisk() -> Bool {
+        guard let onDisk = try? self.shaderSourceOnDisk(), onDisk != self.shaderSource else { return false }
+        self.commitSettings(LiveImageSettings(shaderSource: onDisk))
+        return true
+    }
 
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.shaderSource, forKey: .shaderSource)
-        try container.encode(Self.shaderSchemaVersion, forKey: .shaderSchemaVersion)
+    override public var settings: (any NodeSettings)? { LiveImageSettings(shaderSource: self.shaderSource) }
+
+    override public func apply(_ settings: any NodeSettings) {
+        guard let settings = settings as? LiveImageSettings else { return }
+        // Settings are applied by edits, undo and redo, on the main thread.
+        MainActor.assumeIsolated { self.updateShaderSource(settings.shaderSource) }
+        super.apply(settings)
     }
 
     override public func providesSettingsView() -> Bool {
@@ -285,13 +333,13 @@ public class LiveImageNode: BaseImageNode
                           commandBuffer: commandBuffer)
     }
 
-    private func captureShaderSourceFromDiskIfAvailable() throws {
+    private func shaderSourceOnDisk() throws -> String? {
         guard let shaderFileURL,
               FileManager.default.fileExists(atPath: shaderFileURL.path(percentEncoded: false)) else {
-            return
+            return nil
         }
 
-        self.shaderSource = try String(contentsOf: shaderFileURL, encoding: .utf8)
+        return try String(contentsOf: shaderFileURL, encoding: .utf8)
     }
 
     private func cleanupWorkspace() {
@@ -360,3 +408,18 @@ public class LiveImageNode: BaseImageNode
 
 @available(*, deprecated, message: "Use LiveImageNode")
 public final class LiveEffectNode: LiveImageNode {}
+
+extension Graph
+{
+    /// Takes the shader of every Live Image node in this graph and the graphs
+    /// inside it from disk, as edits; see LiveImageNode.takeShaderSourceFromDisk().
+    @MainActor
+    public func takeShaderSourcesFromDisk()
+    {
+        for node in self.nodes
+        {
+            if let liveImage = node as? LiveImageNode { liveImage.takeShaderSourceFromDisk() }
+            if let subgraph = node as? SubgraphNode { subgraph.subGraph.takeShaderSourcesFromDisk() }
+        }
+    }
+}

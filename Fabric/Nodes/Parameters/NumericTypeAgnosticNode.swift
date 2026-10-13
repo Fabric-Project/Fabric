@@ -90,6 +90,27 @@ public class NumericTypeAgnosticNode: StrategyNode
         return nil
     }
 
+    /// The inlets a wire specialises a Numeric Virtual node from, in order.
+    public class var specializingInletNames: [String] { [] }
+
+    /// Specialises the node to the type of the outlet wired to the first of
+    /// its specialising inlets that has one. A concrete outlet's type is known
+    /// as the wire lands; a Numeric Virtual outlet's only once it has sent, so
+    /// execute asks again.
+    @discardableResult
+    public func specializeFromConnectedInlets() -> Bool
+    {
+        Self.specializingInletNames.contains { specializeFromConnectedPort(named: $0) }
+    }
+
+    /// A wire landing on a specialising inlet specialises the node as part of
+    /// the connect, in its undo group.
+    override public func updateConnectionTopology()
+    {
+        super.updateConnectionTopology()
+        specializeFromConnectedInlets()
+    }
+
     @discardableResult
     public func specializeFromConnectedPort(named portName: String) -> Bool
     {
@@ -99,7 +120,7 @@ public class NumericTypeAgnosticNode: StrategyNode
               Self.supportedPortTypes.contains(connectedType)
         else { return false }
 
-        strategy = connectedType.rawValue
+        setStrategy(connectedType.rawValue)
         return true
     }
 

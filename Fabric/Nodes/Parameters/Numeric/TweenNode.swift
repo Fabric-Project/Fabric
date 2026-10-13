@@ -14,6 +14,7 @@ public final class TweenNode: NumericTypeAgnosticNode
     override public class var nodeTimeMode: Node.TimeMode { .TimeBase }
     override public class var nodeDescription: String { "Tweens toward a target numeric value over time. Choose the value type in Settings." }
     public override class var supportedPortTypes: [PortType] { interpolatableSingleTypes + interpolatableArrayTypes }
+    public override class var specializingInletNames: [String] { ["inputTarget"] }
 
     private var tween = TweenState()
     private var from: PortValue?
@@ -52,7 +53,7 @@ public final class TweenNode: NumericTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputTarget") { return }
+        if specializeFromConnectedInlets() { return }
         guard let inputTarget: Port = findPort(named: "inputTarget"),
               let outputValue: Port = findPort(named: "outputValue")
         else { return }

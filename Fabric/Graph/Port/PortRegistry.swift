@@ -35,6 +35,11 @@ final class PortRegistry
     
     func register(_ port: Port, name: String, owner: Node)
     {
+        if let state = self.pendingReconciliation?.removeValue(forKey: name)
+        {
+            port.take(state)
+            self.reconciledByPortID[port.id] = state
+        }
         port.node = owner
         self.ordered.append(port)
         self.byName[name] = port
@@ -50,6 +55,12 @@ final class PortRegistry
     {
         if let graph = p.node?.graph {
             graph.disconnectAll(from: p)
+        }
+        // A port taken away and added again under the same key in one
+        // reconciliation takes its state again.
+        if let state = self.reconciledByPortID.removeValue(forKey: p.id)
+        {
+            self.pendingReconciliation?[state.registryKey] = state
         }
         self.byID[p.id] = nil
         if let i = ordered.firstIndex(where: { $0.id == p.id }) { self.ordered.remove(at: i) }
@@ -89,6 +100,68 @@ final class PortRegistry
     func port(named name: String) -> Port? { self.byName[name] }
     func name(of port: Port) -> String? { self.byName.first { $0.value.id == port.id }?.key }
     func all() -> [Port] { self.ordered }
+
+    // MARK: - Reconciliation
+
+    /// The states of reconciling(to:_:) not yet taken by a port added under
+    /// their key; nil outside it.
+    private var pendingReconciliation: [String: PortState]?
+    private var reconciledByPortID: [UUID: PortState] = [:]
+
+    /// Each port's state under its registry key.
+    func portStates() -> [PortState]
+    {
+        self.ordered.map { port in PortState(of: port, registryKey: self.name(of: port) ?? port.name) }
+    }
+
+    /// Runs `body`, an edit that may add and take away ports, and puts back
+    /// what `states` hold on the ports under their keys: a port `body` adds
+    /// takes everything, id first, as it registers; a port that is here
+    /// afterwards takes back its value and publishing. A port under a key
+    /// `states` does not hold is not written.
+    func reconciling(to states: [PortState], _ body: () throws -> Void) rethrows
+    {
+        let pending = Dictionary(states.map { ($0.registryKey, $0) }, uniquingKeysWith: { earlier, _ in earlier })
+        let previous = (self.pendingReconciliation, self.reconciledByPortID)
+        self.pendingReconciliation = pending
+        self.reconciledByPortID = [:]
+        defer { (self.pendingReconciliation, self.reconciledByPortID) = previous }
+
+        try body()
+
+        for state in states where self.pendingReconciliation?[state.registryKey] != nil
+        {
+            guard let port = self.byName[state.registryKey] else { continue }
+            if state.portType == port.portType, let value = state.value, port.snapshotValue() != value
+            {
+                port.restoreValue(from: value)
+            }
+            Self.restorePublishing(of: port, to: state)
+        }
+    }
+
+    /// Publishing changes through the events, for the proxies to follow.
+    private static func restorePublishing(of port: Port, to state: PortState)
+    {
+        guard port.published != state.published || port.publishedName != state.publishedName else { return }
+        let graph = port.node?.graph
+
+        switch (port.published, state.published)
+        {
+        case (false, true):
+            port.setPublishing(true, name: state.publishedName)
+            graph?.portDidPublish(port)
+        case (true, false):
+            graph?.portWillUnpublish(port)
+            port.setPublishing(false, name: state.publishedName)
+            graph?.rebuildPublishedParameterGroup()
+        case (true, true):
+            port.setPublishing(true, name: state.publishedName)
+            graph?.portDidRename(port)
+        case (false, false):
+            port.setPublishing(false, name: state.publishedName)
+        }
+    }
 
     /// A port's persisted form: registry key plus the encoded port object.
     /// Decode treats it as a hydration source only — the port instances that

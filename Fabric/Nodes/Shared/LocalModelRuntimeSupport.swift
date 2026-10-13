@@ -1,4 +1,5 @@
 import Foundation
+import Satin
 internal import HuggingFace
 internal import MLX
 internal import MLXLLM
@@ -684,5 +685,76 @@ actor LocalModelContainerCache {
         if self.stateObservers[cacheKey]?.isEmpty == true {
             self.stateObservers.removeValue(forKey: cacheKey)
         }
+    }
+}
+
+/// The settings of a local model node, LLM or VLM alike: the model and how it
+/// is prompted.
+public struct LocalModelSettings: NodeSettings
+{
+    public var selectedModelID: String
+    public var temperature: Float
+    public var updateIntervalSeconds: Float
+    public var systemPromptOverride: String
+    public var chatModeEnabled: Bool
+    public var desiredMaxContextTokens: Int
+
+    public init(selectedModelID: String,
+                temperature: Float = 0.6,
+                updateIntervalSeconds: Float = 0.25,
+                systemPromptOverride: String = "",
+                chatModeEnabled: Bool = true,
+                desiredMaxContextTokens: Int = 4_096)
+    {
+        self.selectedModelID = selectedModelID
+        self.temperature = temperature
+        self.updateIntervalSeconds = updateIntervalSeconds
+        self.systemPromptOverride = systemPromptOverride
+        self.chatModeEnabled = chatModeEnabled
+        self.desiredMaxContextTokens = desiredMaxContextTokens
+    }
+}
+
+/// A local model node, which holds its LocalModelSettings as properties of its
+/// own: the settings value, applying it and the initializer from it are
+/// written once here for both.
+public protocol LocalModelSettingsMirroring: Node
+{
+    var selectedModelID: String { get set }
+    var temperature: Float { get set }
+    var updateIntervalSeconds: Float { get set }
+    var systemPromptOverride: String { get set }
+    var chatModeEnabled: Bool { get set }
+    var desiredMaxContextTokens: Int { get set }
+}
+
+extension LocalModelSettingsMirroring
+{
+    public var localModelSettings: LocalModelSettings
+    {
+        LocalModelSettings(selectedModelID: self.selectedModelID,
+                           temperature: self.temperature,
+                           updateIntervalSeconds: self.updateIntervalSeconds,
+                           systemPromptOverride: self.systemPromptOverride,
+                           chatModeEnabled: self.chatModeEnabled,
+                           desiredMaxContextTokens: self.desiredMaxContextTokens)
+    }
+
+    /// Each through its own setter, and only where it changed: a model change
+    /// reloads.
+    func setLocalModelSettings(_ settings: LocalModelSettings)
+    {
+        if self.selectedModelID != settings.selectedModelID { self.selectedModelID = settings.selectedModelID }
+        if self.temperature != settings.temperature { self.temperature = settings.temperature }
+        if self.updateIntervalSeconds != settings.updateIntervalSeconds { self.updateIntervalSeconds = settings.updateIntervalSeconds }
+        if self.systemPromptOverride != settings.systemPromptOverride { self.systemPromptOverride = settings.systemPromptOverride }
+        if self.chatModeEnabled != settings.chatModeEnabled { self.chatModeEnabled = settings.chatModeEnabled }
+        if self.desiredMaxContextTokens != settings.desiredMaxContextTokens { self.desiredMaxContextTokens = settings.desiredMaxContextTokens }
+    }
+
+    public init(context: Context, settings: LocalModelSettings)
+    {
+        self.init(context: context)
+        self.apply(settings)
     }
 }

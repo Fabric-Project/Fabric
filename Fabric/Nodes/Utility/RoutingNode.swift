@@ -10,6 +10,25 @@ import SwiftUI
 let routingNodeMinimumRouteCount = 2
 let routingNodeMaximumRouteCount = 16
 
+/// The settings of a routing node: the value type its routes carry, as the
+/// strategy, and how many routes it has.
+public struct RoutingSettings: StrategySettings
+{
+    public var strategy: String
+    public var routeCount: Int
+
+    public init(strategy: String, routeCount: Int)
+    {
+        self.strategy = strategy
+        self.routeCount = routeCount
+    }
+
+    public init(portType: PortType, routeCount: Int)
+    {
+        self.init(strategy: portType.rawValue, routeCount: routeCount)
+    }
+}
+
 /// Shared base for the routing / switching node family (Switch, Gate, Matrix
 /// Switch). Owns the route count, the value-type strategy (the Type picker), the
 /// settings pane, and the dynamic-port helpers. It deliberately holds no notion of
@@ -17,10 +36,7 @@ let routingNodeMaximumRouteCount = 16
 /// Switch/Gate ([[RoutingNode]]), an index map for Matrix Switch.
 public class RoutingNodeBase: TypeAgnosticNode
 {
-    /// Mutable only through setRouteCount(_:), which clamps, guards against
-    /// no-op assignments, and rebuilds the dynamic ports. Init/decode paths
-    /// assign the stored value directly because their port rebuild happens in
-    /// StrategyNode's initializer.
+    /// Changed by apply(_:), through Graph.setSettings or setRouteCount(_:).
     public private(set) var routeCount: Int = routingNodeMinimumRouteCount
 
     private enum RoutingCodingKeys: String, CodingKey
@@ -39,6 +55,11 @@ public class RoutingNodeBase: TypeAgnosticNode
         super.init(context: context, initialStrategy: portType.rawValue)
     }
 
+    public convenience init(context: Context, settings: RoutingSettings)
+    {
+        self.init(context: context, routeCount: settings.routeCount, portType: PortType(rawValue: settings.strategy) ?? .Virtual)
+    }
+
     public required init(from decoder: any Decoder) throws
     {
         // Decode before super.init — StrategyNode.init(from:) dispatches
@@ -54,27 +75,25 @@ public class RoutingNodeBase: TypeAgnosticNode
         try super.init(from: decoder)
     }
 
-    public override func encode(to encoder: Encoder) throws
-    {
-        try super.encode(to: encoder)
+    override public var settings: (any NodeSettings)? { RoutingSettings(strategy: strategy, routeCount: routeCount) }
 
-        var container = encoder.container(keyedBy: RoutingCodingKeys.self)
-        try container.encode(routeCount, forKey: .routeCount)
+    override public func apply(_ settings: any NodeSettings)
+    {
+        guard let settings = settings as? RoutingSettings else { return }
+        routeCount = Self.clampedRouteCount(settings.routeCount)
+        super.apply(settings)
     }
 
+    /// Changes the route count as an edit, the type as it is.
     public func setRouteCount(_ count: Int)
     {
-        let clamped = Self.clampedRouteCount(count)
-        guard clamped != routeCount else { return }
-        routeCount = clamped
-        rebuildPorts(forStrategy: strategy)
+        commitSettings(RoutingSettings(strategy: strategy, routeCount: Self.clampedRouteCount(count)))
     }
 
+    /// Changes the type as an edit, the route count as it is.
     public func setPortType(_ portType: PortType)
     {
-        let rawValue = portType.rawValue
-        guard rawValue != strategy else { return }
-        strategy = rawValue
+        setStrategy(portType.rawValue)
     }
 
     override public var settingsSize: SettingsViewSize { .Small }
@@ -191,12 +210,13 @@ public class RoutingNode: RoutingNodeBase
 private struct RoutingNodeSettingsView: View
 {
     let node: RoutingNodeBase
-    @State private var routeCount: Int
+    @State private var draft: NodeSettingsDraft<RoutingSettings>
 
     init(node: RoutingNodeBase)
     {
         self.node = node
-        self._routeCount = State(initialValue: node.routeCount)
+        let settings = RoutingSettings(strategy: node.strategy, routeCount: node.routeCount)
+        self._draft = State(initialValue: NodeSettingsDraft(of: settings, on: node, commit: .eachChange))
     }
 
     var body: some View
@@ -208,18 +228,14 @@ private struct RoutingNodeSettingsView: View
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Stepper(value: Binding(
-                get: { routeCount },
-                set: { newRouteCount in
-                    node.setRouteCount(newRouteCount)
-                    routeCount = node.routeCount
-                }
-            ), in: routingNodeMinimumRouteCount...routingNodeMaximumRouteCount)
+            Stepper(value: $draft.value.routeCount, in: routingNodeMinimumRouteCount...routingNodeMaximumRouteCount)
             {
-                Text("Routes \(routeCount)")
+                Text("Routes \(draft.value.routeCount)")
             }
 
-            StrategyPickerView(model: node.strategySettingsModel)
+            StrategyPicker(strategies: type(of: node).strategies,
+                           separatorAfterFirst: type(of: node).separatorAfterFirstStrategy,
+                           selection: $draft.value.strategy)
         }
         .padding()
     }

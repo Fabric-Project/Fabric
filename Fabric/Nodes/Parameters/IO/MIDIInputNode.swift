@@ -15,7 +15,7 @@ import simd
 // MARK: - Detected MIDI Input
 
 /// Represents a detected MIDI input during learn mode
-public struct DetectedMIDIInput: Codable, Equatable, Identifiable, Hashable
+public struct DetectedMIDIInput: Codable, Equatable, Identifiable, Hashable, Sendable
 {
     public let id: UUID
     public var type: DetectedMIDIType
@@ -77,7 +77,7 @@ public struct DetectedMIDIInput: Codable, Equatable, Identifiable, Hashable
     }
 }
 
-public enum DetectedMIDIType: String, Codable, CaseIterable
+public enum DetectedMIDIType: String, Codable, CaseIterable, Sendable
 {
     case noteGate = "Note Gate"
     case noteVelocity = "Note Velocity"
@@ -306,6 +306,22 @@ struct DetectedInputRow: View
     }
 }
 
+// MARK: - Settings
+
+/// The settings of a MIDI Input node: the source selected and the controls
+/// learned from it, one output each.
+public struct MIDIInputSettings: NodeSettings
+{
+    public var selectedInputID: String?
+    public var configuredInputs: [DetectedMIDIInput]
+
+    public init(selectedInputID: String?, configuredInputs: [DetectedMIDIInput])
+    {
+        self.selectedInputID = selectedInputID
+        self.configuredInputs = configuredInputs
+    }
+}
+
 // MARK: - MIDI Input Node
 
 public class MIDIInputNode: Node
@@ -354,15 +370,25 @@ public class MIDIInputNode: Node
         try super.encode(to: encoder)
 
         var container = encoder.container(keyedBy: MIDICodingKeys.self)
-        try container.encodeIfPresent(self.selectedInputID, forKey: .selectedInputID)
 
         if let inputID = selectedInputID,
            let info = availableInputs.first(where: { $0.id == inputID })
         {
             try container.encode(info, forKey: .savedInputInfo)
         }
+    }
 
-        try container.encode(self.configuredInputs, forKey: .configuredInputs)
+    override public var settings: (any NodeSettings)?
+    {
+        MIDIInputSettings(selectedInputID: selectedInputID, configuredInputs: configuredInputs)
+    }
+
+    override public func apply(_ settings: any NodeSettings)
+    {
+        guard let settings = settings as? MIDIInputSettings else { return }
+        if selectedInputID != settings.selectedInputID { selectedInputID = settings.selectedInputID }
+        if configuredInputs != settings.configuredInputs { configuredInputs = settings.configuredInputs }
+        super.apply(settings)
     }
 
     public required init(context: Context)
@@ -370,17 +396,30 @@ public class MIDIInputNode: Node
         super.init(context: context)
     }
 
+    public convenience init(context: Context, settings: MIDIInputSettings)
+    {
+        self.init(context: context)
+        self.apply(settings)
+    }
+
+    /// Commits the node's settings with `change` made to them.
+    fileprivate func changeSettings(_ change: (inout MIDIInputSettings) -> Void)
+    {
+        var settings = MIDIInputSettings(selectedInputID: selectedInputID, configuredInputs: configuredInputs)
+        change(&settings)
+        commitSettings(settings)
+    }
+
     // MARK: - Properties
 
     private var midiManager: MIDIManager?
     private var savedInputInfo: MIDIInputInfo?
 
-    fileprivate var selectedInputID: String?
+    fileprivate private(set) var selectedInputID: String?
     {
         didSet
         {
             setupMIDIConnection()
-            _settingsModelStorage?.selectedInputID = selectedInputID
             // `subtitle` is derived from the selected input; notify so the title refreshes.
             self.subtitleSubject.send()
         }
@@ -394,13 +433,9 @@ public class MIDIInputNode: Node
         didSet { _settingsModelStorage?.detectedInputs = detectedInputs }
     }
 
-    fileprivate var configuredInputs: [DetectedMIDIInput] = []
+    fileprivate private(set) var configuredInputs: [DetectedMIDIInput] = []
     {
-        didSet
-        {
-            rebuildPorts()
-            _settingsModelStorage?.configuredInputs = configuredInputs
-        }
+        didSet { rebuildPorts() }
     }
 
     private var floatValues: [String: Float] = [:]
@@ -412,7 +447,8 @@ public class MIDIInputNode: Node
 
     override public func settingsView() -> AnyView
     {
-        if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
+        // The settings view is made on the main thread.
+        if _settingsModelStorage == nil { _settingsModelStorage = MainActor.assumeIsolated { SettingsModel(node: self) } }
         return AnyView(MIDIInputNodeView(model: _settingsModelStorage!))
     }
 
@@ -420,39 +456,44 @@ public class MIDIInputNode: Node
 
     // MARK: - Settings Model
 
+    /// The source picker and the learned controls commit each change; the
+    /// source list and what learning hears are the node's.
+    // Not isolated as a whole: the node sets the lists and runtime state it
+    // shows from wherever they change. What touches the draft is main-thread.
     @Observable final class SettingsModel
     {
-        var selectedInputID: String?
+        let draft: NodeSettingsDraft<MIDIInputSettings>
+
+        @MainActor var selectedInputID: String?
         {
-            didSet
-            {
-                guard selectedInputID != node?.selectedInputID else { return }
-                node?.selectedInputID = selectedInputID
-            }
+            get { draft.value.selectedInputID }
+            set { draft.value.selectedInputID = newValue }
         }
+        @MainActor var configuredInputs: [DetectedMIDIInput] { draft.value.configuredInputs }
+
         var availableInputs: [MIDIInputInfo] = []
         var isListening: Bool = false
         var detectedInputs: Set<DetectedMIDIInput> = []
-        var configuredInputs: [DetectedMIDIInput] = []
 
-        private weak var node: MIDIInputNode?
+        @ObservationIgnored private weak var node: MIDIInputNode?
 
-        init(node: MIDIInputNode)
+        @MainActor init(node: MIDIInputNode)
         {
             self.node = node
-            self.selectedInputID = node.selectedInputID
+            self.draft = NodeSettingsDraft(of: MIDIInputSettings(selectedInputID: node.selectedInputID, configuredInputs: node.configuredInputs),
+                                           on: node,
+                                           commit: .eachChange)
             self.availableInputs = node.availableInputs
             self.isListening = node.isListening
             self.detectedInputs = node.detectedInputs
-            self.configuredInputs = node.configuredInputs
         }
 
         func startListening() { node?.startListening() }
         func stopListening() { node?.stopListening() }
         func clearDetected() { node?.clearDetected() }
-        func clearConfigured() { node?.clearConfigured() }
+        @MainActor func clearConfigured() { draft.value.configuredInputs.removeAll() }
         func refreshInputs() { node?.refreshInputs() }
-        func removeConfiguredInput(id: UUID) { node?.removeConfiguredInput(id: id) }
+        @MainActor func removeConfiguredInput(id: UUID) { draft.value.configuredInputs.removeAll { $0.id == id } }
     }
 
     private var _settingsModelStorage: SettingsModel? = nil
@@ -492,7 +533,9 @@ public class MIDIInputNode: Node
             if let savedInfo = savedInputInfo,
                let matching = availableInputs.first(where: { $0.name == savedInfo.name })
             {
+                // A reconnect, not an edit: the view follows it.
                 selectedInputID = matching.id
+                settingsChangedSubject.send()
             }
         }
         catch
@@ -579,17 +622,20 @@ public class MIDIInputNode: Node
         print("[MIDI] Stopping learn mode. Detected \(detectedInputs.count) inputs")
         isListening = false
 
-        for detected in detectedInputs
-        {
-            print("[MIDI] Processing detected: \(detected.portName)")
-            if !configuredInputs.contains(where: { $0.uniqueKey == detected.uniqueKey })
+        // What learning heard becomes outputs as one edit.
+        changeSettings { settings in
+            for detected in detectedInputs
             {
-                configuredInputs.append(detected)
-                print("[MIDI] Added to configured: \(detected.portName)")
-            }
-            else
-            {
-                print("[MIDI] Already configured: \(detected.portName)")
+                print("[MIDI] Processing detected: \(detected.portName)")
+                if !settings.configuredInputs.contains(where: { $0.uniqueKey == detected.uniqueKey })
+                {
+                    settings.configuredInputs.append(detected)
+                    print("[MIDI] Added to configured: \(detected.portName)")
+                }
+                else
+                {
+                    print("[MIDI] Already configured: \(detected.portName)")
+                }
             }
         }
 
@@ -603,15 +649,6 @@ public class MIDIInputNode: Node
         detectedInputs.removeAll()
     }
 
-    fileprivate func clearConfigured()
-    {
-        configuredInputs.removeAll()
-    }
-
-    fileprivate func removeConfiguredInput(id: UUID)
-    {
-        configuredInputs.removeAll(where: { $0.id == id })
-    }
 
     // MARK: - MIDI Event Handling
 

@@ -167,6 +167,94 @@ struct PublishingEventsTests
         #expect(undoManager.canUndo, "the wire and the publishing the proxies took are steps")
     }
 
+    @Test("A same-type replacement retargets the proxy at each level in place, keeping the proxies and the wire on them")
+    func sameTypeReplacementRetargetsInPlace() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = SampleAndHoldNode(context: context, initialStrategy: PortType.Vector4.rawValue)
+        let levels = makeLevels(context: context, around: node)
+        let value = try #require(node.findPort(named: "inputValue") as Fabric.Port?)
+        let upstream = SampleAndHoldNode(context: context, initialStrategy: PortType.Vector4.rawValue)
+        levels.graph.addNode(upstream)
+        let upstreamOutlet = try #require(upstream.findPort(named: "outputValue") as Fabric.Port?)
+        let undoManager = levels.undoManager
+        let (middle, top) = try publishTwoLevels(value, in: levels)
+        let wire = try #require(levels.graph.connect(upstreamOutlet, to: top))
+        levels.graph.undoManager = undoManager
+
+        step(undoManager) { node.setStrategy(PortType.Color.rawValue) }
+        let replacement = try #require(node.findPort(named: "inputValue") as Fabric.Port?)
+        #expect(replacement !== value)
+        #expect(replacement.id == value.id)
+        #expect(levels.inner.ports.first { $0.id == value.id } === middle)
+        #expect(levels.outer.ports.first { $0.id == value.id } === top)
+        #expect(wraps(middle, replacement))
+        #expect(wraps(top, middle))
+        #expect(middle.portType == .Color)
+        #expect(middle.parameter === replacement.parameter)
+        #expect(top.parameter === replacement.parameter)
+        #expect(levels.graph.connections.count == 1)
+        #expect(levels.graph.connections.first === wire)
+        #expect(wire.inletPort === top)
+
+        undoManager.undo()
+        let original = try #require(node.findPort(named: "inputValue") as Fabric.Port?)
+        #expect(original.portType == .Vector4)
+        #expect(levels.inner.ports.first { $0.id == value.id } === middle)
+        #expect(wraps(middle, original))
+        #expect(levels.outer.ports.first { $0.id == value.id } === top)
+        #expect(levels.graph.connections.first === wire)
+
+        undoManager.redo()
+        #expect(middle.portType == .Color)
+        #expect(levels.graph.connections.first === wire)
+    }
+
+    @Test("A type change remakes the proxy at each level under the same id, keeping the wires the new type can take and dropping the rest")
+    func typeChangeRemakesUnderTheSameID() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = SampleAndHoldNode(context: context, initialStrategy: PortType.Float.rawValue)
+        let levels = makeLevels(context: context, around: node)
+        let value = try #require(node.findPort(named: "outputValue") as Fabric.Port?)
+        let numeric = NumberBinaryOperator(context: context)
+        let virtual = SampleAndHoldNode(context: context, initialStrategy: PortType.Virtual.rawValue)
+        levels.graph.addNode(numeric)
+        levels.graph.addNode(virtual)
+        let virtualInlet = try #require(virtual.findPort(named: "inputValue") as Fabric.Port?)
+        let undoManager = levels.undoManager
+        let (middle, top) = try publishTwoLevels(value, in: levels)
+        levels.outer.subGraph.setPublishedName("Held", on: middle)
+        let dropped = try #require(levels.graph.connect(top, to: numeric.inputNumber1))
+        let kept = try #require(levels.graph.connect(top, to: virtualInlet))
+        levels.graph.undoManager = undoManager
+
+        step(undoManager) { node.setStrategy(PortType.Geometry.rawValue) }
+        let newMiddle = try #require(levels.inner.ports.first { $0.id == value.id })
+        let newTop = try #require(levels.outer.ports.first { $0.id == value.id })
+        #expect(newMiddle !== middle)
+        #expect(newTop !== top)
+        #expect(newMiddle.portType == .Geometry)
+        #expect(newTop.portType == .Geometry)
+        #expect(newMiddle.published)
+        #expect(newMiddle.publishedName == "Held")
+        #expect(wraps(newTop, newMiddle))
+        #expect(levels.graph.connections.map(\.id) == [kept.id])
+        #expect(levels.graph.connections.first === kept, "the wire kept is the same connection")
+        #expect(kept.outletPort === newTop)
+        #expect(numeric.inputNumber1.connections.isEmpty)
+
+        undoManager.undo()
+        let restoredTop = try #require(levels.outer.ports.first { $0.id == value.id })
+        #expect(restoredTop.portType == .Float)
+        #expect(Set(levels.graph.connections.map(\.id)) == [dropped.id, kept.id])
+        #expect(levels.graph.connections.allSatisfy { $0.outletPort === restoredTop })
+
+        undoManager.redo()
+        #expect(levels.outer.ports.first { $0.id == value.id }?.portType == .Geometry)
+        #expect(levels.graph.connections.map(\.id) == [kept.id])
+    }
+
     @Test("Renaming a published port renames the parameter its proxies share, at each level it is published up to")
     func renameRefreshesEachLevel() throws
     {

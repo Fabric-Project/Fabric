@@ -14,6 +14,7 @@ public final class RepeatNode: NumericTypeAgnosticNode
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Repeats one numeric value into an array. Choose the value type in Settings." }
     public override class var supportedPortTypes: [PortType] { singleNumericTypes }
+    public override class var specializingInletNames: [String] { ["inputValue"] }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
     {
@@ -40,7 +41,7 @@ public final class RepeatNode: NumericTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputValue") { return }
+        if specializeFromConnectedInlets() { return }
         guard let inputValue: Port = findPort(named: "inputValue"),
               let outputArray: Port = findPort(named: "outputArray"),
               inputValue.valueDidChange || inputCount.valueDidChange,

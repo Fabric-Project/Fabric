@@ -120,6 +120,7 @@ struct ContentView: View {
                                 })
                                 .onAppear {
                                     self.document.editingContext.rootGraph.undoManager = undoManager
+                                    self.document.undoCommandState.follow(undoManager)
 
                                     DispatchQueue.main.asyncAfter(deadline: .now().advanced(by: .milliseconds(10)) ) {
                                         if let firstNode = self.document.editingContext.rootGraph.nodes.first

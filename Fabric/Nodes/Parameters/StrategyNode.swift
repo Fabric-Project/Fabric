@@ -16,6 +16,7 @@ import Foundation
 import Satin
 import Metal
 import SwiftUI
+import Combine
 
 // MARK: - NodeStrategyOption
 
@@ -90,6 +91,32 @@ public enum VectorType: NodeStrategyOption, CaseIterable {
     }
 }
 
+// MARK: - Settings
+
+/// The settings of a StrategyNode and of every subclass, which carry the
+/// strategy whatever else they hold: the base class reads and writes its part
+/// without knowing the leaf's type.
+public protocol StrategySettings: NodeSettings
+{
+    var strategy: String { get set }
+}
+
+/// The settings of a StrategyNode with nothing to set but its strategy.
+public struct StrategyNodeSettings: StrategySettings
+{
+    public var strategy: String
+
+    public init(strategy: String)
+    {
+        self.strategy = strategy
+    }
+
+    public init(strategy: some NodeStrategyOption)
+    {
+        self.strategy = strategy.rawValue
+    }
+}
+
 // MARK: - StrategyNode
 
 public class StrategyNode: Node
@@ -133,32 +160,8 @@ public class StrategyNode: Node
         Self.strategyOption(matching: strategy)
     }
 
-    var strategy: String
-    {
-        didSet
-        {
-            guard oldValue != strategy else { return }
-            let previousStrategy = oldValue
-
-            if let graph
-            {
-                graph.withoutUndoRegistration {
-                    self.rebuildPorts(forStrategy: strategy)
-                }
-                graph.registerUndo(on: self) { node in
-                    node.strategy = previousStrategy
-                }
-                graph.undoManager?.setActionName("Change Node Strategy")
-            }
-            else
-            {
-                self.rebuildPorts(forStrategy: strategy)
-            }
-
-            // `subtitle` is derived from `strategy`; notify so the title refreshes.
-            self.subtitleSubject.send()
-        }
-    }
+    /// Changed by apply(_:), through setStrategy(_:) or Graph.setSettings.
+    private(set) var strategy: String
 
     private enum StrategyCodingKeys: String, CodingKey
     {
@@ -170,8 +173,6 @@ public class StrategyNode: Node
         let container = try decoder.container(keyedBy: StrategyCodingKeys.self)
         let decoded = try container.decodeIfPresent(String.self, forKey: .strategy)
 
-        // Initializing assignment — didSet does not fire here, matching the
-        // plain-creation path (ports are (re)built by rebuildPorts below).
         self.strategy = decoded ?? Self.defaultStrategy
 
         try super.init(from: decoder)
@@ -181,12 +182,31 @@ public class StrategyNode: Node
         self.rebuildPorts(forStrategy: self.strategy)
     }
 
-    public override func encode(to encoder: Encoder) throws
-    {
-        try super.encode(to: encoder)
+    override public var settings: (any NodeSettings)? { StrategyNodeSettings(strategy: self.strategy) }
 
-        var container = encoder.container(keyedBy: StrategyCodingKeys.self)
-        try container.encode(self.strategy, forKey: .strategy)
+    override public func apply(_ settings: any NodeSettings)
+    {
+        guard let settings = settings as? any StrategySettings else { return }
+        let changed = settings.strategy != self.strategy
+        self.strategy = settings.strategy
+        self.rebuildPorts(forStrategy: self.strategy)
+        super.apply(settings)
+        if changed { self.subtitleSubject.send() }
+    }
+
+    /// Changes the strategy as an edit, the rest of the node's settings as
+    /// they are: the strategy picker's write, and a wire's as it specialises
+    /// the node.
+    public func setStrategy(_ strategy: String)
+    {
+        guard var settings = self.settings as? any StrategySettings, settings.strategy != strategy else { return }
+        settings.strategy = strategy
+        self.commitSettings(settings)
+    }
+
+    public func setStrategy(_ strategy: some NodeStrategyOption)
+    {
+        self.setStrategy(strategy.rawValue)
     }
 
     public required init(context: Context)
@@ -197,7 +217,6 @@ public class StrategyNode: Node
     }
 
     /// Designated init for programmatic construction with a specific initial strategy.
-    /// Sets strategy before super.init so didSet never fires, then calls rebuildPorts exactly once.
     public init(context: Context, initialStrategy: String)
     {
         self.strategy = initialStrategy
@@ -211,6 +230,11 @@ public class StrategyNode: Node
         self.init(context: context, initialStrategy: strategy.rawValue)
     }
 
+    public convenience init(context: Context, settings: StrategyNodeSettings)
+    {
+        self.init(context: context, initialStrategy: settings.strategy)
+    }
+
     override public func providesSettingsView() -> Bool { true }
 
     override public var settingsSize: SettingsViewSize { .Mini }
@@ -220,8 +244,7 @@ public class StrategyNode: Node
         AnyView(StrategyPickerView(model: strategySettingsModel))
     }
 
-    /// Shared settings model behind the strategy picker; composite settings
-    /// views (e.g. the routing nodes') reuse it to embed StrategyPickerView.
+    /// The model behind the strategy picker.
     var strategySettingsModel: SettingsModel { _settingsModel }
 
     /// Subclasses: diff current dynamic ports against the wanted set for
@@ -264,6 +287,9 @@ public class StrategyNode: Node
 
     // MARK: - Settings Model
 
+    /// The strategy picker commits each choice, and follows the node's
+    /// strategy as undo and redo change it.
+    @MainActor
     @Observable final class SettingsModel
     {
         let strategies: [String]
@@ -272,11 +298,13 @@ public class StrategyNode: Node
         {
             didSet
             {
-                guard strategy != node?.strategy else { return }
-                node?.strategy = strategy
+                guard !isTakingNodeValue, strategy != oldValue else { return }
+                node?.setStrategy(strategy)
             }
         }
-        private weak var node: StrategyNode?
+        @ObservationIgnored private weak var node: StrategyNode?
+        @ObservationIgnored private var subscription: AnyCancellable?
+        @ObservationIgnored private var isTakingNodeValue = false
 
         init(node: StrategyNode)
         {
@@ -284,10 +312,20 @@ public class StrategyNode: Node
             self.strategies = type(of: node).strategies
             self.separatorAfterFirst = type(of: node).separatorAfterFirstStrategy
             self.strategy = node.strategy
+            self.subscription = node.settingsChangedSubject.sink { [weak self] in self?.takeNodeValue() }
+        }
+
+        private func takeNodeValue()
+        {
+            guard let strategy = node?.strategy, strategy != self.strategy else { return }
+            isTakingNodeValue = true
+            self.strategy = strategy
+            isTakingNodeValue = false
         }
     }
 
-    private lazy var _settingsModel = SettingsModel(node: self)
+    // Made for the settings view, on the main thread.
+    private lazy var _settingsModel: SettingsModel = MainActor.assumeIsolated { SettingsModel(node: self) }
 }
 
 struct StrategyPickerView: View
@@ -296,17 +334,32 @@ struct StrategyPickerView: View
 
     var body: some View
     {
-        Picker("Type", selection: $model.strategy)
+        StrategyPicker(strategies: model.strategies,
+                       separatorAfterFirst: model.separatorAfterFirst,
+                       selection: $model.strategy)
+    }
+}
+
+/// The strategy menu, choosing into `selection`.
+struct StrategyPicker: View
+{
+    let strategies: [String]
+    let separatorAfterFirst: Bool
+    @Binding var selection: String
+
+    var body: some View
+    {
+        Picker("Type", selection: $selection)
         {
-            if model.separatorAfterFirst, let first = model.strategies.first
+            if separatorAfterFirst, let first = strategies.first
             {
                 Text(first).tag(first)
                 Divider()
-                ForEach(model.strategies.dropFirst(), id: \.self) { Text($0).tag($0) }
+                ForEach(strategies.dropFirst(), id: \.self) { Text($0).tag($0) }
             }
             else
             {
-                ForEach(model.strategies, id: \.self) { Text($0).tag($0) }
+                ForEach(strategies, id: \.self) { Text($0).tag($0) }
             }
         }
         .pickerStyle(.menu)
