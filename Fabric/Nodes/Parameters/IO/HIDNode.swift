@@ -49,7 +49,7 @@ public struct HIDDeviceInfo: Codable, Equatable, Identifiable, Hashable
 }
 
 /// Represents an element (input/output) on an HID device
-public struct HIDElementInfo: Codable, Equatable, Identifiable
+public struct HIDElementInfo: Codable, Equatable, Identifiable, Sendable
 {
     public let id: String
     public let cookie: Int
@@ -530,6 +530,22 @@ struct HIDNodeView: View
     }
 }
 
+// MARK: - Settings
+
+/// The settings of an HID node: the device selected and its elements, which
+/// stand for the device while it is unplugged.
+public struct HIDSettings: NodeSettings
+{
+    public var selectedDeviceID: String?
+    public var deviceElements: [HIDElementInfo]
+
+    public init(selectedDeviceID: String?, deviceElements: [HIDElementInfo])
+    {
+        self.selectedDeviceID = selectedDeviceID
+        self.deviceElements = deviceElements
+    }
+}
+
 // MARK: - HID Node
 
 public class HIDNode: Node
@@ -568,7 +584,6 @@ public class HIDNode: Node
         try super.encode(to: encoder)
 
         var container = encoder.container(keyedBy: HIDCodingKeys.self)
-        try container.encodeIfPresent(self.selectedDeviceID, forKey: .selectedDeviceID)
 
         // Save device info so we can try to reconnect later
         if let deviceID = selectedDeviceID,
@@ -576,8 +591,6 @@ public class HIDNode: Node
         {
             try container.encode(deviceInfo, forKey: .selectedDeviceInfo)
         }
-
-        try container.encode(self.deviceElements, forKey: .deviceElements)
     }
 
     public required init(context: Context)
@@ -585,39 +598,59 @@ public class HIDNode: Node
         super.init(context: context)
     }
 
+    public convenience init(context: Context, settings: HIDSettings)
+    {
+        self.init(context: context)
+        self.apply(settings)
+    }
+
+    // MARK: - Settings
+
+    override public var settings: (any NodeSettings)?
+    {
+        HIDSettings(selectedDeviceID: selectedDeviceID, deviceElements: deviceElements)
+    }
+
+    override public func apply(_ settings: any NodeSettings)
+    {
+        guard let settings = settings as? HIDSettings else { return }
+        self.select(settings.selectedDeviceID, elements: settings.deviceElements)
+        super.apply(settings)
+    }
+
+    /// The settings selecting `deviceID`, with its elements as the device
+    /// reports them.
+    fileprivate func settingsSelecting(_ deviceID: String?) -> HIDSettings
+    {
+        HIDSettings(selectedDeviceID: deviceID,
+                    deviceElements: deviceID.flatMap { hidManager?.getElements(for: $0) } ?? [])
+    }
+
+    private func select(_ deviceID: String?, elements: [HIDElementInfo])
+    {
+        if let selectedDeviceID, selectedDeviceID != deviceID
+        {
+            hidManager?.stopMonitoring(deviceID: selectedDeviceID)
+        }
+
+        selectedDeviceID = deviceID
+        deviceElements = elements
+        rebuildPorts()
+
+        if let deviceID
+        {
+            hidManager?.startMonitoring(deviceID: deviceID, elements: elements)
+        }
+    }
+
     // MARK: - Properties
 
     private var hidManager: HIDManager?
     private var savedDeviceInfo: HIDDeviceInfo?
 
-    fileprivate var selectedDeviceID: String?
-    {
-        didSet
-        {
-            if let oldValue
-            {
-                hidManager?.stopMonitoring(deviceID: oldValue)
-            }
-
-            if let deviceID = selectedDeviceID
-            {
-                deviceElements = hidManager?.getElements(for: deviceID) ?? []
-                rebuildPorts()
-                hidManager?.startMonitoring(deviceID: deviceID, elements: deviceElements)
-            }
-            else
-            {
-                deviceElements = []
-                rebuildPorts()
-            }
-
-            _settingsModelStorage?.selectedDeviceID = selectedDeviceID
-            _settingsModelStorage?.deviceElements = deviceElements
-        }
-    }
-
-    fileprivate var availableDevices: [HIDDeviceInfo] = []
-    fileprivate var deviceElements: [HIDElementInfo] = []
+    fileprivate private(set) var selectedDeviceID: String?
+    fileprivate private(set) var availableDevices: [HIDDeviceInfo] = []
+    fileprivate private(set) var deviceElements: [HIDElementInfo] = []
 
     private var latestValues: [String: Int] = [:]
 
@@ -627,7 +660,8 @@ public class HIDNode: Node
 
     override public func settingsView() -> AnyView
     {
-        if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
+        // The settings view is made on the main thread.
+        if _settingsModelStorage == nil { _settingsModelStorage = MainActor.assumeIsolated { SettingsModel(node: self) } }
         return AnyView(HIDNodeView(model: _settingsModelStorage!))
     }
 
@@ -635,27 +669,31 @@ public class HIDNode: Node
 
     // MARK: - Settings Model
 
+    /// The device picker commits each choice; the device list is the node's.
+    // Not isolated as a whole: the node sets the lists and runtime state it
+    // shows from wherever they change. What touches the draft is main-thread.
     @Observable final class SettingsModel
     {
-        var selectedDeviceID: String?
-        {
-            didSet
-            {
-                guard selectedDeviceID != node?.selectedDeviceID else { return }
-                node?.selectedDeviceID = selectedDeviceID
-            }
-        }
+        let draft: NodeSettingsDraft<HIDSettings>
         var availableDevices: [HIDDeviceInfo] = []
-        var deviceElements: [HIDElementInfo] = []
 
-        private weak var node: HIDNode?
+        @MainActor var selectedDeviceID: String?
+        {
+            get { draft.value.selectedDeviceID }
+            set { node.map { draft.value = $0.settingsSelecting(newValue) } }
+        }
 
-        init(node: HIDNode)
+        @MainActor var deviceElements: [HIDElementInfo] { draft.value.deviceElements }
+
+        @ObservationIgnored private weak var node: HIDNode?
+
+        @MainActor init(node: HIDNode)
         {
             self.node = node
-            self.selectedDeviceID = node.selectedDeviceID
+            self.draft = NodeSettingsDraft(of: HIDSettings(selectedDeviceID: node.selectedDeviceID, deviceElements: node.deviceElements),
+                                           on: node,
+                                           commit: .eachChange)
             self.availableDevices = node.availableDevices
-            self.deviceElements = node.deviceElements
         }
 
         func refreshDevices() { node?.refreshDevices() }
@@ -708,7 +746,9 @@ public class HIDNode: Node
                 $0.vendorID == savedInfo.vendorID && $0.productID == savedInfo.productID
             })
             {
-                selectedDeviceID = matchingDevice.id
+                // A reconnect, not an edit: the view follows it.
+                select(matchingDevice.id, elements: hidManager?.getElements(for: matchingDevice.id) ?? [])
+                settingsChangedSubject.send()
             }
         }
     }

@@ -14,18 +14,26 @@ import simd
 internal import MLXVLM
 internal import MLXLMCommon
 
+/// The panel edits a draft: the prompt and the sliders commit after a pause,
+/// the model, chat mode and context size as they are chosen.
 struct LocalVLMNodeSettingsView: View {
     @Bindable var node: LocalVLMNode
+    @State private var draft: NodeSettingsDraft<LocalModelSettings>
+
+    init(node: LocalVLMNode) {
+        self.node = node
+        self._draft = State(initialValue: NodeSettingsDraft(of: node.localModelSettings, on: node, commit: .afterPause))
+    }
 
     var body: some View {
         LocalModelNodeSettingsPanel(
             curatedModels: self.node.availableModels,
-            selectedModelID: self.$node.selectedModelID,
-            temperature: self.$node.temperature,
-            updateIntervalSeconds: self.$node.updateIntervalSeconds,
-            systemPromptOverride: self.$node.systemPromptOverride,
-            chatModeEnabled: self.$node.chatModeEnabled,
-            desiredMaxContextTokens: self.$node.desiredMaxContextTokens,
+            selectedModelID: self.draft.committing(\.selectedModelID),
+            temperature: self.$draft.value.temperature,
+            updateIntervalSeconds: self.$draft.value.updateIntervalSeconds,
+            systemPromptOverride: self.$draft.value.systemPromptOverride,
+            chatModeEnabled: self.draft.committing(\.chatModeEnabled),
+            desiredMaxContextTokens: self.draft.committing(\.desiredMaxContextTokens),
             effectiveMaxContextTokens: self.node.effectiveMaxContextTokens,
             runtimeState: self.node.modelRuntimeState,
             supportsImageInput: true,
@@ -33,10 +41,11 @@ struct LocalVLMNodeSettingsView: View {
             cancelModelOperation: self.node.cancelModelOperation,
             clearConversation: self.node.clearConversation
         )
+        .onDisappear { self.draft.commit() }
     }
 }
 
-@Observable public class LocalVLMNode: Node {
+@Observable public class LocalVLMNode: Node, LocalModelSettingsMirroring {
     override public static var name: String { "Local VLM Node" }
     override public static var nodeType: Node.NodeType { .Parameter(parameterType: .String) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
@@ -169,16 +178,12 @@ struct LocalVLMNodeSettingsView: View {
         self.modelStateObservationTask?.cancel()
     }
 
-    public override func encode(to encoder: Encoder) throws {
-        try super.encode(to: encoder)
+    override public var settings: (any NodeSettings)? { self.localModelSettings }
 
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.selectedModelID, forKey: .selectedModelID)
-        try container.encode(self.temperature, forKey: .temperature)
-        try container.encode(self.updateIntervalSeconds, forKey: .updateIntervalSeconds)
-        try container.encode(self.systemPromptOverride, forKey: .systemPromptOverride)
-        try container.encode(self.chatModeEnabled, forKey: .chatModeEnabled)
-        try container.encode(self.desiredMaxContextTokens, forKey: .desiredMaxContextTokens)
+    override public func apply(_ settings: any NodeSettings) {
+        guard let settings = settings as? LocalModelSettings else { return }
+        self.setLocalModelSettings(settings)
+        super.apply(settings)
     }
 
     override public func providesSettingsView() -> Bool { true }

@@ -13,17 +13,36 @@ import SwiftUI
 
 private struct DeferredSubgraphNodeSettingsView: View
 {
-    @Bindable var model: DeferredSubgraphNode.SettingsModel
+    @State private var draft: NodeSettingsDraft<DeferredSubgraphSettings>
+
+    init(node: DeferredSubgraphNode)
+    {
+        self._draft = State(initialValue: NodeSettingsDraft(of: DeferredSubgraphSettings(deferredMRTEnabled: node.deferredMRTEnabled),
+                                                            on: node,
+                                                            commit: .eachChange))
+    }
 
     var body: some View
     {
         VStack(alignment: .leading)
         {
-            Toggle("Enable Deferred MRT Outputs", isOn: $model.deferredMRTEnabled)
+            Toggle("Enable Deferred MRT Outputs", isOn: $draft.value.deferredMRTEnabled)
             Text("Adds auxiliary outputs for albedo, normals, PBR, velocity, and emissive textures using Satin's deferred geometry pipeline.")
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)
         }
+    }
+}
+
+/// The settings of a Render To Image and Depth node: whether it hands out the
+/// deferred render targets as well.
+public struct DeferredSubgraphSettings: NodeSettings
+{
+    public var deferredMRTEnabled: Bool
+
+    public init(deferredMRTEnabled: Bool)
+    {
+        self.deferredMRTEnabled = deferredMRTEnabled
     }
 }
 
@@ -40,22 +59,6 @@ public class DeferredSubgraphNode: SubgraphNode
     {
         case deferredMRTEnabled
     }
-
-    @Observable final class SettingsModel {
-        var deferredMRTEnabled: Bool {
-            didSet {
-                guard deferredMRTEnabled != node?.deferredMRTEnabled else { return }
-                node?.deferredMRTEnabled = deferredMRTEnabled
-            }
-        }
-        private weak var node: DeferredSubgraphNode?
-        init(node: DeferredSubgraphNode) {
-            self.node = node
-            self.deferredMRTEnabled = node.deferredMRTEnabled
-        }
-    }
-
-    private lazy var _settingsModel = SettingsModel(node: self)
 
     private static let deferredOutputs: RendererOutputs = [.color, .albedo, .normals, .pbr, .velocity, .emissive]
     private static let auxiliaryOutputPorts: [AuxiliaryOutputPortDescriptor] = [
@@ -127,14 +130,21 @@ public class DeferredSubgraphNode: SubgraphNode
         self.synchronizeDeferredConfiguration()
     }
 
-    public override func encode(to encoder: Encoder) throws
+    public convenience init(context: Context, settings: DeferredSubgraphSettings)
     {
-        try super.encode(to: encoder)
-
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.deferredMRTEnabled, forKey: .deferredMRTEnabled)
+        self.init(context: context)
+        self.apply(settings)
     }
-    
+
+    override public var settings: (any NodeSettings)? { DeferredSubgraphSettings(deferredMRTEnabled: deferredMRTEnabled) }
+
+    override public func apply(_ settings: any NodeSettings)
+    {
+        guard let settings = settings as? DeferredSubgraphSettings else { return }
+        self.deferredMRTEnabled = settings.deferredMRTEnabled
+        super.apply(settings)
+    }
+
     private func setupRenderer()
     {
         self.graphRenderer.renderEncoder.label = "Deferred Subgraph"
@@ -341,7 +351,7 @@ public class DeferredSubgraphNode: SubgraphNode
 
     override public func settingsView() -> AnyView
     {
-        AnyView(DeferredSubgraphNodeSettingsView(model: _settingsModel))
+        AnyView(DeferredSubgraphNodeSettingsView(node: self))
     }
 
     override public var settingsSize: SettingsViewSize

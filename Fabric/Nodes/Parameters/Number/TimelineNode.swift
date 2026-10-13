@@ -14,7 +14,7 @@ import simd
 // MARK: - Data Model
 
 /// A single keyframe on a timeline track
-public struct TimelineKeyframe: Codable, Identifiable, Equatable
+public struct TimelineKeyframe: Codable, Identifiable, Equatable, Sendable
 {
     public let id: UUID
     public var time: Float      // 0 to duration
@@ -35,7 +35,7 @@ public struct TimelineKeyframe: Codable, Identifiable, Equatable
 }
 
 /// A timeline track with keyframes
-public struct TimelineTrack: Codable, Identifiable, Equatable
+public struct TimelineTrack: Codable, Identifiable, Equatable, Sendable
 {
     public let id: UUID
     public var name: String
@@ -174,6 +174,55 @@ public struct TimelineTrack: Codable, Identifiable, Equatable
     }
 }
 
+// MARK: - Settings
+
+/// The settings of a Timeline node: its duration and tracks.
+public struct TimelineSettings: NodeSettings
+{
+    public var duration: Float
+    public var tracks: [TimelineTrack]
+
+    public init(duration: Float, tracks: [TimelineTrack])
+    {
+        self.duration = duration
+        self.tracks = tracks
+    }
+
+    private enum CodingKeys: String, CodingKey
+    {
+        case duration
+        case tracks
+    }
+
+    /// Sets the duration, moving each track's last keyframe that sat at the
+    /// old duration to the new one.
+    public mutating func setDuration(_ duration: Float)
+    {
+        let previous = self.duration
+        self.duration = duration
+        for index in tracks.indices
+        {
+            if let lastIndex = tracks[index].keyframes.indices.last,
+               tracks[index].keyframes[lastIndex].time == previous
+            {
+                tracks[index].keyframes[lastIndex].time = duration
+            }
+        }
+    }
+
+    public mutating func addTrack()
+    {
+        tracks.append(TimelineTrack(name: "Track \(tracks.count + 1)", duration: duration))
+    }
+
+    /// Removes the track, unless it is the last.
+    public mutating func removeTrack(id: UUID)
+    {
+        guard tracks.count > 1 else { return }
+        tracks.removeAll { $0.id == id }
+    }
+}
+
 // MARK: - Settings View
 
 struct TimelineTrackView: View
@@ -249,6 +298,7 @@ struct TimelineTrackView: View
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .frame(width: 120)
                     .font(.system(size: 10))
+                    .onSubmit { model.endEditing() }
 
                     Spacer()
 
@@ -341,6 +391,7 @@ struct TimelineTrackView: View
                                 draggingTangent = nil
                                 dragStartLocation = nil
                                 didDrag = false
+                                model.endEditing()
                             }
                     )
                 }
@@ -681,6 +732,7 @@ struct TimelineNodeView: View
             }
         }
         .padding(8)
+        .onDisappear { model.endEditing() }
     }
 }
 
@@ -733,15 +785,6 @@ public class TimelineNode: Node
         syncPortsToTracks()
     }
 
-    public override func encode(to encoder: Encoder) throws
-    {
-        try super.encode(to: encoder)
-
-        var container = encoder.container(keyedBy: TimelineCodingKeys.self)
-        try container.encode(self.duration, forKey: .duration)
-        try container.encode(self.tracks, forKey: .tracks)
-    }
-
     public required init(context: Context)
     {
         super.init(context: context)
@@ -765,33 +808,30 @@ public class TimelineNode: Node
         rebuildPorts()
     }
 
+    public convenience init(context: Context, settings: TimelineSettings)
+    {
+        self.init(context: context, duration: settings.duration, tracks: settings.tracks)
+    }
+
+    // MARK: - Settings
+
+    override public var settings: (any NodeSettings)? { TimelineSettings(duration: duration, tracks: tracks) }
+
+    override public func apply(_ settings: any NodeSettings)
+    {
+        guard let settings = settings as? TimelineSettings else { return }
+        self.duration = settings.duration
+        self.tracks = settings.tracks
+        self.syncPortsToTracks()
+        self.reorderPorts(self.inputPorts() + self.tracks.compactMap { self.findPort(named: $0.name) as Port? })
+        self.markDirty()
+        super.apply(settings)
+    }
+
     // MARK: - Properties
 
     fileprivate var duration: Float = 1.0
-    {
-        didSet
-        {
-            // Update last keyframe of each track to match new duration
-            for i in 0..<tracks.count
-            {
-                if let lastIndex = tracks[i].keyframes.indices.last,
-                   tracks[i].keyframes[lastIndex].time == oldValue
-                {
-                    tracks[i].keyframes[lastIndex].time = duration
-                }
-            }
-            _settingsModelStorage?.duration = duration
-            _settingsModelStorage?.tracks = tracks
-        }
-    }
-
     fileprivate var tracks: [TimelineTrack] = []
-    {
-        didSet
-        {
-            _settingsModelStorage?.tracks = tracks
-        }
-    }
 
     // Current time for playhead display (updated during execution)
     fileprivate var currentTime: Float = 0
@@ -802,7 +842,8 @@ public class TimelineNode: Node
 
     override public func settingsView() -> AnyView
     {
-        if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
+        // The settings view is made on the main thread.
+        if _settingsModelStorage == nil { _settingsModelStorage = MainActor.assumeIsolated { SettingsModel(node: self) } }
         return AnyView(TimelineNodeView(model: _settingsModelStorage!))
     }
 
@@ -810,53 +851,72 @@ public class TimelineNode: Node
 
     // MARK: - Settings Model
 
+    /// The timeline view's draft of the tracks. A drag or a typed name is
+    /// committed when it ends or pauses; a track added or removed, or a
+    /// duration entered, is committed as it is made.
+    // Not isolated as a whole: the node sets the lists and runtime state it
+    // shows from wherever they change. What touches the draft is main-thread.
     @Observable final class SettingsModel
     {
-        var duration: Float
+        let draft: NodeSettingsDraft<TimelineSettings>
+
+        @MainActor var duration: Float
         {
-            didSet
+            get { draft.value.duration }
+            set
             {
-                guard duration != node?.duration else { return }
-                node?.duration = duration
+                draft.value.setDuration(newValue)
+                draft.commit()
             }
         }
 
-        var tracks: [TimelineTrack]
+        @MainActor var tracks: [TimelineTrack]
         {
-            didSet
-            {
-                guard tracks != node?.tracks else { return }
-                node?.tracks = tracks
-            }
+            get { draft.value.tracks }
+            set { draft.value.tracks = newValue }
         }
 
         var currentTime: Float = 0
 
-        private weak var node: TimelineNode?
-
-        init(node: TimelineNode)
+        @MainActor init(node: TimelineNode)
         {
-            self.node = node
-            self.duration = node.duration
-            self.tracks = node.tracks
+            self.draft = NodeSettingsDraft(of: TimelineSettings(duration: node.duration, tracks: node.tracks),
+                                           on: node,
+                                           commit: .afterPause)
             self.currentTime = node.currentTime
         }
 
-        func addTrack() { node?.addTrack() }
-        func removeTrack(id: UUID) { node?.removeTrack(id: id) }
+        @MainActor func addTrack()
+        {
+            draft.value.addTrack()
+            draft.commit()
+        }
 
-        func indexForTrack(id: UUID) -> Int?
+        @MainActor func removeTrack(id: UUID)
+        {
+            draft.value.removeTrack(id: id)
+            draft.commit()
+        }
+
+        /// Commits what a drag or a typed name has left in the draft.
+        @MainActor func endEditing() { draft.commit() }
+
+        @MainActor func indexForTrack(id: UUID) -> Int?
         {
             tracks.firstIndex(where: { $0.id == id })
         }
 
-        func nameForTrack(id: UUID) -> String
+        @MainActor func nameForTrack(id: UUID) -> String
         {
             guard let index = indexForTrack(id: id) else { return "" }
             return tracks[index].name
         }
 
-        func updateTrackName(id: UUID, name: String) { node?.updateTrackName(id: id, name: name) }
+        @MainActor func updateTrackName(id: UUID, name: String)
+        {
+            guard let index = indexForTrack(id: id), tracks[index].name != name else { return }
+            draft.value.tracks[index].name = name
+        }
     }
 
     private var _settingsModelStorage: SettingsModel? = nil
@@ -907,42 +967,6 @@ public class TimelineNode: Node
             let port = NodePort<Float>(name: track.name, kind: .Outlet, description: "Animated value from timeline track")
             addDynamicPort(port)
         }
-    }
-
-    // MARK: - Track Management
-
-    fileprivate func addTrack()
-    {
-        let trackNum = tracks.count + 1
-        let track = TimelineTrack(name: "Track \(trackNum)", duration: duration)
-        tracks.append(track)
-        syncPortsToTracks()
-    }
-
-    fileprivate func removeTrack(id: UUID)
-    {
-        guard tracks.count > 1 else { return }
-        tracks.removeAll { $0.id == id }
-        syncPortsToTracks()
-    }
-
-    fileprivate func indexForTrack(id: UUID) -> Int?
-    {
-        tracks.firstIndex(where: { $0.id == id })
-    }
-
-    fileprivate func nameForTrack(id: UUID) -> String
-    {
-        guard let index = indexForTrack(id: id) else { return "" }
-        return tracks[index].name
-    }
-
-    fileprivate func updateTrackName(id: UUID, name: String)
-    {
-        guard let index = indexForTrack(id: id) else { return }
-        guard tracks[index].name != name else { return }
-        tracks[index].name = name
-        rebuildPorts()
     }
 
     // MARK: - Execution

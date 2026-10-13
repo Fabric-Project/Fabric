@@ -352,6 +352,7 @@ private struct LocalModelInferenceSection: View {
                 VStack(alignment: .leading) {
                     
                     TextEditor(text: self.$systemPromptOverride)
+                        .withoutTypingUndo()
                         .padding(5)
                         .frame(minHeight: 60, maxHeight: 120)
                         .clipShape( RoundedRectangle(cornerRadius: 8))

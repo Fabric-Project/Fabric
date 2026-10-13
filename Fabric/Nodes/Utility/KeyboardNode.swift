@@ -56,7 +56,7 @@ extension EventModifiers
 // MARK: - Codable Key Binding
 
 /// A Codable representation of a key binding since KeyPress is not Codable
-public struct KeyBinding: Codable, Equatable
+public struct KeyBinding: Codable, Equatable, Sendable
 {
     public let characters: String
     public let keyDescription: String
@@ -147,6 +147,18 @@ struct KeyboardNodeView : View
     }
 }
 
+/// The settings of a Keyboard node: its key bindings, one output each. A
+/// slot not yet bound is nil.
+public struct KeyboardSettings: NodeSettings
+{
+    public var keyBindings: [KeyBinding?]
+
+    public init(keyBindings: [KeyBinding?])
+    {
+        self.keyBindings = keyBindings
+    }
+}
+
 public class KeyboardNode : Node
 {
     override public class var name: String { "Keyboard" }
@@ -173,12 +185,13 @@ public class KeyboardNode : Node
         self.rebuildPorts()
     }
 
-    public override func encode(to encoder: Encoder) throws
-    {
-        try super.encode(to: encoder)
+    override public var settings: (any NodeSettings)? { KeyboardSettings(keyBindings: keyBindings) }
 
-        var container = encoder.container(keyedBy: KeyboardCodingKeys.self)
-        try container.encode(self.keyBindings, forKey: .keyBindings)
+    override public func apply(_ settings: any NodeSettings)
+    {
+        guard let settings = settings as? KeyboardSettings else { return }
+        if settings.keyBindings != keyBindings { keyBindings = settings.keyBindings }
+        super.apply(settings)
     }
 
     public required init(context: Context)
@@ -190,6 +203,13 @@ public class KeyboardNode : Node
     {
         self.init(context: context)
         self.keyBindings = keyBindings.map { Optional($0) }
+        self.rebuildPorts()
+    }
+
+    public convenience init(context: Context, settings: KeyboardSettings)
+    {
+        self.init(context: context)
+        self.keyBindings = settings.keyBindings
         self.rebuildPorts()
     }
 
@@ -223,7 +243,7 @@ public class KeyboardNode : Node
 
     // MARK: - Properties
 
-    fileprivate var keyBindings: [KeyBinding?] = [nil]
+    fileprivate private(set) var keyBindings: [KeyBinding?] = [nil]
     {
         didSet
         {
@@ -242,26 +262,26 @@ public class KeyboardNode : Node
 
     // MARK: - Settings Model
 
+    /// Each binding made, added or removed is committed as it is made.
+    @MainActor
     @Observable final class SettingsModel
     {
+        let draft: NodeSettingsDraft<KeyboardSettings>
+
         var keyBindings: [KeyBinding?]
         {
-            didSet
-            {
-                guard keyBindings != node?.keyBindings else { return }
-                node?.keyBindings = keyBindings
-            }
+            get { draft.value.keyBindings }
+            set { draft.value.keyBindings = newValue }
         }
-        private weak var node: KeyboardNode?
 
         init(node: KeyboardNode)
         {
-            self.node = node
-            self.keyBindings = node.keyBindings
+            self.draft = NodeSettingsDraft(of: KeyboardSettings(keyBindings: node.keyBindings), on: node, commit: .eachChange)
         }
     }
 
-    private lazy var _settingsModel = SettingsModel(node: self)
+    // Made for the settings view, on the main thread.
+    private lazy var _settingsModel: SettingsModel = MainActor.assumeIsolated { SettingsModel(node: self) }
 
     // MARK: - Internal
 
