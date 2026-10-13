@@ -475,8 +475,6 @@ internal import AnyCodable
         }, forKey: .connections)
     }
  
-    //MARK: - Notes API -
-    
     //MARK: - Undo -
 
     /// Registers the undo step for an edit made in this graph. Every edit
@@ -593,14 +591,57 @@ internal import AnyCodable
         }
     }
 
+    //MARK: - Notes API -
+
     public func addNote(_ note: Note)
     {
-        self.notes.append(note)
+        self.insertNote(note, at: self.notes.endIndex)
     }
-    
+
     public func deleteNote(_ note:Note)
     {
-        self.notes.removeAll(where: { $0.id == note.id })
+        self.deleteNote(id: note.id)
+    }
+
+    private func deleteNote(id: UUID)
+    {
+        guard let index = self.notes.firstIndex(where: { $0.id == id }) else { return }
+        let note = self.notes.remove(at: index)
+
+        self.registerUndo { graph in
+            graph.insertNote(note, at: index)
+        }
+        self.nameEdit("Delete Note", inverse: "Add Note")
+    }
+
+    private func insertNote(_ note: Note, at index: Int)
+    {
+        guard !self.notes.contains(where: { $0.id == note.id }) else { return }
+        self.notes.insert(note, at: min(index, self.notes.endIndex))
+        let id = note.id
+        self.registerUndo { $0.deleteNote(id: id) }
+        self.nameEdit("Add Note", inverse: "Delete Note")
+    }
+
+    /// Records an edit already made to `note`'s text or frame, from the text
+    /// and frame it had before, as one undo step.
+    public func registerNoteEdit(_ note: Note, previousText: String, previousRect: CGRect)
+    {
+        let id = note.id
+        let text = note.note
+        let rect = note.rect
+        // A note deleted while its edit was open went with what it held.
+        guard text != previousText || rect != previousRect,
+              self.notes.contains(where: { $0.id == id })
+        else { return }
+
+        self.registerUndo { graph in
+            guard let note = graph.notes.first(where: { $0.id == id }) else { return }
+            note.note = previousText
+            note.rect = previousRect
+            graph.registerNoteEdit(note, previousText: text, previousRect: rect)
+        }
+        effectiveUndoManager?.setActionName("Edit Note")
     }
     
     //MARK: - Nodes API -
