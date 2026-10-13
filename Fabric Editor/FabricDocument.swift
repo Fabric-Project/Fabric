@@ -52,6 +52,7 @@ class FabricDocument: FileDocument
     @ObservationIgnored var outputPresenter: OutputPresenter? = nil
     private var outputPresentationHostCount = 0
     @MainActor lazy var movieExportCoordinator = MovieExportCoordinator()
+    @MainActor lazy var undoCommandState = UndoCommandState()
     
     init()
     {

@@ -64,6 +64,27 @@ struct DocumentCommands:Commands
 
     var body: some Commands {
 
+        // Through the graph, which commits a change a control holds for its
+        // pause before the undo, so the undo takes it back.
+        CommandGroup(replacing: .undoRedo)
+        {
+            let undoState = self.activeDocument?.undoCommandState
+
+            Button(undoState?.undoTitle ?? "Undo")
+            {
+                self.activeDocument?.editingContext.rootGraph.undo()
+            }
+            .keyboardShortcut("z", modifiers: .command)
+            .disabled(!(undoState?.canUndo ?? false))
+
+            Button(undoState?.redoTitle ?? "Redo")
+            {
+                self.activeDocument?.editingContext.rootGraph.redo()
+            }
+            .keyboardShortcut("z", modifiers: [.command, .shift])
+            .disabled(!(undoState?.canRedo ?? false))
+        }
+
         CommandGroup(replacing: .pasteboard)
         {
             let graph = self.document?.editingContext.currentGraph
