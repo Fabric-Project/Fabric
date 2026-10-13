@@ -125,19 +125,18 @@ struct ParameterPortConformanceTests
 
         try eachRegisteredNode(context: context)
         { nodeLabel, node in
+            // Publishing the whole node is the most a SubgraphNode can be asked
+            // to proxy. The node is built published, and the subgraph node
+            // made around it, as a document load builds them.
+            for port in node.ports
+            {
+                port.setPublishing(true, name: port.publishedName)
+            }
+
             let subGraph = Graph(context: context)
             subGraph.addNode(node)
 
             let subgraphNode = SubgraphNode(context: context, subGraph: subGraph)
-
-            // Publishing the whole node is the most a SubgraphNode can be asked
-            // to proxy. Rebuilding the group is what tells it they changed.
-            for port in node.ports
-            {
-                port.published = true
-            }
-
-            subGraph.rebuildPublishedParameterGroup()
 
             let proxiesByInnerPortID = Dictionary(
                 subgraphNode.ports.compactMap { proxy -> (UUID, Fabric.Port)? in
@@ -201,7 +200,7 @@ struct ParameterPortConformanceTests
                 let before = Dictionary(uniqueKeysWithValues: node.ports.compactMap { port in
                     node.registryKey(of: port).map { ($0, (id: port.id, published: port.published)) }
                 })
-                for port in node.ports { port.published = true }
+                for port in node.ports { port.setPublishing(true, name: port.publishedName) }
 
                 node.strategy = strategy
 
@@ -236,6 +235,11 @@ struct ParameterPortConformanceTests
 
         try eachRegisteredNode(context: context)
         { nodeLabel, node in
+            for port in node.ports
+            {
+                port.setPublishing(true, name: port.publishedName)
+            }
+
             let subGraph = Graph(context: context)
             subGraph.addNode(node)
 
@@ -244,13 +248,6 @@ struct ParameterPortConformanceTests
             let graph = Graph(context: context)
             graph.addNode(subgraphNode)
 
-            for port in node.ports
-            {
-                port.published = true
-            }
-
-            subGraph.rebuildPublishedParameterGroup()
-
             let proxies = subgraphNode.ports.filter { $0 is any ProxyPortProtocol }
 
             // Publishing a proxy on under a name of its own is what nests one
@@ -258,11 +255,9 @@ struct ParameterPortConformanceTests
             // owns — the rebuild on load has nowhere to recover it from.
             for (index, proxy) in proxies.enumerated()
             {
-                proxy.published = true
-                proxy.publishedName = "Parent Rename \(index)"
+                graph.setPublished(true, on: proxy)
+                graph.setPublishedName("Parent Rename \(index)", on: proxy)
             }
-
-            graph.rebuildPublishedParameterGroup()
 
             let decodedSubgraphNode: SubgraphNode
 

@@ -57,6 +57,38 @@ struct EditUndoTests
         return Fixture(graph: graph, container: container, inner: inner, upstream: upstream, undoManager: undoManager)
     }
 
+    @Test("Undoing an unpublish brings back the proxy, its name and publish in the parent, and the parent's wire")
+    func unpublishUndoes() throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = try makeFixture(context: context)
+        let proxy = try #require(fixture.container.ports.first { $0.id == fixture.inner.inputNumber1.id })
+        step(fixture.undoManager) {
+            fixture.graph.setPublished(true, on: proxy)
+            fixture.graph.setPublishedName("Speed", on: proxy)
+            fixture.container.subGraph.setPublishedName("Amount", on: fixture.inner.inputNumber1)
+        }
+        #expect(fixture.inner.inputNumber1.parameter?.label == "Speed", "the parameter the proxy shares is named as the graph around publishes it")
+
+        step(fixture.undoManager) { fixture.container.subGraph.setPublished(false, on: fixture.inner.inputNumber1) }
+        #expect(fixture.graph.connections.isEmpty)
+        #expect(fixture.inner.inputNumber1.parameter?.label == fixture.inner.inputNumber1.name, "the parameter is named for the port again")
+        #expect(fixture.undoManager.undoActionName == "Unpublish Port")
+
+        fixture.undoManager.undo()
+        #expect(fixture.inner.inputNumber1.published)
+        #expect(fixture.inner.inputNumber1.publishedName == "Amount")
+        let restored = try #require(fixture.container.ports.first { $0.id == fixture.inner.inputNumber1.id })
+        #expect(restored.published)
+        #expect(restored.publishedName == "Speed")
+        #expect(fixture.graph.connections.count == 1)
+        #expect(fixture.upstream.outputNumber.connections.first?.inletPort === restored)
+
+        fixture.undoManager.redo()
+        #expect(!fixture.inner.inputNumber1.published)
+        #expect(fixture.graph.connections.isEmpty)
+    }
+
     @Test("Publishing and naming a published port are undo steps")
     func publishAndRenameUndo() throws
     {

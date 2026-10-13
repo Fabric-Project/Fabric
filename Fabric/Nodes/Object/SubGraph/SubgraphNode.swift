@@ -20,43 +20,151 @@ open class SubgraphNode: BaseObjectNode
 
     public private(set) var subGraph:Graph
 
-    /// ProxyPorts wrapping the sub graph's published ports.
-    /// Each proxy has node = self (the SubgraphNode) and published = false.
-    /// The parent graph independently decides whether to publish them further.
-    /// Lazily rebuilt when the sub graph's published ports change.
+    /// The proxies standing for the sub graph's published ports, one each,
+    /// as ports of this node in the graph around. Made as the node is built
+    /// (see reconcileProxies()); after that, changed only as the sub graph
+    /// tells this node of each change to its published set.
     private var proxyPorts: [Port] = []
 
     override open var ports:[Port] { self.proxyPorts + super.ports }
 
-    /// Rebuild proxy ports from the sub graph's current published ports.
-    /// Called via callback when the sub graph's published ports change.
-    open func rebuildProxyPorts()
+    private func proxyID(for port: Port) -> UUID
+    {
+        port.id
+    }
+
+    private func proxy(over port: Port) -> Port?
+    {
+        let id = self.proxyID(for: port)
+        return self.proxyPorts.first { $0.id == id }
+    }
+
+    /// `port` has joined the sub graph's published set.
+    internal func innerPortDidPublish(_ port: Port)
+    {
+        guard self.proxy(over: port) == nil,
+              let proxy = Self.makeProxy(for: port, id: self.proxyID(for: port))
+        else { return }
+
+        proxy.node = self
+        self.proxyPorts.append(proxy)
+        self.proxiesDidChange()
+    }
+
+    /// `port` is about to leave the sub graph's published set. Its proxy takes
+    /// its wires off and leaves the published set of the graph around, which
+    /// tells the node around that graph in turn, before it goes.
+    internal func innerPortWillUnpublish(_ port: Port)
+    {
+        guard let proxy = self.proxy(over: port) else { return }
+
+        if let graph = self.graph
+        {
+            let undoManager = graph.effectiveUndoManager
+            undoManager?.beginUndoGrouping()
+            graph.disconnectAll(from: proxy)
+            graph.setPublished(false, on: proxy)
+            undoManager?.endUndoGrouping()
+        }
+
+        self.proxyPorts.removeAll { $0 === proxy }
+        proxy.node = nil
+        self.proxiesDidChange()
+    }
+
+    /// `new` has replaced `old` in the sub graph's published set under its
+    /// id. A proxy of the same value type forwards to `new` in place; one of
+    /// another type is made again under the same id, published as it was.
+    /// Either way the graph around keeps the wires the proxy can still take.
+    internal func innerPort(_ old: Port, wasReplacedBy new: Port)
+    {
+        guard let proxy = self.proxy(over: old) else
+        {
+            self.innerPortDidPublish(new)
+            return
+        }
+
+        if let retargeted = proxy as? any ProxyPortProtocol, retargeted.retarget(to: new)
+        {
+            self.graph?.rebindWires(from: proxy, to: proxy)
+            self.proxiesDidChange()
+            // A proxy above forwards to this one, and takes its parameter again.
+            if proxy.published { self.graph?.port(proxy, wasReplacedBy: proxy) }
+            return
+        }
+
+        guard let index = self.proxyPorts.firstIndex(where: { $0 === proxy }),
+              let remade = Self.makeProxy(for: new, id: proxy.id)
+        else
+        {
+            self.innerPortWillUnpublish(old)
+            return
+        }
+
+        remade.setPublishing(proxy.published, name: proxy.publishedName)
+        remade.node = self
+        self.graph?.rebindWires(from: proxy, to: remade)
+        self.proxyPorts[index] = remade
+        proxy.node = nil
+        self.proxiesDidChange()
+        if remade.published { self.graph?.port(proxy, wasReplacedBy: remade) }
+    }
+
+    /// `port`, published in the sub graph, has a new published name, which
+    /// its proxy shows unless it has one of its own.
+    internal func innerPortDidRename(_ port: Port)
+    {
+        guard let proxy = self.proxy(over: port) else { return }
+
+        self.proxiesDidChange()
+        if proxy.published { self.graph?.portDidRename(proxy) }
+    }
+
+    /// Brings the proxies to the sub graph's published set, once, as the node
+    /// is built: a decoded proxy is kept where it forwards to the published
+    /// port under its id, made again where that port was replaced, and dropped
+    /// where none is published; a published port with no proxy gets one.
+    private func reconcileProxies()
+    {
+        let innerPorts = self.subGraph.getPublishedPorts()
+        let innerPortsByProxyID = Dictionary(innerPorts.map { (self.proxyID(for: $0), $0) }, uniquingKeysWith: { first, _ in first })
+
+        var proxies: [Port] = []
+        for proxy in self.proxyPorts
+        {
+            guard let innerPort = innerPortsByProxyID[proxy.id],
+                  let typed = proxy as? any ProxyPortProtocol
+            else { continue }
+
+            if typed.wraps(innerPort)
+            {
+                proxies.append(proxy)
+            }
+            else if let remade = Self.makeProxy(for: innerPort, id: proxy.id)
+            {
+                remade.setPublishing(proxy.published, name: proxy.publishedName)
+                proxies.append(remade)
+            }
+        }
+
+        for innerPort in innerPorts where !proxies.contains(where: { $0.id == self.proxyID(for: innerPort) })
+        {
+            if let proxy = Self.makeProxy(for: innerPort, id: self.proxyID(for: innerPort))
+            {
+                proxies.append(proxy)
+            }
+        }
+
+        proxies.forEach { $0.node = self }
+        self.proxyPorts = proxies
+        self.proxiesDidChange()
+    }
+
+    private func proxiesDidChange()
     {
         self.invalidatePortCaches()
 
-        let innerPorts = self.subGraph.getPublishedPorts()
-        let publishedIDs = Set(innerPorts.map(\.id))
-
-        // Remove proxies whose inner port is no longer published
-        self.proxyPorts.removeAll { proxy in
-            guard let proxy = proxy as? any ProxyPortProtocol else { return true }
-            return !publishedIDs.contains(proxy.innerPortID)
-        }
-
-        // Add proxies for newly published ports
-        let existingInnerIDs = Set(self.proxyPorts.compactMap { ($0 as? any ProxyPortProtocol)?.innerPortID })
-        for innerPort in innerPorts where !existingInnerIDs.contains(innerPort.id)
-        {
-            if let proxy = Self.makeProxy(for: innerPort)
-            {
-                proxy.node = self
-                self.proxyPorts.append(proxy)
-            }
-        }
-        
-        // Ensure parameter group is updated
         self.parameterGroup.clear()
-
         for port in self.ports
         {
             if let param = port.parameter
@@ -64,70 +172,68 @@ open class SubgraphNode: BaseObjectNode
                 self.parameterGroup.append(param)
             }
         }
-
         self.synchronizeParameters()
 
-        self.invalidatePortCaches()
         self.graph?.markConnectionsChanged()
         self.portsChangedSubject.send()
     }
 
     /// Type-erase proxy creation — matches the inner port's generic type.
-    private static func makeProxy(for port: Port) -> Port?
+    private static func makeProxy(for port: Port, id: UUID) -> Port?
     {
         switch port
         {
-        case let p as NodePort<Float>:                              return ProxyPort(wrapping: p)
-        case let p as NodePort<Int>:                                return ProxyPort(wrapping: p)
-        case let p as NodePort<Bool>:                               return ProxyPort(wrapping: p)
-        case let p as NodePort<String>:                             return ProxyPort(wrapping: p)
-        case let p as NodePort<simd_float2>:                        return ProxyPort(wrapping: p)
-        case let p as NodePort<simd_float3>:                        return ProxyPort(wrapping: p)
-        case let p as NodePort<simd_float4>:                        return ProxyPort(wrapping: p)
-        case let p as NodePort<FabricImage>:                        return ProxyPort(wrapping: p)
-        case let p as NodePort<Geometry>:                           return ProxyPort(wrapping: p)
-        case let p as NodePort<Material>:                           return ProxyPort(wrapping: p)
-        case let p as NodePort<PortValue>:                          return ProxyPort(wrapping: p)
-        case let p as NodePort<simd_quatf>:                         return ProxyPort(wrapping: p)
-        case let p as NodePort<simd_float4x4>:                      return ProxyPort(wrapping: p)
-        case let p as NodePort<ContiguousArray<Float>>:             return ProxyPort(wrapping: p)
-        case let p as NodePort<ContiguousArray<Int>>:               return ProxyPort(wrapping: p)
-        case let p as NodePort<ContiguousArray<Bool>>:              return ProxyPort(wrapping: p)
-        case let p as NodePort<ContiguousArray<String>>:            return ProxyPort(wrapping: p)
-        case let p as NodePort<ContiguousArray<simd_float2>>:       return ProxyPort(wrapping: p)
-        case let p as NodePort<ContiguousArray<simd_float3>>:       return ProxyPort(wrapping: p)
-        case let p as NodePort<ContiguousArray<simd_float4>>:       return ProxyPort(wrapping: p)
-        case let p as NodePort<ContiguousArray<simd_float4x4>>:     return ProxyPort(wrapping: p)
-        case let p as NodePort<ContiguousArray<simd_quatf>>:        return ProxyPort(wrapping: p)
-        case let p as NodePort<ContiguousArray<Geometry>>:          return ProxyPort(wrapping: p)
-        case let p as NodePort<ContiguousArray<Material>>:          return ProxyPort(wrapping: p)
-        case let p as NodePort<ContiguousArray<FabricImage>>:       return ProxyPort(wrapping: p)
-        case let p as NodePort<ContiguousArray<PortValue>>:         return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, Float>>:          return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, Int>>:            return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, Bool>>:           return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, String>>:         return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, simd_float2>>:    return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, simd_float3>>:    return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, simd_float4>>:    return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, simd_float4x4>>:  return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, simd_quatf>>:     return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, Geometry>>:       return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, Material>>:       return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, FabricImage>>:    return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, ContiguousArray<Float>>>:         return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, ContiguousArray<Int>>>:           return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, ContiguousArray<Bool>>>:          return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, ContiguousArray<String>>>:        return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, ContiguousArray<simd_float2>>>:   return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, ContiguousArray<simd_float3>>>:   return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, ContiguousArray<simd_float4>>>:   return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, ContiguousArray<simd_float4x4>>>: return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, ContiguousArray<simd_quatf>>>:    return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, ContiguousArray<Geometry>>>:      return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, ContiguousArray<Material>>>:      return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, ContiguousArray<FabricImage>>>:   return ProxyPort(wrapping: p)
-        case let p as NodePort<Dictionary<String, PortValue>>:       return ProxyPort(wrapping: p)
+        case let p as NodePort<Float>:                              return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Int>:                                return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Bool>:                               return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<String>:                             return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<simd_float2>:                        return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<simd_float3>:                        return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<simd_float4>:                        return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<FabricImage>:                        return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Geometry>:                           return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Material>:                           return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<PortValue>:                          return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<simd_quatf>:                         return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<simd_float4x4>:                      return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<ContiguousArray<Float>>:             return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<ContiguousArray<Int>>:               return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<ContiguousArray<Bool>>:              return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<ContiguousArray<String>>:            return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<ContiguousArray<simd_float2>>:       return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<ContiguousArray<simd_float3>>:       return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<ContiguousArray<simd_float4>>:       return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<ContiguousArray<simd_float4x4>>:     return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<ContiguousArray<simd_quatf>>:        return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<ContiguousArray<Geometry>>:          return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<ContiguousArray<Material>>:          return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<ContiguousArray<FabricImage>>:       return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<ContiguousArray<PortValue>>:         return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, Float>>:          return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, Int>>:            return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, Bool>>:           return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, String>>:         return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, simd_float2>>:    return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, simd_float3>>:    return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, simd_float4>>:    return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, simd_float4x4>>:  return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, simd_quatf>>:     return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, Geometry>>:       return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, Material>>:       return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, FabricImage>>:    return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, ContiguousArray<Float>>>:         return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, ContiguousArray<Int>>>:           return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, ContiguousArray<Bool>>>:          return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, ContiguousArray<String>>>:        return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, ContiguousArray<simd_float2>>>:   return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, ContiguousArray<simd_float3>>>:   return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, ContiguousArray<simd_float4>>>:   return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, ContiguousArray<simd_float4x4>>>: return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, ContiguousArray<simd_quatf>>>:    return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, ContiguousArray<Geometry>>>:      return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, ContiguousArray<Material>>>:      return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, ContiguousArray<FabricImage>>>:   return ProxyPort(wrapping: p, id: id)
+        case let p as NodePort<Dictionary<String, PortValue>>:       return ProxyPort(wrapping: p, id: id)
         default:
             print("ProxyPort: unsupported port type for \(port.name): \(type(of: port))")
             return nil
@@ -176,7 +282,7 @@ open class SubgraphNode: BaseObjectNode
 
         super.init(context: context)
         self.wireSubGraphCallback()
-        self.rebuildProxyPorts()
+        self.reconcileProxies()
     }
 
     /// Wrap an existing graph as this node's sub graph, for embedders that
@@ -187,7 +293,7 @@ open class SubgraphNode: BaseObjectNode
 
         super.init(context: context)
         self.wireSubGraphCallback()
-        self.rebuildProxyPorts()
+        self.reconcileProxies()
     }
 
     enum CodingKeys : String, CodingKey
@@ -235,8 +341,7 @@ open class SubgraphNode: BaseObjectNode
 
         try super.init(from: decoder)
         self.wireSubGraphCallback()
-        self.proxyPorts.forEach { $0.node = self }
-        self.rebuildProxyPorts()
+        self.reconcileProxies()
     }
 
     private static func decodeProxyPortsIfPossible(from container: KeyedDecodingContainer<CodingKeys>,
@@ -256,9 +361,6 @@ open class SubgraphNode: BaseObjectNode
     private func wireSubGraphCallback()
     {
         self.subGraph.ownerNode = self
-        self.subGraph.onPublishedPortsChanged = { [weak self] in
-            self?.rebuildProxyPorts()
-        }
 
         self.subGraph.onCameraSelectionChanged = { [weak self] in
             guard let self, !(self is DeferredSubgraphNode) else { return }

@@ -64,8 +64,7 @@ struct DictionaryPortTests
             description: "Input array to index into",
             id: legacyID
         )
-        legacyInput.published = true
-        legacyInput.publishedName = "Legacy Array"
+        legacyInput.setPublishing(true, name: "Legacy Array")
         node.addDynamicPort(legacyInput, name: "inputPort")
 
         node.rebuildPorts(forStrategy: PortType.Virtual.rawValue)

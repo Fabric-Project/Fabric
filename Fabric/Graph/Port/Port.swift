@@ -89,10 +89,15 @@ extension UTType
 
     public var portDescription: String = ""
 
-    public var published: Bool = false
+    /// Changed through Graph.setPublished and setPublishedName, which tell
+    /// the sub graph node around the graph; see setPublishing(_:name:).
+    public private(set) var published: Bool = false
 
-    public var publishedName: String? = nil
+    public private(set) var publishedName: String? = nil
 
+    /// Writes the publishing of a port no graph needs to hear of: one being
+    /// built, decoded or hydrated before it registers, or a proxy its sub
+    /// graph node makes. Every other change goes through the graph.
     internal func setPublishing(_ published: Bool, name: String?)
     {
         self.published = published
