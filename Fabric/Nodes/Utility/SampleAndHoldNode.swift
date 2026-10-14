@@ -38,14 +38,8 @@ public class SampleAndHoldNode: TypeAgnosticNode
         super.rebuildPorts(forStrategy: strategy)
         guard let portType = PortType(rawValue: strategy) else { return }
 
-        if let existing: Port = findPort(named: "inputValue"),  existing.portType != portType { removePort(existing) }
-        if let existing: Port = findPort(named: "outputValue"), existing.portType != portType { removePort(existing) }
-        if findPort(named: "inputValue") == nil {
-            addDynamicPort(portType.makeFreshPort(name: "Value", kind: .Inlet,  description: "Value to sample and hold"), name: "inputValue")
-        }
-        if findPort(named: "outputValue") == nil {
-            addDynamicPort(portType.makeFreshPort(name: "Value", kind: .Outlet, description: "The last sampled value"), name: "outputValue")
-        }
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputValue",  displayName: "Value", portType: portType, kind: .Inlet,  description: "Value to sample and hold")
+        addOrReplaceDynamicPortPreservingIdentity(name: "outputValue", displayName: "Value", portType: portType, kind: .Outlet, description: "The last sampled value")
 
         heldValue = nil
 

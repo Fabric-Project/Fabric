@@ -749,21 +749,15 @@ public final class JavaScriptNode: Node
                 continue
             }
 
-            let oldConnections = self.findPort(named: definition.name, as: Port.self)?.connectedPorts ?? []
             if let existingPort = self.findPort(named: definition.name, as: Port.self) {
-                self.removePort(existingPort)
+                let replacement = definition.portType.makeFreshPort(name: definition.name, kind: expectedKind, id: existingPort.id)
+                self.replacePort(existingPort, with: replacement)
+                reorderedPorts.append(replacement)
+            } else {
+                let added = definition.portType.makeFreshPort(name: definition.name, kind: expectedKind)
+                self.addDynamicPort(added, name: definition.name)
+                reorderedPorts.append(added)
             }
-
-            let replacement = definition.portType.makeFreshPort(name: definition.name, kind: expectedKind)
-            self.addDynamicPort(replacement, name: definition.name)
-            for connectedPort in oldConnections where replacement.canConnect(to: connectedPort) {
-                if replacement.kind == .Outlet {
-                    self.graph?.connect(replacement, to: connectedPort)
-                } else {
-                    self.graph?.connect(connectedPort, to: replacement)
-                }
-            }
-            reorderedPorts.append(replacement)
         }
 
         self.reorderPorts(reorderedPorts)

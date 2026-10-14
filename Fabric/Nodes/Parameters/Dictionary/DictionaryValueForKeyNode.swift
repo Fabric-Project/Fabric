@@ -25,17 +25,8 @@ public final class DictionaryValueForKeyNode: DictionaryTypeAgnosticNode
     {
         super.rebuildPorts(forStrategy: strategy)
 
-        if let existing: Port = findPort(named: "inputDictionary"), existing.portType != dictionaryType { removePort(existing) }
-        if let existing: Port = findPort(named: "outputValue"), existing.portType != valueType { removePort(existing) }
-
-        if findPort(named: "inputDictionary") == nil
-        {
-            addDynamicPort(dictionaryType.makeFreshPort(name: "Dictionary", kind: .Inlet, description: "Dictionary to read"), name: "inputDictionary")
-        }
-        if findPort(named: "outputValue") == nil
-        {
-            addDynamicPort(valueType.makeFreshPort(name: "Value", kind: .Outlet, description: "Value for the key"), name: "outputValue")
-        }
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputDictionary", displayName: "Dictionary", portType: dictionaryType, kind: .Inlet,  description: "Dictionary to read")
+        addOrReplaceDynamicPortPreservingIdentity(name: "outputValue",     displayName: "Value",      portType: valueType,      kind: .Outlet, description: "Value for the key")
 
         reorderPorts(named: ["inputDictionary", "inputKey", "outputValue"])
     }

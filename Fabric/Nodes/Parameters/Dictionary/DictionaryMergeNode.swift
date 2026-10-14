@@ -16,23 +16,9 @@ public final class DictionaryMergeNode: DictionaryTypeAgnosticNode
     {
         super.rebuildPorts(forStrategy: strategy)
 
-        for name in ["inputDictionaryA", "inputDictionaryB", "outputDictionary"]
-        {
-            if let existing: Port = findPort(named: name), existing.portType != dictionaryType { removePort(existing) }
-        }
-
-        if findPort(named: "inputDictionaryA") == nil
-        {
-            addDynamicPort(dictionaryType.makeFreshPort(name: "Dictionary A", kind: .Inlet, description: "Base dictionary"), name: "inputDictionaryA")
-        }
-        if findPort(named: "inputDictionaryB") == nil
-        {
-            addDynamicPort(dictionaryType.makeFreshPort(name: "Dictionary B", kind: .Inlet, description: "Dictionary whose values override A"), name: "inputDictionaryB")
-        }
-        if findPort(named: "outputDictionary") == nil
-        {
-            addDynamicPort(dictionaryType.makeFreshPort(name: "Dictionary", kind: .Outlet, description: "Merged dictionary"), name: "outputDictionary")
-        }
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputDictionaryA", displayName: "Dictionary A", portType: dictionaryType, kind: .Inlet,  description: "Base dictionary")
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputDictionaryB", displayName: "Dictionary B", portType: dictionaryType, kind: .Inlet,  description: "Dictionary whose values override A")
+        addOrReplaceDynamicPortPreservingIdentity(name: "outputDictionary", displayName: "Dictionary",   portType: dictionaryType, kind: .Outlet, description: "Merged dictionary")
 
         reorderPorts(named: ["inputDictionaryA", "inputDictionaryB", "outputDictionary"])
     }

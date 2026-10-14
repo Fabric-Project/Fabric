@@ -109,6 +109,48 @@ struct PortHydrationTests
         #expect(decoded.droppedPortStateKeys.isEmpty)
     }
 
+    /// Type-agnostic nodes whose value inlet is editable once a type is picked,
+    /// by the registry name of that inlet.
+    private static let editableValueInlets: [(nodeClass: TypeAgnosticNode.Type, portName: String)] = [
+        (SampleAndHoldNode.self, "inputValue"),
+        (SwitchNode.self, "input0"),
+        (MatrixSwitchNode.self, "input0"),
+        (GateNode.self, "input"),
+        (ArrayQueueNode.self, "inputPort"),
+        (ArrayReplaceValueAtIndexNode.self, "inputValue"),
+        (DictionarySetValueForKeyNode.self, "inputValue"),
+    ]
+
+    @Test("A type-agnostic node's edited value inlet comes back with its value, on its id", arguments: editableValueInlets)
+    func editableValueInletSurvivesRoundTrip(nodeClass: TypeAgnosticNode.Type, portName: String) throws
+    {
+        guard let context = makeContext() else { return }
+
+        let node = nodeClass.init(context: context)
+        node.strategy = PortType.Float.rawValue
+
+        let graph = Graph(context: context)
+        graph.addNode(node)
+
+        let inlet = try #require(node.findPort(named: portName) as ParameterPort<Float>?,
+                                 "\(nodeClass) Float value inlet is not a ParameterPort<Float>")
+        inlet.value = 7.5
+        let savedID = inlet.id
+
+        let data = try JSONEncoder().encode(graph)
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decodedGraph = try decoder.decode(Graph.self, from: data)
+
+        let decoded = try #require(decodedGraph.node(forID: node.id) as? TypeAgnosticNode)
+        let decodedInlet = try #require(decoded.findPort(named: portName) as ParameterPort<Float>?,
+                                        "\(nodeClass) value inlet decoded without its parameter")
+
+        #expect(decodedInlet.id == savedID)
+        #expect(decodedInlet.parameter?.id == savedID)
+        #expect(decodedInlet.value == 7.5)
+    }
+
     @Test("Retired port state is dropped and reported, not resurrected")
     func retiredPortStateIsDroppedAndReported() throws
     {
@@ -156,6 +198,151 @@ struct PortHydrationTests
 
         #expect(decoded.inputNumber1.id == savedID)
         #expect(decoded.inputNumber1.parameter?.id == savedID)
+    }
+
+    @Test("An editable port rebuilt on another's id keeps it, parameter included")
+    func editablePortRebuiltOnIdKeepsIt()
+    {
+        let takenOverID = UUID()
+
+        for portType: PortType in [.Bool, .Int, .Float, .String, .Vector2, .Vector3, .Vector4, .Color]
+        {
+            let port = portType.makeFreshPort(name: "Value", kind: .Inlet, id: takenOverID)
+
+            #expect(port.parameter != nil, "\(portType.rawValue) rebuilt without a parameter")
+            #expect(port.portType == portType, "\(portType.rawValue) rebuilt as \(port.portType.rawValue)")
+            #expect(port.id == takenOverID, "\(portType.rawValue) rebuilt on a new id")
+            #expect(port.parameter?.id == takenOverID, "\(portType.rawValue) parameter keyed to a different id")
+        }
+
+        // A type with no parameter to offer falls back to a plain port, on the same id.
+        let geometry = PortType.Geometry.makeFreshPort(name: "Geometry", kind: .Inlet, id: takenOverID)
+        #expect(geometry.parameter == nil)
+        #expect(geometry.id == takenOverID)
+
+        // An outlet's value is the node's to write, so it never gets one.
+        let outlet = PortType.Float.makeFreshPort(name: "Value", kind: .Outlet, id: takenOverID)
+        #expect(outlet.parameter == nil)
+        #expect(outlet.id == takenOverID)
+    }
+
+    @Test("A Transform parameter gets a parameter port; a quaternion one, which Satin cannot encode, gets none")
+    func parameterPortFollowsWhatSatinCanCarry() throws
+    {
+        let rotation = simd_quatf(angle: 0.5, axis: simd_float3(0, 1, 0))
+        #expect(PortType.port(for: GenericParameter<simd_quatf>("Rotation", rotation)) == nil)
+
+        let scale = simd_float4x4(diagonal: simd_float4(2, 3, 1, 1))
+        let transformPort = try #require(PortType.port(for: Float4x4Parameter("Warp", scale)) as? ParameterPort<simd_float4x4>)
+        #expect(transformPort.value == scale)
+
+        let floatPort = try #require(PortType.port(for: FloatParameter("Gain", 0.5)))
+        #expect(floatPort.parameter != nil)
+    }
+
+    @Test("An inlet rests at its type's default: Transform through its parameter, Quaternion as a plain port, a collection at nothing")
+    func inletRestsAtTypeDefault() throws
+    {
+        guard let context = makeContext() else { return }
+
+        let transform = PortType.Transform.makeFreshPort(name: "Transform", kind: .Inlet) as? ParameterPort<simd_float4x4>
+        #expect(transform?.value == matrix_identity_float4x4)
+
+        let quaternion = PortType.Quaternion.makeFreshPort(name: "Rotation", kind: .Inlet) as? NodePort<simd_quatf>
+        #expect(quaternion?.value == simd_quatf.defaultValue)
+
+        #expect(PortType.Transform.makeFreshPort(name: "Transform", kind: .Outlet).snapshotValue() == nil)
+        #expect(PortType.Array(portType: .Transform).makeFreshPort(name: "Transforms", kind: .Inlet).snapshotValue() == nil)
+        #expect(PortType.Geometry.makeFreshPort(name: "Geometry", kind: .Inlet).snapshotValue() == nil)
+
+        // A type-agnostic node's inlets come from the same factory.
+        let switchNode = SwitchNode(context: context, routeCount: 2, portType: .Transform)
+        let input = try #require(switchNode.findPort(named: "input0") as ParameterPort<simd_float4x4>?)
+        #expect(input.value == matrix_identity_float4x4)
+
+        let passThrough = PassThroughNode<simd_quatf>(context: context)
+        #expect(passThrough.input.value == simd_quatf.defaultValue)
+    }
+
+    @Test("A type change leaves the replacement inlet at its type's default, on the old id")
+    func typeChangeRestsReplacementAtTypeDefault() throws
+    {
+        guard let context = makeContext() else { return }
+
+        let node = SwitchNode(context: context, routeCount: 2, portType: .Float)
+        let floatInput = try #require(node.findPort(named: "input0") as ParameterPort<Float>?)
+        floatInput.value = 7.5
+        let savedID = floatInput.id
+
+        node.strategy = PortType.Transform.rawValue
+
+        let transformInput = try #require(node.findPort(named: "input0") as NodePort<simd_float4x4>?)
+        #expect(transformInput.id == savedID)
+        #expect(transformInput.value == matrix_identity_float4x4)
+
+        // The numeric family rebuilds through the same helper.
+        let distance = DistanceNode(context: context)
+        distance.strategy = PortType.Float.rawValue
+        let floatA = try #require(distance.findPort(named: "inputA") as ParameterPort<Float>?)
+        floatA.published = true
+        let savedAID = floatA.id
+
+        distance.strategy = PortType.Vector3.rawValue
+
+        let float3A = try #require(distance.findPort(named: "inputA") as ParameterPort<simd_float3>?)
+        #expect(float3A.id == savedAID)
+        #expect(float3A.published)
+    }
+
+    @Test("A saved quaternion parameter port comes back as a plain port on its id, not a crash")
+    func quaternionParameterPortDecodesAsPlainPort() throws
+    {
+        guard let context = makeContext() else { return }
+
+        // What a build before this rule wrote for a quaternion uniform.
+        let port = ParameterPort(parameter: GenericParameter<simd_quatf>("Rotation", simd_quatf(angle: 0.5, axis: simd_float3(0, 1, 0))))
+        let data = try JSONEncoder().encode(AnyPort(port))
+
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decoded = try decoder.decode(AnyPort.self, from: data).base
+        #expect(decoded is NodePort<simd_quatf>)
+        #expect(decoded.parameter == nil)
+        #expect(decoded.id == port.id)
+    }
+
+    @Test("A Transform parameter port survives a save as a parameter port, value and id intact")
+    func transformParameterPortSurvivesRoundTrip() throws
+    {
+        guard let context = makeContext() else { return }
+
+        let node = TransformParameterPortNode(context: context)
+        let translation = simd_float4x4(columns: (simd_float4(1, 0, 0, 0),
+                                                  simd_float4(0, 1, 0, 0),
+                                                  simd_float4(0, 0, 1, 0),
+                                                  simd_float4(3, 4, 5, 1)))
+        node.input.value = translation
+        node.input.published = true
+        let savedID = node.input.id
+
+        // The port on its own, through the document's port envelope: a parameter
+        // port that fails to decode is quietly re-read as a plain one (AnyPort),
+        // which the node-level round trip below would not notice.
+        let portData = try JSONEncoder().encode(AnyPort(node.input))
+        let portDecoder = JSONDecoder()
+        portDecoder.context = DecoderContext(documentContext: context)
+        let decodedPort = try #require(try portDecoder.decode(AnyPort.self, from: portData).base as? ParameterPort<simd_float4x4>)
+        #expect(decodedPort.id == savedID)
+        #expect(decodedPort.value == translation)
+        #expect((decodedPort.parameter as? Float4x4Parameter)?.value == translation)
+
+        // The node, through declare-then-hydrate.
+        let decoded = try roundTrip(node, context: context)
+        #expect(decoded.input.id == savedID)
+        #expect(decoded.input.value == translation)
+        #expect((decoded.input.parameter as? Float4x4Parameter)?.value == translation)
+        #expect(decoded.input.published)
+        #expect(decoded.droppedPortStateKeys.isEmpty)
     }
 
     @Test("Declared parameter metadata wins over the document's copy")
@@ -300,6 +487,146 @@ struct PortHydrationTests
         let decodedGain = try #require(decodedNode.findPort(named: "Gain") as? ParameterPort<Float>)
         #expect(decodedGain.value == 1.7)
         #expect(decodedGain.connections.count == 1)
+    }
+
+    @Test("A shader's Transform uniform is a parameter port that keeps its wire and shares the material's parameter")
+    @MainActor
+    func shaderTransformUniformIsParameterPortSharingMaterialParameter() throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let context = harness.context
+
+        // A second compile re-syncs the uniforms with the Transform port already
+        // there: the edit a user makes while it is wired.
+        func shaderSource(sampling sampleName: String) -> String
+        {
+            """
+            #include <metal_stdlib>
+            using namespace metal;
+
+            typedef struct {
+                float4x4 warpTransform;
+            } PostUniforms;
+
+            fragment half4 postFragment(VertexData in [[stage_in]],
+                                        constant PostUniforms &uniforms [[buffer(FragmentBufferMaterialUniforms)]],
+                                        texture2d<half, access::sample> inputTexture [[texture(FragmentTextureCustom0)]]) {
+                constexpr sampler \(sampleName)(address::clamp_to_edge, filter::linear);
+                float2 uv = (uniforms.warpTransform * float4(in.texcoord, 0.0, 1.0)).xy;
+                return inputTexture.sample(\(sampleName), uv);
+            }
+            """
+        }
+
+        let node = LiveImageNode(context: context)
+        node.updateShaderSource(shaderSource(sampling: "s"))
+
+        let uniformPort = try #require(node.ports.first { $0.kind == .Inlet && $0.portType == .Transform })
+        #expect(uniformPort.parameter != nil)
+
+        let source = PassThroughNode<simd_float4x4>(context: context)
+        let graph = Graph(context: context)
+        graph.addNode(source)
+        graph.addNode(node)
+        graph.connect(source.output, to: uniformPort)
+
+        node.updateShaderSource(shaderSource(sampling: "linearSampler"))
+        let recompiledPort = try #require(node.findPort(named: uniformPort.name) as Fabric.Port?)
+        #expect(recompiledPort.id == uniformPort.id)
+        #expect(recompiledPort.connectedPorts.map(\.id) == [source.output.id])
+
+        let data = try JSONEncoder().encode(graph)
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decodedGraph = try decoder.decode(Graph.self, from: data)
+
+        let decoded = try #require(decodedGraph.node(forID: node.id) as? LiveImageNode)
+        let decodedPort = try #require(decoded.findPort(named: uniformPort.name) as ParameterPort<simd_float4x4>?)
+        #expect(decodedPort.id == uniformPort.id)
+        #expect(decodedPort.connectedPorts.map(\.id) == [source.output.id])
+
+        let scale = simd_float4x4(diagonal: simd_float4(2, 3, 1, 1))
+        decodedPort.value = scale
+        try harness.execute(decoded)
+
+        let materialParameter = try #require(decoded.postMaterial.parameters.get(uniformPort.name) as? Float4x4Parameter)
+        #expect(materialParameter.value == scale)
+        #expect((decodedPort.parameter as AnyObject) === materialParameter)
+    }
+
+    @Test("A Transform uniform saved as a plain port becomes a parameter port on its id once the shader compiles again")
+    @MainActor
+    func plainTransformUniformPortIsReplacedOnItsIdWhenShaderCompiles() throws
+    {
+        guard let context = makeContext() else { return }
+
+        let shaderSource = """
+            #include <metal_stdlib>
+            using namespace metal;
+
+            typedef struct {
+                float4x4 warpTransform;
+            } PostUniforms;
+
+            fragment half4 postFragment(VertexData in [[stage_in]],
+                                        constant PostUniforms &uniforms [[buffer(FragmentBufferMaterialUniforms)]],
+                                        texture2d<half, access::sample> inputTexture [[texture(FragmentTextureCustom0)]]) {
+                constexpr sampler s(address::clamp_to_edge, filter::linear);
+                float2 uv = (uniforms.warpTransform * float4(in.texcoord, 0.0, 1.0)).xy;
+                return inputTexture.sample(s, uv);
+            }
+            """
+
+        let graph = Graph(context: context)
+        let node = LiveImageNode(context: context)
+        let source = PassThroughNode<simd_float4x4>(context: context)
+        graph.addNode(node)
+        graph.addNode(source)
+        node.updateShaderSource(shaderSource)
+
+        let uniformPort = try #require(node.ports.first { $0.kind == .Inlet && $0.portType == .Transform })
+        uniformPort.published = true
+        graph.connect(source.output, to: uniformPort)
+        let savedID = uniformPort.id
+
+        // A document from before Transform carried a parameter holds the uniform
+        // as a plain port, and its shader fails to compile on load, so the node
+        // adopts that port as a stand-in.
+        let decodedNodeID = UUID()
+        let decodedGraph = try roundTripGraph(graph, context: context, editingNode: node.id) { value in
+            value["shaderSource"] = "this is not a metal shader"
+            value["id"] = decodedNodeID.uuidString
+
+            var ports = value["ports"] as? [[String: Any]] ?? []
+            for index in ports.indices
+            {
+                guard var payload = ports[index]["payload"] as? [String: Any],
+                      var base = payload["base"] as? [String: Any],
+                      base["id"] as? String == savedID.uuidString
+                else { continue }
+
+                base["parameter"] = nil
+                payload["base"] = base
+                payload["isParameterPort"] = false
+                ports[index]["payload"] = payload
+            }
+            value["ports"] = ports
+        }
+
+        let decodedNode = try #require(decodedGraph.nodes.first { $0.id == decodedNodeID } as? LiveImageNode)
+        let adopted = try #require(decodedNode.findPort(named: uniformPort.name) as Fabric.Port?)
+        #expect(adopted.parameter == nil)
+        #expect(adopted.id == savedID)
+
+        decodedNode.updateShaderSource(shaderSource)
+
+        let replaced = try #require(decodedNode.findPort(named: uniformPort.name) as ParameterPort<simd_float4x4>?)
+        #expect(replaced.id == savedID)
+        #expect(replaced.published)
+        #expect(replaced.connectedPorts.count == 1)
+        let materialParameter = try #require(decodedNode.postMaterial.parameters.get(uniformPort.name) as? Float4x4Parameter)
+        #expect((replaced.parameter as AnyObject) === materialParameter)
+        #expect(materialParameter.id == savedID)
     }
 
     @Test("Live Image node rebuilds its saved shader's uniform ports on decode")
@@ -595,6 +922,27 @@ private final class RenamedKeyPortNode: Node
     {
         super.registerPorts(context: context) + [
             ("input", NodePort<Float>(name: "Input", kind: .Inlet)),
+        ]
+    }
+}
+
+/// Declares the Transform parameter port no shipping node declares today, to
+/// show whether one can be saved and loaded as such.
+private final class TransformParameterPortNode: Node
+{
+    override class var name: String { "Transform Parameter Port" }
+    override class var nodeType: Node.NodeType { .Utility }
+    override class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override class var nodeTimeMode: Node.TimeMode { .None }
+    override class var nodeDescription: String { "Test node with a Transform parameter port." }
+
+    var input: ParameterPort<simd_float4x4> { port(named: "inputTransform") }
+
+    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
+    {
+        super.registerPorts(context: context) + [
+            ("inputTransform", ParameterPort(parameter: Float4x4Parameter("Transform", matrix_identity_float4x4, .inputfield, "Transform"))),
+            ("outputTransform", NodePort<simd_float4x4>(name: "Transform", kind: .Outlet)),
         ]
     }
 }

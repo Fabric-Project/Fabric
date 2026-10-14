@@ -12,6 +12,10 @@ import Satin
 // These types
 public protocol PortValueRepresentable : Equatable
 {
+    /// The value an unwired inlet of this type rests at when nothing else gives
+    /// it one — identity for Transform and Quaternion, zero or empty for the
+    /// others — or nil where there is no natural value, as for a reference
+    /// type. See `PortType.restingValue` for where it is applied.
     static var defaultValue: Self? { get }
     static var portType: PortType { get }
     var portType: PortType { get }

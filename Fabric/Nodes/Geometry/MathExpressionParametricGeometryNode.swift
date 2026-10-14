@@ -328,7 +328,7 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
         for name in variableNames.subtracting(_dynamicVariablePortNames).sorted()
         {
             self.addDynamicPort(
-                ParameterPort(parameter: FloatParameter(name, 0.0, .inputfield)),
+                PortType.Float.makeFreshPort(name: name, kind: .Inlet),
                 name: name
             )
             _dynamicVariablePortNames.insert(name)

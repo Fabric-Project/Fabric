@@ -48,20 +48,7 @@ public class ComposeVectorArrayNode: StrategyNode
             }
         }
 
-        // Replace output port only when the vector type changes
-        let arrayPortType = PortType.Array(portType: vt.portType)
-        if let existing: Port = findPort(named: "outputArray"), existing.portType != arrayPortType {
-            removePort(existing)
-        }
-        if findPort(named: "outputArray") == nil {
-            let outputPort: Port
-            switch vt {
-            case .float2: outputPort = NodePort<ContiguousArray<simd_float2>>(name: "\(vt.portType.rawValue) Array", kind: .Outlet, description: "Array of \(vt.portType.rawValue) values")
-            case .float3: outputPort = NodePort<ContiguousArray<simd_float3>>(name: "\(vt.portType.rawValue) Array", kind: .Outlet, description: "Array of \(vt.portType.rawValue) values")
-            case .float4: outputPort = NodePort<ContiguousArray<simd_float4>>(name: "\(vt.portType.rawValue) Array", kind: .Outlet, description: "Array of \(vt.portType.rawValue) values")
-            }
-            addDynamicPort(outputPort, name: "outputArray")
-        }
+        addOrReplaceDynamicPortPreservingIdentity(name: "outputArray", displayName: "\(vt.portType.rawValue) Array", portType: .Array(portType: vt.portType), kind: .Outlet, description: "Array of \(vt.portType.rawValue) values")
     }
 
     override public func execute(renderer: GraphRenderer,

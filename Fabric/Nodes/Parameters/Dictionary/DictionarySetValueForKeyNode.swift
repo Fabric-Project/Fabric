@@ -25,29 +25,9 @@ public final class DictionarySetValueForKeyNode: DictionaryTypeAgnosticNode
     {
         super.rebuildPorts(forStrategy: strategy)
 
-        let requiredTypes: [(String, PortType)] = [
-            ("inputDictionary", dictionaryType),
-            ("inputValue", valueType),
-            ("outputDictionary", dictionaryType),
-        ]
-
-        for (name, type) in requiredTypes
-        {
-            if let existing: Port = findPort(named: name), existing.portType != type { removePort(existing) }
-        }
-
-        if findPort(named: "inputDictionary") == nil
-        {
-            addDynamicPort(dictionaryType.makeFreshPort(name: "Dictionary", kind: .Inlet, description: "Dictionary to modify"), name: "inputDictionary")
-        }
-        if findPort(named: "inputValue") == nil
-        {
-            addDynamicPort(valueType.makeFreshPort(name: "Value", kind: .Inlet, description: "Value to set"), name: "inputValue")
-        }
-        if findPort(named: "outputDictionary") == nil
-        {
-            addDynamicPort(dictionaryType.makeFreshPort(name: "Dictionary", kind: .Outlet, description: "Modified dictionary"), name: "outputDictionary")
-        }
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputDictionary",  displayName: "Dictionary", portType: dictionaryType, kind: .Inlet,  description: "Dictionary to modify")
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputValue",       displayName: "Value",      portType: valueType,      kind: .Inlet,  description: "Value to set")
+        addOrReplaceDynamicPortPreservingIdentity(name: "outputDictionary", displayName: "Dictionary", portType: dictionaryType, kind: .Outlet, description: "Modified dictionary")
 
         reorderPorts(named: ["inputDictionary", "inputKey", "inputValue", "outputDictionary"])
     }

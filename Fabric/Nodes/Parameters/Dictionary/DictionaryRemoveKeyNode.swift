@@ -25,17 +25,8 @@ public final class DictionaryRemoveKeyNode: DictionaryTypeAgnosticNode
     {
         super.rebuildPorts(forStrategy: strategy)
 
-        if let existing: Port = findPort(named: "inputDictionary"), existing.portType != dictionaryType { removePort(existing) }
-        if let existing: Port = findPort(named: "outputDictionary"), existing.portType != dictionaryType { removePort(existing) }
-
-        if findPort(named: "inputDictionary") == nil
-        {
-            addDynamicPort(dictionaryType.makeFreshPort(name: "Dictionary", kind: .Inlet, description: "Dictionary to modify"), name: "inputDictionary")
-        }
-        if findPort(named: "outputDictionary") == nil
-        {
-            addDynamicPort(dictionaryType.makeFreshPort(name: "Dictionary", kind: .Outlet, description: "Modified dictionary"), name: "outputDictionary")
-        }
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputDictionary",  displayName: "Dictionary", portType: dictionaryType, kind: .Inlet,  description: "Dictionary to modify")
+        addOrReplaceDynamicPortPreservingIdentity(name: "outputDictionary", displayName: "Dictionary", portType: dictionaryType, kind: .Outlet, description: "Modified dictionary")
 
         reorderPorts(named: ["inputDictionary", "inputKey", "outputDictionary"])
     }

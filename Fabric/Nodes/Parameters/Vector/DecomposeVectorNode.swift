@@ -36,19 +36,7 @@ public class DecomposeVectorNode: StrategyNode
     {
         guard let vt: VectorType = Self.strategyOption(matching: strategy) else { return }
 
-        // Replace input port only when the vector type changes
-        if let existing: Port = findPort(named: "inputVector"), existing.portType != vt.portType {
-            removePort(existing)
-        }
-        if findPort(named: "inputVector") == nil {
-            let inputPort: Port
-            switch vt {
-            case .float2: inputPort = ParameterPort(parameter: Float2Parameter(vt.portType.rawValue, simd_float2(0, 0), .inputfield, "Vector to decompose"))
-            case .float3: inputPort = ParameterPort(parameter: Float3Parameter(vt.portType.rawValue, simd_float3(0, 0, 0), .inputfield, "Vector to decompose"))
-            case .float4: inputPort = ParameterPort(parameter: Float4Parameter(vt.portType.rawValue, simd_float4(0, 0, 0, 0), .inputfield, "Vector to decompose"))
-            }
-            addDynamicPort(inputPort, name: "inputVector")
-        }
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputVector", displayName: vt.portType.rawValue, portType: vt.portType, kind: .Inlet, description: "Vector to decompose")
 
         // Remove component output ports beyond the needed count
         for i in vt.componentLabels.count..<4 {

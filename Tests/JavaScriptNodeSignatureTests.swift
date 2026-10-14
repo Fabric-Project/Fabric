@@ -51,6 +51,28 @@ struct JavaScriptNodeSignatureTests
         #expect(outlets.map(\.portType) == [.Float, .Bool])
     }
 
+    @Test("An input whose declared type changes keeps its port's id and published state")
+    func retypedInputKeepsIdentity() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = JavaScriptNode(context: context)
+
+        let a = try #require(node.findPort(named: "a", as: Fabric.Port.self))
+        #expect(a.portType == .Float)
+        a.published = true
+
+        node.updateScriptSource("""
+            function main(a: Bool, b: Number, threshold: Number): { sum: Number, thresholdPassed: Bool } {
+              return { sum: b, thresholdPassed: a }
+            }
+            """)
+
+        let retyped = try #require(node.findPort(named: "a", as: Fabric.Port.self))
+        #expect(retyped.portType == .Bool)
+        #expect(retyped.id == a.id)
+        #expect(retyped.published)
+    }
+
     // MARK: - Commentary is not code
 
     /// The edit this is really about: writing the replacement signature under the

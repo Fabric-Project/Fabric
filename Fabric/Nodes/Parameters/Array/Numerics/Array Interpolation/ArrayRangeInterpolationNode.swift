@@ -8,7 +8,7 @@ import Satin
 import simd
 import Metal
 
-public class ArrayRangeInterpolationNode<Value: PortValueRepresentable & Lerpable & DefaultParameterProviding>: Node
+public class ArrayRangeInterpolationNode<Value: PortValueRepresentable & Lerpable & ParameterValueType>: Node
 {
     public override class var name: String { "\(Value.portType.rawValue) Array Range Interpolation" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
