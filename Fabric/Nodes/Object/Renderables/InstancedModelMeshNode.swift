@@ -49,10 +49,6 @@ public class InstancedModelMeshNode : InstancedMeshNode
     /// The loaded model's skeletons and animated objects; nil when nothing in it moves.
     private var animation: AssetAnimation? = nil
 
-    /// Each mesh as loaded, which animation moves and poses, and the instanced mesh drawing it.
-    /// The loaded meshes are not drawn: they place their instanced meshes.
-    private var parts: [(source: Mesh, instanced: InstancedMesh)] = []
-
     private var model: Object? = nil
     {
         didSet
@@ -131,25 +127,31 @@ public class InstancedModelMeshNode : InstancedMeshNode
                 animation.setTime(start + Double(self.inputTime.value ?? 0))
             }
 
-            if self.inputTransforms.valueDidChange || (timeChanged && self.animation != nil)
+            // Animated objects move parts within the model; skinned parts sit with their
+            // skeletons, which only animated objects move.
+            if self.inputTransforms.valueDidChange || (timeChanged && self.animation?.objectAnimation != nil)
             {
                 self.placeInstances()
             }
         }
     }
 
-    /// Each instance of a part is the instance's transform applied to the part as posed, so
-    /// parts keep their places within the model and follow its animation.
+    /// Each instance transform applies in the model's space, so it draws the whole model with
+    /// its parts in place. Satin applies a mesh's instances in the mesh's own space, so each
+    /// part takes inverse(P) × instance × P, P being the part within the model.
     private func placeInstances()
     {
+        guard let model = self.model else { return }
+
         // Without transforms yet, one instance shows the model where it was loaded.
         let transforms = self.inputTransforms.value ?? [matrix_identity_float4x4]
 
-        for part in self.parts
+        for case let part as InstancedMesh in model.getChildren(true)
         {
-            let partMatrix = part.source.worldMatrix
-            part.instanced.setInstanceMatrices(transforms.map { simd_mul($0, partMatrix) })
-            part.instanced.drawCount = transforms.count
+            let partInModel = model.worldMatrixInverse * part.worldMatrix
+            let modelToPart = partInModel.inverse
+            part.setInstanceMatrices(transforms.map { modelToPart * $0 * partInModel })
+            part.drawCount = transforms.count
         }
     }
     
@@ -162,7 +164,6 @@ public class InstancedModelMeshNode : InstancedMeshNode
                 ?? DocumentFileReference.resolve(path, relativeTo: nil) else
             {
                 self.animation = nil
-                self.parts = []
                 self.model = nil
                 throw FabricError(.execution(.fileNotFound),
                                   severity: .recoverable,
@@ -177,23 +178,13 @@ public class InstancedModelMeshNode : InstancedMeshNode
             {
                 // An animated model keeps its hierarchy, since animated objects and skeleton
                 // anchors move the meshes within it; a still one is flattened.
-                let loadedAsset = loadAnimatedAsset(url: url, context: self.context, textureLoader: self.textureLoader)
-                let sourceRoot = loadedAsset.animation == nil ? Object.flatten(loadedAsset.root) : loadedAsset.root
+                let loadedAsset = loadAnimatedAsset(url: url, context: self.context, textureLoader: self.textureLoader, instanced: true)
+                let root = loadedAsset.animation == nil ? Object.flatten(loadedAsset.root) : loadedAsset.root
 
-                // Instanced meshes share their source's geometry, so a skinned one shares its pose.
-                let parts: [(source: Mesh, instanced: InstancedMesh)] = sourceRoot.getChildren(true).compactMap { child in
-                    guard let sourceMesh = child as? Mesh, let geometry = sourceMesh.geometry else { return nil }
-                    return (sourceMesh, InstancedMesh(context: self.context, geometry: geometry, material: sourceMesh.material, count: 1))
-                }
-
-                if parts.isEmpty == false
+                if root.getChildren(true).contains(where: { $0 is InstancedMesh })
                 {
-                    let object = Object(context: self.context, label: sourceRoot.label)
-                    object.add(parts.map(\.instanced))
-
                     self.animation = loadedAsset.animation
-                    self.parts = parts
-                    self.model = object
+                    self.model = root
 
                     if let timeRange = loadedAsset.animation?.timeRange
                     {
@@ -209,7 +200,6 @@ public class InstancedModelMeshNode : InstancedMeshNode
                 else
                 {
                     self.animation = nil
-                    self.parts = []
                     self.model = nil
                     throw FabricError(.execution(.failed),
                                       severity: .recoverable,
@@ -224,7 +214,6 @@ public class InstancedModelMeshNode : InstancedMeshNode
             else
             {
                 self.animation = nil
-                self.parts = []
                 self.model = nil
                 throw FabricError(.execution(.fileNotFound),
                                   severity: .recoverable,
