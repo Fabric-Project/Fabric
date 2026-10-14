@@ -59,7 +59,7 @@ struct JavaScriptNodeSignatureTests
 
         let a = try #require(node.findPort(named: "a", as: Fabric.Port.self))
         #expect(a.portType == .Float)
-        a.published = true
+        a.setPublishing(true, name: nil)
 
         node.updateScriptSource("""
             function main(a: Bool, b: Number, threshold: Number): { sum: Number, thresholdPassed: Bool } {

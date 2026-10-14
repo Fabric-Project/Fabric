@@ -44,6 +44,39 @@ struct UndoTargetTests
         return try decoder.decode(N.self, from: data)
     }
 
+    @Test("A wire one step puts back can be taken down by the step before it")
+    func restoredWireUndoes() throws
+    {
+        guard let context = makeContext() else { return }
+        let undoManager = makeUndoManager()
+        let graph = Graph(context: context)
+        let subgraph = SubgraphNode(context: context)
+        let inner = NumberBinaryOperator(context: context)
+        let upstream = NumberBinaryOperator(context: context)
+        graph.addNode(subgraph)
+        graph.addNode(upstream)
+        subgraph.subGraph.addNode(inner)
+        subgraph.subGraph.setPublished(true, on: inner.inputNumber1)
+        graph.undoManager = undoManager
+        let proxy = try #require(subgraph.ports.first { $0.id == inner.inputNumber1.id })
+
+        var wire: Connection?
+        step(undoManager) { wire = graph.connect(upstream.outputNumber, to: proxy) }
+        let wireID = try #require(wire?.id)
+        step(undoManager) { subgraph.subGraph.setPublished(false, on: inner.inputNumber1) }
+        #expect(graph.connections.isEmpty)
+
+        undoManager.undo()
+        #expect(graph.connections.map(\.id) == [wireID], "the wire comes back under its own id")
+        undoManager.undo()
+        #expect(graph.connections.isEmpty, "undoing the connect takes the wire the unpublish's undo put back")
+
+        undoManager.redo()
+        #expect(graph.connections.map(\.id) == [wireID])
+        undoManager.redo()
+        #expect(graph.connections.isEmpty)
+    }
+
     @Test("A step acts on the node standing under its id when it runs")
     func stepFollowsNodeReplacedUnderItsID() throws
     {
@@ -73,6 +106,43 @@ struct UndoTargetTests
         #expect(graph.nodes.map(\.id) == [node.id])
     }
 
+    @Test("A compound edit in a graph with no undo manager of its own groups and names its steps on the document's")
+    func nestedCompoundEditsGroupOnTheRootsUndoManager() throws
+    {
+        guard let context = makeContext() else { return }
+        let undoManager = makeUndoManager()
+        let graph = Graph(context: context)
+        let subgraph = SubgraphNode(context: context)
+        graph.addNode(subgraph)
+        let inner = subgraph.subGraph
+        let source = NumberBinaryOperator(context: context)
+        let first = NumberBinaryOperator(context: context)
+        let second = NumberBinaryOperator(context: context)
+        for node in [source, first, second] { inner.addNode(node) }
+        inner.connect(source.outputNumber, to: first.inputNumber1)
+        inner.connect(source.outputNumber, to: second.inputNumber1)
+        graph.undoManager = undoManager
+        #expect(inner.undoManager == nil)
+        let nodeIDs = Set(inner.nodes.map(\.id))
+        let connectionIDs = Set(inner.connections.map(\.id))
+
+        // No group is open: each edit must open its own, or registering throws.
+        inner.insertParameterNode(for: first.inputNumber2)
+        #expect(inner.nodes.count == 4)
+        #expect(undoManager.undoActionName == "Insert Parameter Node")
+        undoManager.undo()
+        #expect(!undoManager.canUndo, "one step")
+        #expect(Set(inner.nodes.map(\.id)) == nodeIDs)
+        #expect(Set(inner.connections.map(\.id)) == connectionIDs)
+
+        inner.disconnectAll(from: source.outputNumber)
+        #expect(inner.connections.isEmpty)
+        #expect(undoManager.undoActionName == "Disconnect Ports")
+        undoManager.undo()
+        #expect(undoManager.canRedo && !undoManager.canUndo, "one step")
+        #expect(Set(inner.connections.map(\.id)) == connectionIDs)
+    }
+
     @Test("An edit in a graph the canvas has not given an undo manager records on the document's")
     func nestedGraphRecordsOnTheRootsUndoManager() throws
     {
@@ -89,6 +159,89 @@ struct UndoTargetTests
         undoManager.undo()
         #expect(subgraph.subGraph.nodes.isEmpty)
     }
+
+    /// A port published two levels up: X inside `inner`, whose proxy is
+    /// published inside `outer`, whose proxy is wired in `graph`.
+    private struct TwoLevels
+    {
+        let graph: Graph
+        let outer: SubgraphNode
+        let inner: SubgraphNode
+        let node: NumberBinaryOperator
+        let upstream: NumberBinaryOperator
+        let wire: Connection
+    }
+
+    private func makeTwoLevels(context: Context, node: NumberBinaryOperator? = nil) throws -> TwoLevels
+    {
+        let graph = Graph(context: context)
+        let outer = SubgraphNode(context: context)
+        let inner = SubgraphNode(context: context)
+        let node = node ?? NumberBinaryOperator(context: context)
+        let upstream = NumberBinaryOperator(context: context)
+        graph.addNode(outer)
+        graph.addNode(upstream)
+        outer.subGraph.addNode(inner)
+        inner.subGraph.addNode(node)
+        inner.subGraph.setPublished(true, on: node.inputNumber1)
+        let middle = try #require(inner.ports.first { $0.id == node.inputNumber1.id })
+        outer.subGraph.setPublished(true, on: middle)
+        outer.subGraph.setPublishedName("Gain", on: middle)
+        let top = try #require(outer.ports.first { $0.id == node.inputNumber1.id })
+        let wire = try #require(graph.connect(upstream.outputNumber, to: top))
+        return TwoLevels(graph: graph, outer: outer, inner: inner, node: node, upstream: upstream, wire: wire)
+    }
+
+    @Test("Unpublishing takes the wires at every level the port is published up to, and undo puts each level back")
+    func unpublishTakesTheWholeChain() throws
+    {
+        guard let context = makeContext() else { return }
+        let undoManager = makeUndoManager()
+        let levels = try makeTwoLevels(context: context)
+        levels.graph.undoManager = undoManager
+        let port = levels.node.inputNumber1
+
+        step(undoManager) { levels.inner.subGraph.setPublished(false, on: port) }
+        #expect(!levels.inner.ports.contains { $0.id == port.id })
+        #expect(!levels.outer.ports.contains { $0.id == port.id }, "the proxy two levels up goes too")
+        #expect(levels.graph.connections.isEmpty)
+        #expect(levels.upstream.outputNumber.connections.isEmpty)
+
+        undoManager.undo()
+        let middle = try #require(levels.inner.ports.first { $0.id == port.id })
+        #expect(middle.published)
+        #expect(middle.publishedName == "Gain")
+        let top = try #require(levels.outer.ports.first { $0.id == port.id })
+        #expect(levels.graph.connections.map(\.id) == [levels.wire.id])
+        #expect(levels.upstream.outputNumber.connections.first?.inletPort === top)
+    }
+
+    @Test("A published port a node removes takes the wires at every level it is published up to")
+    func removedPortTakesTheWholeChain() throws
+    {
+        guard let context = makeContext() else { return }
+        let graph = Graph(context: context)
+        let outer = SubgraphNode(context: context)
+        let inner = SubgraphNode(context: context)
+        let node = MathExpressionNode(context: context, expression: "x")
+        let upstream = NumberBinaryOperator(context: context)
+        graph.addNode(outer)
+        graph.addNode(upstream)
+        outer.subGraph.addNode(inner)
+        inner.subGraph.addNode(node)
+        let x = try #require(node.inputPorts().first { $0.name == "x" })
+        inner.subGraph.setPublished(true, on: x)
+        let middle = try #require(inner.ports.first { $0.id == x.id })
+        outer.subGraph.setPublished(true, on: middle)
+        let top = try #require(outer.ports.first { $0.id == x.id })
+        _ = try #require(graph.connect(upstream.outputNumber, to: top))
+
+        node.stringExpression = "y"
+        #expect(!outer.ports.contains { $0.id == x.id })
+        #expect(graph.connections.isEmpty)
+        #expect(upstream.outputNumber.connections.isEmpty)
+    }
+
     @Test("Undoing a delete puts the node back where it stood among the graph's nodes")
     func deleteUndoKeepsNodeOrder() throws
     {
@@ -102,6 +255,47 @@ struct UndoTargetTests
         step(undoManager) { graph.delete(node: nodes[1]) }
         undoManager.undo()
         #expect(graph.nodes.map(\.id) == nodes.map(\.id))
+    }
+
+    @Test("Deleting a node takes the wires at every level its ports are published up to, and undo puts each level back")
+    func deleteUndoRestoresTheWholeChain() throws
+    {
+        guard let context = makeContext() else { return }
+        let undoManager = makeUndoManager()
+        let levels = try makeTwoLevels(context: context)
+        levels.graph.undoManager = undoManager
+        let port = levels.node.inputNumber1
+
+        step(undoManager) { levels.inner.subGraph.delete(node: levels.node) }
+        #expect(!levels.outer.ports.contains { $0.id == port.id })
+        #expect(levels.graph.connections.isEmpty, "no wire is left naming the proxy that went")
+
+        undoManager.undo()
+        let middle = try #require(levels.inner.ports.first { $0.id == port.id })
+        #expect(middle.published)
+        #expect(middle.publishedName == "Gain")
+        let top = try #require(levels.outer.ports.first { $0.id == port.id })
+        #expect(levels.graph.connections.map(\.id) == [levels.wire.id])
+        #expect(levels.upstream.outputNumber.connections.first?.inletPort === top)
+
+        undoManager.redo()
+        #expect(!levels.outer.ports.contains { $0.id == port.id })
+        undoManager.undo()
+        #expect(levels.inner.ports.first { $0.id == port.id }?.published == true)
+        #expect(levels.upstream.outputNumber.connections.first?.inletPort === levels.outer.ports.first { $0.id == port.id })
+    }
+
+    @Test("Unpublishing a proxy leaves the parameter it shares named as the port it stands for")
+    func unpublishedProxyKeepsTheInnerLabel() throws
+    {
+        guard let context = makeContext() else { return }
+        let levels = try makeTwoLevels(context: context)
+        let port = levels.node.inputNumber1
+        levels.inner.subGraph.setPublishedName("Amount", on: port)
+        let middle = try #require(levels.inner.ports.first { $0.id == port.id })
+
+        levels.outer.subGraph.setPublished(false, on: middle)
+        #expect(port.parameter?.label == "Amount")
     }
 
     @Test("Suspending registration in a graph with no undo manager of its own suspends the root's it records on")

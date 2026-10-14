@@ -94,7 +94,6 @@ internal import AnyCodable
     /// GraphRenderer last reviewed their lifecycle. Holding them strongly keeps
     /// removed nodes alive until the renderer retires them.
     @ObservationIgnored private var nodesAwaitingLifecycleReview: Set<Node> = []
-    @ObservationIgnored private var nodesWithPublishedPortsAtLastReview: Set<Node> = []
     @ObservationIgnored internal private(set) var subgraphNodes: [SubgraphNode] = []
 
     /// Populated once at decode; empty for graphs built programmatically.
@@ -165,11 +164,10 @@ internal import AnyCodable
 
     public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
 
+    /// The SubgraphNode whose sub graph this is; nil for a document's root
+    /// graph. It owns the proxies standing for this graph's published ports,
+    /// and is told of each change to them; see portDidPublish(_:).
     @ObservationIgnored public internal(set) weak var ownerNode: SubgraphNode?
-
-    /// Called when the set of published ports changes. SubgraphNode uses
-    /// this to rebuild its proxy ports without polling.
-    @ObservationIgnored var onPublishedPortsChanged: (() -> Void)?
 
     /// Called when this graph resolves to a different scene camera. A
     /// SubgraphNode propagates the change to its containing graph so camera
@@ -742,7 +740,10 @@ internal import AnyCodable
         self.markConnectionsChanged()
 
         self.updateCameraSelection(afterAdding: node)
-        self.rebuildPublishedParameterGroup()
+        for port in node.ports where port.published
+        {
+            self.portDidPublish(port)
+        }
     }
 
     /// Updates the saved-document directory used by relative file paths and
@@ -858,6 +859,9 @@ internal import AnyCodable
         }
     }
 
+    /// Puts back a node `delete(node:)` took, where it stood. The steps the
+    /// delete's group holds after this one put back its wires and what stood
+    /// on its proxies.
     private func restoreDeletedNode(_ node: Node, at index: Int, offset: CGSize)
     {
         guard self.node(forID: node.id) == nil else { return }
@@ -872,7 +876,10 @@ internal import AnyCodable
 
             node.markDirty()
             updateCameraSelection(afterAdding: node)
-            rebuildPublishedParameterGroup()
+            for port in node.ports where port.published
+            {
+                portDidPublish(port)
+            }
             syncNodesToScene()
             markConnectionsChanged()
         }
@@ -1158,12 +1165,46 @@ internal import AnyCodable
         }
     }
 
+    /// Binds each wire on `old` that `new` can take to `new`, as the same
+    /// connection, and disconnects the rest as undo steps. `new` stands
+    /// under `old`'s id, as a replacement does, since a wire names its ports
+    /// by id; `old` is still in this graph, for the disconnects to find both
+    /// ends of a wire here. `new` may be `old` itself, retyped in place.
+    internal func rebindWires(from old: Port, to new: Port)
+    {
+        let wires = old.connections.filter { $0.graph === self }
+        guard !wires.isEmpty else { return }
+
+        let undoManager = self.effectiveUndoManager
+        undoManager?.beginUndoGrouping()
+        defer { undoManager?.endUndoGrouping() }
+
+        for connection in wires
+        {
+            guard let other = connection.port(opposite: old) else { continue }
+            let canKeep = new.id == old.id && (new.kind == .Outlet ? new.canConnect(to: other) : other.canConnect(to: new))
+            guard canKeep else
+            {
+                self.disconnect(connection)
+                continue
+            }
+
+            if new !== old { self.rebindConnection(connection, replacing: old, with: new) }
+            if let outlet = connection.outletPort { outlet.sendBoxed(outlet.snapshotValue(), force: true) }
+        }
+        self.markConnectionTopologyChanged()
+    }
+
     private func attachConnection(_ connection: Connection, outlet: Port, inlet: Port)
     {
         connection.graph = self
         connection.outletPortReference = outlet
         connection.inletPortReference = inlet
-        connections.append(connection)
+
+        if !connections.contains(where: { $0 === connection })
+        {
+            connections.append(connection)
+        }
 
         if !outlet.connections.contains(where: { $0.id == connection.id })
         {
@@ -1186,7 +1227,7 @@ internal import AnyCodable
             markNodeForLifecycleReview(inletNode)
         }
     }
-    
+
     // MARK: - Publish Port API -
     /// All ports in this graph that have been published.
     public func getPublishedPorts() -> [Port]
@@ -1211,6 +1252,9 @@ internal import AnyCodable
         return cachedPublishedOutputPorts
     }
 
+    /// Publishes or unpublishes `port`, a port of a node in this graph, as an
+    /// undo step. The sub graph node around this graph is told, and makes or
+    /// drops the proxy standing for the port; see portDidPublish(_:).
     /// Publishing keeps the port's published name; unpublishing clears it.
     public func setPublished(_ published: Bool, on port: Port)
     {
@@ -1224,6 +1268,7 @@ internal import AnyCodable
     {
         guard port.published != published, port.node?.graph === self else { return }
 
+        // A compound: the sub graph node's reaction registers steps of its own.
         self.performEdit(named: published ? "Publish Port" : "Unpublish Port",
                          inverse: published ? "Unpublish Port" : "Publish Port") {
             let previousName = port.publishedName
@@ -1266,22 +1311,51 @@ internal import AnyCodable
         effectiveUndoManager?.setActionName("Rename Port")
     }
 
+    // MARK: - Publishing Events -
+
+    // A port joins or leaves this graph's published set, or is replaced under
+    // its id, only through this graph, which tells the sub graph node around
+    // it as the specific change it is: before anything is taken away, after
+    // anything is added. The events keep the proxies true to the published
+    // set, so they are raised whether or not undo registration is on; what a
+    // reaction does through the graph's API registers as that API does.
+
+    /// `port`, a port of a node in this graph, has joined the published set.
     internal func portDidPublish(_ port: Port)
     {
         if let node = port.node { self.markNodeForLifecycleReview(node) }
         self.rebuildPublishedParameterGroup()
+        self.ownerNode?.innerPortDidPublish(port)
     }
 
+    /// `port`, a published port of a node in this graph, is about to be
+    /// unpublished or taken away with its node: its proxy goes now, with the
+    /// wires on it and its own publishing further up. The caller rebuilds the
+    /// published parameter group once the port has gone.
     internal func portWillUnpublish(_ port: Port)
     {
         if let node = port.node { self.markNodeForLifecycleReview(node) }
+        self.ownerNode?.innerPortWillUnpublish(port)
     }
 
+    /// `new` has replaced `old`, a published port of a node in this graph,
+    /// under its id, published as it was.
+    internal func port(_ old: Port, wasReplacedBy new: Port)
+    {
+        if let node = new.node { self.markNodeForLifecycleReview(node) }
+        self.rebuildPublishedParameterGroup()
+        self.ownerNode?.innerPort(old, wasReplacedBy: new)
+    }
+
+    /// `port`, a port of a node in this graph, has a new published name.
     internal func portDidRename(_ port: Port)
     {
         self.rebuildPublishedParameterGroup()
+        self.ownerNode?.innerPortDidRename(port)
     }
 
+    /// Refreshes the parameters standing for this graph's published ports,
+    /// named for the ports.
     public func rebuildPublishedParameterGroup()
     {
         self.publishedParameterGroup.clear()
@@ -1302,16 +1376,7 @@ internal import AnyCodable
 
         self.publishedParameterGroup.append( publishedParams )
 
-        // A published port connects its node through the enclosing subgraph node.
-        let nodesWithPublishedPorts = Set(self.nodesWithPublishedPorts())
-        for node in nodesWithPublishedPorts.symmetricDifference(self.nodesWithPublishedPortsAtLastReview)
-        {
-            self.markNodeForLifecycleReview(node)
-        }
-        self.nodesWithPublishedPortsAtLastReview = nodesWithPublishedPorts
-
         self.markConnectionsChanged()
-        self.onPublishedPortsChanged?()
     }
     
     internal func nodesWithPublishedPorts() -> [Node]
@@ -1670,7 +1735,7 @@ internal import AnyCodable
                     }
 
                     for state in embedding.publishedPortStates {
-                        state.port.published = true
+                        embedding.subgraphNode.subGraph.setPublished(true, on: state.port)
                     }
                     embedding.subgraphNode.subGraph.rebuildPublishedParameterGroup()
 
@@ -1741,8 +1806,7 @@ internal import AnyCodable
                     }
 
                     for state in embedding.publishedPortStates {
-                        state.port.published = state.published
-                        state.port.publishedName = state.publishedName
+                        state.port.setPublishing(state.published, name: state.publishedName)
                     }
                     embedding.subgraphNode.subGraph.rebuildPublishedParameterGroup()
 

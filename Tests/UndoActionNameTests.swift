@@ -172,6 +172,19 @@ struct UndoActionNameTests
         #expect(fixture.graph.connections.isEmpty)
     }
 
+    @Test("Inserting a parameter node on a wired inlet")
+    func insertParameterNode()
+    {
+        guard let context = makeContext() else { return }
+        let fixture = makeFixture(context: context)
+        step(fixture.undoManager) { fixture.graph.connect(fixture.upstream.outputNumber, to: fixture.downstream.inputNumber1) }
+
+        expectNamed("Insert Parameter Node", fixture.undoManager) {
+            fixture.graph.insertParameterNode(for: fixture.downstream.inputNumber1)
+        }
+        #expect(fixture.graph.nodes.count == 3)
+    }
+
     @Test("Duplicating wired nodes")
     func duplicateNodes()
     {

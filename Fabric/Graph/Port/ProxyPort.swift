@@ -13,6 +13,13 @@ import Satin
 protocol ProxyPortProtocol
 {
     var innerPortID: UUID { get }
+    /// Whether `port` is the very port this proxy forwards to. A port
+    /// replaced under the same id is not.
+    func wraps(_ port: Port) -> Bool
+    /// Makes this proxy forward to `port`, which replaced its inner port, and
+    /// take its type and parameter; false, leaving the proxy as it was, where
+    /// `port` is not of this proxy's value type.
+    func retarget(to port: Port) -> Bool
     func forwardFromInner(force:Bool)
 }
 
@@ -32,10 +39,21 @@ protocol ProxyPortProtocol
 ///   to the proxy's parent graph connections.
 public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPortProtocol
 {
-    private let innerPort: NodePort<Value>
-    private let declaredPortType: PortType?
+    private var innerPort: NodePort<Value>
+    private var declaredPortType: PortType?
 
     public var innerPortID: UUID { innerPort.id }
+
+    func wraps(_ port: Port) -> Bool { port === innerPort }
+
+    func retarget(to port: Port) -> Bool
+    {
+        guard let typed = port as? NodePort<Value>, typed.kind == self.kind else { return false }
+        self.innerPort = typed
+        self.declaredPortType = typed.portType
+        self.parameter = typed.parameter
+        return true
+    }
 
     @ObservationIgnored override public var portType: PortType { declaredPortType ?? super.portType }
 
@@ -44,8 +62,10 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
     /// reflects sub-graph level renames).
     override public var displayName: String { publishedName ?? innerPort.displayName }
 
+    /// `id` is the inner port's unless given.
     public init(
         wrapping innerPort: NodePort<Value>,
+        id: UUID? = nil,
         published: Bool = false,
         publishedName: String? = nil
     )
@@ -59,13 +79,12 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
         super.init(name: innerPort.name,
                    kind: innerPort.kind,
                    description: innerPort.portDescription,
-                   id: innerPort.id)
+                   id: id ?? innerPort.id)
         
         // ensure we proxy other values
         self.parameter = innerPort.parameter
         self.value = innerPort.value
-        self.published = published
-        self.publishedName = publishedName
+        self.setPublishing(published, name: publishedName)
     }
 
     required public init(from decoder: any Decoder) throws

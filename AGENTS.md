@@ -122,11 +122,13 @@ For all development:
 - Maintain bi-directional sync: parameter ↔ port.
 - Parameter changes mark dirty only; heavy work deferred to `execute`.
 - Published parameter surface mirrors published ports; inlets auto-unpublish on connect.
+- A port's publishing changes through `Graph.setPublished` and `setPublishedName` only. `Port.published` and `publishedName` are read-only outside Fabric; inside it, `setPublishing(_:name:)` is for a port no graph has to hear of: one being built, decoded or hydrated, or a proxy its subgraph node makes.
 
 ### 2.4  Graph, Subgraphs & Rendering
 - Graph owns nodes, connections (by port UUID), and published params.
 - A node id names one object in a graph at a time: Node's equality is its id, and the lifecycle review, view models and undo steps find a node by it.
 - **Subgraphs** inherit `BaseObjectNode`, expose an Satin object.
+- A `SubgraphNode` owns the proxies standing for its sub graph's published ports. The sub graph tells it of each change as the change it is, through four events: `portDidPublish`, `portWillUnpublish`, `port(_:wasReplacedBy:)` and `portDidRename`, raised by the graph's publish API, `addNode`, `delete(node:)` and `Node`'s port edits, whether or not undo registration is on. Nothing else changes proxies after decode. A proxy published further up is an ordinary published port of the graph it is in, so each level follows by the same events.
 - `GraphRenderer` handles traversal, caching, single-execute per frame, resize propagation. 
 - `GraphRenderer` handles discovery of cameras (only one supported now), and if none are found, leverages its own cached camera.
 - `GraphRenderer`’s default camera is set up for the default QC coordinate system.

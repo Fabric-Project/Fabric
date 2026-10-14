@@ -312,7 +312,7 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
 
         for legacyPort in imageOutputs where legacyPort.id != canonicalPort.id {
             if legacyPort.published {
-                canonicalPort.published = true
+                canonicalPort.setPublishing(true, name: canonicalPort.publishedName)
             }
 
             let inboundConnections = legacyPort.connectedInlets

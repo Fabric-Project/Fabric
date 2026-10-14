@@ -58,8 +58,8 @@ struct DisplacementMaterialNodeTests {
         source.inputMinPointSize.value = 4
         source.inputMaxPointSize.value = 8
         source.inputLumaVsRGBAmount.value = 0.5
-        source.inputBrightness.published = true
-        source.inputBrightness.publishedName = "Exposure"
+        graph.setPublished(true, on: source.inputBrightness)
+        graph.setPublishedName("Exposure", on: source.inputBrightness)
 
         let decoder = JSONDecoder()
         decoder.context = DecoderContext(documentContext: harness.context)
