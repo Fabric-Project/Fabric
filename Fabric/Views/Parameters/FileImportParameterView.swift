@@ -19,12 +19,14 @@ struct FileImportParameterView: View, Equatable
     @State private var isImporting: Bool = false
     @State private var isDropTargeted: Bool = false
 
-    init(parameter: StringParameter, allowedContentTypes: [UTType] = [.data])
+    init(parameter: StringParameter, graph: Graph? = nil, allowedContentTypes: [UTType] = [.data])
     {
         self.vm = ParameterObservableModel(label: parameter.label,
                                            get: { parameter.value },
                                            set: { parameter.value = $0 },
-                                           publisher: parameter.valuePublisher )
+                                           publisher: parameter.valuePublisher,
+                                           graph: graph,
+                                           undoParameter: parameter)
         self.allowedContentTypes = allowedContentTypes
     }
 

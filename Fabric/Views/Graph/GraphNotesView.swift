@@ -15,7 +15,7 @@ struct GraphNotesView: View
         let currentGraph = editingContext.currentGraph
 
         ForEach(currentGraph.notes) { currentNote in
-            NoteView(note: currentNote, focus: focus)
+            NoteView(note: currentNote, graph: currentGraph, focus: focus)
                 .offset(x: currentNote.rect.midX, y: currentNote.rect.midY)
                 .contextMenu {
                     Button("Delete Note") {

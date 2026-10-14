@@ -152,22 +152,15 @@ struct GraphNodesView: View
     {
         let selectedNodes = currentGraph.selectedNodes
 
-        currentGraph.undoManager?.beginUndoGrouping()
-
-        for node in selectedNodes
-        {
-            if let offset = initialOffsets[node.id]
+        currentGraph.performEdit(named: "Move Nodes") {
+            for node in selectedNodes
             {
-                currentGraph.undoManager?.registerUndo(withTarget: node) {
-                    let cachedOffset = $0.offset
-                    currentGraph.undoManager?.registerUndo(withTarget: node) { $0.offset = cachedOffset }
-                    $0.offset = offset
+                if let offset = initialOffsets[node.id]
+                {
+                    currentGraph.registerOffsetChange(of: node, from: offset)
                 }
             }
         }
-
-        currentGraph.undoManager?.endUndoGrouping()
-        currentGraph.undoManager?.setActionName("Move Nodes")
 
         selectedNodes.forEach { currentGraph.viewModel(for: $0).isDragging = false }
         self.activeDragAnchor = nil

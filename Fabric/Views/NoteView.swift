@@ -73,9 +73,25 @@ private struct EditorView : View
 struct NoteView : View
 {
     @Bindable var note:Note
+    let graph: Graph
     let focus: FocusState<FabricEditorFocusTarget?>.Binding
     
     @State var locked:Bool = true
+    /// The note as it was when the edit in progress began: unlocking for
+    /// text, or a drag of the note or its corner.
+    @State private var editStart: (text: String, rect: CGRect)?
+
+    private func beginEdit()
+    {
+        if editStart == nil { editStart = (note.note, note.rect) }
+    }
+
+    private func endEdit()
+    {
+        guard let start = editStart else { return }
+        editStart = nil
+        graph.registerNoteEdit(note, previousText: start.text, previousRect: start.rect)
+    }
     
     var body: some View
     {
@@ -95,6 +111,8 @@ struct NoteView : View
                         .frame(width: self.note.rect.size.width, height: self.note.rect.size.height, alignment: .topLeading)
                     
                     Button("", systemImage: self.locked ? "lock.fill" : "lock.open.fill") {
+                        // Text typed while unlocked is one edit.
+                        if self.locked { self.beginEdit() } else { self.endEdit() }
                         self.locked.toggle( )
                         self.focus.wrappedValue = self.locked ? .canvas : .noteEditor(self.note.id)
                     }
@@ -108,6 +126,7 @@ struct NoteView : View
                         .frame(width: 25, height:25)
                         .gesture(self.locked ? nil : DragGesture()
                             .onChanged { value in
+                                self.beginEdit()
                                 
                                 self.note.rect.size.width += value.translation.width
                                 self.note.rect.size.height += value.translation.height
@@ -115,16 +134,27 @@ struct NoteView : View
                                 self.note.rect.size.width = max(120, self.note.rect.size.width)
                                 self.note.rect.size.height = max(60, self.note.rect.size.height)
                             }
+                            .onEnded { _ in
+                    // Drags happen unlocked, so text edits go on afterwards.
+                    self.endEdit()
+                    self.beginEdit()
+                }
                         )
                         .opacity(self.locked ? 0 : 1)
                 }
             )
             .clipShape( RoundedRectangle(cornerRadius: 15) )
+            .onDisappear { self.endEdit() }
             .gesture(self.locked ? nil : DragGesture()
                 .onChanged { value in
+                    self.beginEdit()
                                         
                     self.note.rect.origin.x += value.translation.width
                     self.note.rect.origin.y += value.translation.height
+                }
+                .onEnded { _ in
+                    self.endEdit()
+                    self.beginEdit()
                 }
                
             )

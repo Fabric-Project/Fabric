@@ -1,0 +1,266 @@
+import Foundation
+import Combine
+import Metal
+import Testing
+@testable import Fabric
+import Satin
+
+/// Edits a user makes register undo: publishing, naming a published port,
+/// notes, and parameter values set through their controls.
+@Suite("Edit Undo")
+struct EditUndoTests
+{
+    private func makeContext() -> Context?
+    {
+        guard let device = MTLCreateSystemDefaultDevice() else { return nil }
+        return Context(device: device,
+                       sampleCount: 1,
+                       colorPixelFormat: .bgra8Unorm,
+                       depthPixelFormat: .depth32Float,
+                       stencilPixelFormat: .invalid)
+    }
+
+    /// One edit per group, as the editor's event loop makes them.
+    private func step(_ undoManager: UndoManager, _ edit: () -> Void)
+    {
+        undoManager.beginUndoGrouping()
+        edit()
+        undoManager.endUndoGrouping()
+    }
+
+    private struct Fixture
+    {
+        let graph: Graph
+        let container: SubgraphNode
+        let inner: NumberBinaryOperator
+        let upstream: NumberBinaryOperator
+        let undoManager: UndoManager
+    }
+
+    /// A subgraph whose inner inlet is published, with the parent wired onto its proxy.
+    private func makeFixture(context: Context) throws -> Fixture
+    {
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        let graph = Graph(context: context)
+        let container = SubgraphNode(context: context)
+        let inner = NumberBinaryOperator(context: context)
+        let upstream = NumberBinaryOperator(context: context)
+        graph.addNode(container)
+        graph.addNode(upstream)
+        container.subGraph.addNode(inner)
+        container.subGraph.setPublished(true, on: inner.inputNumber1)
+        let proxy = try #require(container.ports.first { $0.id == inner.inputNumber1.id })
+        _ = try #require(graph.connect(upstream.outputNumber, to: proxy))
+        graph.undoManager = undoManager
+        container.subGraph.undoManager = undoManager
+        return Fixture(graph: graph, container: container, inner: inner, upstream: upstream, undoManager: undoManager)
+    }
+
+    @Test("Publishing and naming a published port are undo steps")
+    func publishAndRenameUndo() throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = try makeFixture(context: context)
+        let port = fixture.inner.inputNumber2
+
+        step(fixture.undoManager) { fixture.container.subGraph.setPublished(true, on: port) }
+        step(fixture.undoManager) { fixture.container.subGraph.setPublishedName("Gain", on: port) }
+        #expect(fixture.container.ports.contains { $0.id == port.id && $0.displayName == "Gain" })
+        #expect(fixture.undoManager.undoActionName == "Rename Port")
+
+        fixture.undoManager.undo()
+        #expect(port.publishedName == nil)
+        fixture.undoManager.undo()
+        #expect(!port.published)
+        #expect(!fixture.container.ports.contains { $0.id == port.id })
+    }
+
+    @Test("Undoing a publish puts back the name the port carried unpublished, and redo publishes it under that name")
+    func publishUndoKeepsTheName() throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = try makeFixture(context: context)
+        let port = fixture.inner.inputNumber2
+        let subGraph = fixture.container.subGraph
+        step(fixture.undoManager) { subGraph.setPublishedName("Gain", on: port) }
+        step(fixture.undoManager) { subGraph.setPublished(true, on: port) }
+        #expect(fixture.container.ports.contains { $0.id == port.id && $0.displayName == "Gain" })
+        #expect(fixture.undoManager.undoActionName == "Publish Port")
+
+        fixture.undoManager.undo()
+        #expect(!port.published)
+        #expect(port.publishedName == "Gain")
+        #expect(fixture.undoManager.redoActionName == "Publish Port")
+
+        fixture.undoManager.redo()
+        #expect(port.published)
+        #expect(fixture.container.ports.contains { $0.id == port.id && $0.displayName == "Gain" })
+        #expect(fixture.undoManager.undoActionName == "Publish Port")
+
+        fixture.undoManager.undo()
+        #expect(port.publishedName == "Gain")
+        #expect(fixture.undoManager.redoActionName == "Publish Port")
+        #expect(fixture.undoManager.undoActionName == "Rename Port", "the rename before it is the next step back")
+    }
+
+    @Test("Adding and deleting a node or a note keep their names through undo and redo")
+    func addAndDeleteKeepTheirNames()
+    {
+        guard let context = makeContext() else { return }
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        let graph = Graph(context: context)
+        graph.undoManager = undoManager
+
+        let node = NumberBinaryOperator(context: context)
+        step(undoManager) { graph.addNode(node) }
+        #expect(undoManager.undoActionName == "Add Node")
+        undoManager.undo()
+        #expect(undoManager.redoActionName == "Add Node")
+        undoManager.redo()
+        #expect(undoManager.undoActionName == "Add Node")
+
+        step(undoManager) { graph.delete(node: node) }
+        #expect(undoManager.undoActionName == "Delete Node")
+        undoManager.undo()
+        #expect(undoManager.redoActionName == "Delete Node")
+        undoManager.redo()
+        #expect(undoManager.undoActionName == "Delete Node")
+
+        let note = Note(note: "Note", rect: .zero)
+        step(undoManager) { graph.addNote(note) }
+        #expect(undoManager.undoActionName == "Add Note")
+        undoManager.undo()
+        #expect(undoManager.redoActionName == "Add Note")
+        undoManager.redo()
+        #expect(undoManager.undoActionName == "Add Note")
+
+        step(undoManager) { graph.deleteNote(note) }
+        #expect(undoManager.undoActionName == "Delete Note")
+        undoManager.undo()
+        #expect(undoManager.redoActionName == "Delete Note")
+        undoManager.redo()
+        #expect(undoManager.undoActionName == "Delete Note")
+    }
+
+    @Test("Adding, editing and deleting a note are undo steps")
+    func noteEditsUndo()
+    {
+        guard let context = makeContext() else { return }
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        let graph = Graph(context: context)
+        graph.undoManager = undoManager
+        let first = Note(note: "First", rect: .zero)
+        let note = Note(note: "Draft", rect: CGRect(x: 0, y: 0, width: 200, height: 100))
+
+        step(undoManager) { graph.addNote(first) }
+        step(undoManager) { graph.addNote(note) }
+        step(undoManager) {
+            note.note = "Final"
+            note.rect.origin = CGPoint(x: 40, y: 40)
+            graph.registerNoteEdit(note, previousText: "Draft", previousRect: CGRect(x: 0, y: 0, width: 200, height: 100))
+        }
+        step(undoManager) { graph.deleteNote(first) }
+        #expect(graph.notes.map(\.id) == [note.id])
+
+        undoManager.undo()
+        #expect(graph.notes.map(\.id) == [first.id, note.id], "a deleted note comes back where it was")
+        undoManager.undo()
+        #expect(note.note == "Draft")
+        #expect(note.rect.origin == .zero)
+        undoManager.redo()
+        #expect(note.note == "Final")
+        undoManager.undo()
+        undoManager.undo()
+        #expect(graph.notes.map(\.id) == [first.id])
+    }
+
+    @Test("An edit recorded for a note after its delete is not a step")
+    func noteEditAfterDeleteRegistersNothing()
+    {
+        guard let context = makeContext() else { return }
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        let graph = Graph(context: context)
+        graph.undoManager = undoManager
+        let note = Note(note: "Draft", rect: .zero)
+        step(undoManager) { graph.addNote(note) }
+
+        note.note = "Typed"
+        step(undoManager) { graph.deleteNote(note) }
+        // The view going away ends the edit after the delete took the note.
+        graph.registerNoteEdit(note, previousText: "Draft", previousRect: .zero)
+        #expect(undoManager.undoActionName == "Delete Note")
+
+        undoManager.undo()
+        #expect(graph.notes.map(\.id) == [note.id])
+        #expect(note.note == "Typed")
+    }
+
+    @Test("A parameter set through its control is one undo step per change, or per edit while one is in progress")
+    @MainActor
+    func parameterEditsUndo() throws
+    {
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        guard let context = makeContext() else { return }
+        let graph = Graph(context: context)
+        let node = NumberBinaryOperator(context: context)
+        graph.addNode(node)
+        graph.undoManager = undoManager
+        let parameter = try #require(node.inputNumber1.parameter as? FloatParameter)
+        parameter.label = "Amount"
+        parameter.value = 1
+        let model = ParameterObservableModel(label: parameter.label,
+                                             get: { parameter.value },
+                                             set: { parameter.value = $0 },
+                                             publisher: parameter.valuePublisher,
+                                             graph: graph,
+                                             undoParameter: parameter)
+
+        // A discrete change.
+        step(undoManager) { model.uiValue = 2 }
+        #expect(undoManager.undoActionName == "Change Amount")
+
+        // A drag: many changes, one step.
+        step(undoManager) {
+            model.setEditing(true)
+            model.uiValue = 3
+            model.uiValue = 4
+            model.uiValue = 5
+            model.setEditing(false)
+        }
+
+        undoManager.undo()
+        #expect(parameter.value == 2)
+        undoManager.undo()
+        #expect(parameter.value == 1)
+        #expect(!undoManager.canUndo)
+        undoManager.redo()
+        undoManager.redo()
+        #expect(parameter.value == 5)
+    }
+
+    @Test("A momentary control's changes are not undo steps")
+    @MainActor
+    func untargetedParameterEditsRegisterNothing()
+    {
+        let parameter = BoolParameter("Fire", false, .button, "")
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        guard let context = makeContext() else { return }
+        let graph = Graph(context: context)
+        graph.undoManager = undoManager
+        let model = ParameterObservableModel(label: parameter.label,
+                                             get: { parameter.value },
+                                             set: { parameter.value = $0 },
+                                             publisher: parameter.valuePublisher,
+                                             graph: graph)
+
+        step(undoManager) { model.uiValue = true }
+        undoManager.undo()
+        #expect(parameter.value)
+    }
+}

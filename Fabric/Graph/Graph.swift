@@ -165,6 +165,8 @@ internal import AnyCodable
 
     public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
 
+    @ObservationIgnored public internal(set) weak var ownerNode: SubgraphNode?
+
     /// Called when the set of published ports changes. SubgraphNode uses
     /// this to rebuild its proxy ports without polling.
     @ObservationIgnored var onPublishedPortsChanged: (() -> Void)?
@@ -473,16 +475,231 @@ internal import AnyCodable
         }, forKey: .connections)
     }
  
+    //MARK: - Undo -
+
+    /// Registers the undo step for an edit made in this graph. Every edit
+    /// registers through here, so it is the one place that sees an edit made
+    /// in a graph, wherever in the editor it was made.
+    ///
+    /// The step is handed this graph as the document holds it when the step
+    /// runs, found from the root by the ids of the subgraph nodes on the way
+    /// down, and finds what it acts on there by id. It holds ids and values,
+    /// never this graph's nodes, ports, wires or notes: by the time it runs,
+    /// something may have put another object in place of one under the same
+    /// id. What it brings back from outside the graph, a deleted node, it
+    /// holds.
+    ///
+    /// Steps record on effectiveUndoManager.
+    public func registerUndo(_ handler: @escaping (Graph) -> Void)
+    {
+        let location = UndoLocation(of: self)
+        guard let undoManager = self.undoManager ?? location.root?.undoManager else { return }
+        // The step holds the location: an undo manager does not keep its targets.
+        undoManager.registerUndo(withTarget: location) { [location] _ in
+            guard let graph = location.graph else { return }
+            handler(graph)
+        }
+    }
+
+    /// Undoes the last step on the undo manager this graph's edits record on.
+    /// Undo is driven through here, not the undo manager: a change a control
+    /// holds for its pause, half-typed text, is committed first, so the undo
+    /// takes it back rather than passing over it.
+    public func undo()
+    {
+        guard let undoManager = self.effectiveUndoManager else { return }
+        PendingCommit.commitAll(on: undoManager)
+        undoManager.undo()
+    }
+
+    /// Redoes the last step undone; see undo().
+    public func redo()
+    {
+        guard let undoManager = self.effectiveUndoManager else { return }
+        PendingCommit.commitAll(on: undoManager)
+        undoManager.redo()
+    }
+
+    public var canUndo: Bool { self.effectiveUndoManager?.canUndo ?? false }
+
+    /// Reading this posts the undo manager's checkpoint notification, so a
+    /// menu that validates on it should read it as the manager's
+    /// notifications come instead.
+    public var canRedo: Bool { self.effectiveUndoManager?.canRedo ?? false }
+
+    /// The undo manager edits made in this graph record on: its own, or the
+    /// root's until the canvas gives it its own. withoutUndoRegistration(_:)
+    /// suspends this one.
+    internal var effectiveUndoManager: UndoManager?
+    {
+        self.undoManager ?? UndoLocation(of: self).root?.undoManager
+    }
+
+    // An undo group takes the name the last step to run sets: on undo, the
+    // redo group's; on redo, the undo group's. An edit that registers one
+    // step names itself with nameEdit(_:inverse:). An edit that registers
+    // several, whose handlers name groups after edits of their own, is a
+    // compound and runs through performEdit(named:inverse:_:).
+
+    /// Names the group an edit registers into: `forward` for the edit, or,
+    /// during an undo, `inverse`, since that group is the redo of the
+    /// inverse edit being undone.
+    internal func nameEdit(_ forward: String, inverse: String)
+    {
+        guard let undoManager = self.effectiveUndoManager else { return }
+        undoManager.setActionName(undoManager.isUndoing ? inverse : forward)
+    }
+
+    /// Runs `body`, a compound edit, as one undo group named `name`, or
+    /// `inverse` where the edit is made by an undo, and keeps that name
+    /// through the group's undo and redo: a step registered first and last
+    /// in the group names it, so it runs last whichever way the group runs.
+    @discardableResult
+    internal func performEdit<Result>(named name: String,
+                                      inverse: String? = nil,
+                                      _ body: () throws -> Result) rethrows -> Result
+    {
+        let undoManager = self.effectiveUndoManager
+        let actionName = undoManager?.isUndoing == true ? (inverse ?? name) : name
+        undoManager?.beginUndoGrouping()
+        defer { undoManager?.endUndoGrouping() }
+
+        self.registerActionName(actionName)
+        let result = try body()
+        self.registerActionName(actionName)
+        return result
+    }
+
+    /// A step that names the group it runs in `name`, and registers itself
+    /// again for the group that undoes it.
+    private func registerActionName(_ name: String)
+    {
+        self.registerUndo { graph in graph.registerActionName(name) }
+        self.effectiveUndoManager?.setActionName(name)
+    }
+
+    /// Registers an undo step acting on `node`, a node in this graph, found
+    /// again by its id; see registerUndo(_:).
+    public func registerUndo<N: Node>(on node: N, _ handler: @escaping (N) -> Void)
+    {
+        let id = node.id
+        self.registerUndo { graph in
+            guard let node = graph.node(forID: id) as? N else { return }
+            handler(node)
+        }
+    }
+
+    /// Records a change already made to `parameter`'s value, from `previous`,
+    /// as an undo step. The parameter is a port's, on a node in this graph or
+    /// in a graph inside it, as a published parameter shown further up is.
+    public func registerValueChange<Value: Codable & Equatable>(of parameter: GenericParameter<Value>,
+                                                               from previous: Value,
+                                                               label: String)
+    {
+        guard let owner = self.graph(holdingPortOf: parameter) else { return }
+        let portID = parameter.id
+        let current = parameter.value
+        owner.registerUndo { graph in
+            guard let parameter = graph.nodePort(forID: portID)?.parameter as? GenericParameter<Value> else { return }
+            parameter.value = previous
+            graph.registerValueChange(of: parameter, from: current, label: label)
+        }
+        owner.effectiveUndoManager?.setActionName("Change \(label)")
+    }
+
+    /// The graph, this one or one inside it, with the port `parameter` is
+    /// the parameter of. A proxy shares its inner port's parameter, and is
+    /// passed over for it.
+    private func graph(holdingPortOf parameter: any Parameter) -> Graph?
+    {
+        let holdsPort = self.nodes.contains { node in
+            node.ports.contains { $0.parameter === parameter && !($0 is any ProxyPortProtocol) }
+        }
+        if holdsPort { return self }
+        for case let subgraphNode as SubgraphNode in self.nodes
+        {
+            if let graph = subgraphNode.subGraph.graph(holdingPortOf: parameter) { return graph }
+        }
+        return nil
+    }
+
+    /// Where an undo step acts: the root graph, and the ids of the subgraph
+    /// nodes from it down to the graph the edit was made in.
+    private final class UndoLocation
+    {
+        private(set) weak var root: Graph?
+        private let path: [UUID]
+
+        init(of graph: Graph)
+        {
+            var path: [UUID] = []
+            var root = graph
+            while let owner = root.ownerNode, let parent = owner.graph
+            {
+                path.append(owner.id)
+                root = parent
+            }
+            self.root = root
+            self.path = path.reversed()
+        }
+
+        var graph: Graph?
+        {
+            self.path.reduce(self.root) { graph, id in (graph?.node(forID: id) as? SubgraphNode)?.subGraph }
+        }
+    }
+
     //MARK: - Notes API -
-    
+
     public func addNote(_ note: Note)
     {
-        self.notes.append(note)
+        self.insertNote(note, at: self.notes.endIndex)
     }
-    
+
     public func deleteNote(_ note:Note)
     {
-        self.notes.removeAll(where: { $0.id == note.id })
+        self.deleteNote(id: note.id)
+    }
+
+    private func deleteNote(id: UUID)
+    {
+        guard let index = self.notes.firstIndex(where: { $0.id == id }) else { return }
+        let note = self.notes.remove(at: index)
+
+        self.registerUndo { graph in
+            graph.insertNote(note, at: index)
+        }
+        self.nameEdit("Delete Note", inverse: "Add Note")
+    }
+
+    private func insertNote(_ note: Note, at index: Int)
+    {
+        guard !self.notes.contains(where: { $0.id == note.id }) else { return }
+        self.notes.insert(note, at: min(index, self.notes.endIndex))
+        let id = note.id
+        self.registerUndo { $0.deleteNote(id: id) }
+        self.nameEdit("Add Note", inverse: "Delete Note")
+    }
+
+    /// Records an edit already made to `note`'s text or frame, from the text
+    /// and frame it had before, as one undo step.
+    public func registerNoteEdit(_ note: Note, previousText: String, previousRect: CGRect)
+    {
+        let id = note.id
+        let text = note.note
+        let rect = note.rect
+        // A note deleted while its edit was open went with what it held.
+        guard text != previousText || rect != previousRect,
+              self.notes.contains(where: { $0.id == id })
+        else { return }
+
+        self.registerUndo { graph in
+            guard let note = graph.notes.first(where: { $0.id == id }) else { return }
+            note.note = previousText
+            note.rect = previousRect
+            graph.registerNoteEdit(note, previousText: text, previousRect: rect)
+        }
+        effectiveUndoManager?.setActionName("Edit Note")
     }
     
     //MARK: - Nodes API -
@@ -517,11 +734,11 @@ internal import AnyCodable
             subgraphNode.subGraph.updateFileReferenceBaseURL(self.fileReferenceBaseURL)
         }
 
-        self.undoManager?.registerUndo(withTarget: self) { graph in
-            graph.delete(node: node)
+        self.registerUndo(on: node) { node in
+            node.graph?.delete(node: node)
         }
 
-        self.undoManager?.setActionName("Add Node")
+        self.nameEdit("Add Node", inverse: "Delete Node")
         self.markConnectionsChanged()
 
         self.updateCameraSelection(afterAdding: node)
@@ -606,20 +823,20 @@ internal import AnyCodable
     
     public func delete(node:Node, disconnect:Bool = true)
     {
-        guard nodes.contains(where: { $0 === node }) else { return }
+        guard let savedIndex = nodes.firstIndex(where: { $0 === node }) else { return }
 
-        let savedOffset = node.offset
-        let nodePortIDs = Set(node.ports.map(\.id))
-        let savedConnections = connections.filter {
-            nodePortIDs.contains($0.outletPortID) || nodePortIDs.contains($0.inletPortID)
-        }
+        self.performEdit(named: "Delete Node", inverse: "Add Node") {
 
-        withoutUndoRegistration {
-            if disconnect
+            let savedOffset = node.offset
+            for port in node.ports where port.published
             {
-                for connection in savedConnections {
-                    self.disconnect(connection)
-                }
+                self.portWillUnpublish(port)
+            }
+
+            let nodePortIDs = Set(node.ports.map(\.id))
+            for connection in connections where disconnect && (nodePortIDs.contains(connection.outletPortID) || nodePortIDs.contains(connection.inletPortID))
+            {
+                self.disconnect(connection)
             }
 
             self.maybeDeleteNodeFromScene(node)
@@ -629,36 +846,29 @@ internal import AnyCodable
             // Remove ViewModel after removing from nodes so any in-flight
             // ForEach evaluation still finds it.
             self.nodeViewModels[node.id] = nil
+
+            self.registerUndo { graph in
+                graph.restoreDeletedNode(node, at: savedIndex, offset: savedOffset)
+            }
+
+            self.markConnectionsChanged()
+
+            self.updateCameraSelection()
+            self.rebuildPublishedParameterGroup()
         }
-
-        self.undoManager?.registerUndo(withTarget: self) { graph in
-            graph.restoreDeletedNode(node,
-                                     offset: savedOffset,
-                                     connections: savedConnections)
-        }
-
-        self.undoManager?.setActionName("Delete Node")
-        self.markConnectionsChanged()
-
-        self.updateCameraSelection()
-        self.rebuildPublishedParameterGroup()
     }
 
-    private func restoreDeletedNode(_ node: Node,
-                                    offset: CGSize,
-                                    connections: [Connection])
+    private func restoreDeletedNode(_ node: Node, at index: Int, offset: CGSize)
     {
+        guard self.node(forID: node.id) == nil else { return }
+
         withoutUndoRegistration {
             node.offset = offset
             nodeViewModels[node.id] = NodeViewModel(node: node)
-            nodes.append(node)
+            nodes.insert(node, at: min(index, nodes.count))
             node.graph = self
             nodeMembershipDidChange(node)
             maybeAddNodeToScene(node)
-
-            for connection in connections where connection.graph == nil {
-                restore(connection)
-            }
 
             node.markDirty()
             updateCameraSelection(afterAdding: node)
@@ -667,10 +877,10 @@ internal import AnyCodable
             markConnectionsChanged()
         }
 
-        undoManager?.registerUndo(withTarget: self) { graph in
-            graph.delete(node: node)
+        self.registerUndo(on: node) { node in
+            node.graph?.delete(node: node)
         }
-        undoManager?.setActionName("Delete Node")
+        self.nameEdit("Add Node", inverse: "Delete Node")
     }
     
     public func node(forID:UUID) -> Node?
@@ -733,26 +943,23 @@ internal import AnyCodable
             return existing
         }
 
-        let undoManager = self.undoManager
-        let replacesExistingConnection = inlet.connections.contains { $0.inletPortID == inlet.id }
-        if replacesExistingConnection { undoManager?.beginUndoGrouping() }
+        return self.performEdit(named: "Connect Ports", inverse: "Disconnect Ports") {
 
-        for existing in inlet.connections where existing.inletPortID == inlet.id && existing.graph === self {
-            disconnect(existing)
+            for existing in inlet.connections where existing.inletPortID == inlet.id && existing.graph === self {
+                disconnect(existing)
+            }
+
+            let connection = Connection(outletPortID: outlet.id, inletPortID: inlet.id)
+            attachConnection(connection, outlet: outlet, inlet: inlet)
+            markConnectionTopologyChanged()
+            outlet.sendBoxed(outlet.snapshotValue(), force: true)
+
+            let wire = Wire(connection)
+            self.registerUndo { graph in
+                graph.connection(matching: wire).map { graph.disconnect($0) }
+            }
+            return connection
         }
-
-        let connection = Connection(outletPortID: outlet.id, inletPortID: inlet.id)
-        attachConnection(connection, outlet: outlet, inlet: inlet)
-        markConnectionTopologyChanged()
-        outlet.sendBoxed(outlet.snapshotValue(), force: true)
-
-        undoManager?.registerUndo(withTarget: self) { graph in
-            graph.disconnect(connection)
-        }
-        undoManager?.setActionName("Connect Ports")
-
-        if replacesExistingConnection { undoManager?.endUndoGrouping() }
-        return connection
     }
 
     @discardableResult
@@ -782,10 +989,11 @@ internal import AnyCodable
         detachConnection(connection, outlet: outlet, inlet: inlet)
         markConnectionTopologyChanged()
 
-        undoManager?.registerUndo(withTarget: self) { graph in
-            graph.restore(connection)
+        let wire = Wire(connection)
+        self.registerUndo { graph in
+            graph.restore(wire)
         }
-        undoManager?.setActionName("Disconnect Ports")
+        self.nameEdit("Disconnect Ports", inverse: "Connect Ports")
         return true
     }
 
@@ -796,12 +1004,11 @@ internal import AnyCodable
         let ownedConnections = port.connections.filter { $0.graph === self }
         guard !ownedConnections.isEmpty else { return }
 
-        undoManager?.beginUndoGrouping()
-        defer { undoManager?.endUndoGrouping() }
-        for connection in ownedConnections {
-            disconnect(connection)
+        self.performEdit(named: "Disconnect Ports", inverse: "Connect Ports") {
+            for connection in ownedConnections {
+                disconnect(connection)
+            }
         }
-        undoManager?.setActionName("Disconnect Ports")
     }
 
     @discardableResult
@@ -813,10 +1020,12 @@ internal import AnyCodable
         let previousActive = connection.active
         connection.active = active
 
-        undoManager?.registerUndo(withTarget: self) { graph in
-            graph.setConnection(connection, active: previousActive)
+        let wire = Wire(connection)
+        self.registerUndo { graph in
+            graph.connection(matching: wire).map { graph.setConnection($0, active: previousActive) }
         }
-        undoManager?.setActionName(active ? "Enable Connection" : "Disable Connection")
+        self.nameEdit(active ? "Enable Connection" : "Disable Connection",
+                      inverse: active ? "Disable Connection" : "Enable Connection")
         return true
     }
 
@@ -830,22 +1039,59 @@ internal import AnyCodable
         }
     }
 
-    @discardableResult
-    private func restore(_ connection: Connection) -> Bool
+    /// A wire as an undo step holds it: by its id and the ids of the ports at
+    /// its ends, which find it again whatever object stands for it then.
+    internal struct Wire
     {
-        if connections.contains(where: { $0 === connection }) { return true }
-        guard let outlet = nodePort(forID: connection.outletPortID),
-              let inlet = nodePort(forID: connection.inletPortID),
-              connectionEndpointsBelongToGraph(outlet: outlet, inlet: inlet)
+        let id: UUID
+        let outletPortID: UUID
+        let inletPortID: UUID
+        let active: Bool
+
+        init(_ connection: Connection)
+        {
+            self.init(id: connection.id,
+                      outletPortID: connection.outletPortID,
+                      inletPortID: connection.inletPortID,
+                      active: connection.active)
+        }
+
+        init(id: UUID, outletPortID: UUID, inletPortID: UUID, active: Bool)
+        {
+            self.id = id
+            self.outletPortID = outletPortID
+            self.inletPortID = inletPortID
+            self.active = active
+        }
+    }
+
+    /// The wire in this graph between the ports `wire` joins.
+    internal func connection(matching wire: Wire) -> Connection?
+    {
+        connections.first { $0.outletPortID == wire.outletPortID && $0.inletPortID == wire.inletPortID }
+    }
+
+    /// Puts `wire` back, under its own id, where both its ports are in this
+    /// graph and nothing joins them yet.
+    @discardableResult
+    internal func restore(_ wire: Wire) -> Bool
+    {
+        if connection(matching: wire) != nil { return true }
+        guard let outlet = nodePort(forID: wire.outletPortID),
+              let inlet = nodePort(forID: wire.inletPortID),
+              connectionEndpointsBelongToGraph(outlet: outlet, inlet: inlet),
+              !connections.contains(where: { $0.inletPortID == wire.inletPortID })
         else { return false }
 
+        let connection = Connection(id: wire.id, outletPortID: wire.outletPortID, inletPortID: wire.inletPortID, active: wire.active)
         attachConnection(connection, outlet: outlet, inlet: inlet)
         markConnectionTopologyChanged()
         outlet.sendBoxed(outlet.snapshotValue(), force: true)
 
-        undoManager?.registerUndo(withTarget: self) { graph in
-            graph.disconnect(connection)
+        self.registerUndo { graph in
+            graph.connection(matching: wire).map { graph.disconnect($0) }
         }
+        self.nameEdit("Connect Ports", inverse: "Disconnect Ports")
         return true
     }
 
@@ -963,6 +1209,77 @@ internal import AnyCodable
         cachedPublishedOutputPortsRevision = connectionRevision
 
         return cachedPublishedOutputPorts
+    }
+
+    /// Publishing keeps the port's published name; unpublishing clears it.
+    public func setPublished(_ published: Bool, on port: Port)
+    {
+        self.setPublished(published, on: port, name: published ? port.publishedName : nil)
+    }
+
+    /// `name` is the published name the port is left with. Undo passes the
+    /// one it had before, so that undoing a publish keeps a name the port
+    /// carried unpublished, and no rename step is needed to put it back.
+    private func setPublished(_ published: Bool, on port: Port, name: String?)
+    {
+        guard port.published != published, port.node?.graph === self else { return }
+
+        self.performEdit(named: published ? "Publish Port" : "Unpublish Port",
+                         inverse: published ? "Unpublish Port" : "Publish Port") {
+            let previousName = port.publishedName
+            if published
+            {
+                port.setPublishing(true, name: name)
+                self.portDidPublish(port)
+            }
+            else
+            {
+                self.portWillUnpublish(port)
+                port.setPublishing(false, name: name)
+                // Publishing named the parameter after the port's published name.
+                port.parameter?.label = port.displayName
+                self.rebuildPublishedParameterGroup()
+            }
+
+            let portID = port.id
+            self.registerUndo { graph in
+                graph.nodePort(forID: portID).map { graph.setPublished(!published, on: $0, name: previousName) }
+            }
+        }
+    }
+
+    /// Names `port`, a published port of a node in this graph, as the
+    /// containing graph shows it; nil goes back to the port's own name.
+    /// Undoable.
+    public func setPublishedName(_ name: String?, on port: Port)
+    {
+        let previousName = port.publishedName
+        guard previousName != name else { return }
+
+        port.setPublishing(port.published, name: name)
+        self.portDidRename(port)
+
+        let portID = port.id
+        self.registerUndo { graph in
+            graph.nodePort(forID: portID).map { graph.setPublishedName(previousName, on: $0) }
+        }
+        effectiveUndoManager?.setActionName("Rename Port")
+    }
+
+    internal func portDidPublish(_ port: Port)
+    {
+        if let node = port.node { self.markNodeForLifecycleReview(node) }
+        self.rebuildPublishedParameterGroup()
+    }
+
+    internal func portWillUnpublish(_ port: Port)
+    {
+        if let node = port.node { self.markNodeForLifecycleReview(node) }
+    }
+
+    internal func portDidRename(_ port: Port)
+    {
+        self.rebuildPublishedParameterGroup()
     }
 
     public func rebuildPublishedParameterGroup()
@@ -1330,7 +1647,7 @@ internal import AnyCodable
                                           publishedPortStates: publishedPortStates)
 
         applyEmbedding(embedding)
-        undoManager?.registerUndo(withTarget: self) { graph in
+        self.registerUndo { graph in
             graph.revertEmbedding(embedding)
         }
         undoManager?.setActionName("Create Subgraph")
@@ -1435,7 +1752,7 @@ internal import AnyCodable
             }
         }
 
-        undoManager?.registerUndo(withTarget: self) { graph in
+        self.registerUndo { graph in
             graph.applyEmbedding(embedding)
         }
         undoManager?.setActionName("Create Subgraph")
@@ -1443,6 +1760,7 @@ internal import AnyCodable
 
     internal func withoutUndoRegistration(_ operation: () -> Void)
     {
+        let undoManager = self.effectiveUndoManager
         let shouldRestoreUndoRegistration = undoManager?.isUndoRegistrationEnabled == true
         if shouldRestoreUndoRegistration { undoManager?.disableUndoRegistration() }
         defer {
@@ -1788,36 +2106,34 @@ internal import AnyCodable
         }
 
         // 4. Add all new nodes (grouped undo)
-        self.undoManager?.beginUndoGrouping()
+        self.performEdit(named: "Duplicate Nodes") {
 
-        for newNode in newNodes
-        {
-            self.addNode(newNode)
-        }
-
-        // 5. Restore internal connections using remapped port IDs
-        for (oldPortID, oldConnectedIDs) in internalConnections
-        {
-            guard let newPortIDString = uuidRemap[oldPortID.uuidString],
-                  let newPortID = UUID(uuidString: newPortIDString),
-                  let newPort = self.nodePort(forID: newPortID)
-            else { continue }
-
-            for oldConnectedID in oldConnectedIDs
+            for newNode in newNodes
             {
-                guard let newConnectedIDString = uuidRemap[oldConnectedID.uuidString],
-                      let newConnectedID = UUID(uuidString: newConnectedIDString),
-                      let newConnectedPort = self.nodePort(forID: newConnectedID)
+                self.addNode(newNode)
+            }
+
+            // 5. Restore internal connections using remapped port IDs
+            for (oldPortID, oldConnectedIDs) in internalConnections
+            {
+                guard let newPortIDString = uuidRemap[oldPortID.uuidString],
+                      let newPortID = UUID(uuidString: newPortIDString),
+                      let newPort = self.nodePort(forID: newPortID)
                 else { continue }
 
-                if newPort.kind == .Outlet {
-                    self.connect(newPort, to: newConnectedPort)
+                for oldConnectedID in oldConnectedIDs
+                {
+                    guard let newConnectedIDString = uuidRemap[oldConnectedID.uuidString],
+                          let newConnectedID = UUID(uuidString: newConnectedIDString),
+                          let newConnectedPort = self.nodePort(forID: newConnectedID)
+                    else { continue }
+
+                    if newPort.kind == .Outlet {
+                        self.connect(newPort, to: newConnectedPort)
+                    }
                 }
             }
         }
-
-        self.undoManager?.endUndoGrouping()
-        self.undoManager?.setActionName("Duplicate Nodes")
 
         // 6. Select only the new nodes
         self.deselectAllNodes()
@@ -1952,36 +2268,34 @@ extension Graph
             }
 
             // Add nodes and restore connections
-            self.undoManager?.beginUndoGrouping()
+            self.performEdit(named: "Paste Nodes") {
 
-            for newNode in newNodes
-            {
-                self.addNode(newNode)
-            }
-
-            // Restore internal connections using remapped IDs
-            for (oldPortIDString, oldConnectedIDStrings) in clipboardData.internalConnectionMap
-            {
-                guard let newPortIDString = uuidRemap[oldPortIDString],
-                      let newPortID = UUID(uuidString: newPortIDString),
-                      let newPort = self.nodePort(forID: newPortID)
-                else { continue }
-
-                for oldConnectedIDString in oldConnectedIDStrings
+                for newNode in newNodes
                 {
-                    guard let newConnectedIDString = uuidRemap[oldConnectedIDString],
-                          let newConnectedID = UUID(uuidString: newConnectedIDString),
-                          let newConnectedPort = self.nodePort(forID: newConnectedID)
+                    self.addNode(newNode)
+                }
+
+                // Restore internal connections using remapped IDs
+                for (oldPortIDString, oldConnectedIDStrings) in clipboardData.internalConnectionMap
+                {
+                    guard let newPortIDString = uuidRemap[oldPortIDString],
+                          let newPortID = UUID(uuidString: newPortIDString),
+                          let newPort = self.nodePort(forID: newPortID)
                     else { continue }
 
-                    if newPort.kind == .Outlet {
-                        self.connect(newPort, to: newConnectedPort)
+                    for oldConnectedIDString in oldConnectedIDStrings
+                    {
+                        guard let newConnectedIDString = uuidRemap[oldConnectedIDString],
+                              let newConnectedID = UUID(uuidString: newConnectedIDString),
+                              let newConnectedPort = self.nodePort(forID: newConnectedID)
+                        else { continue }
+
+                        if newPort.kind == .Outlet {
+                            self.connect(newPort, to: newConnectedPort)
+                        }
                     }
                 }
             }
-
-            self.undoManager?.endUndoGrouping()
-            self.undoManager?.setActionName("Paste Nodes")
 
             self.deselectAllNodes()
             for newNode in newNodes { nodeViewModels[newNode.id]?.isSelected = true }
