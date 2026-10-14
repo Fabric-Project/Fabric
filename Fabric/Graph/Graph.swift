@@ -1441,7 +1441,7 @@ internal import AnyCodable
         undoManager?.setActionName("Create Subgraph")
     }
 
-    internal func withoutUndoRegistration(_ operation: () -> Void)
+    public func withoutUndoRegistration(_ operation: () -> Void)
     {
         let shouldRestoreUndoRegistration = undoManager?.isUndoRegistrationEnabled == true
         if shouldRestoreUndoRegistration { undoManager?.disableUndoRegistration() }
