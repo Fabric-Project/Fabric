@@ -280,4 +280,27 @@ struct ModelFileNodeStateTests
         #expect(meshes.isEmpty == false)
         #expect(meshes.allSatisfy { $0.drawCount == transforms.count })
     }
+
+    @Test("An instance transform turns the whole model, its parts placed within it")
+    func anInstanceTransformTurnsTheWholeModel() throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let node = InstancedModelMeshNode(context: harness.context)
+
+        // The file places its triangle 5 along x. A quarter turn about z carries
+        // the model, and that placement with it, to 5 along y; applied within the
+        // part instead, it would turn the triangle where it sits, 5 along x.
+        node.inputTransforms.value = [simd_float4x4(simd_quatf(angle: .pi / 2, axis: [0, 0, 1]))]
+        node.inputFilePathParam.value = try modelFile(named: "translated.usda", contents: translatedTriangleUSDA).path
+        try runFrame(node, harness: harness)
+
+        let parts = try #require(node.getObject()).getChildren(true).compactMap { $0 as? InstancedMesh }
+        #expect(parts.isEmpty == false)
+        for part in parts
+        {
+            part.update()
+            let origin = part.getWorldMatrixAt(index: 0).columns.3
+            #expect(simd_distance(simd_make_float3(origin), [0, 5, 0]) < 1e-4)
+        }
+    }
 }
