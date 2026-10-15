@@ -61,6 +61,17 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Breather Surface
 - [x] Dini Surface
 
+### Pieces
+- [x] Transform Pieces (pose a geometry's pieces with one transform per piece, on the GPU)
+- [x] Piece Info (per-piece centers, volumes, parent indices and generations)
+
+Text (with Pieces set) and cutting plugins such as Sunder make geometry with pieces. Conventions:
+
+- A transform is a model-space delta from rest: the matrix that takes a piece's rest vertices to where they are drawn.
+- Arrays are in piece order, parents first. A cut keeps its input's pieces as parents and adds the new pieces after them, so an array made earlier in a chain covers the parents.
+- Transform Pieces draws each piece with its parents' transforms composed onto its own: a parent's motion carries its children.
+- Transform Array Multiply is A × B per element, B first, padding the shorter array with identity: to stack an earlier, shorter array on a later one, connect it as A.
+
 # Object
 
 <img width="1334" height="821" alt="image" src="https://github.com/user-attachments/assets/363949de-847f-4f79-8a9a-3702e7a5c4a4" />

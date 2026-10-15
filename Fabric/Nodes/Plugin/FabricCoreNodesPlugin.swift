@@ -145,6 +145,8 @@ public final class FabricCoreNodesPlugin: NSObject, FabricPlugin
         CycloramaGeometryNode.self,
         TesselatedTextGeometryNode.self,
         ExtrudedTextGeometryNode.self,
+        TransformPiecesNode.self,
+        PieceInfoNode.self,
         PixelArrayToGeometryNode.self,
         SuperShapeGeometryNode.self,
         MobiusStripGeometryNode.self,
