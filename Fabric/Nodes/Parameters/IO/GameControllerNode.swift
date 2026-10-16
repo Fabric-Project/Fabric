@@ -395,6 +395,8 @@ public class GameControllerNode: Node
         if let subscribedController
         {
             GameControllerSubscriptions.shared.unsubscribe(self, from: subscribedController)
+            // Once reception ends, a release goes unheard, and a button would read as pressed.
+            releaseHeldInputs()
         }
         if let wantedController
         {
@@ -522,6 +524,17 @@ public class GameControllerNode: Node
             {
                 Self.read(microGamepad, into: &values)
             }
+        }
+        self.markDirty()
+    }
+
+    /// Buttons go to released, and sticks, triggers and d-pad axes to their
+    /// resting value of zero, as letting go of the controller leaves them.
+    private func releaseHeldInputs()
+    {
+        controllerValues.withLock { values in
+            values.buttonValues = values.buttonValues.mapValues { _ in false }
+            values.axisValues = values.axisValues.mapValues { _ in 0.0 }
         }
         self.markDirty()
     }
