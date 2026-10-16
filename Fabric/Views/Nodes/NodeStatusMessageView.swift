@@ -11,20 +11,10 @@ struct NodeStatusMessageView: View
 {
     let status: NodeStatus
 
-    // As NodeStatusIconView colours the glyph.
-    private var color: Color
-    {
-        switch status
-        {
-        case .error:   .red
-        case .warning: .yellow
-        }
-    }
-
     var body: some View
     {
         Text(status.message)
-            .font(.system(size: 10))
-            .foregroundStyle(color)
+            .font(.caption)
+            .foregroundStyle(status.color)
     }
 }

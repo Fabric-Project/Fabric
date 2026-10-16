@@ -218,6 +218,19 @@ private struct NodeTitleText: View
     }
 }
 
+extension NodeStatus
+{
+    /// The colour a status is shown in, wherever it is shown.
+    var color: Color
+    {
+        switch self
+        {
+        case .error:   .red
+        case .warning: .yellow
+        }
+    }
+}
+
 /// How a status looks: the glyph and colour of the most severe, in its
 /// square cell, with every status's message on hover, most severe first.
 /// The node reports the meaning; this is where it becomes an icon.
@@ -236,15 +249,6 @@ private struct NodeStatusIconView: View
         }
     }
 
-    private var color: Color
-    {
-        switch mostSevere
-        {
-        case .error:   .red
-        case .warning: .yellow
-        }
-    }
-
     private var tooltip: String
     {
         all.map(\.description).joined(separator: "\n")
@@ -255,7 +259,7 @@ private struct NodeStatusIconView: View
         Image(systemName: systemName)
             .font(.system(size: 9))
             .bold()
-            .foregroundStyle(color)
+            .foregroundStyle(mostSevere.color)
             .frame(width: cellSide, height: cellSide)
             .help(tooltip)
             .accessibilityLabel(tooltip)
