@@ -11,7 +11,7 @@ import Metal
 /// Array equivalent of VectorTweenNode: tweens each element of a vector array
 /// toward the matching Target using linear interpolation and an easing curve.
 /// All elements share one tween clock (Duration / Easing / Progress).
-public class VectorArrayTweenNode<Value> : Node where Value: PortValueRepresentable & SIMD, Value.Scalar == Float
+public class VectorArrayTweenNode<Value> : Node where Value: PortValueRepresentable & SIMD & Lerpable, Value.Scalar == Float
 {
     override public class var name: String { "\(Value.portType.rawValue) Array Tween" }
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .Vector) }
@@ -38,7 +38,7 @@ public class VectorArrayTweenNode<Value> : Node where Value: PortValueRepresenta
     public var outputValues: NodePort<ContiguousArray<Value>> { port(named: "outputValues") }
     public var outputProgress: NodePort<Float> { port(named: "outputProgress") }
 
-    private let driver = TweenArrayDriver<Value>(interpolate: { $0 + ($1 - $0) * $2 })
+    private let driver = TweenArrayDriver<Value>()
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,

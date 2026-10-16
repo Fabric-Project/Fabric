@@ -38,11 +38,8 @@ public class OrientationArrayTweenNode : Node
     public var outputOrientations: NodePort<ContiguousArray<simd_float4>> { port(named: "outputOrientations") }
     public var outputProgress: NodePort<Float> { port(named: "outputProgress") }
 
-    // Interpolation is slerp; endpoints are stored as normalized quaternion
-    // vectors so the shared driver can hold them as plain `simd_float4`.
-    private let driver = TweenArrayDriver<simd_float4>(interpolate: {
-        simd_slerp(simd_quatf(vector: $0), simd_quatf(vector: $1), $2).vector
-    })
+    // Quaternions, so the driver slerps; the ports carry them as float4.
+    private let driver = TweenArrayDriver<simd_quatf>()
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
@@ -53,13 +50,11 @@ public class OrientationArrayTweenNode : Node
         let time = executionInfo.timing.time
 
         if self.inputTargets.valueDidChange, let targets = self.inputTargets.value {
-            // Normalize each target quaternion up front; the driver then slerps
-            // unit quaternions and stores them as packed float4.
-            driver.setTargets(targets.map { simd_quatf(safeVector: $0).vector }, at: time)
+            driver.setTargets(targets.map { simd_quatf(safeVector: $0) }, at: time)
         }
 
         if let result = driver.update(time: time, duration: self.inputDuration.value, easingName: self.inputEasing.value) {
-            self.outputOrientations.send(result.values)
+            self.outputOrientations.send(ContiguousArray(result.values.lazy.map(\.vector)))
             self.outputProgress.send(result.progress)
         }
     }

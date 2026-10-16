@@ -124,14 +124,12 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
                         mesh.material = material
                     }
 
-                    self.applyCurrentMeshState(mesh,
-                                               materialJustAttached: materialJustAttached)
+                    self.applyCurrentMeshState(mesh)
                 }
                 else
                 {
                     let mesh = InstancedMesh(context:self.context, geometry: geometery, material: material, count: self.inputTransforms.value?.count ?? 1)
-                    self.applyCurrentMeshState(mesh,
-                                               materialJustAttached: true)
+                    self.applyCurrentMeshState(mesh)
 
                     self.mesh = mesh
                 }
@@ -155,8 +153,7 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
         }
      }
 
-    private func applyCurrentMeshState(_ mesh: InstancedMesh,
-                                       materialJustAttached: Bool)
+    private func applyCurrentMeshState(_ mesh: InstancedMesh)
     {
         mesh.lookAt(target: simd_float3(repeating: 0))
         mesh.visible = self.inputVisible.value ?? true
@@ -176,12 +173,6 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
         mesh.cullMode = self.cullMode()
         mesh.doubleSided = self.inputDoubleSided.value ?? false
 
-        if materialJustAttached,
-           let material = mesh.material
-        {
-            material.castShadow = castShadow
-            material.receiveShadow = castShadow
-        }
     }
     
     internal func cullMode() -> MTLCullMode

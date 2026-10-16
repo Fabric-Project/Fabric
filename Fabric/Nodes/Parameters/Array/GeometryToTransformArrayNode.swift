@@ -144,7 +144,7 @@ public class GeometryToTransformArrayNode : StrategyNode
             // inputTransform's rotation is constant across vertices, so extract
             // it once and compose it with each per-vertex normal orientation.
             // Scale is intentionally dropped — a point has no meaningful scale.
-            let inputRotation = inputTransform.decomposedTRS.rotation
+            let inputRotation = inputTransform.decomposed.rotation
 
             var positions = ContiguousArray<simd_float3>(); positions.reserveCapacity(vertexCount)
             var orientations = ContiguousArray<simd_float4>(); orientations.reserveCapacity(vertexCount)

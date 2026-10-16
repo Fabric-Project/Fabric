@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import Satin
 import simd
 
 public enum NumericDistanceMetric: String, CaseIterable
@@ -17,39 +18,32 @@ enum NumericValueOperations
 {
     static func interpolate(_ a: PortValue, _ b: PortValue, t: Float, as portType: PortType) -> PortValue?
     {
-        let clampedT = min(max(t, 0), 1)
-
         switch portType
         {
         case .Int:
             guard case .Int(let av) = a, case .Int(let bv) = b else { return nil }
-            return .Int(Int(round(Float(av) + (Float(bv) - Float(av)) * clampedT)))
+            return .Int(Int(round(Float(av) + (Float(bv) - Float(av)) * t)))
         case .Float:
             guard case .Float(let av) = a, case .Float(let bv) = b else { return nil }
-            return .Float(simd_mix(av, bv, clampedT))
+            return .Float(.lerp(av, bv, t))
         case .Vector2:
             guard case .Vector2(let av) = a, case .Vector2(let bv) = b else { return nil }
-            return .Vector2(simd_mix(av, bv, simd_float2(repeating: clampedT)))
+            return .Vector2(.lerp(av, bv, t))
         case .Vector3:
             guard case .Vector3(let av) = a, case .Vector3(let bv) = b else { return nil }
-            return .Vector3(simd_mix(av, bv, simd_float3(repeating: clampedT)))
+            return .Vector3(.lerp(av, bv, t))
         case .Vector4:
             guard case .Vector4(let av) = a, case .Vector4(let bv) = b else { return nil }
-            return .Vector4(simd_mix(av, bv, simd_float4(repeating: clampedT)))
+            return .Vector4(.lerp(av, bv, t))
         case .Color:
             guard case .Vector4(let av) = a, case .Vector4(let bv) = b else { return nil }
-            return .Vector4(interpolateColor(av, bv, t: clampedT))
+            return .Vector4(interpolateColor(av, bv, t: t))
         case .Quaternion:
             guard case .Quaternion(let av) = a, case .Quaternion(let bv) = b else { return nil }
-            return .Quaternion(simd_slerp(av.normalized, bv.normalized, clampedT))
+            return .Quaternion(.lerp(av.normalized, bv.normalized, t))
         case .Transform:
             guard case .Transform(let av) = a, case .Transform(let bv) = b else { return nil }
-            return .Transform(simd_float4x4(
-                simd_mix(av.columns.0, bv.columns.0, simd_float4(repeating: clampedT)),
-                simd_mix(av.columns.1, bv.columns.1, simd_float4(repeating: clampedT)),
-                simd_mix(av.columns.2, bv.columns.2, simd_float4(repeating: clampedT)),
-                simd_mix(av.columns.3, bv.columns.3, simd_float4(repeating: clampedT))
-            ))
+            return .Transform(.lerp(av, bv, t))
         default:
             return nil
         }

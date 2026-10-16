@@ -84,15 +84,7 @@ public class ComposeTransformNode: StrategyNode
             let orientation = simd_quatf(safeVector: inputOrientation.value ?? simd_float4(0, 0, 0, 1))
             let scale = inputScale.value ?? simd_float3(1, 1, 1)
 
-            // T*R*S in closed form: scale the rotation's columns and drop the
-            // position into the translation column (same derivation as
-            // ComposeTransformArrayNode's TRS strategy).
-            var m = matrix_float4x4(orientation)
-            m.columns.0 *= scale.x
-            m.columns.1 *= scale.y
-            m.columns.2 *= scale.z
-            m.columns.3 = simd_float4(position, 1)
-            outputTransform.send(m)
+            outputTransform.send(simd_float4x4(translation: position, rotation: orientation, scale: scale))
 
         case "Columns":
             guard let inputColumn0: ParameterPort<simd_float4> = findPort(named: "inputColumn0"),

@@ -22,6 +22,7 @@ public class ExtrudedTextGeometryNode : BaseGeometryNode
         return  [
         ("inputText", ParameterPort(parameter:StringParameter("Text", "Testing", .inputfield, "The text string to render as 3D extruded geometry"))),
         ("inputFont", ParameterPort(parameter:StringParameter("Font", "Helvetica", Self.installedFonts(), .dropdown, "Font family to use for text rendering"))),
+        ("inputPieceGeneration", ParameterPort(parameter:StringParameter("Pieces", TesselatedTextGeometry.PieceGeneration.none.menuTitle, TesselatedTextGeometry.PieceGeneration.menuTitles, .dropdown, "Divides the text into pieces, one per sentence, word or character, for Transform Pieces and Piece Info. None draws the text as one piece"))),
 
         ] + ports
     }
@@ -29,6 +30,7 @@ public class ExtrudedTextGeometryNode : BaseGeometryNode
     // Proxy Ports
     public var inputText:ParameterPort<String> { port(named: "inputText")  }
     public var inputFont:ParameterPort<String> { port(named: "inputFont")  }
+    public var inputPieceGeneration:ParameterPort<String> { port(named: "inputPieceGeneration")  }
     
     public override var geometry: ExtrudedTextGeometry { _geometry }
 
@@ -58,6 +60,13 @@ public class ExtrudedTextGeometryNode : BaseGeometryNode
            let inputFont = self.inputFont.value
         {
             self.geometry.fontName = inputFont
+            shouldOutputGeometry = true
+        }
+
+        if self.inputPieceGeneration.valueDidChange,
+           let pieceGeneration = TesselatedTextGeometry.PieceGeneration(menuTitle: self.inputPieceGeneration.value)
+        {
+            self.geometry.pieceGeneration = pieceGeneration
             shouldOutputGeometry = true
         }
         

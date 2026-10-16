@@ -45,34 +45,7 @@ public class ArrayResampleNode<Value: PortValueRepresentable & Lerpable>: Node
             return
         }
 
-        if count == 1 {
-            self.outputArray.send(ContiguousArray<Value>([source[0]]))
-            return
-        }
-
-        let lastIndex = Float(source.count - 1)
-        let tDivisor  = Float(count - 1)       // safe: count >= 2 past the count==1 guard above
-        var output = ContiguousArray<Value>(repeating: source[0], count: count)
-
-        let concurrentThreshold = 128
-        if count >= concurrentThreshold {
-            output.withUnsafeMutableBufferPointer { buf in
-                DispatchQueue.concurrentPerform(iterations: count) { i in
-                    let sourcePosition = (Float(i) / tDivisor) * lastIndex
-                    let i0 = Int(sourcePosition)
-                    let i1 = min(i0 + 1, source.count - 1)
-                    buf[i] = Value.lerp(source[i0], source[i1], sourcePosition - Float(i0))
-                }
-            }
-        } else {
-            for i in 0..<count {
-                let sourcePosition = (Float(i) / tDivisor) * lastIndex
-                let i0 = Int(sourcePosition)
-                let i1 = min(i0 + 1, source.count - 1)
-                output[i] = Value.lerp(source[i0], source[i1], sourcePosition - Float(i0))
-            }
-        }
-
+        let output = source.resampled(count: count)
         self.outputArray.send(output)
     }
 }
