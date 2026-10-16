@@ -117,7 +117,7 @@ enum NumericFieldStepping
             trimmed = String(trimmed.dropLast(unit.count)).trimmingCharacters(in: .whitespacesAndNewlines)
         }
         guard !trimmed.isEmpty else { return nil }
-        let parsed = number(trimmed, locale: locale) ?? evaluate(trimmed, current: current, locale: locale)
+        let parsed = number(trimmed, locale: locale) ?? evaluate(trimmed, current: current, integral: integral, locale: locale)
         guard let parsed, parsed.isFinite else { return nil }
         if integral
         {
@@ -140,10 +140,14 @@ enum NumericFieldStepping
         return Double(text.replacing(separator, with: "."))
     }
 
+    /// `Float` holds every integer below this magnitude. At it, a result is
+    /// ambiguous: 2^24 + 1 rounds to 2^24.
+    private static let floatExactIntegerLimit = Double(1 << (Float.significandBitCount + 1))
+
     /// The engine reads a decimal point, so the locale's separator becomes
     /// one. The engine's own names — constants such as `e`, and functions —
     /// keep their meaning; only free names are the current value.
-    private static func evaluate(_ text: String, current: Double, locale: Locale) -> Double?
+    private static func evaluate(_ text: String, current: Double, integral: Bool, locale: Locale) -> Double?
     {
         let separator = locale.decimalSeparator ?? "."
         let source = separator == "." ? text : text.replacing(separator, with: ".")
@@ -153,8 +157,20 @@ enum NumericFieldStepping
               result.interface.outputs[0].type == .float,
               result.interface.inputs.allSatisfy({ $0.type == .float })
         else { return nil }
+        // FIXME: The engine evaluates in `Float`, which holds every integer
+        // only up to 2^24, so an integer field refuses an expression that
+        // reads or reaches that rather than write a wrong value. Big
+        // literals with a small result still slip through, and a float
+        // field takes the `Float` noise: `x` at 0.1 commits 0.10000000149.
+        // The fix is a precision-preserving path in MathExpressionEngine,
+        // or a different engine for fields; then this guard goes. Short of
+        // that, `Double(value.description)` gives the shortest decimal the
+        // `Float` means, which removes the noise but not the integer loss.
+        let readsCurrent = !result.interface.inputs.isEmpty
+        if integral, readsCurrent, current.magnitude >= floatExactIntegerLimit { return nil }
         let inputs = Dictionary(uniqueKeysWithValues: result.interface.inputs.map { ($0.name, Float(current)) })
         guard let value = try? result.evaluate(inputs) else { return nil }
+        if integral, Double(value).magnitude >= floatExactIntegerLimit { return nil }
         return Double(value)
     }
 }

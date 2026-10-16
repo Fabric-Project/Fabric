@@ -176,4 +176,22 @@ struct NumericFieldEntryTests
         #expect(parse("2.5", integral: true) == 3)
         #expect(parse("1e20", integral: true) == nil)
     }
+
+    /// FIXME: This pins a workaround, not intended behaviour. An integer
+    /// field should evaluate `x + 1` at any magnitude it holds; it refuses
+    /// past 2^24 only because MathExpressionEngine evaluates in `Float`. When
+    /// the engine, or a different one, preserves precision, these refusals
+    /// become results and this test changes with the guard.
+    @Test("Workaround: an integer field refuses an expression past what the engine's Float holds exactly")
+    func integerExpressionPrecisionWorkaround()
+    {
+        #expect(parse("x + 1", current: 1_700_000_001, integral: true) == nil)
+        #expect(parse("1700000001 + 1", integral: true) == nil)
+        #expect(parse("x + 1", current: 16_777_214, integral: true) == 16_777_215)
+        #expect(parse("x + 1", current: 16_777_215, integral: true) == nil)
+        #expect(parse("x + 2", current: 16_777_215, integral: true) == nil)
+        #expect(parse("x + 1", current: 16_777_216, integral: true) == nil)
+        #expect(parse("1700000002", integral: true) == 1_700_000_002)
+        #expect(parse("x + 1", current: 1_700_000_001) != nil)
+    }
 }
