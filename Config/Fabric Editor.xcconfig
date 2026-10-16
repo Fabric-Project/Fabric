@@ -1,0 +1,4 @@
+// Base configuration for the Fabric Editor target. Settings that are a
+// developer's own, such as the signing team, live in Local.xcconfig, which
+// git ignores; see Local.xcconfig.example.
+#include? "Local.xcconfig"
