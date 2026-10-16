@@ -17,6 +17,34 @@ MyPlugin.fabricplugin/
     Resources/
 ```
 
+## Build Setup
+
+A plugin links the `Fabric` package product but must not embed it: in the plugin target's *Frameworks and Libraries*, set `Fabric` to **Do Not Embed**. The host application already has `Fabric.framework` loaded, and the plugin binds to it at load time.
+
+Xcode still copies the resource bundles of every package Fabric depends on (`Fabric_Fabric.bundle`, `Satin_Satin.bundle`, `mlx-swift_Cmlx.bundle`, …) into the plugin, and embeds Fabric's `Syphon.framework` and `HapInAVFoundation.framework`. The host ships all of these, and Fabric only ever loads the host's copies, so in the plugin they are about 20 MB of dead weight. Fabric provides `scripts/strip-fabric-plugin-payload.sh` to remove them.
+
+1. Set **User Script Sandboxing** (`ENABLE_USER_SCRIPT_SANDBOXING`) to **No** for the plugin target, so the script can remove items from the built product.
+2. Add a **Run Script** build phase as the last phase of the plugin target, with *Based on dependency analysis* unchecked:
+
+   ```sh
+   FABRIC_SOURCE_DIR="${FABRIC_SOURCE_DIR:-${BUILD_DIR%/Build/*}/SourcePackages/checkouts/Fabric}"
+   "${FABRIC_SOURCE_DIR}/scripts/strip-fabric-plugin-payload.sh"
+   ```
+
+   This finds the copy of Fabric Xcode checked out for a package added by URL, in regular builds and archives alike.
+3. If Fabric is added as a local package instead, add a user-defined `FABRIC_SOURCE_DIR` build setting to the plugin target pointing at your Fabric folder, for example `${PROJECT_DIR}/../Fabric`.
+
+Xcode signs the bundle after the last build phase, so the signature covers the stripped bundle.
+
+The script removes only the items it names, so the plugin's own resources, including resource bundles from the plugin's own package dependencies, are left alone. If a plugin needs to keep one of the named items, list it in a `FABRIC_PLUGIN_KEEP` build setting, separated by spaces, e.g. `mlx-swift_Cmlx.bundle`. It refuses any bundle that is not a `.fabricplugin`, since a host application needs everything it would remove.
+
+The script can also be run on a built plugin by hand. A built plugin is already signed, and stripping it invalidates that signature, so re-sign it afterwards:
+
+```sh
+scripts/strip-fabric-plugin-payload.sh path/to/MyPlugin.fabricplugin
+codesign --force --sign <identity> path/to/MyPlugin.fabricplugin
+```
+
 ## Info.plist Keys
 
 Required:
