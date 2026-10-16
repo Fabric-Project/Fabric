@@ -492,16 +492,20 @@ public class AudioSpectrumNode : Node
     // them in order.
     private var isRunning = false
 
-    /// Set while the node is started but not capturing. Each failure is worded
-    /// once, where it happens, so the glyph, the settings view and the log agree.
+    /// Main-thread state, set while the node is started but not capturing. Each
+    /// failure is worded once, where it happens, so the glyph, the settings view
+    /// and the log agree.
     private var captureStatus: NodeStatus?
     {
         didSet
         {
             guard captureStatus != oldValue else { return }
-            _settingsModel.captureStatus = captureStatus
-            // Retry is for failures; a warning says what the node is doing instead.
-            _settingsModel.canRetry = if case .error = captureStatus { true } else { false }
+            MainActor.assumeIsolated
+            {
+                _settingsModel.captureStatus = captureStatus
+                // Retry is for failures; a warning says what the node is doing instead.
+                _settingsModel.canRetry = if case .error = captureStatus { true } else { false }
+            }
             self.subtitleSubject.send()
         }
     }
@@ -761,6 +765,7 @@ public class AudioSpectrumNode : Node
 
     override public func providesSettingsView() -> Bool { true }
 
+    @MainActor
     @Observable final class SettingsModel {
         @ObservationIgnored weak var node: AudioSpectrumNode?
         var bandValues: [Float] { node?.visualizationBandValues ?? [] }
@@ -771,11 +776,11 @@ public class AudioSpectrumNode : Node
         func retryCapture() { node?.retryCapture() }
     }
 
-    private lazy var _settingsModel = SettingsModel(node: self)
+    private lazy var _settingsModel = MainActor.assumeIsolated { SettingsModel(node: self) }
 
     override public func settingsView() -> AnyView
     {
-        AnyView(AudioSpectrumNodeSettingsView(model: _settingsModel))
+        MainActor.assumeIsolated { AnyView(AudioSpectrumNodeSettingsView(model: _settingsModel)) }
     }
 
     override public var settingsSize: SettingsViewSize { .Custom(size: CGSize(width: 460, height: 180)) }

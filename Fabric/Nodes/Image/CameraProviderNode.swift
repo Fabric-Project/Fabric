@@ -239,16 +239,20 @@ public class CameraProviderNode : Node
     // them in order.
     private var isRunning = false
 
-    /// Set while the node is started but not capturing. Each failure is worded
-    /// once, where it happens, so the glyph, the settings view and the log agree.
+    /// Main-thread state, set while the node is started but not capturing. Each
+    /// failure is worded once, where it happens, so the glyph, the settings view
+    /// and the log agree.
     private var captureStatus: NodeStatus?
     {
         didSet
         {
             guard captureStatus != oldValue else { return }
-            _settingsModelStorage?.captureStatus = captureStatus
-            // Retry is for failures; a warning, such as no camera selected, has nothing to retry.
-            _settingsModelStorage?.canRetry = if case .error = captureStatus { true } else { false }
+            MainActor.assumeIsolated
+            {
+                _settingsModelStorage?.captureStatus = captureStatus
+                // Retry is for failures; a warning, such as no camera selected, has nothing to retry.
+                _settingsModelStorage?.canRetry = if case .error = captureStatus { true } else { false }
+            }
             self.subtitleSubject.send()
         }
     }
@@ -272,6 +276,7 @@ public class CameraProviderNode : Node
 
     override public func providesSettingsView() -> Bool { true }
 
+    @MainActor
     @Observable final class SettingsModel
     {
         /// Why the node is not capturing although it is started, or nil.
@@ -293,8 +298,11 @@ public class CameraProviderNode : Node
 
     override public func settingsView() -> AnyView
     {
-        if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
-        return AnyView(CameraProviderNodeSettingsView(model: _settingsModelStorage!))
+        MainActor.assumeIsolated
+        {
+            if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
+            return AnyView(CameraProviderNodeSettingsView(model: _settingsModelStorage!))
+        }
     }
 
     override public var settingsSize: SettingsViewSize { .Small }

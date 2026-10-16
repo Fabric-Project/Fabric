@@ -117,8 +117,11 @@ public class ScreenCaptureProviderNode: Node
         didSet
         {
             guard captureFailure != oldValue else { return }
-            _settingsModelStorage?.captureStatus = captureFailure?.status
-            _settingsModelStorage?.canRetry = captureFailure?.canRetry ?? false
+            MainActor.assumeIsolated
+            {
+                _settingsModelStorage?.captureStatus = captureFailure?.status
+                _settingsModelStorage?.canRetry = captureFailure?.canRetry ?? false
+            }
             self.subtitleSubject.send()
         }
     }
@@ -144,6 +147,7 @@ public class ScreenCaptureProviderNode: Node
 
     override public func providesSettingsView() -> Bool { true }
 
+    @MainActor
     @Observable final class SettingsModel
     {
         /// Why the node is not capturing although it is started, or nil.
@@ -165,8 +169,11 @@ public class ScreenCaptureProviderNode: Node
 
     override public func settingsView() -> AnyView
     {
-        if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
-        return AnyView(ScreenCaptureProviderNodeSettingsView(model: _settingsModelStorage!))
+        MainActor.assumeIsolated
+        {
+            if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
+            return AnyView(ScreenCaptureProviderNodeSettingsView(model: _settingsModelStorage!))
+        }
     }
 
     override public var settingsSize: SettingsViewSize { .Small }

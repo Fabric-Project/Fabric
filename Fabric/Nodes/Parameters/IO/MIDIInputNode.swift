@@ -424,7 +424,7 @@ public class MIDIInputNode: Node
             // Choosing none forgets the input, so an input appearing does not bring it back.
             savedInputInfo = selectedInputID == nil ? nil : liveInputInfo() ?? savedInputInfo
             updateMIDIConnection()
-            _settingsModelStorage?.selectedInputID = selectedInputID
+            MainActor.assumeIsolated { _settingsModelStorage?.selectedInputID = selectedInputID }
             // `subtitle` is derived from the selected input; notify so the title refreshes.
             self.subtitleSubject.send()
         }
@@ -435,7 +435,7 @@ public class MIDIInputNode: Node
     fileprivate var isListening: Bool = false
     fileprivate var detectedInputs: Set<DetectedMIDIInput> = []
     {
-        didSet { _settingsModelStorage?.detectedInputs = detectedInputs }
+        didSet { MainActor.assumeIsolated { _settingsModelStorage?.detectedInputs = detectedInputs } }
     }
 
     fileprivate var configuredInputs: [DetectedMIDIInput] = []
@@ -443,7 +443,7 @@ public class MIDIInputNode: Node
         didSet
         {
             rebuildPorts()
-            _settingsModelStorage?.configuredInputs = configuredInputs
+            MainActor.assumeIsolated { _settingsModelStorage?.configuredInputs = configuredInputs }
         }
     }
 
@@ -461,14 +461,18 @@ public class MIDIInputNode: Node
 
     override public func settingsView() -> AnyView
     {
-        if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
-        return AnyView(MIDIInputNodeView(model: _settingsModelStorage!))
+        MainActor.assumeIsolated
+        {
+            if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
+            return AnyView(MIDIInputNodeView(model: _settingsModelStorage!))
+        }
     }
 
     override public var settingsSize: SettingsViewSize { .Medium }
 
     // MARK: - Settings Model
 
+    @MainActor
     @Observable final class SettingsModel
     {
         var selectedInputID: String?
@@ -603,7 +607,7 @@ public class MIDIInputNode: Node
             )
         }
 
-        _settingsModelStorage?.availableInputs = availableInputs
+        MainActor.assumeIsolated { _settingsModelStorage?.availableInputs = availableInputs }
         // `subtitle` resolves against the input list; notify so the title refreshes.
         self.subtitleSubject.send()
 
@@ -697,7 +701,7 @@ public class MIDIInputNode: Node
             {
                 Self.log.error("\(inputStatus.message, privacy: .public)")
             }
-            _settingsModelStorage?.inputStatus = inputStatus
+            MainActor.assumeIsolated { _settingsModelStorage?.inputStatus = inputStatus }
             self.subtitleSubject.send()
         }
     }
@@ -744,7 +748,7 @@ public class MIDIInputNode: Node
         print("[MIDI] Learn mode starting... isListening was \(isListening)")
         isListening = true
         detectedInputs.removeAll()
-        _settingsModelStorage?.isListening = true
+        MainActor.assumeIsolated { _settingsModelStorage?.isListening = true }
         updateMIDIConnection()
         print("[MIDI] Learn mode started. isListening is now \(isListening)")
     }
@@ -769,7 +773,7 @@ public class MIDIInputNode: Node
         }
 
         detectedInputs.removeAll()
-        _settingsModelStorage?.isListening = false
+        MainActor.assumeIsolated { _settingsModelStorage?.isListening = false }
         updateMIDIConnection()
         print("[MIDI] Learn mode stopped. Total configured: \(configuredInputs.count) inputs. isListening is now \(isListening)")
     }
