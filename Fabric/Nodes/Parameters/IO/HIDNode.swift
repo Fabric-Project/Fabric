@@ -618,6 +618,13 @@ public class HIDNode: Node
     /// Whether the node is started. It monitors its device only while started.
     private var isRunning = false
     private var monitoredDeviceID: String?
+    {
+        didSet
+        {
+            // Once monitoring ends, a release goes unheard, and a button would read as pressed.
+            if oldValue != nil, monitoredDeviceID != oldValue { releaseHeldElements() }
+        }
+    }
 
     /// The selected device, as last seen connected; reconnects match it.
     private func liveDeviceInfo() -> HIDDeviceInfo?
@@ -873,6 +880,22 @@ public class HIDNode: Node
         }
 
         updateDeviceStatus()
+    }
+
+    /// Buttons go to released and relative elements to no movement. An absolute
+    /// axis is a position, with no neutral value to return to, so it keeps its value.
+    private func releaseHeldElements()
+    {
+        let heldElements = deviceElements.filter { $0.isButton || $0.isRelative }
+        guard !heldElements.isEmpty else { return }
+
+        latestValues.withLock { values in
+            for element in heldElements
+            {
+                values[element.id] = 0
+            }
+        }
+        self.markDirty()
     }
 
     private func handleValueChange(deviceID: String, element: HIDElementInfo, value: Int)
