@@ -56,6 +56,24 @@ struct NumericFieldSteppingTests
         #expect(NumericFieldStepping.step(forRange: 0, max: 0, integral: true, fractionDigits: 0) == 1)
     }
 
+    @Test("The movement that starts a drag counts, so out and back lands where it started")
+    func dragIsReversible()
+    {
+        var drag = NumericFieldStepping.Drag(start: 10, step: 1, integral: false)
+        #expect(drag.move(to: 2, modifiers: []) == 12)
+        #expect(drag.move(to: 10, modifiers: []) == 20)
+        #expect(drag.move(to: 0, modifiers: []) == 10)
+    }
+
+    @Test("A modifier pressed mid-drag changes the step from there")
+    func dragModifierAppliesFromWhereItIsPressed()
+    {
+        var drag = NumericFieldStepping.Drag(start: 0, step: 1, integral: false)
+        #expect(drag.move(to: 5, modifiers: []) == 5)
+        #expect(drag.move(to: 7, modifiers: .shift) == 25)
+        #expect(drag.move(to: 7, modifiers: []) == 25)
+    }
+
     @Test("An integer result holds to its type's range, out to the type's limits")
     func integerResultIsClamped()
     {

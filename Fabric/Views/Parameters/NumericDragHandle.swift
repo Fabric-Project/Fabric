@@ -17,16 +17,7 @@ struct NumericDragHandle: ViewModifier
     let write: (Double) -> Void
     let onEditingChanged: (Bool) -> Void
 
-    @State private var drag: Drag?
-
-    /// The value a drag has reached, before snapping, and the drag distance
-    /// already applied to it. Steps apply to the distance moved since the last
-    /// update, so a modifier pressed mid-drag changes the step from there.
-    private struct Drag
-    {
-        var accumulator: Double
-        var points: Double
-    }
+    @State private var drag: NumericFieldStepping.Drag?
 
     func body(content: Content) -> some View
     {
@@ -38,27 +29,18 @@ struct NumericDragHandle: ViewModifier
 
     private var dragGesture: some Gesture
     {
-        DragGesture(minimumDistance: 2)
+        DragGesture(minimumDistance: 1)
             .onChanged { gesture in
-                let points = gesture.translation.width.rounded()
-                let modifiers = NumericFieldStepping.currentModifiers()
                 if drag == nil
                 {
-                    drag = Drag(accumulator: start(), points: points)
+                    drag = NumericFieldStepping.Drag(start: start(), step: step, integral: integral)
                     onEditingChanged(true)
                 }
-                guard var state = drag else { return }
-                let active = NumericFieldStepping.activeStep(base: step, modifiers: modifiers)
-                state.accumulator += (points - state.points) * active
-                state.points = points
-                drag = state
-
-                var next = state.accumulator
-                if modifiers.contains(.command)
+                if let next = drag?.move(to: gesture.translation.width.rounded(),
+                                         modifiers: NumericFieldStepping.currentModifiers())
                 {
-                    next = NumericFieldStepping.snapped(next, to: active)
+                    write(next)
                 }
-                write(NumericFieldStepping.cleaned(next, step: active, integral: integral))
             }
             .onEnded { _ in
                 drag = nil

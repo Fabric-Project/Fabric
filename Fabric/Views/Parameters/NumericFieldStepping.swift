@@ -82,6 +82,43 @@ enum NumericFieldStepping
         return Value(value.rounded())
     }
 
+    /// A drag in progress: the value it has reached, before snapping, and the
+    /// drag distance already applied to it. Steps apply to the distance moved
+    /// since the last update, so a modifier pressed mid-drag changes the step
+    /// from there. The distance starts from zero, not from the first event's
+    /// translation, which a gesture's minimum distance makes nonzero: the
+    /// movement that starts a drag counts, so returning to the start point
+    /// returns to the start value.
+    struct Drag
+    {
+        private let step: Double
+        private let integral: Bool
+        private var accumulator: Double
+        private var points: Double = 0
+
+        init(start: Double, step: Double, integral: Bool)
+        {
+            self.step = step
+            self.integral = integral
+            accumulator = start
+        }
+
+        /// The value to write with the drag at `points` from where it began.
+        mutating func move(to points: Double, modifiers: EventModifiers) -> Double
+        {
+            let active = activeStep(base: step, modifiers: modifiers)
+            accumulator += (points - self.points) * active
+            self.points = points
+
+            var next = accumulator
+            if modifiers.contains(.command)
+            {
+                next = snapped(next, to: active)
+            }
+            return cleaned(next, step: active, integral: integral)
+        }
+    }
+
     /// The modifier keys down now. Read at each pointer event rather than
     /// captured at a drag's start, so holding Shift partway through a drag
     /// changes the step from there.
