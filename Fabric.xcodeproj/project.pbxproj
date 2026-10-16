@@ -44,6 +44,8 @@
 		1BE00A5C2DC936A50061EAFD /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		1BE00A5F2DC936AC0061EAFD /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
 		1BE00A602DC936AC0061EAFD /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		1BC0A0F12FA000010000C0F1 /* Fabric Editor.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Fabric Editor.xcconfig"; sourceTree = "<group>"; };
+		1BC0A0F22FA000010000C0F1 /* Local.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text; path = Local.xcconfig.example; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -89,6 +91,7 @@
 			isa = PBXGroup;
 			children = (
 				1BE007242DBB1FBC0061EAFD /* Fabric Editor */,
+				1BC0A0F32FA000010000C0F1 /* Config */,
 				1BE007602DBC37CE0061EAFD /* Frameworks */,
 				1BE007232DBB1FBC0061EAFD /* Products */,
 			);
@@ -118,6 +121,15 @@
 				1BE00A5C2DC936A50061EAFD /* Foundation.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		1BC0A0F32FA000010000C0F1 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				1BC0A0F12FA000010000C0F1 /* Fabric Editor.xcconfig */,
+				1BC0A0F22FA000010000C0F1 /* Local.xcconfig.example */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -211,6 +223,7 @@
 /* Begin XCBuildConfiguration section */
 		1BE007342DBB1FBD0061EAFD /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1BC0A0F12FA000010000C0F1 /* Fabric Editor.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -225,7 +238,6 @@
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_VIEW = TRUE;
 				DEVELOPMENT_ASSET_PATHS = "\"Fabric Editor/Preview Content\"";
-				DEVELOPMENT_TEAM = SHG3AW6YV7;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -254,6 +266,7 @@
 		};
 		1BE007352DBB1FBD0061EAFD /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1BC0A0F12FA000010000C0F1 /* Fabric Editor.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -268,7 +281,6 @@
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_VIEW = TRUE;
 				DEVELOPMENT_ASSET_PATHS = "\"Fabric Editor/Preview Content\"";
-				DEVELOPMENT_TEAM = SHG3AW6YV7;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;

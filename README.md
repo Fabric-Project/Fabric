@@ -75,9 +75,10 @@ For Developers:
 1. Checkout Fabric with submodules enabled, as `Satin`, `Syphon` and `HapInAVFoundation` are dependencies. (`git clone --recurse-submodules ...`)
 2. If you already cloned without submodules, run `git submodule update --init --recursive`.
 3. if building for macOS, run ` ./scripts/build-syphon-xcframework.sh` and ` ./scripts/build-hapinavfoundation-xcframework.sh`
-4. Open the XCode project
-5. Ensure that `Fabric Editor` is the active target.
-6. Build and run. 
+4. Copy `Config/Local.xcconfig.example` to `Config/Local.xcconfig` and set your Apple Developer team ID in it. The project file carries no team, so yours stays out of commits.
+5. Open the XCode project
+6. Ensure that `Fabric Editor` is the active target.
+7. Build and run. 
 
 # Getting Started
 

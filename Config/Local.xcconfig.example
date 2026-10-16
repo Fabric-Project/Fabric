@@ -1,0 +1,3 @@
+// Copy to Local.xcconfig, which git ignores, and set your own values. The
+// project carries no development team, so signing takes it from here.
+DEVELOPMENT_TEAM = 
