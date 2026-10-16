@@ -405,6 +405,14 @@ public class MIDIInputNode: Node
     private let connectionTag = "MIDIInputNode-\(UUID())"
     /// The input the connection receives from, or nil when there is no connection.
     private var connectedInputID: String?
+    {
+        didSet
+        {
+            // Once reception from an input ends, a release goes unheard, and a note,
+            // pressure or bend would read as held.
+            if oldValue != nil, connectedInputID != oldValue { releaseHeldInputs() }
+        }
+    }
     private var connectionError: String?
     private var managerError: String?
     private var midiSetupObserver: (any NSObjectProtocol)?
@@ -686,6 +694,31 @@ public class MIDIInputNode: Node
         {
             updateInputStatus()
         }
+    }
+
+    /// Sets each input as its release leaves it. A CC is a position, not held, so it keeps its value.
+    private func releaseHeldInputs()
+    {
+        let heldInputs = configuredInputs.filter { $0.type != .controlChange }
+        guard !heldInputs.isEmpty else { return }
+
+        inputValues.withLock { values in
+            for input in heldInputs
+            {
+                switch input.type
+                {
+                case .noteGate:
+                    values.boolValues[input.uniqueKey] = false
+                case .noteVelocity, .aftertouch:
+                    values.floatValues[input.uniqueKey] = 0.0
+                case .pitchBend:
+                    values.floatValues[input.uniqueKey] = 0.5
+                case .controlChange:
+                    break
+                }
+            }
+        }
+        markDirty()
     }
 
     // MARK: - Input Status
