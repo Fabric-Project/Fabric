@@ -129,7 +129,7 @@ struct NumericFieldCore: View
 
     private func stepValue(by direction: Double, modifiers: EventModifiers)
     {
-        let active = NumericFieldStepping.activeStep(base: step, modifiers: modifiers)
+        let active = NumericFieldStepping.keyStep(base: step, modifiers: modifiers, integral: integral)
         let current = (hasEdited ? NumericFieldStepping.parse(buffer, current: value, integral: integral, unit: unit) : nil) ?? value
         var next = current + direction * active
         if modifiers.contains(.command)

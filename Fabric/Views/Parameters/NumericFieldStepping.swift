@@ -28,6 +28,14 @@ enum NumericFieldStepping
         return step
     }
 
+    /// The step an arrow key moves by. An integer moves at least one; a drag's
+    /// accumulator carries the fraction instead, so Option still slows it.
+    static func keyStep(base: Double, modifiers: EventModifiers, integral: Bool) -> Double
+    {
+        let active = activeStep(base: base, modifiers: modifiers)
+        return integral ? Swift.max(1, active) : active
+    }
+
     static func snapped(_ value: Double, to step: Double) -> Double
     {
         guard step > 0 else { return value }

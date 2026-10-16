@@ -18,6 +18,15 @@ struct NumericFieldSteppingTests
         #expect(NumericFieldStepping.activeStep(base: 0.1, modifiers: .command) == 0.1)
     }
 
+    @Test("An arrow key moves an integer at least one, a float by the step in force")
+    func keyStepFloorsAnInteger()
+    {
+        #expect(NumericFieldStepping.keyStep(base: 1, modifiers: .option, integral: true) == 1)
+        #expect(NumericFieldStepping.keyStep(base: 100, modifiers: .option, integral: true) == 10)
+        #expect(NumericFieldStepping.keyStep(base: 1, modifiers: [], integral: true) == 1)
+        #expect(NumericFieldStepping.keyStep(base: 1, modifiers: .option, integral: false) == 0.1)
+    }
+
     @Test("Snapping lands on a multiple of the step in force")
     func snappingUsesTheActiveStep()
     {
