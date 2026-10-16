@@ -393,6 +393,8 @@ public class GameControllerNode: Node
         if let wantedController
         {
             GameControllerSubscriptions.shared.subscribe(self, to: wantedController)
+            // Changes while unsubscribed went unheard, a button released among them.
+            receiveChange(from: wantedController)
         }
         subscribedController = wantedController
     }
