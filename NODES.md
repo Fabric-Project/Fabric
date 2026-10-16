@@ -390,6 +390,7 @@ HDR -> SDR conversion
 - [x] Distance
 - [x] Easing
 - [x] Tween
+- [x] Value Blend
 - [x] Repeat
 - [x] Ripple Repeat
 - [x] Pairwise Distance Array
@@ -439,7 +440,6 @@ HDR -> SDR conversion
 - [x] Transform Array Compose
 - [x] Transform Array Decompose
 - [x] Transform Array Multiply
-- [x] Transform Array Blend
 - [x] Geometry to Transform Array
 
 ### String

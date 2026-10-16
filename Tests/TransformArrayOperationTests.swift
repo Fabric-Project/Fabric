@@ -31,11 +31,22 @@ struct TransformArrayOperationTests
         #expect(isClose(result[1], move))
     }
 
+    private func blended(_ source: simd_float4x4, _ target: simd_float4x4, amount: Float) throws -> simd_float4x4
+    {
+        guard case .Transform(let result) = ValueBlendNode.blended(.Transform(source), .Transform(target), amount: amount) else
+        {
+            throw BlendError.notATransform
+        }
+        return result
+    }
+
+    private enum BlendError: Error { case notATransform }
+
     @Test("Blend keeps rotations rigid halfway through a half turn")
-    func blendStaysRigid()
+    func blendStaysRigid() throws
     {
         let halfTurn = simd_float4x4(simd_quatf(angle: .pi * 0.999, axis: simd_float3(0, 1, 0)))
-        let middle = TransformArrayBlendNode.blended([matrix_identity_float4x4], [halfTurn], factors: [0.5])[0]
+        let middle = try blended(matrix_identity_float4x4, halfTurn, amount: 0.5)
         let basis = simd_float3x3(simd_make_float3(middle.columns.0), simd_make_float3(middle.columns.1), simd_make_float3(middle.columns.2))
         let gram = basis.transpose * basis
         #expect(isClose(simd_float4x4(simd_float4(gram.columns.0, 0), simd_float4(gram.columns.1, 0), simd_float4(gram.columns.2, 0), simd_float4(0, 0, 0, 1)), matrix_identity_float4x4, tolerance: 1e-4), "Still a rotation: no skew or shrink")
@@ -43,27 +54,43 @@ struct TransformArrayOperationTests
         #expect(isClose(middle, quarter, tolerance: 1e-4))
     }
 
-    @Test("Blend ends at A and B, and follows per-element factors")
-    func blendEndsAndPerElementFactors()
+    @Test("Blend ends at Source and Target, and extrapolates past them")
+    func blendEndsAndExtrapolates() throws
     {
-        let a = translation(simd_float3(0, 0, 0))
-        let b = translation(simd_float3(2, 0, 0))
-        #expect(isClose(TransformArrayBlendNode.blended([a], [b], factors: [0])[0], a))
-        #expect(isClose(TransformArrayBlendNode.blended([a], [b], factors: [1])[0], b))
-        let result = TransformArrayBlendNode.blended([a, a, a], [b, b, b], factors: [0, 0.5])
-        #expect(isClose(result[0], a))
-        #expect(isClose(result[1], translation(simd_float3(1, 0, 0))))
-        #expect(isClose(result[2], translation(simd_float3(1, 0, 0))), "A missing factor repeats the last one")
+        let source = translation(simd_float3(0, 0, 0))
+        let target = translation(simd_float3(2, 0, 0))
+        let start = try blended(source, target, amount: 0)
+        let end = try blended(source, target, amount: 1)
+        let beyond = try blended(source, target, amount: 1.5)
+        #expect(isClose(start, source))
+        #expect(isClose(end, target))
+        #expect(isClose(beyond, translation(simd_float3(3, 0, 0))), "Blend Amount is not clamped")
     }
 
     @Test("Blend between mirrored transforms stays mirrored")
-    func blendKeepsMirroring()
+    func blendKeepsMirroring() throws
     {
         let mirror = simd_float4x4(diagonal: simd_float4(-1, 1, 1, 1))
         let turned = simd_float4x4(simd_quatf(angle: .pi / 2, axis: simd_float3(0, 1, 0))) * mirror
-        let result = TransformArrayBlendNode.blended([mirror, mirror, mirror], [turned, turned, turned], factors: [0, 0.5, 1])
-        #expect(result.allSatisfy { abs($0.determinant + 1) < 1e-4 }, "Handedness survives the whole blend")
-        #expect(isClose(result[2], turned, tolerance: 1e-4))
+        let results = try [Float(0), 0.5, 1].map { amount in try blended(mirror, turned, amount: amount) }
+        #expect(results.allSatisfy { abs($0.determinant + 1) < 1e-4 }, "Handedness survives the whole blend")
+        #expect(isClose(results[2], turned, tolerance: 1e-4))
+    }
+
+    @Test("Blend pairs array elements up to the shorter array")
+    func blendArraysToShorterLength()
+    {
+        let source = translation(simd_float3(0, 0, 0))
+        let target = translation(simd_float3(2, 0, 0))
+        guard case .Array(let values) = ValueBlendNode.blended(.Array([.Transform(source), .Transform(source)]), .Array([.Transform(target)]), amount: 0.5),
+              values.count == 1,
+              case .Transform(let middle) = values[0]
+        else
+        {
+            Issue.record("Expected one blended Transform")
+            return
+        }
+        #expect(isClose(middle, translation(simd_float3(1, 0, 0))))
     }
 
     @Test("Transform interpolation stays rigid instead of mixing columns")

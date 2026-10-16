@@ -18,34 +18,32 @@ enum NumericValueOperations
 {
     static func interpolate(_ a: PortValue, _ b: PortValue, t: Float, as portType: PortType) -> PortValue?
     {
-        let clampedT = min(max(t, 0), 1)
-
         switch portType
         {
         case .Int:
             guard case .Int(let av) = a, case .Int(let bv) = b else { return nil }
-            return .Int(Int(round(Float(av) + (Float(bv) - Float(av)) * clampedT)))
+            return .Int(Int(round(Float(av) + (Float(bv) - Float(av)) * t)))
         case .Float:
             guard case .Float(let av) = a, case .Float(let bv) = b else { return nil }
-            return .Float(.lerp(av, bv, clampedT))
+            return .Float(.lerp(av, bv, t))
         case .Vector2:
             guard case .Vector2(let av) = a, case .Vector2(let bv) = b else { return nil }
-            return .Vector2(.lerp(av, bv, clampedT))
+            return .Vector2(.lerp(av, bv, t))
         case .Vector3:
             guard case .Vector3(let av) = a, case .Vector3(let bv) = b else { return nil }
-            return .Vector3(.lerp(av, bv, clampedT))
+            return .Vector3(.lerp(av, bv, t))
         case .Vector4:
             guard case .Vector4(let av) = a, case .Vector4(let bv) = b else { return nil }
-            return .Vector4(.lerp(av, bv, clampedT))
+            return .Vector4(.lerp(av, bv, t))
         case .Color:
             guard case .Vector4(let av) = a, case .Vector4(let bv) = b else { return nil }
-            return .Vector4(interpolateColor(av, bv, t: clampedT))
+            return .Vector4(interpolateColor(av, bv, t: t))
         case .Quaternion:
             guard case .Quaternion(let av) = a, case .Quaternion(let bv) = b else { return nil }
-            return .Quaternion(.lerp(av.normalized, bv.normalized, clampedT))
+            return .Quaternion(.lerp(av.normalized, bv.normalized, t))
         case .Transform:
             guard case .Transform(let av) = a, case .Transform(let bv) = b else { return nil }
-            return .Transform(.lerp(av, bv, clampedT))
+            return .Transform(.lerp(av, bv, t))
         default:
             return nil
         }
