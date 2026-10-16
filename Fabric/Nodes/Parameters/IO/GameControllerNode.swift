@@ -319,7 +319,13 @@ public class GameControllerNode: Node
     public override func disableExecution(renderer:GraphRenderer)
     throws
     {
-        DispatchQueue.main.async { self.removeNotifications() }
+        // Disabled, the node hears no disconnect, so it lets the controller go
+        // and enable matches the saved one afresh.
+        DispatchQueue.main.async {
+            self.removeNotifications()
+            self.currentController = nil
+            self.updateSubscription()
+        }
         try super.disableExecution(renderer: renderer)
     }
 
