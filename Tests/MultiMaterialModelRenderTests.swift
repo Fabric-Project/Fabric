@@ -12,31 +12,28 @@ import Satin
 @MainActor
 struct MultiMaterialModelRenderTests
 {
+    private let files = ModelFileFolder()
+
     @Test("A mesh with a material per submesh draws")
     func aMultiMaterialMeshDraws() throws
     {
         guard let harness = GraphExecutionTestHarness() else { return }
 
-        let directoryURL = FileManager.default.temporaryDirectory
-            .appending(path: "MultiMaterialModelRenderTests-\(UUID().uuidString)", directoryHint: .isDirectory)
-        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
-        try """
+        _ = try files.file(named: "colors.mtl", contents: """
             newmtl Red
             Kd 1 0 0
             newmtl Blue
             Kd 0 0 1
-            """.write(to: directoryURL.appending(path: "colors.mtl"), atomically: true, encoding: .utf8)
-        let singleMaterialURL = directoryURL.appending(path: "single.obj")
-        try """
+            """)
+        let singleMaterialURL = try files.file(named: "single.obj", contents: """
             mtllib colors.mtl
             v 0 0 0
             v 1 0 0
             v 0 1 0
             usemtl Red
             f 1 2 3
-            """.write(to: singleMaterialURL, atomically: true, encoding: .utf8)
-        let twoMaterialURL = directoryURL.appending(path: "two.obj")
-        try """
+            """)
+        let twoMaterialURL = try files.file(named: "two.obj", contents: """
             mtllib colors.mtl
             v 0 0 0
             v 1 0 0
@@ -46,7 +43,7 @@ struct MultiMaterialModelRenderTests
             f 1 2 3
             usemtl Blue
             f 2 4 3
-            """.write(to: twoMaterialURL, atomically: true, encoding: .utf8)
+            """)
 
         let graph = Graph(context: harness.context)
         let singleMaterialNode = ModelMeshNode(context: harness.context)

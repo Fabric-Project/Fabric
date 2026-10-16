@@ -116,14 +116,26 @@ private let movingTriangleUSDA = """
     }
     """
 
-private func modelFile(named fileName: String, contents: String) throws -> URL
+/// A folder for one test's model files, removed when the test ends. Swift
+/// Testing runs each test, and each test case, on its own suite instance, so a
+/// suite holding one drops it with the test.
+final class ModelFileFolder
 {
-    let directoryURL = FileManager.default.temporaryDirectory
-        .appending(path: "ModelFileNodeTests-\(UUID().uuidString)", directoryHint: .isDirectory)
-    try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
-    let fileURL = directoryURL.appending(path: fileName)
-    try contents.write(to: fileURL, atomically: true, encoding: .utf8)
-    return fileURL
+    let url = FileManager.default.temporaryDirectory
+        .appending(path: "ModelFiles-\(UUID().uuidString)", directoryHint: .isDirectory)
+
+    func file(named fileName: String, contents: String) throws -> URL
+    {
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        let fileURL = url.appending(path: fileName)
+        try contents.write(to: fileURL, atomically: true, encoding: .utf8)
+        return fileURL
+    }
+
+    deinit
+    {
+        try? FileManager.default.removeItem(at: url)
+    }
 }
 
 /// Whether the node says on the canvas that its model file did not load.
@@ -131,6 +143,8 @@ private func modelFile(named fileName: String, contents: String) throws -> URL
 @MainActor
 struct ModelMeshNodeStatusTests
 {
+    private let files = ModelFileFolder()
+
     private func load(_ fileURL: URL, into node: any ModelFileNode)
     {
         node.inputFilePathParam.value = fileURL.path
@@ -143,7 +157,7 @@ struct ModelMeshNodeStatusTests
         guard let harness = GraphExecutionTestHarness() else { return }
         let node = kind.makeNode(context: harness.context)
 
-        load(try modelFile(named: "triangle.obj", contents: triangleOBJ), into: node)
+        load(try files.file(named: "triangle.obj", contents: triangleOBJ), into: node)
 
         #expect(node.deriveStatuses().isEmpty)
         #expect(node.getObject() != nil)
@@ -155,7 +169,7 @@ struct ModelMeshNodeStatusTests
         guard let harness = GraphExecutionTestHarness() else { return }
         let node = kind.makeNode(context: harness.context)
 
-        load(try modelFile(named: "translated.usda", contents: translatedTriangleUSDA), into: node)
+        load(try files.file(named: "translated.usda", contents: translatedTriangleUSDA), into: node)
 
         let meshes = try #require(node.getObject()).getChildren(true).compactMap { $0 as? Mesh }
         #expect(meshes.isEmpty == false)
@@ -167,9 +181,8 @@ struct ModelMeshNodeStatusTests
     {
         guard let harness = GraphExecutionTestHarness() else { return }
         let node = InstancedModelMeshNode(context: harness.context)
-        let fileURL = try modelFile(named: "two.obj", contents: twoMaterialOBJ)
-        try twoMaterialMTL.write(to: fileURL.deletingLastPathComponent().appending(path: "colors.mtl"),
-                                 atomically: true, encoding: .utf8)
+        let fileURL = try files.file(named: "two.obj", contents: twoMaterialOBJ)
+        _ = try files.file(named: "colors.mtl", contents: twoMaterialMTL)
 
         load(fileURL, into: node)
 
@@ -184,7 +197,7 @@ struct ModelMeshNodeStatusTests
         guard let harness = GraphExecutionTestHarness() else { return }
         let node = kind.makeNode(context: harness.context)
 
-        load(try modelFile(named: fileName, contents: triangleOBJ), into: node)
+        load(try files.file(named: fileName, contents: triangleOBJ), into: node)
 
         #expect(node.status.map { if case .error = $0 { true } else { false } } == true)
         #expect(node.getObject() == nil)
@@ -196,7 +209,7 @@ struct ModelMeshNodeStatusTests
         guard let harness = GraphExecutionTestHarness() else { return }
         let node = kind.makeNode(context: harness.context)
 
-        load(try modelFile(named: "empty.obj", contents: "# nothing here\n"), into: node)
+        load(try files.file(named: "empty.obj", contents: "# nothing here\n"), into: node)
 
         #expect(node.status.map { if case .warning = $0 { true } else { false } } == true)
         #expect(node.getObject() == nil)
@@ -207,7 +220,7 @@ struct ModelMeshNodeStatusTests
     {
         guard let harness = GraphExecutionTestHarness() else { return }
         let node = kind.makeNode(context: harness.context)
-        let fileURL = try modelFile(named: "triangle.obj", contents: triangleOBJ)
+        let fileURL = try files.file(named: "triangle.obj", contents: triangleOBJ)
 
         load(fileURL.deletingLastPathComponent().appending(path: "absent.obj"), into: node)
         #expect(node.deriveStatuses().isEmpty == false)
@@ -222,7 +235,7 @@ struct ModelMeshNodeStatusTests
         guard let harness = GraphExecutionTestHarness() else { return }
         let node = kind.makeNode(context: harness.context)
 
-        load(try modelFile(named: "triangle.obj", contents: triangleOBJ), into: node)
+        load(try files.file(named: "triangle.obj", contents: triangleOBJ), into: node)
         #expect(node.getObject() != nil)
 
         node.inputFilePathParam.value = ""
@@ -239,7 +252,7 @@ struct ModelMeshNodeStatusTests
         guard let harness = GraphExecutionTestHarness() else { return }
         let node = kind.makeNode(context: harness.context)
 
-        let movingURL = try modelFile(named: "moving.usda", contents: movingTriangleUSDA)
+        let movingURL = try files.file(named: "moving.usda", contents: movingTriangleUSDA)
         load(movingURL, into: node)
         #expect(node.outputDuration.value == 2)
 
@@ -249,9 +262,9 @@ struct ModelMeshNodeStatusTests
             node.inputFilePathParam.value = ""
             _ = try? node.loadModelFromInputValue()
         case "empty.obj":
-            load(try modelFile(named: nextFileName, contents: "# nothing here\n"), into: node)
+            load(try files.file(named: nextFileName, contents: "# nothing here\n"), into: node)
         default:
-            load(movingURL.deletingLastPathComponent().appending(path: nextFileName), into: node)
+            load(files.url.appending(path: nextFileName), into: node)
         }
 
         #expect(node.getObject() == nil)
@@ -263,7 +276,7 @@ struct ModelMeshNodeStatusTests
     {
         guard let harness = GraphExecutionTestHarness() else { return }
         let node = kind.makeNode(context: harness.context)
-        let fileURL = try modelFile(named: "late.obj", contents: "")
+        let fileURL = try files.file(named: "late.obj", contents: "")
         try FileManager.default.removeItem(at: fileURL)
 
         load(fileURL, into: node)
@@ -281,6 +294,8 @@ struct ModelMeshNodeStatusTests
 @MainActor
 struct ModelFileNodeStateTests
 {
+    private let files = ModelFileFolder()
+
     private func runFrame(_ node: Node, harness: GraphExecutionTestHarness) throws
     {
         let commandBuffer = try #require(harness.context.device.makeCommandQueue()?.makeCommandBuffer())
@@ -301,10 +316,10 @@ struct ModelFileNodeStateTests
 
         node.inputPosition.value = position
         node.inputCullingMode.value = "Front"
-        node.inputFilePathParam.value = try modelFile(named: "first.obj", contents: triangleOBJ).path
+        node.inputFilePathParam.value = try files.file(named: "first.obj", contents: triangleOBJ).path
         try runFrame(node, harness: harness)
 
-        node.inputFilePathParam.value = try modelFile(named: "second.obj", contents: triangleOBJ).path
+        node.inputFilePathParam.value = try files.file(named: "second.obj", contents: triangleOBJ).path
         try runFrame(node, harness: harness)
 
         let model = try #require(node.getObject())
@@ -323,10 +338,10 @@ struct ModelFileNodeStateTests
         let transforms = ContiguousArray(repeating: matrix_identity_float4x4, count: 3)
 
         node.inputTransforms.value = transforms
-        node.inputFilePathParam.value = try modelFile(named: "first.obj", contents: triangleOBJ).path
+        node.inputFilePathParam.value = try files.file(named: "first.obj", contents: triangleOBJ).path
         try runFrame(node, harness: harness)
 
-        node.inputFilePathParam.value = try modelFile(named: "second.obj", contents: triangleOBJ).path
+        node.inputFilePathParam.value = try files.file(named: "second.obj", contents: triangleOBJ).path
         try runFrame(node, harness: harness)
 
         let meshes = try #require(node.getObject()).getChildren(true).compactMap { $0 as? InstancedMesh }
@@ -344,7 +359,7 @@ struct ModelFileNodeStateTests
         // the model, and that placement with it, to 5 along y; applied within the
         // part instead, it would turn the triangle where it sits, 5 along x.
         node.inputTransforms.value = [simd_float4x4(simd_quatf(angle: .pi / 2, axis: [0, 0, 1]))]
-        node.inputFilePathParam.value = try modelFile(named: "translated.usda", contents: translatedTriangleUSDA).path
+        node.inputFilePathParam.value = try files.file(named: "translated.usda", contents: translatedTriangleUSDA).path
         try runFrame(node, harness: harness)
 
         let parts = try #require(node.getObject()).getChildren(true).compactMap { $0 as? InstancedMesh }
