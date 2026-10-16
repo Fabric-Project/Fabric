@@ -9,8 +9,6 @@ import Foundation
 import Satin
 import simd
 import Metal
-import MetalKit
-import ModelIO
 
 public class ModelMeshNode : MeshNode
 {
@@ -40,8 +38,7 @@ public class ModelMeshNode : MeshNode
     public var inputTime:ParameterPort<Float>  { port(named: "inputTime") }
     public var outputDuration:NodePort<Float>  { port(named: "outputDuration") }
     
-    private var textureLoader:MTKTextureLoader
-    private var url: URL? = nil
+    private let modelLoader = ModelFileLoader()
 
     override public func getObject() -> Object? {
         return model
@@ -50,17 +47,7 @@ public class ModelMeshNode : MeshNode
     /// The loaded model's skeletons and animated objects; nil when nothing in it moves.
     private var animation: AssetAnimation? = nil
 
-    /// Why the named file gave no model. An error is worded once, in
-    /// failLoad(), which throws this same message.
-    override public func deriveStatuses() -> [NodeStatus] { loadStatus.map { [$0] } ?? [] }
-    private var loadStatus: NodeStatus?
-    {
-        didSet
-        {
-            guard loadStatus != oldValue else { return }
-            self.subtitleSubject.send()
-        }
-    }
+    override public func deriveStatuses() -> [NodeStatus] { modelLoader.status.map { [$0] } ?? [] }
 
     private var model: Object? = nil
     {
@@ -69,27 +56,6 @@ public class ModelMeshNode : MeshNode
             // Relying on side effects - this triggers
             self.graph?.syncNodesToScene(removingObject:oldValue)
         }
-    }
-    
-    public required init(context: Context)
-    {
-        self.textureLoader = MTKTextureLoader(device: context.device)
-        super.init(context: context)
-    }
-    
-    public required init(from decoder: any Decoder) throws
-    {
-        guard let decodeContext = decoder.context else
-        {
-            fatalError("Required Decode Context Not set")
-        }
-
-        self.textureLoader = MTKTextureLoader(device: decodeContext.documentContext.device)
-
-        try super.init(from: decoder)
-
-        // External resource availability is runtime state. The hydrated port
-        // remains changed so the first execution attempts the load.
     }
     
     override public func evaluate(object: Object?, atTime: TimeInterval) -> Bool
@@ -142,76 +108,25 @@ public class ModelMeshNode : MeshNode
     
     internal func loadModelFromInputValue() throws
     {
-        guard let path = self.inputFilePathParam.value,
-              path.isEmpty == false
-        else
+        switch self.modelLoader.load(path: self.inputFilePathParam.value, for: self)
         {
-            self.loadStatus = nil
-            return
+        case .unchanged:
+            break
+
+        case .loaded(let importedModel, let animation):
+            self.animation = animation
+            self.model = importedModel
+            self.outputDuration.send(animation?.timeRange.map { Float($0.upperBound - $0.lowerBound) } ?? 0)
+
+            self.markDirty()
+
+            let _ = self.evaluate(object: model, atTime: 0)
+
+        case .noModel(let error):
+            self.animation = nil
+            self.model = nil
+            if let error { throw error }
         }
-
-        guard let url = self.graph?.resolveFileReference(path)
-            ?? DocumentFileReference.resolve(path, relativeTo: nil) else
-        {
-            try self.failLoad(.fileNotFound, message: "Model file path is invalid: \(path)")
-        }
-
-        guard self.url != url else { return }
-
-        guard FileManager.default.fileExists(atPath: url.standardizedFileURL.path(percentEncoded: false)) else
-        {
-            try self.failLoad(.fileNotFound, message: "Model file not found: \(url.path)")
-        }
-
-        guard MDLAsset.canImportFileExtension(url.pathExtension) else
-        {
-            try self.failLoad(.failed, message: "Model files of type .\(url.pathExtension) cannot be imported: \(url.path)")
-        }
-
-        // An animated model keeps its hierarchy, since animated objects and skeleton
-        // anchors move the meshes within it; a still one is flattened. Either is
-        // empty when ModelIO could read nothing from the file.
-        let loadedAsset = loadAnimatedAsset(url: url, context: self.context, textureLoader: self.textureLoader)
-        let root = loadedAsset.animation == nil ? Object.flatten(loadedAsset.root) : loadedAsset.root
-
-        guard root.getChildren(true).contains(where: { $0 is Mesh }) else
-        {
-            self.unload(reporting: .warning("No mesh found in model file: \(url.path)"))
-            return
-        }
-
-        self.url = url
-        self.loadStatus = nil
-        self.animation = loadedAsset.animation
-        self.model = root
-
-        if let timeRange = loadedAsset.animation?.timeRange
-        {
-            self.outputDuration.send(Float(timeRange.upperBound - timeRange.lowerBound))
-        }
-        else
-        {
-            self.outputDuration.send(0)
-        }
-
-        self.markDirty()
-
-        let _ = self.evaluate(object: model, atTime: 0)
-    }
-
-    private func failLoad(_ kind: FabricErrorKind.Execution, message: String) throws -> Never
-    {
-        self.unload(reporting: .error(message))
-        throw FabricError(.execution(kind), severity: .recoverable, message: message)
-    }
-
-    /// Clears the url so naming the same file again retries the load.
-    private func unload(reporting status: NodeStatus)
-    {
-        self.url = nil
-        self.animation = nil
-        self.model = nil
-        self.loadStatus = status
     }
 
     /// Poses the model at `inputTime`, measured from the start of its animation.
