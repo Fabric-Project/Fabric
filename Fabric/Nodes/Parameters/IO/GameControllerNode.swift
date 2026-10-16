@@ -723,25 +723,37 @@ private final class GameControllerSubscriptions
         weak var node: GameControllerNode?
     }
 
-    private var subscribers: [ObjectIdentifier: [Subscriber]] = [:]
+    /// The nodes subscribed to one controller. An entry can outlive its
+    /// controller, as a node freed without being stopped never unsubscribes, and its key
+    /// can then come to identify a new controller at the same address: an entry
+    /// counts only while its controller is that controller.
+    private struct Subscription
+    {
+        weak var controller: GCController?
+        var subscribers: [Subscriber] = []
+    }
+
+    private var subscriptions: [ObjectIdentifier: Subscription] = [:]
 
     func subscribe(_ node: GameControllerNode, to controller: GCController)
     {
         let controllerKey = ObjectIdentifier(controller)
-        if subscribers[controllerKey] == nil
+        if subscriptions[controllerKey]?.controller !== controller
         {
+            subscriptions[controllerKey] = Subscription(controller: controller)
             installHandler(on: controller)
         }
-        subscribers[controllerKey, default: []].append(Subscriber(node: node))
+        subscriptions[controllerKey]?.subscribers.append(Subscriber(node: node))
     }
 
     func unsubscribe(_ node: GameControllerNode, from controller: GCController)
     {
         let controllerKey = ObjectIdentifier(controller)
-        subscribers[controllerKey]?.removeAll { $0.node == nil || $0.node === node }
+        guard subscriptions[controllerKey]?.controller === controller else { return }
+        subscriptions[controllerKey]?.subscribers.removeAll { $0.node == nil || $0.node === node }
 
-        guard let remaining = subscribers[controllerKey], remaining.isEmpty else { return }
-        subscribers[controllerKey] = nil
+        guard subscriptions[controllerKey]?.subscribers.isEmpty == true else { return }
+        subscriptions[controllerKey] = nil
         controller.extendedGamepad?.valueChangedHandler = nil
         controller.microGamepad?.valueChangedHandler = nil
     }
@@ -751,7 +763,7 @@ private final class GameControllerSubscriptions
         let controllerKey = ObjectIdentifier(controller)
         let deliverChange = { [weak self, weak controller] in
             guard let self, let controller else { return }
-            self.subscribers[controllerKey]?.forEach { $0.node?.receiveChange(from: controller) }
+            self.subscriptions[controllerKey]?.subscribers.forEach { $0.node?.receiveChange(from: controller) }
         }
 
         if let gamepad = controller.extendedGamepad
