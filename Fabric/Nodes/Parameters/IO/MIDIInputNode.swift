@@ -705,20 +705,25 @@ public class MIDIInputNode: Node
         inputValues.withLock { values in
             for input in heldInputs
             {
-                switch input.type
-                {
-                case .noteGate:
-                    values.boolValues[input.uniqueKey] = false
-                case .noteVelocity, .aftertouch:
-                    values.floatValues[input.uniqueKey] = 0.0
-                case .pitchBend:
-                    values.floatValues[input.uniqueKey] = 0.5
-                case .controlChange:
-                    break
-                }
+                Self.rest(input, in: &values)
             }
         }
         markDirty()
+    }
+
+    /// Sets an input to its value at rest: a note off, velocity and pressure
+    /// zero, pitch bend centred, and a CC not yet heard at zero.
+    private static func rest(_ input: DetectedMIDIInput, in values: inout InputValues)
+    {
+        switch input.type
+        {
+        case .noteGate:
+            values.boolValues[input.uniqueKey] = false
+        case .noteVelocity, .aftertouch, .controlChange:
+            values.floatValues[input.uniqueKey] = 0.0
+        case .pitchBend:
+            values.floatValues[input.uniqueKey] = 0.5
+        }
     }
 
     // MARK: - Input Status
@@ -1052,14 +1057,7 @@ public class MIDIInputNode: Node
         // seeding cannot ride along inside the sync.
         for input in configuredInputs where created.contains(input.portName)
         {
-            if input.type == .noteGate
-            {
-                inputValues.withLock { $0.boolValues[input.uniqueKey] = false }
-            }
-            else
-            {
-                inputValues.withLock { $0.floatValues[input.uniqueKey] = 0.0 }
-            }
+            inputValues.withLock { Self.rest(input, in: &$0) }
 
             print("[MIDI] Added port: \(input.portName)")
         }
