@@ -10,6 +10,7 @@ import Satin
 import simd
 import Metal
 import MetalKit
+import ModelIO
 
 public class ModelMeshNode : MeshNode
 {
@@ -48,6 +49,18 @@ public class ModelMeshNode : MeshNode
     
     /// The loaded model's skeletons and animated objects; nil when nothing in it moves.
     private var animation: AssetAnimation? = nil
+
+    /// Why the named file gave no model. An error is worded once, in
+    /// failLoad(), which throws this same message.
+    override public func deriveStatuses() -> [NodeStatus] { loadStatus.map { [$0] } ?? [] }
+    private var loadStatus: NodeStatus?
+    {
+        didSet
+        {
+            guard loadStatus != oldValue else { return }
+            self.subtitleSubject.send()
+        }
+    }
 
     private var model: Object? = nil
     {
@@ -129,68 +142,78 @@ public class ModelMeshNode : MeshNode
     
     internal func loadModelFromInputValue() throws
     {
-        if let path = self.inputFilePathParam.value,
-           path.isEmpty == false
+        guard let path = self.inputFilePathParam.value,
+              path.isEmpty == false
+        else
         {
-            guard let url = self.graph?.resolveFileReference(path)
-                ?? DocumentFileReference.resolve(path, relativeTo: nil) else
-            {
-                self.animation = nil
-                self.model = nil
-                throw FabricError(.execution(.fileNotFound),
-                                  severity: .recoverable,
-                                  message: "Model file path is invalid: \(path)")
-            }
-
-            guard self.url != url else { return }
-
-            self.url = url
-
-            if FileManager.default.fileExists(atPath: url.standardizedFileURL.path(percentEncoded: false))
-            {
-                // An animated model keeps its hierarchy, since animated objects and skeleton
-                // anchors move the meshes within it; a still one is flattened.
-                let loadedAsset = loadAnimatedAsset(url: url, context: self.context, textureLoader: self.textureLoader)
-                let root = loadedAsset.animation == nil ? Object.flatten(loadedAsset.root) : loadedAsset.root
-
-                if root.getChildren(true).contains(where: { $0 is Mesh })
-                {
-                    self.animation = loadedAsset.animation
-                    self.model = root
-
-                    if let timeRange = loadedAsset.animation?.timeRange
-                    {
-                        self.outputDuration.send(Float(timeRange.upperBound - timeRange.lowerBound))
-                    }
-                    else
-                    {
-                        self.outputDuration.send(0)
-                    }
-
-                    self.markDirty()
-
-                    let _ = self.evaluate(object: model, atTime: 0)
-                }
-                else
-                {
-                    self.animation = nil
-                    self.model = nil
-                    throw FabricError(.execution(.failed),
-                                      severity: .recoverable,
-                                      message: "Could not load model file: \(url.path)")
-                }
-            }
-            else
-            {
-                self.animation = nil
-                self.model = nil
-                throw FabricError(.execution(.fileNotFound),
-                                  severity: .recoverable,
-                                  message: "Model file not found: \(url.path)")
-            }
+            self.loadStatus = nil
+            return
         }
+
+        guard let url = self.graph?.resolveFileReference(path)
+            ?? DocumentFileReference.resolve(path, relativeTo: nil) else
+        {
+            try self.failLoad(.fileNotFound, message: "Model file path is invalid: \(path)")
+        }
+
+        guard self.url != url else { return }
+
+        guard FileManager.default.fileExists(atPath: url.standardizedFileURL.path(percentEncoded: false)) else
+        {
+            try self.failLoad(.fileNotFound, message: "Model file not found: \(url.path)")
+        }
+
+        guard MDLAsset.canImportFileExtension(url.pathExtension) else
+        {
+            try self.failLoad(.failed, message: "Model files of type .\(url.pathExtension) cannot be imported: \(url.path)")
+        }
+
+        // An animated model keeps its hierarchy, since animated objects and skeleton
+        // anchors move the meshes within it; a still one is flattened. Either is
+        // empty when ModelIO could read nothing from the file.
+        let loadedAsset = loadAnimatedAsset(url: url, context: self.context, textureLoader: self.textureLoader)
+        let root = loadedAsset.animation == nil ? Object.flatten(loadedAsset.root) : loadedAsset.root
+
+        guard root.getChildren(true).contains(where: { $0 is Mesh }) else
+        {
+            self.unload(reporting: .warning("No mesh found in model file: \(url.path)"))
+            return
+        }
+
+        self.url = url
+        self.loadStatus = nil
+        self.animation = loadedAsset.animation
+        self.model = root
+
+        if let timeRange = loadedAsset.animation?.timeRange
+        {
+            self.outputDuration.send(Float(timeRange.upperBound - timeRange.lowerBound))
+        }
+        else
+        {
+            self.outputDuration.send(0)
+        }
+
+        self.markDirty()
+
+        let _ = self.evaluate(object: model, atTime: 0)
     }
-    
+
+    private func failLoad(_ kind: FabricErrorKind.Execution, message: String) throws -> Never
+    {
+        self.unload(reporting: .error(message))
+        throw FabricError(.execution(kind), severity: .recoverable, message: message)
+    }
+
+    /// Clears the url so naming the same file again retries the load.
+    private func unload(reporting status: NodeStatus)
+    {
+        self.url = nil
+        self.animation = nil
+        self.model = nil
+        self.loadStatus = status
+    }
+
     /// Poses the model at `inputTime`, measured from the start of its animation.
     internal func poseAnimation()
     {
