@@ -50,6 +50,27 @@ private let triangleOBJ = """
     f 1 2 3
     """
 
+/// Two triangles, one red and one blue: ModelIO gives the mesh a submesh per
+/// material.
+private let twoMaterialOBJ = """
+    mtllib colors.mtl
+    v 0 0 0
+    v 1 0 0
+    v 0 1 0
+    v 1 1 0
+    usemtl Red
+    f 1 2 3
+    usemtl Blue
+    f 2 4 3
+    """
+
+private let twoMaterialMTL = """
+    newmtl Red
+    Kd 1 0 0
+    newmtl Blue
+    Kd 0 0 1
+    """
+
 /// A triangle under a parent that moves it 5 along x.
 private let translatedTriangleUSDA = """
     #usda 1.0
@@ -112,6 +133,21 @@ struct ModelMeshNodeStatusTests
         let meshes = try #require(node.getObject()).getChildren(true).compactMap { $0 as? Mesh }
         #expect(meshes.isEmpty == false)
         #expect(meshes.allSatisfy { $0.localMatrix.columns.3 == simd_float4(5, 0, 0, 1) })
+    }
+
+    @Test("Instanced Model Mesh keeps a mesh's material per submesh")
+    func instancedModelKeepsSubmeshes() throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let node = InstancedModelMeshNode(context: harness.context)
+        let fileURL = try modelFile(named: "two.obj", contents: twoMaterialOBJ)
+        try twoMaterialMTL.write(to: fileURL.deletingLastPathComponent().appending(path: "colors.mtl"),
+                                 atomically: true, encoding: .utf8)
+
+        load(fileURL, into: node)
+
+        let meshes = try #require(node.getObject()).getChildren(true).compactMap { $0 as? InstancedMesh }
+        #expect(meshes.contains { $0.submeshes.count == 2 })
     }
 
     @Test("A file of a type ModelIO cannot import is the node's error",
