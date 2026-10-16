@@ -9,17 +9,45 @@ import SwiftUI
 import Satin
 
 
+/// The inspector's label column: bold, right-aligned, one line, a fixed
+/// width so every row's field starts at the same place.
+private struct InputFieldLabelModifier: ViewModifier
+{
+    func body(content: Content) -> some View
+    {
+        content
+            .font(.system(size: 10))
+            .fontWeight(.bold)
+            .lineLimit(1)
+            .frame(width: 90, alignment: .trailing)
+            .truncationMode(.tail)
+    }
+}
+
 struct InputFieldLabelView : View {
     
     let label:String
     
     var body: some View {
         Text(label)
-            .font(.system(size: 10))
-            .fontWeight(.bold)
-            .lineLimit(1)
-            .frame(width: 90, alignment: .trailing)
-            .truncationMode(.tail)
+            .modifier(InputFieldLabelModifier())
+    }
+}
+
+/// A numeric field laid out as the inspector's string field is: the label
+/// column, then a field of the parameter width.
+private struct InputFieldRowStyle: LabeledContentStyle
+{
+    func makeBody(configuration: Configuration) -> some View
+    {
+        HStack(spacing: ParameterConfig.horizontalStackSpacing)
+        {
+            configuration.label
+                .modifier(InputFieldLabelModifier())
+            configuration.content
+                .font(controlFont)
+                .frame(width: ParameterConfig.paramWidth, alignment: .leading)
+        }
     }
 }
 
@@ -34,22 +62,6 @@ struct InputFieldComponentView : View
             .frame(width: ParameterConfig.paramWidth, alignment: .leading)
             .font(.system(size: 10))
             .textFieldStyle(.roundedBorder)
-    }
-}
-
-struct FormattedInputFieldComponentView<T> : View
-{
-    let binding:Binding<T>
-    let label:String
-    let formatter:Formatter
-    
-    var body: some View {
-        TextField(label, value: binding, formatter:formatter)
-            .font(.system(size: 10))
-            .textFieldStyle(.roundedBorder)
-            .lineLimit(1)
-            .frame(width: ParameterConfig.paramWidth, alignment: .leading)
-
     }
 }
 
@@ -82,439 +94,226 @@ struct InputFieldView: View
     }
 }
 
-// MARK: - Float Input Fields
+// MARK: - Numeric Input Fields
+
+/// How many decimal places a float field shows; the drag step comes from the
+/// parameter's range, not from this.
+private let floatFractionDigits = 5
+
+private let controlFont = Font.system(size: CGFloat(ParameterConfig.controlFont))
+
+/// A vector parameter's fields: the parameter's label over one labelled field
+/// per component.
+private struct ComponentFieldsView<Fields: View>: View
+{
+    let label: String
+    @ViewBuilder let fields: Fields
+
+    var body: some View
+    {
+        VStack(alignment: .leading, spacing: 7)
+        {
+            // The heading ends where the fields begin.
+            Text(label)
+                .modifier(InputFieldLabelModifier())
+                .frame(width: 90 + ParameterConfig.horizontalStackSpacing, alignment: .trailing)
+            fields
+        }
+        .font(controlFont)
+        .labeledContentStyle(InputFieldRowStyle())
+    }
+}
 
 struct FloatInputFieldView: View
 {
-    static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
-    
     @Bindable var vm: ParameterObservableModel<Float>
-    let decimalFormatter:NumberFormatter
-    
+    let step: Float
+
     init(param:GenericParameter<Float>)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher )
-        
-        self.decimalFormatter = NumberFormatter()
-        self.decimalFormatter.numberStyle = .decimal
-        self.decimalFormatter.maximumFractionDigits = 5
-        
+        self.step = ParameterFieldStep.step(for: param, fractionDigits: floatFractionDigits)
     }
     
     var body: some View
     {
-        HStack(spacing: ParameterConfig.horizontalStackSpacing)
-        {
-            InputFieldLabelView(label: self.vm.label)
-            
-            FormattedInputFieldComponentView(binding: self.$vm.uiValue,
-                                             label: self.vm.label,
-                                             formatter: self.decimalFormatter)
-        }
+        NumericField(vm.label, value: $vm.uiValue, step: step, fractionDigits: floatFractionDigits)
+            .font(controlFont)
+            .labeledContentStyle(InputFieldRowStyle())
     }
 }
 
 struct Float2InputFieldView: View
 {
-    static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
-
     @Bindable var vm: ParameterObservableModel<simd_float2>
+    let steps: [Float]
 
-    let decimalFormatter:NumberFormatter
-    
     init(param:GenericParameter<simd_float2>)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher )
-        self.decimalFormatter = NumberFormatter()
-        decimalFormatter.numberStyle = .decimal
-        decimalFormatter.maximumFractionDigits = 5
+        self.steps = ParameterFieldStep.steps(for: param, fractionDigits: floatFractionDigits)
     }
     
     var body: some View
     {
-        VStack(alignment: .leading, spacing: 5)
+        ComponentFieldsView(label: vm.label)
         {
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: self.vm.label)
-            }
-            .frame(width: ParameterConfig.paramWidth)
-            
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: "X")
-
-                FormattedInputFieldComponentView(binding: self.$vm.uiValue.x,
-                                                 label: self.vm.label + "X",
-                                                 formatter: self.decimalFormatter)
-            }
-            
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: "Y")
-                
-                FormattedInputFieldComponentView(binding: self.$vm.uiValue.y,
-                                                 label: self.vm.label + "Y",
-                                                 formatter: self.decimalFormatter)
-            }
+            NumericField("X", value: $vm.uiValue.x, step: steps[0], fractionDigits: floatFractionDigits)
+            NumericField("Y", value: $vm.uiValue.y, step: steps[1], fractionDigits: floatFractionDigits)
         }
     }
 }
 
 struct Float3InputFieldView: View
 {
-    static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
-
     @Bindable var vm: ParameterObservableModel<simd_float3>
+    let steps: [Float]
 
-    let decimalFormatter:NumberFormatter
-    
     init(param:GenericParameter<simd_float3>)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher )
-        self.decimalFormatter = NumberFormatter()
-        decimalFormatter.numberStyle = .decimal
-        decimalFormatter.maximumFractionDigits = 5
+        self.steps = ParameterFieldStep.steps(for: param, fractionDigits: floatFractionDigits)
     }
     
     var body: some View
     {
-        VStack(alignment: .leading, spacing: 5)
+        ComponentFieldsView(label: vm.label)
         {
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: self.vm.label)
-            }
-            .frame(width: ParameterConfig.paramWidth)
-
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: "X")
-
-                FormattedInputFieldComponentView(binding: self.$vm.uiValue.x,
-                                                 label: self.vm.label + "X",
-                                                 formatter: self.decimalFormatter)
-            }
-
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: "Y")
-
-                FormattedInputFieldComponentView(binding: self.$vm.uiValue.y,
-                                                 label: self.vm.label + "Y",
-                                                 formatter: self.decimalFormatter)
-            }
-
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: "Z")
-
-                FormattedInputFieldComponentView(binding: self.$vm.uiValue.z,
-                                                 label: self.vm.label + "Z",
-                                                 formatter: self.decimalFormatter)
-            }
+            NumericField("X", value: $vm.uiValue.x, step: steps[0], fractionDigits: floatFractionDigits)
+            NumericField("Y", value: $vm.uiValue.y, step: steps[1], fractionDigits: floatFractionDigits)
+            NumericField("Z", value: $vm.uiValue.z, step: steps[2], fractionDigits: floatFractionDigits)
         }
     }
 }
 
-
 struct Float4InputFieldView: View
 {
-    static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
-
     @Bindable var vm: ParameterObservableModel<simd_float4>
+    let steps: [Float]
 
-    let decimalFormatter:NumberFormatter
-    
     init(param:GenericParameter<simd_float4>)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher )
-        self.decimalFormatter = NumberFormatter()
-        decimalFormatter.numberStyle = .decimal
-        decimalFormatter.maximumFractionDigits = 5
+        self.steps = ParameterFieldStep.steps(for: param, fractionDigits: floatFractionDigits)
     }
     
     var body: some View
     {
-        VStack(alignment: .leading, spacing: 5)
+        ComponentFieldsView(label: vm.label)
         {
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: self.vm.label)
-            }
-            .frame(width: ParameterConfig.paramWidth)
-
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: "X")
-                                
-                FormattedInputFieldComponentView(binding: self.$vm.uiValue.x,
-                                                 label: self.vm.label + "X",
-                                                 formatter: self.decimalFormatter)
-            }
-            
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: "Y")
-                
-                FormattedInputFieldComponentView(binding: self.$vm.uiValue.y,
-                                                 label: self.vm.label + "Y",
-                                                 formatter: self.decimalFormatter)
-            }
-            
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: "Z")
-                
-                FormattedInputFieldComponentView(binding: self.$vm.uiValue.z,
-                                                 label: self.vm.label + "Z",
-                                                 formatter: self.decimalFormatter)
-            }
-            
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: "W")
-                
-                FormattedInputFieldComponentView(binding: self.$vm.uiValue.w,
-                                                 label: self.vm.label + "W",
-                                                 formatter: self.decimalFormatter)
-            }
+            NumericField("X", value: $vm.uiValue.x, step: steps[0], fractionDigits: floatFractionDigits)
+            NumericField("Y", value: $vm.uiValue.y, step: steps[1], fractionDigits: floatFractionDigits)
+            NumericField("Z", value: $vm.uiValue.z, step: steps[2], fractionDigits: floatFractionDigits)
+            NumericField("W", value: $vm.uiValue.w, step: steps[3], fractionDigits: floatFractionDigits)
         }
     }
 }
 
-// MARK: - Int Input Fields
-
 struct IntInputFieldView: View
 {
-    static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
-
     @Bindable var vm: ParameterObservableModel<Int>
+    let step: Int
 
-    let decimalFormatter:NumberFormatter
-    
     init(param:GenericParameter<Int>)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher )
-        
-        self.decimalFormatter = NumberFormatter()
-        decimalFormatter.numberStyle = .none
-        decimalFormatter.allowsFloats = false
-        decimalFormatter.maximumFractionDigits = 0
-        decimalFormatter.minimum = 0
+        self.step = ParameterFieldStep.step(for: param)
     }
     
     var body: some View
     {
-        VStack(alignment:.leading, spacing: 0)
-        {
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: self.vm.label)
-                
-                FormattedInputFieldComponentView(binding: self.$vm.uiValue, label: self.vm.label, formatter: self.decimalFormatter)
-            }
-        }
+        IntegerField(vm.label, value: $vm.uiValue, step: step)
+            .font(controlFont)
+            .labeledContentStyle(InputFieldRowStyle())
     }
 }
 
 struct Int2InputFieldView: View
 {
-    static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
-
     @Bindable var vm: ParameterObservableModel<simd_int2>
+    let steps: [Int32]
 
-    let decimalFormatter:NumberFormatter
-    
     init(param:GenericParameter<simd_int2>)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher )
-        
-        self.decimalFormatter = NumberFormatter()
-        decimalFormatter.numberStyle = .none
-        decimalFormatter.allowsFloats = false
-        decimalFormatter.maximumFractionDigits = 0
-        decimalFormatter.minimum = 0
+        self.steps = ParameterFieldStep.steps(for: param)
     }
     
     var body: some View
     {
-        VStack(alignment: .leading, spacing: 5)
+        ComponentFieldsView(label: vm.label)
         {
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: self.vm.label)
-            }
-            .frame(width: ParameterConfig.paramWidth)
-
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: "X")
-
-                FormattedInputFieldComponentView(binding: self.$vm.uiValue.x,
-                                                 label: self.vm.label + "X",
-                                                 formatter: self.decimalFormatter)
-            }
-            
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: "Y")
-                
-                FormattedInputFieldComponentView(binding: self.$vm.uiValue.y,
-                                                 label: self.vm.label + "Y",
-                                                 formatter: self.decimalFormatter)
-            }
+            IntegerField("X", value: $vm.uiValue.x, step: steps[0])
+            IntegerField("Y", value: $vm.uiValue.y, step: steps[1])
         }
     }
 }
 
 struct Int3InputFieldView: View
 {
-    static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
-
     @Bindable var vm: ParameterObservableModel<simd_int3>
+    let steps: [Int32]
 
-    let decimalFormatter:NumberFormatter
-    
     init(param:GenericParameter<simd_int3>)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher )
-        
-        self.decimalFormatter = NumberFormatter()
-        decimalFormatter.numberStyle = .none
-        decimalFormatter.allowsFloats = false
-        decimalFormatter.maximumFractionDigits = 0
-        decimalFormatter.minimum = 0
+        self.steps = ParameterFieldStep.steps(for: param)
     }
     
     var body: some View
     {
-        VStack(alignment: .leading, spacing: 5)
+        ComponentFieldsView(label: vm.label)
         {
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: self.vm.label)
-            }
-            .frame(width: ParameterConfig.paramWidth)
-
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: "X")
-                                
-                FormattedInputFieldComponentView(binding: self.$vm.uiValue.x,
-                                                 label: self.vm.label + "X",
-                                                 formatter: self.decimalFormatter)
-            }
-
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: "Y")
-                
-                FormattedInputFieldComponentView(binding: self.$vm.uiValue.y,
-                                                 label: self.vm.label + "Y",
-                                                 formatter: self.decimalFormatter)
-            }
-            
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: "Z")
-                
-                FormattedInputFieldComponentView(binding: self.$vm.uiValue.z,
-                                                 label: self.vm.label + "Z",
-                                                 formatter: self.decimalFormatter)
-            }
+            IntegerField("X", value: $vm.uiValue.x, step: steps[0])
+            IntegerField("Y", value: $vm.uiValue.y, step: steps[1])
+            IntegerField("Z", value: $vm.uiValue.z, step: steps[2])
         }
     }
 }
 
 struct Int4InputFieldView: View
 {
-    static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
-
     @Bindable var vm: ParameterObservableModel<simd_int4>
+    let steps: [Int32]
 
-    let decimalFormatter:NumberFormatter
-    
     init(param:GenericParameter<simd_int4>)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher )
-        
-        self.decimalFormatter = NumberFormatter()
-        decimalFormatter.numberStyle = .none
-        decimalFormatter.allowsFloats = false
-        decimalFormatter.maximumFractionDigits = 0
-        decimalFormatter.minimum = 0
+        self.steps = ParameterFieldStep.steps(for: param)
     }
     
     var body: some View
     {
-        VStack(alignment: .leading, spacing: 5)
+        ComponentFieldsView(label: vm.label)
         {
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: self.vm.label)
-            }
-            .frame(width: ParameterConfig.paramWidth)
-
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: "X")
-                                
-                FormattedInputFieldComponentView(binding: self.$vm.uiValue.x,
-                                                 label: self.vm.label + "X",
-                                                 formatter: self.decimalFormatter)
-            }
-            
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: "Y")
-                
-                FormattedInputFieldComponentView(binding: self.$vm.uiValue.y,
-                                                 label: self.vm.label + "Y",
-                                                 formatter: self.decimalFormatter)
-            }
-            
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: "Z")
-                
-                FormattedInputFieldComponentView(binding: self.$vm.uiValue.z,
-                                                 label: self.vm.label + "Z",
-                                                 formatter: self.decimalFormatter)
-            }
-            
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                InputFieldLabelView(label: "W")
-                
-                FormattedInputFieldComponentView(binding: self.$vm.uiValue.w,
-                                                 label: self.vm.label + "W",
-                                                 formatter: self.decimalFormatter)
-            }
+            IntegerField("X", value: $vm.uiValue.x, step: steps[0])
+            IntegerField("Y", value: $vm.uiValue.y, step: steps[1])
+            IntegerField("Z", value: $vm.uiValue.z, step: steps[2])
+            IntegerField("W", value: $vm.uiValue.w, step: steps[3])
         }
     }
 }

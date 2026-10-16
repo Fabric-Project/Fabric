@@ -22,30 +22,25 @@ public struct NodeSelectionInspector: View
 
         let currentGraph = self.editingContext.currentGraph
 
-        List {
-
-            Section(header: Text("Published"))
+        InspectorStack
+        {
+            InspectorSection("Published")
             {
-                GroupBox
-                {
-                    ParameterGroupView(parameterGroup:currentGraph.publishedParameterGroup)
-                        // publishedParameterGroup is a plain class rebuilt in
-                        // place, invisible to observation — but every rebuild
-                        // bumps connectionRevision, so re-identify just this
-                        // view (not the whole List) to pick up the new params.
-                        .id(currentGraph.connectionRevision)
-                }
+                ParameterGroupView(parameterGroup:currentGraph.publishedParameterGroup)
+                    // publishedParameterGroup is a plain class rebuilt in
+                    // place, invisible to observation — but every rebuild
+                    // bumps connectionRevision, so re-identify just this
+                    // view (not the whole inspector) to pick up the new params.
+                    .id(currentGraph.connectionRevision)
             }
 
-            Section(header: Text("Selected"))
-            {
-                ForEach(currentGraph.selectedNodes) { node in
-                    SelectedNodeCard(nodeViewModel: currentGraph.viewModel(for: node),
-                                     fileContentTypes: Self.fileContentTypes(for: node))
-                }
+            InspectorSectionHeading("Selected")
+
+            ForEach(currentGraph.selectedNodes) { node in
+                SelectedNodeCard(nodeViewModel: currentGraph.viewModel(for: node),
+                                 fileContentTypes: Self.fileContentTypes(for: node))
             }
         }
-        .listStyle(.sidebar)
     }
 
     private static func fileContentTypes(for node: Node) -> [UTType]
