@@ -55,6 +55,21 @@ struct NumericFieldSteppingTests
         #expect(NumericFieldStepping.step(forRange: 0, max: 1, integral: true, fractionDigits: 0) == 1)
         #expect(NumericFieldStepping.step(forRange: 0, max: 0, integral: true, fractionDigits: 0) == 1)
     }
+
+    @Test("An integer result holds to its type's range, out to the type's limits")
+    func integerResultIsClamped()
+    {
+        #expect(NumericFieldStepping.integer(Double(Int.max)) == Int.max)
+        #expect(NumericFieldStepping.integer(Double(Int.max) * 2) == Int.max)
+        #expect(NumericFieldStepping.integer(Double(Int.min)) == Int.min)
+        #expect(NumericFieldStepping.integer(Double(Int.min) - 1e4) == Int.min)
+        #expect(NumericFieldStepping.integer(300) == Int8.max)
+        #expect(NumericFieldStepping.integer(-300) == Int8.min)
+        #expect(NumericFieldStepping.integer(Double(UInt64.max)) == UInt64.max)
+        #expect(NumericFieldStepping.integer(Double(UInt64.max) * 2) == UInt64.max)
+        #expect(NumericFieldStepping.integer(-1) == UInt64.min)
+        #expect(NumericFieldStepping.integer(41.6) == 42)
+    }
 }
 
 /// The step a parameter's field is given, from the parameter's range.

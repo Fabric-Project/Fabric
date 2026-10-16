@@ -72,6 +72,16 @@ enum NumericFieldStepping
         integral ? value.rounded() : rounded(value, toPrecisionOf: step)
     }
 
+    /// A drag or step result as an integer of the binding's type, held to that
+    /// type's range. `Double(Value.max)` rounds up past `Value.max`, so the bound
+    /// is tested before converting.
+    static func integer<Value: FixedWidthInteger>(_ value: Double) -> Value
+    {
+        if value >= Double(Value.max) { return .max }
+        if value <= Double(Value.min) { return .min }
+        return Value(value.rounded())
+    }
+
     /// The modifier keys down now. Read at each pointer event rather than
     /// captured at a drag's start, so holding Shift partway through a drag
     /// changes the step from there.

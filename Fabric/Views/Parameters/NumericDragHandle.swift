@@ -105,7 +105,7 @@ public extension View
         modifier(NumericDragHandle(step: Double(step),
                                    integral: true,
                                    start: { Double(value.wrappedValue) },
-                                   write: { value.wrappedValue = Value(clamping: Int($0)) },
+                                   write: { value.wrappedValue = NumericFieldStepping.integer($0) },
                                    onEditingChanged: onEditingChanged))
     }
 }

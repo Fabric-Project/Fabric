@@ -36,7 +36,7 @@ public struct IntegerField<Value: FixedWidthInteger>: View
                          fractionDigits: 0,
                          unit: unit,
                          integral: true,
-                         write: { value.wrappedValue = Value(clamping: Int($0)) },
+                         write: { value.wrappedValue = NumericFieldStepping.integer($0) },
                          onEditingChanged: onEditingChanged)
     }
 }
