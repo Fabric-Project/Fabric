@@ -98,6 +98,9 @@ public class ScreenCaptureProviderNode: Node
     // Capture changes run one at a time on the main actor, each after the one
     // before it, so a stop is never overtaken by a start still in flight.
     private var captureChangeTask: Task<Void, Never>? = nil
+    /// Whether the node is started, as the capture changes see it: start and stop
+    /// set it in their own changes, so it is in step with the changes around it.
+    private var isCaptureRequested = false
 
     // MARK: - Capture Status
 
@@ -193,6 +196,7 @@ public class ScreenCaptureProviderNode: Node
     override public func startExecution(renderer: GraphRenderer)
     throws
     {
+        self.enqueueCaptureChange { $0.isCaptureRequested = true }
         self.enqueueCaptureRestart()
         try super.startExecution(renderer: renderer)
     }
@@ -244,6 +248,8 @@ public class ScreenCaptureProviderNode: Node
     private func enqueueCaptureRestart()
     {
         self.enqueueCaptureChange { node in
+            // Retry, or a source change, can queue a restart after a stop.
+            guard node.isCaptureRequested else { return }
             if let listingError = await node.refreshTargets()
             {
                 await node.stopStream()
@@ -261,6 +267,7 @@ public class ScreenCaptureProviderNode: Node
     {
         self.outputTexturePort.send(nil)
         self.enqueueCaptureChange { node in
+            node.isCaptureRequested = false
             await node.stopStream()
             node.reportCaptureFailure(nil)
         }
