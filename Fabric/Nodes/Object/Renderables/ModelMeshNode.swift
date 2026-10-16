@@ -123,6 +123,7 @@ public class ModelMeshNode : MeshNode
         case .noModel(let error):
             self.animation = nil
             self.model = nil
+            self.outputDuration.send(0)
             if let error { throw error }
         }
     }

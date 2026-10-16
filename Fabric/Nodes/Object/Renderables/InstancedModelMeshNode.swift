@@ -150,6 +150,7 @@ public class InstancedModelMeshNode : InstancedMeshNode
         case .noModel(let error):
             self.animation = nil
             self.model = nil
+            self.outputDuration.send(0)
             if let error { throw error }
         }
     }

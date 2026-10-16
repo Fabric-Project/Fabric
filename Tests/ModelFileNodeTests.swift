@@ -36,6 +36,7 @@ protocol ModelFileNode: Node
     var inputFilePathParam: ParameterPort<String> { get }
     var inputPosition: ParameterPort<simd_float3> { get }
     var inputCullingMode: ParameterPort<String> { get }
+    var outputDuration: NodePort<Float> { get }
     func getObject() -> Object?
     func loadModelFromInputValue() throws
 }
@@ -78,6 +79,32 @@ private let translatedTriangleUSDA = """
     def Xform "Root"
     {
         double3 xformOp:translate = (5, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+
+        def Mesh "Triangle"
+        {
+            int[] faceVertexCounts = [3]
+            int[] faceVertexIndices = [0, 1, 2]
+            point3f[] points = [(0, 0, 0), (1, 0, 0), (0, 1, 0)]
+        }
+    }
+    """
+
+/// A triangle that moves 5 along x over two seconds.
+private let movingTriangleUSDA = """
+    #usda 1.0
+    (
+        startTimeCode = 0
+        endTimeCode = 48
+        timeCodesPerSecond = 24
+    )
+
+    def Xform "Root"
+    {
+        double3 xformOp:translate.timeSamples = {
+            0: (0, 0, 0),
+            48: (5, 0, 0),
+        }
         uniform token[] xformOpOrder = ["xformOp:translate"]
 
         def Mesh "Triangle"
@@ -203,6 +230,32 @@ struct ModelMeshNodeStatusTests
 
         #expect(node.getObject() == nil)
         #expect(node.deriveStatuses().isEmpty)
+    }
+
+    @Test("Clearing the path, a missing file or a file with no mesh sets Duration to 0",
+          arguments: ModelFileNodeKind.allCases, ["", "missing.usda", "empty.obj"])
+    func noModelHasNoDuration(kind: ModelFileNodeKind, nextFileName: String) throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let node = kind.makeNode(context: harness.context)
+
+        let movingURL = try modelFile(named: "moving.usda", contents: movingTriangleUSDA)
+        load(movingURL, into: node)
+        #expect(node.outputDuration.value == 2)
+
+        switch nextFileName
+        {
+        case "":
+            node.inputFilePathParam.value = ""
+            _ = try? node.loadModelFromInputValue()
+        case "empty.obj":
+            load(try modelFile(named: nextFileName, contents: "# nothing here\n"), into: node)
+        default:
+            load(movingURL.deletingLastPathComponent().appending(path: nextFileName), into: node)
+        }
+
+        #expect(node.getObject() == nil)
+        #expect(node.outputDuration.value == 0)
     }
 
     @Test("Naming the same file again after it failed retries the load", arguments: ModelFileNodeKind.allCases)
