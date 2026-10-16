@@ -248,7 +248,7 @@ public class OSCReceiveNode: Node
         didSet
         {
             updateServer()
-            _settingsModelStorage?.listenPort = listenPort
+            MainActor.assumeIsolated { _settingsModelStorage?.listenPort = listenPort }
         }
     }
 
@@ -257,7 +257,7 @@ public class OSCReceiveNode: Node
         didSet
         {
             self.rebuildPorts()
-            _settingsModelStorage?.addressBindings = addressBindings
+            MainActor.assumeIsolated { _settingsModelStorage?.addressBindings = addressBindings }
         }
     }
 
@@ -273,7 +273,7 @@ public class OSCReceiveNode: Node
         didSet
         {
             guard serverStatus != oldValue else { return }
-            _settingsModelStorage?.serverStatus = serverStatus
+            MainActor.assumeIsolated { _settingsModelStorage?.serverStatus = serverStatus }
             self.subtitleSubject.send()
         }
     }
@@ -289,14 +289,18 @@ public class OSCReceiveNode: Node
 
     override public func settingsView() -> AnyView
     {
-        if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
-        return AnyView(OSCReceiveNodeView(model: _settingsModelStorage!))
+        MainActor.assumeIsolated
+        {
+            if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
+            return AnyView(OSCReceiveNodeView(model: _settingsModelStorage!))
+        }
     }
 
     override public var settingsSize: SettingsViewSize { .Medium }
 
     // MARK: - Settings Model
 
+    @MainActor
     @Observable final class SettingsModel
     {
         var listenPort: UInt16

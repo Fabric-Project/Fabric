@@ -647,8 +647,11 @@ public class HIDNode: Node
         updateMonitoring()
         updateDeviceStatus()
 
-        _settingsModelStorage?.selectedDeviceID = selectedDeviceID
-        _settingsModelStorage?.deviceElements = deviceElements
+        MainActor.assumeIsolated
+        {
+            _settingsModelStorage?.selectedDeviceID = selectedDeviceID
+            _settingsModelStorage?.deviceElements = deviceElements
+        }
     }
 
     // MARK: - Device Status
@@ -665,7 +668,7 @@ public class HIDNode: Node
             {
                 Self.log.error("\(deviceStatus.message, privacy: .public)")
             }
-            _settingsModelStorage?.deviceStatus = deviceStatus
+            MainActor.assumeIsolated { _settingsModelStorage?.deviceStatus = deviceStatus }
             self.subtitleSubject.send()
         }
     }
@@ -710,14 +713,18 @@ public class HIDNode: Node
 
     override public func settingsView() -> AnyView
     {
-        if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
-        return AnyView(HIDNodeView(model: _settingsModelStorage!))
+        MainActor.assumeIsolated
+        {
+            if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
+            return AnyView(HIDNodeView(model: _settingsModelStorage!))
+        }
     }
 
     override public var settingsSize: SettingsViewSize { .Medium }
 
     // MARK: - Settings Model
 
+    @MainActor
     @Observable final class SettingsModel
     {
         var selectedDeviceID: String?
@@ -843,7 +850,7 @@ public class HIDNode: Node
     fileprivate func refreshDevices()
     {
         availableDevices = hidManager?.getAvailableDevices() ?? []
-        _settingsModelStorage?.availableDevices = availableDevices
+        MainActor.assumeIsolated { _settingsModelStorage?.availableDevices = availableDevices }
 
         if liveDeviceInfo() == nil
         {

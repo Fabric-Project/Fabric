@@ -189,8 +189,11 @@ public class GameControllerNode: Node
         didSet
         {
             setupController()
-            _settingsModelStorage?.selectedControllerID = selectedControllerID
-            _settingsModelStorage?.outputPortCount = outputPorts().count
+            MainActor.assumeIsolated
+            {
+                _settingsModelStorage?.selectedControllerID = selectedControllerID
+                _settingsModelStorage?.outputPortCount = outputPorts().count
+            }
             // `subtitle` is derived from the selected controller; notify so the title refreshes.
             self.subtitleSubject.send()
         }
@@ -220,14 +223,18 @@ public class GameControllerNode: Node
 
     override public func settingsView() -> AnyView
     {
-        if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
-        return AnyView(GameControllerNodeView(model: _settingsModelStorage!))
+        MainActor.assumeIsolated
+        {
+            if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
+            return AnyView(GameControllerNodeView(model: _settingsModelStorage!))
+        }
     }
 
     override public var settingsSize: SettingsViewSize { .Small }
 
     // MARK: - Settings Model
 
+    @MainActor
     @Observable final class SettingsModel
     {
         var selectedControllerID: String?
@@ -363,7 +370,7 @@ public class GameControllerNode: Node
             )
         }
 
-        _settingsModelStorage?.availableControllers = availableControllers
+        MainActor.assumeIsolated { _settingsModelStorage?.availableControllers = availableControllers }
         // `subtitle` resolves against the controller list; notify so the title refreshes.
         self.subtitleSubject.send()
 
@@ -405,7 +412,7 @@ public class GameControllerNode: Node
                 savedControllerInfo = nil
             }
             self.synchronizePorts(to: [])
-            _settingsModelStorage?.outputPortCount = outputPorts().count
+            MainActor.assumeIsolated { _settingsModelStorage?.outputPortCount = outputPorts().count }
             updateSubscription()
             updateControllerStatus()
             return
@@ -431,7 +438,7 @@ public class GameControllerNode: Node
         }
 
         self.synchronizePorts(to: descriptors)
-        _settingsModelStorage?.outputPortCount = outputPorts().count
+        MainActor.assumeIsolated { _settingsModelStorage?.outputPortCount = outputPorts().count }
         updateSubscription()
         updateControllerStatus()
     }
@@ -467,7 +474,7 @@ public class GameControllerNode: Node
             {
                 Self.log.error("\(controllerStatus.message, privacy: .public)")
             }
-            _settingsModelStorage?.controllerStatus = controllerStatus
+            MainActor.assumeIsolated { _settingsModelStorage?.controllerStatus = controllerStatus }
             self.subtitleSubject.send()
         }
     }
