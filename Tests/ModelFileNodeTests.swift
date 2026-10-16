@@ -50,6 +50,24 @@ private let triangleOBJ = """
     f 1 2 3
     """
 
+/// A triangle under a parent that moves it 5 along x.
+private let translatedTriangleUSDA = """
+    #usda 1.0
+
+    def Xform "Root"
+    {
+        double3 xformOp:translate = (5, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+
+        def Mesh "Triangle"
+        {
+            int[] faceVertexCounts = [3]
+            int[] faceVertexIndices = [0, 1, 2]
+            point3f[] points = [(0, 0, 0), (1, 0, 0), (0, 1, 0)]
+        }
+    }
+    """
+
 private func modelFile(named fileName: String, contents: String) throws -> URL
 {
     let directoryURL = FileManager.default.temporaryDirectory
@@ -81,6 +99,19 @@ struct ModelMeshNodeStatusTests
 
         #expect(node.deriveStatuses().isEmpty)
         #expect(node.getObject() != nil)
+    }
+
+    @Test("A part keeps the placement its file gives it", arguments: ModelFileNodeKind.allCases)
+    func aPartKeepsItsPlacement(kind: ModelFileNodeKind) throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let node = kind.makeNode(context: harness.context)
+
+        load(try modelFile(named: "translated.usda", contents: translatedTriangleUSDA), into: node)
+
+        let meshes = try #require(node.getObject()).getChildren(true).compactMap { $0 as? Mesh }
+        #expect(meshes.isEmpty == false)
+        #expect(meshes.allSatisfy { $0.localMatrix.columns.3 == simd_float4(5, 0, 0, 1) })
     }
 
     @Test("A file of a type ModelIO cannot import is the node's error",
