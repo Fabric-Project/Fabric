@@ -459,7 +459,7 @@ private struct ScreenCaptureProviderNodeSettingsView: View
             else
             {
                 Text("Nothing to report.")
-                    .font(.system(size: 10))
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
