@@ -23,6 +23,8 @@ As you can see in the image above, `Nodes` have inputs and outputs depending on 
 
 You can peruse the complete set of Nodes Fabric supports in the code base, or get an overview via our [Nodes Reference](https://github.com/Fabric-Project/Fabric/blob/main/NODES.md)
 
+The command buffer handed to `execute` is always an `MPSCommandBuffer`: `GraphRenderer` and `GraphExportRenderer` wrap it once, where they create it, before any node sees it. Nodes may encode Metal Performance Shaders work on it, including `MPSGraphExecutable.encode(to:)`, which may call `commitAndContinue()`. Nodes must never wrap it in another `MPSCommandBuffer`, and never commit it: the renderer owns it and commits it once per frame.
+
 ### Ports
 
 `Ports` in Fabric represent specific types of data a `Node` can `Produce`, `Process` or `Consume`. 

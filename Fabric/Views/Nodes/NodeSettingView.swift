@@ -33,12 +33,17 @@ struct NodeSettingView: View
                 .controlSize(.small)
             }
 
-            Spacer()
-
+            // The wrapper owns sizing: every node's settings content gets the
+            // same small controls and matching text, and sits directly under
+            // the header. Settings content sets neither itself.
             if nodeViewModel.providesSettingsView()
             {
                 nodeViewModel.settingsView()
+                    .controlSize(.small)
+                    .font(.subheadline)
             }
+
+            Spacer()
         }
         .padding()
         .frame(width: size.width, height: size.height)
