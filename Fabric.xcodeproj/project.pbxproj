@@ -38,14 +38,14 @@
 		1BB12B412E0251B20075C276 /* libswiftObjectiveC.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libswiftObjectiveC.tbd; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.4.sdk/usr/lib/swift/libswiftObjectiveC.tbd; sourceTree = DEVELOPER_DIR; };
 		1BB12B422E0251BE0075C276 /* libobjc.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libobjc.tbd; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.4.sdk/usr/lib/libobjc.tbd; sourceTree = DEVELOPER_DIR; };
 		1BB12B472E0267420075C276 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.4.sdk/System/Library/Frameworks/Accelerate.framework; sourceTree = DEVELOPER_DIR; };
+		1BC0A0F12FA000010000C0F1 /* Fabric Editor.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Fabric Editor.xcconfig"; sourceTree = "<group>"; };
+		1BC0A0F22FA000010000C0F1 /* Local.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text; path = Local.xcconfig.example; sourceTree = "<group>"; };
 		1BD9EE242EF2004E0075D951 /* MetalFX.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalFX.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.1.sdk/System/Library/Frameworks/MetalFX.framework; sourceTree = DEVELOPER_DIR; };
 		1BE007222DBB1FBC0061EAFD /* Fabric Editor.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Fabric Editor.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1BE00A5B2DC936A50061EAFD /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		1BE00A5C2DC936A50061EAFD /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		1BE00A5F2DC936AC0061EAFD /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
 		1BE00A602DC936AC0061EAFD /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
-		1BC0A0F12FA000010000C0F1 /* Fabric Editor.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Fabric Editor.xcconfig"; sourceTree = "<group>"; };
-		1BC0A0F22FA000010000C0F1 /* Local.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text; path = Local.xcconfig.example; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -87,6 +87,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		1BC0A0F32FA000010000C0F1 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				1BC0A0F12FA000010000C0F1 /* Fabric Editor.xcconfig */,
+				1BC0A0F22FA000010000C0F1 /* Local.xcconfig.example */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
 		1BE007192DBB1FBC0061EAFD = {
 			isa = PBXGroup;
 			children = (
@@ -121,15 +130,6 @@
 				1BE00A5C2DC936A50061EAFD /* Foundation.framework */,
 			);
 			name = Frameworks;
-			sourceTree = "<group>";
-		};
-		1BC0A0F32FA000010000C0F1 /* Config */ = {
-			isa = PBXGroup;
-			children = (
-				1BC0A0F12FA000010000C0F1 /* Fabric Editor.xcconfig */,
-				1BC0A0F22FA000010000C0F1 /* Local.xcconfig.example */,
-			);
-			path = Config;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
