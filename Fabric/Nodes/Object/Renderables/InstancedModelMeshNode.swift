@@ -9,7 +9,6 @@ import Foundation
 import Satin
 import simd
 import Metal
-import MetalKit
 
 public class InstancedModelMeshNode : InstancedMeshNode
 {
@@ -31,7 +30,7 @@ public class InstancedModelMeshNode : InstancedMeshNode
         [
             ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the 3D model file to load"))),
             ("inputTime", ParameterPort(parameter: FloatParameter("Time", 0.0, .inputfield, "Seconds from the start of the model's animation; held at the first or last pose outside it"))),
-            ("outputDuration", NodePort<Float>(name: "Duration", kind: .Outlet, description: "Length of the model's animation in seconds; 0 when it has none")),
+            ("outputDuration", NodePort<Float>(name: "Duration", kind: .Outlet, description: "Length of the model's animation in seconds; 0 when it doesn't move, no value without a model")),
         ]
     }
 
@@ -39,13 +38,14 @@ public class InstancedModelMeshNode : InstancedMeshNode
     public var inputTime:ParameterPort<Float>  { port(named: "inputTime") }
     public var outputDuration:NodePort<Float>  { port(named: "outputDuration") }
     
-    private var textureLoader:MTKTextureLoader
-    private var url: URL? = nil
+    private let modelLoader = ModelFileLoader(instanced: true)
 
     override public func getObject() -> Object? {
         return model
     }
     
+    override public func deriveStatuses() -> [NodeStatus] { modelLoader.status.map { [$0] } ?? [] }
+
     /// The loaded model's skeletons and animated objects; nil when nothing in it moves.
     private var animation: AssetAnimation? = nil
 
@@ -58,49 +58,20 @@ public class InstancedModelMeshNode : InstancedMeshNode
         }
     }
     
-    public required init(context: Context)
-    {
-        self.textureLoader = MTKTextureLoader(device: context.device)
-        super.init(context: context)
-    }
-    
-    public required init(from decoder: any Decoder) throws
-    {
-        guard let decodeContext = decoder.context else
-        {
-            fatalError("Required Decode Context Not set")
-        }
-
-        self.textureLoader = MTKTextureLoader(device: decodeContext.documentContext.device)
-
-        try super.init(from: decoder)
-
-        // External resource availability is runtime state. The hydrated port
-        // remains changed so the first execution attempts the load.
-    }
-    
     override public func evaluate(object: Object?, atTime: TimeInterval) -> Bool
     {
         var shouldOutput = super.evaluate(object: object, atTime: atTime)
         
         if self.inputCastsShadow.valueDidChange
+            || self.inputCullingMode.valueDidChange
+            || self.inputDoubleSided.valueDidChange
         {
-            self.updateLightingOnSubmeshes()
-            shouldOutput = true
-        }
-        
-        if self.inputCullingMode.valueDidChange
-        {
-            self.updateCullingOnSubmeshes()
+            object?.setModelMeshState(castsShadow: self.inputCastsShadow.value ?? true,
+                                      cullMode: self.cullMode(),
+                                      doubleSided: self.inputDoubleSided.value ?? false)
             shouldOutput = true
         }
 
-        if self.inputDoubleSided.valueDidChange
-        {
-            self.updateDoubleSidedOnSubmeshes()
-            shouldOutput = true
-        }
-        
         return shouldOutput
     }
     
@@ -120,7 +91,7 @@ public class InstancedModelMeshNode : InstancedMeshNode
         {
             let _ = self.evaluate(object: model, atTime: executionInfo.timing.time)
 
-            let timeChanged = self.inputTime.valueDidChange || self.inputFilePathParam.valueDidChange
+            let timeChanged = self.inputTime.valueDidChange
             if timeChanged, let animation = self.animation
             {
                 let start = animation.timeRange?.lowerBound ?? 0
@@ -155,112 +126,41 @@ public class InstancedModelMeshNode : InstancedMeshNode
         }
     }
     
-    private func loadModelFromInputValue() throws
+    internal func loadModelFromInputValue() throws
     {
-        if let path = self.inputFilePathParam.value,
-           path.isEmpty == false
+        let statusBefore = self.status
+
+        let outcome = self.modelLoader.load(path: self.inputFilePathParam.value, for: self)
+
+        if self.status != statusBefore
         {
-            guard let url = self.graph?.resolveFileReference(path)
-                ?? DocumentFileReference.resolve(path, relativeTo: nil) else
+            self.subtitleSubject.send()
+        }
+
+        switch outcome
+        {
+        case .unchanged:
+            break
+
+        case .loaded(let object, let animation):
+            self.animation = animation
+            self.model = object
+            self.outputDuration.send(animation?.timeRange.map { Float($0.upperBound - $0.lowerBound) } ?? 0)
+
+            // As in ModelMeshNode: every inlet applies to a new model,
+            // Transforms included.
+            for port in self.ports where port.kind == .Inlet
             {
-                self.animation = nil
-                self.model = nil
-                throw FabricError(.execution(.fileNotFound),
-                                  severity: .recoverable,
-                                  message: "Model file path is invalid: \(path)")
+                port.valueDidChange = true
             }
 
-            guard self.url != url else { return }
+            self.markDirty()
 
-            self.url = url
-
-            if FileManager.default.fileExists(atPath: url.standardizedFileURL.path(percentEncoded: false))
-            {
-                // An animated model keeps its hierarchy, since animated objects and skeleton
-                // anchors move the meshes within it; a still one is flattened.
-                let loadedAsset = loadAnimatedAsset(url: url, context: self.context, textureLoader: self.textureLoader, instanced: true)
-                let root = loadedAsset.animation == nil ? Object.flatten(loadedAsset.root) : loadedAsset.root
-
-                if root.getChildren(true).contains(where: { $0 is InstancedMesh })
-                {
-                    self.animation = loadedAsset.animation
-                    self.model = root
-
-                    if let timeRange = loadedAsset.animation?.timeRange
-                    {
-                        self.outputDuration.send(Float(timeRange.upperBound - timeRange.lowerBound))
-                    }
-                    else
-                    {
-                        self.outputDuration.send(0)
-                    }
-
-                    self.placeInstances()
-                }
-                else
-                {
-                    self.animation = nil
-                    self.model = nil
-                    throw FabricError(.execution(.failed),
-                                      severity: .recoverable,
-                                      message: "Could not load instanced model file: \(url.path)")
-                }
-                
-                
-                self.updateLightingOnSubmeshes()
-                self.updateCullingOnSubmeshes()
-                self.updateDoubleSidedOnSubmeshes()
-            }
-            else
-            {
-                self.animation = nil
-                self.model = nil
-                throw FabricError(.execution(.fileNotFound),
-                                  severity: .recoverable,
-                                  message: "Model file not found: \(url.path)")
-            }
+        case .noModel(let error):
+            self.animation = nil
+            self.model = nil
+            self.outputDuration.send(nil)
+            if let error { throw error }
         }
     }
-    
-    private func updateLightingOnSubmeshes()
-    {
-        self.model?.getChildren(true).forEach { child in
-            
-            if let subMesh = child as? Mesh,
-               let castShadow = self.inputCastsShadow.value,
-               let receiveShadow = self.inputCastsShadow.value
-            {
-                subMesh.material?.lighting = true
-                subMesh.castShadow = castShadow
-                subMesh.receiveShadow = receiveShadow
-            }
-        }
-    }
-    
-    private func updateCullingOnSubmeshes()
-    {
-        let cullMode = self.cullMode()
-        
-        self.model?.getChildren(true).forEach { child in
-            
-            if let subMesh = child as? Mesh
-            {
-                subMesh.cullMode = cullMode
-            }
-        }
-    }
-
-    private func updateDoubleSidedOnSubmeshes()
-    {
-        let doubleSided = self.inputDoubleSided.value ?? false
-
-        self.model?.getChildren(true).forEach { child in
-
-            if let subMesh = child as? Mesh
-            {
-                subMesh.doubleSided = doubleSided
-            }
-        }
-    }
-
 }
