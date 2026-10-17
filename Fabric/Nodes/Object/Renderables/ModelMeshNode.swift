@@ -30,7 +30,7 @@ public class ModelMeshNode : MeshNode
         [
             ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the 3D model file to load"))),
             ("inputTime", ParameterPort(parameter: FloatParameter("Time", 0.0, .inputfield, "Seconds from the start of the model's animation; held at the first or last pose outside it"))),
-            ("outputDuration", NodePort<Float>(name: "Duration", kind: .Outlet, description: "Length of the model's animation in seconds; 0 when it has none")),
+            ("outputDuration", NodePort<Float>(name: "Duration", kind: .Outlet, description: "Length of the model's animation in seconds; 0 when it doesn't move, no value without a model")),
         ]
     }
 
@@ -123,7 +123,7 @@ public class ModelMeshNode : MeshNode
         case .noModel(let error):
             self.animation = nil
             self.model = nil
-            self.outputDuration.send(0)
+            self.outputDuration.send(nil)
             if let error { throw error }
         }
     }

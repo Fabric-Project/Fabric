@@ -245,7 +245,7 @@ struct ModelMeshNodeStatusTests
         #expect(node.deriveStatuses().isEmpty)
     }
 
-    @Test("Clearing the path, a missing file or a file with no mesh sets Duration to 0",
+    @Test("Clearing the path, a missing file or a file with no mesh leaves Duration with no value",
           arguments: ModelFileNodeKind.allCases, ["", "missing.usda", "empty.obj"])
     func noModelHasNoDuration(kind: ModelFileNodeKind, nextFileName: String) throws
     {
@@ -268,7 +268,7 @@ struct ModelMeshNodeStatusTests
         }
 
         #expect(node.getObject() == nil)
-        #expect(node.outputDuration.value == 0)
+        #expect(node.outputDuration.value == nil)
     }
 
     @Test("Naming the same file again after it failed retries the load", arguments: ModelFileNodeKind.allCases)
