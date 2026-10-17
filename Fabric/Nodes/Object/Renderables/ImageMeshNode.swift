@@ -57,6 +57,9 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
 
         self.material.setup()
         self.mesh.doubleSided = true
+        self.mesh.material?.blending = .alpha
+        self.mesh.material?.depthWriteEnabled = false
+        self.mesh.material?.depthCompareFunction = .always
     }
 
     public required init(from decoder: any Decoder) throws
@@ -74,6 +77,10 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
 
         self.material.setup()
         self.mesh.doubleSided = true
+        self.mesh.material?.blending = .alpha
+        self.mesh.material?.depthWriteEnabled = false
+        self.mesh.material?.depthCompareFunction = .always
+        
     }
 
     override public func execute(renderer:GraphRenderer,
