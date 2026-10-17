@@ -47,17 +47,6 @@ final class ModelFileLoader
 
     func load(path: String?, for node: Node) -> Outcome
     {
-        let statusBefore = self.status
-        let outcome = self.outcome(path: path, for: node)
-        if self.status != statusBefore
-        {
-            node.subtitleSubject.send()
-        }
-        return outcome
-    }
-
-    private func outcome(path: String?, for node: Node) -> Outcome
-    {
         guard let path, path.isEmpty == false else
         {
             self.loadedURL = nil

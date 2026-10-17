@@ -100,7 +100,16 @@ public class ModelMeshNode : MeshNode
     
     internal func loadModelFromInputValue() throws
     {
-        switch self.modelLoader.load(path: self.inputFilePathParam.value, for: self)
+        let statusBefore = self.status
+
+        let outcome = self.modelLoader.load(path: self.inputFilePathParam.value, for: self)
+
+        if self.status != statusBefore
+        {
+            self.subtitleSubject.send()
+        }
+
+        switch outcome
         {
         case .unchanged:
             break
