@@ -8,7 +8,7 @@
 
 #include "../../lygia/sampler.msl"
 #include "../../lygia/sdf/opUnion.msl"
-#include "../../Shaders/FabricImageTextureTransform.metal"
+#include "../../Shaders/fabric/FabricImageTextureTransform.metal"
 
 
 typedef struct {

@@ -12,7 +12,7 @@
 #include "../../lygia/sampler.msl"
 #include "../../lygia/sample/clamp2edge.msl"
 #include "../../lygia/space/linearizeDepth.msl"
-#include "../../Shaders/FabricImageTextureTransform.metal"
+#include "../../Shaders/fabric/FabricImageTextureTransform.metal"
 
 typedef struct {
     float near; // input, Near

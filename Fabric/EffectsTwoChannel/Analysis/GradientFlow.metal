@@ -14,7 +14,7 @@ using namespace metal;
 #define SAMPLER_TYPE texture2d<half>
 #include "../../lygia/sampler.msl"
 #include "../../lygia/color/luminance.msl"
-#include "../../Shaders/FabricImageTextureTransform.metal"
+#include "../../Shaders/fabric/FabricImageTextureTransform.metal"
 
 struct PostUniforms {
     float2 scale; // slider, 0.0, 10.0, 0.0, Scale

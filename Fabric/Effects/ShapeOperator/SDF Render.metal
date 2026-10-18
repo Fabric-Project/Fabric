@@ -10,7 +10,7 @@
 #include "../../lygia/draw/fill.msl"
 #include "../../lygia/draw/stroke.msl"
 #include "../../lygia/sdf/opOnion.msl"
-#include "../../Shaders/FabricImageTextureTransform.metal"
+#include "../../Shaders/fabric/FabricImageTextureTransform.metal"
 
 typedef struct {
     float4 fillColor; // color,  Fill Color

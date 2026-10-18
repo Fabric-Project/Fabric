@@ -11,7 +11,7 @@
 #include "../../lygia/draw/stroke.msl"
 #include "../../lygia/space/sqTile.msl"
 #include "../../lygia/sdf/opRepeat.msl"
-#include "../../Shaders/FabricImageTextureTransform.metal"
+#include "../../Shaders/fabric/FabricImageTextureTransform.metal"
 
 typedef struct {
     float tile; // slider, 1.0, 20.0, 1.0, Tile Size

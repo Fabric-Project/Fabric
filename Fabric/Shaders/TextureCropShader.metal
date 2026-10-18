@@ -1,5 +1,5 @@
 #include <metal_stdlib>
-#include "FabricImageTextureTransform.metal"
+#include "fabric/FabricImageTextureTransform.metal"
 
 using namespace metal;
 

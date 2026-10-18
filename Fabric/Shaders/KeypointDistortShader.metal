@@ -11,7 +11,7 @@ using namespace metal;
 #define SAMPLER_TYPE texture2d<half>
 
 #include "../lygia/sampler.msl"
-#include "FabricImageTextureTransform.metal"
+#include "fabric/FabricImageTextureTransform.metal"
 
 // Input Uniform Buffer Struct type for our 2 Keypoint Buffers
 struct KeypointUV {

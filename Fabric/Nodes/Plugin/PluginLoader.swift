@@ -168,11 +168,14 @@ public final class PluginLoader
 
         let bundle = Bundle.module
 
-        // Satin resolves `lygia/…` includes against this root when a shader's
-        // own relative path misses — external plugins' shaders have no lygia
-        // beside them, and only Fabric knows where its tree ships.
-        if let lygiaRoot = bundle.resourceURL?.appending(path: "lygia") {
-            shaderIncludeRootURLs.append(lygiaRoot)
+        // Satin resolves `lygia/…` and `fabric/…` includes against these roots
+        // when a shader's own relative path misses — external plugins' shaders
+        // have neither tree beside them, and only Fabric knows where they ship.
+        // `fabric/` holds the helpers image shaders share, such as
+        // `fabricTextureCoordinate` for applying `imageTransforms`.
+        if let resourceURL = bundle.resourceURL {
+            shaderIncludeRootURLs.append(resourceURL.appending(path: "lygia"))
+            shaderIncludeRootURLs.append(resourceURL.appending(path: "Shaders/fabric"))
         }
         // Core nodes are compiled into Fabric so Swift Package consumers only
         // need to depend on the Fabric product. Registration still flows

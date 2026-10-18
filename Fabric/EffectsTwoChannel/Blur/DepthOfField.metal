@@ -19,7 +19,7 @@
 #include "../../lygia/sample/clamp2edge.msl"
 #include "../../lygia/sampler.msl"
 #include "../../lygia/sample/dof.msl"
-#include "../../Shaders/FabricImageTextureTransform.metal"
+#include "../../Shaders/fabric/FabricImageTextureTransform.metal"
 
 typedef struct {
     float focusPoint; // slider, 0.0, 1.0, 0.0, Focus

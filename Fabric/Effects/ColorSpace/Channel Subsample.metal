@@ -6,7 +6,7 @@
 //
 
 #include <metal_stdlib>
-#include "../../Shaders/FabricImageTextureTransform.metal"
+#include "../../Shaders/fabric/FabricImageTextureTransform.metal"
 using namespace metal;
 
 typedef struct {

@@ -12,7 +12,7 @@
 
 #include "../../lygia/sampler.msl"
 #include "../../lygia/filter/edge/sobel.msl"
-#include "../../Shaders/FabricImageTextureTransform.metal"
+#include "../../Shaders/fabric/FabricImageTextureTransform.metal"
 
 
 typedef struct {
