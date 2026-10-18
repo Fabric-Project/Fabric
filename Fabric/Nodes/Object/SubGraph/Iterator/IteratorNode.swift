@@ -63,8 +63,8 @@ public class IteratorNode: SubgraphNode
             return
         }
 
-        var subgraphObjects = objectsInSubgraph()
-        var renderableChildren = renderables(in: subgraphObjects)
+        var subgraphIndex = subGraph.scene.sceneIndex
+        var renderableChildren = renderables(in: subgraphIndex)
         
         prepareRepeatedEncodingIfNeeded( renderables: renderableChildren,
                                          count: iterationCount)
@@ -90,17 +90,19 @@ public class IteratorNode: SubgraphNode
                 subGraph.syncNodesToScene()
             }
             
-            subgraphObjects = objectsInSubgraph()
-            renderableChildren = renderables(in: subgraphObjects)
+            subgraphIndex = subGraph.scene.sceneIndex
+            renderableChildren = renderables(in: subgraphIndex)
             
             prepareRepeatedEncodingIfNeeded(
                 renderables: renderableChildren,
                 count: iterationCount
             )
 
-            for object in subgraphObjects {
-                object.update()
-                object.encode(commandBuffer)
+            subGraph.scene.update()
+            subGraph.scene.encode(commandBuffer)
+            for entry in subgraphIndex.entries {
+                entry.object.update()
+                entry.object.encode(commandBuffer)
             }
 
             for renderable in renderableChildren {
@@ -141,10 +143,6 @@ public class IteratorNode: SubgraphNode
         self.forwardPortValues(force:true)
     }
 
-    private func objectsInSubgraph() -> [Object] {
-        [subGraph.scene] + subGraph.scene.getChildren()
-    }
-
     private func resolvedIterationCount() -> Int {
         for connection in inputIteratonCount.connectedOutlets {
             if let port = connection as? NodePort<Int>,
@@ -163,8 +161,10 @@ public class IteratorNode: SubgraphNode
         return inputIteratonCount.value ?? 1
     }
 
-    private func renderables(in objects: [Object]) -> [Renderable] {
-        objects.compactMap { $0 as? Renderable }
+    /// The subgraph scene's renderables, its root included, in the scene's order.
+    private func renderables(in subgraphIndex: SceneIndex) -> [Renderable] {
+        guard let sceneRenderable = subGraph.scene as? Renderable else { return subgraphIndex.renderables }
+        return [sceneRenderable] + subgraphIndex.renderables
     }
 
     private func prepareRepeatedEncodingIfNeeded(
