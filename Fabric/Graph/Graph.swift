@@ -560,8 +560,9 @@ internal import AnyCodable
         }
     }
 
-    /// Rewrites static file references at save time, preserving their targets
-    /// when the document acquires a location or is saved to a different directory.
+    /// Rewrites absolute static file references at save time, making those
+    /// inside the document directory relative. Relative references persist as
+    /// written, wherever the document is saved.
     public func rewriteFileReferences(relativeTo directoryURL: URL?)
     {
         for node in self.nodes
@@ -573,6 +574,7 @@ internal import AnyCodable
                       filePort.parameter?.controlType == .filepicker,
                       filePort.connectedOutlets.isEmpty,
                       let reference = filePort.value,
+                      DocumentFileReference.isAbsolute(reference),
                       let sourceURL = self.resolveFileReference(reference)
                 else { continue }
 

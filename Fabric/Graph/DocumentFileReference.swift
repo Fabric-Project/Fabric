@@ -9,10 +9,17 @@ import Foundation
 ///
 /// Saved graphs use paths relative to the document directory for files inside
 /// it, which travel with the document. Files outside it, and every file in an
-/// unsaved graph, keep absolute file URLs. Persisting a String preserves
+/// unsaved graph, keep absolute file URLs. A relative path is the user's to
+/// write, so it persists as written. Persisting a String preserves
 /// compatibility with existing graphs and String connections.
 public enum DocumentFileReference
 {
+    /// A file URL or filesystem path, as opposed to a path relative to the document directory.
+    public static func isAbsolute(_ reference: String) -> Bool
+    {
+        reference.hasPrefix("file://") || reference.hasPrefix("/")
+    }
+
     public static func reference(for fileURL: URL, relativeTo directoryURL: URL?) -> String
     {
         let absoluteReference = fileURL.standardizedFileURL.absoluteString

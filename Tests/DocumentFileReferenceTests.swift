@@ -115,8 +115,8 @@ struct DocumentFileReferenceTests
         #expect(node.inputFilePathParam.value == "")
     }
 
-    @Test("Save As preserves targets throughout nested graphs")
-    func saveAsRebasesNestedReferences() throws
+    @Test("Save As keeps relative references as written throughout nested graphs")
+    func saveAsKeepsNestedRelativeReferences() throws
     {
         guard let harness = GraphExecutionTestHarness() else { return }
         let oldDirectory = URL(filePath: "/tmp/Project", directoryHint: .isDirectory)
@@ -130,17 +130,49 @@ struct DocumentFileReferenceTests
         graph.rewriteFileReferences(relativeTo: oldDirectory)
         #expect(loader.inputFilePathParam.value == "Assets/source.txt")
 
-        let sourceURL = oldDirectory.appending(path: "Assets/source.txt")
         graph.rewriteFileReferences(relativeTo: newDirectory)
-        #expect(loader.inputFilePathParam.value == sourceURL.absoluteString)
+        #expect(loader.inputFilePathParam.value == "Assets/source.txt")
         #expect(subgraphNode.subGraph.fileReferenceBaseURL == newDirectory)
         #expect(subgraphNode.subGraph.resolveFileReference(try #require(loader.inputFilePathParam.value))
-            == sourceURL)
-        graph.rewriteFileReferences(relativeTo: newDirectory)
-        #expect(loader.inputFilePathParam.value == sourceURL.absoluteString)
+            == newDirectory.appending(path: "Assets/source.txt"))
+    }
 
-        graph.rewriteFileReferences(relativeTo: oldDirectory)
-        #expect(loader.inputFilePathParam.value == "Assets/source.txt")
+    @Test("Entered relative paths persist as written")
+    func enteredRelativePathsPersist() throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let directoryURL = URL(filePath: "/tmp/Project/Graphs", directoryHint: .isDirectory)
+        let graph = Graph(context: harness.context, fileReferenceBaseURL: directoryURL)
+        let node = TextFileLoaderNode(context: harness.context)
+        graph.addNode(node)
+
+        for reference in ["../Shared/source.txt", "./Assets/source.txt", "Assets/../source.txt"]
+        {
+            node.inputFilePathParam.value = reference
+            node.normalizeFileReference(node.inputFilePathParam)
+            graph.rewriteFileReferences(relativeTo: directoryURL)
+            #expect(node.inputFilePathParam.value == reference)
+            graph.rewriteFileReferences(relativeTo: directoryURL.appending(path: "Versions"))
+            #expect(node.inputFilePathParam.value == reference)
+            graph.rewriteFileReferences(relativeTo: directoryURL)
+        }
+    }
+
+    @Test("An absolute path becomes relative once its file is within the document directory")
+    func absolutePathBecomesRelativeWhenContained() throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let directoryURL = URL(filePath: "/tmp/Project", directoryHint: .isDirectory)
+        let sourceURL = directoryURL.appending(path: "Assets/source.txt")
+        let graph = Graph(context: harness.context)
+        let node = TextFileLoaderNode(context: harness.context)
+        graph.addNode(node)
+        node.inputFilePathParam.value = sourceURL.path
+
+        graph.rewriteFileReferences(relativeTo: directoryURL.appending(path: "Versions"))
+        #expect(node.inputFilePathParam.value == sourceURL.absoluteString)
+        graph.rewriteFileReferences(relativeTo: directoryURL)
+        #expect(node.inputFilePathParam.value == "Assets/source.txt")
     }
 
     @Test("Reopening a moved project retains its relative references")
