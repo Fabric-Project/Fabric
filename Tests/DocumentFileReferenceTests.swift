@@ -29,8 +29,8 @@ struct DocumentFileReferenceTests
         #expect(DocumentFileReference.resolve("Assets/My Image.png", relativeTo: nil) == nil)
     }
 
-    @Test("Relative paths include parent directories and preserve literal filename characters")
-    func relativePathRoundTrips()
+    @Test("References round-trip and preserve literal filename characters")
+    func referencesRoundTrip()
     {
         let directoryURL = URL(filePath: "/tmp/Project/Graphs", directoryHint: .isDirectory)
         for path in ["/tmp/Project/Graphs/Assets/image.png", "/tmp/Project/Shared/My #100% image.png",
@@ -40,8 +40,24 @@ struct DocumentFileReferenceTests
             let reference = DocumentFileReference.reference(for: sourceURL, relativeTo: directoryURL)
             #expect(DocumentFileReference.resolve(reference, relativeTo: directoryURL)?.path == sourceURL.path)
         }
-        #expect(DocumentFileReference.reference(for: URL(filePath: "/tmp/Project/Shared/image.png"),
-                                                   relativeTo: directoryURL) == "../Shared/image.png")
+    }
+
+    @Test("Only files within the document directory are relative")
+    func onlyContainedFilesAreRelative()
+    {
+        let directoryURL = URL(filePath: "/tmp/Project/Graphs", directoryHint: .isDirectory)
+        func reference(_ path: String) -> String
+        {
+            DocumentFileReference.reference(for: URL(filePath: path), relativeTo: directoryURL)
+        }
+
+        #expect(reference("/tmp/Project/Graphs/image.png") == "image.png")
+        #expect(reference("/tmp/Project/Graphs/Assets/image.png") == "Assets/image.png")
+        #expect(reference("/tmp/Project/Graphs") == ".")
+        #expect(reference("/tmp/Project/Shared/image.png") == "file:///tmp/Project/Shared/image.png")
+        #expect(reference("/tmp/Project/image.png") == "file:///tmp/Project/image.png")
+        #expect(reference("/tmp/Project/Graphs Old/image.png") == "file:///tmp/Project/Graphs%20Old/image.png")
+        #expect(reference("/Volumes/Media/movie.mov") == "file:///Volumes/Media/movie.mov")
     }
 
     @Test("First save rewrites live ports and parameters and persists relative references")
@@ -87,7 +103,7 @@ struct DocumentFileReferenceTests
         node.inputFilePathParam.value = "/tmp/shared.txt"
         #expect(node.inputFilePathParam.value == "/tmp/shared.txt")
         graph.rewriteFileReferences(relativeTo: directoryURL)
-        #expect(node.inputFilePathParam.value == "../shared.txt")
+        #expect(node.inputFilePathParam.value == "file:///tmp/shared.txt")
         let parameter = try #require(node.inputFilePathParam.parameter as? GenericParameter<String>)
         let pickedURL = directoryURL.appending(path: "Picked #1.txt")
         parameter.value = pickedURL.absoluteString
@@ -114,13 +130,17 @@ struct DocumentFileReferenceTests
         graph.rewriteFileReferences(relativeTo: oldDirectory)
         #expect(loader.inputFilePathParam.value == "Assets/source.txt")
 
+        let sourceURL = oldDirectory.appending(path: "Assets/source.txt")
         graph.rewriteFileReferences(relativeTo: newDirectory)
-        #expect(loader.inputFilePathParam.value == "../Assets/source.txt")
+        #expect(loader.inputFilePathParam.value == sourceURL.absoluteString)
         #expect(subgraphNode.subGraph.fileReferenceBaseURL == newDirectory)
         #expect(subgraphNode.subGraph.resolveFileReference(try #require(loader.inputFilePathParam.value))
-            == oldDirectory.appending(path: "Assets/source.txt"))
+            == sourceURL)
         graph.rewriteFileReferences(relativeTo: newDirectory)
-        #expect(loader.inputFilePathParam.value == "../Assets/source.txt")
+        #expect(loader.inputFilePathParam.value == sourceURL.absoluteString)
+
+        graph.rewriteFileReferences(relativeTo: oldDirectory)
+        #expect(loader.inputFilePathParam.value == "Assets/source.txt")
     }
 
     @Test("Reopening a moved project retains its relative references")
