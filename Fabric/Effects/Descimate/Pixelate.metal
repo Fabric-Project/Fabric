@@ -13,7 +13,7 @@
 
 // From Satin, not Lygia FWIW
 #include "Library/Repeat.metal"
-#include "../../Shaders/FabricImageTextureTransform.metal"
+#include "../../Shaders/fabric/FabricImageTextureTransform.metal"
 
 
 typedef struct {

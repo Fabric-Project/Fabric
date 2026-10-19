@@ -88,6 +88,23 @@ public final class PluginMain: NSObject, FabricPlugin
 }
 ```
 
+## Shaders
+
+A plugin's image node can subclass `BaseImageNode` and point `sourceShaderURL` at a `.metal` file in its own bundle; Fabric compiles it at runtime. Two include trees Fabric ships resolve from there, keyed by their leading path component:
+
+- `#include "lygia/…"` — Fabric's copy of lygia.
+- `#include "fabric/FabricImageTextureTransform.metal"` — the helpers Fabric's own image shaders use.
+
+An image is not always stored the right way up. Each input carries a texture transform, which `BaseImageNode` binds as `constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]]`, one per image input in port order, and the output is taken as already applied. Sample input *i* through it:
+
+```metal
+#include "fabric/FabricImageTextureTransform.metal"
+
+half4 color = tex0.sample(s, fabricTextureCoordinate(imageTransforms[0], in.texcoord));
+```
+
+Sampling `in.texcoord` directly shows a Syphon or Core Video input upside down.
+
 ## Discovery
 
 `NodeRegistry` transparently asks `PluginLoader` to load plugins on first use. The embedded core plugin is always loaded first.

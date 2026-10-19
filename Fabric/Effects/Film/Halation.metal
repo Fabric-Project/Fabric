@@ -9,7 +9,7 @@
 
 #include "../../lygia/sampler.msl"
 #include "../../lygia/color/blend.msl"
-#include "../../Shaders/FabricImageTextureTransform.metal"
+#include "../../Shaders/fabric/FabricImageTextureTransform.metal"
 
 typedef struct {
     float4 tint; // color, 1.0, 0.35, 0.12, 1.0, Tint

@@ -10,7 +10,7 @@ using namespace metal;
 #include "../../lygia/color/space/cmyk2rgb.msl"
 #include "../../lygia/color/space/rgb2cmyk.msl"
 #include "../../lygia/math/radians.msl"
-#include "../../Shaders/FabricImageTextureTransform.metal"
+#include "../../Shaders/fabric/FabricImageTextureTransform.metal"
 
 // Uniforms -> Fabric UI
 typedef struct {

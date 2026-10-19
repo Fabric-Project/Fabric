@@ -10,7 +10,7 @@
 
 #include "../../lygia/sampler.msl"
 #include "../../lygia/math/mod.msl"
-#include "../../Shaders/FabricImageTextureTransform.metal"
+#include "../../Shaders/fabric/FabricImageTextureTransform.metal"
 
 typedef struct {
     float amount; // slider, 0.00000001, 1.0, 0.05, Amount

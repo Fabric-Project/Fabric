@@ -8,7 +8,7 @@ using namespace metal;
 #define SAMPLER sampler( min_filter::linear, mag_filter::linear, address::mirrored_repeat )
 
 #include "../../lygia/sampler.msl"
-#include "../../Shaders/FabricImageTextureTransform.metal"
+#include "../../Shaders/fabric/FabricImageTextureTransform.metal"
 
 // Optional, only if you need it elsewhere
 // #include "Library/Repeat.metal"

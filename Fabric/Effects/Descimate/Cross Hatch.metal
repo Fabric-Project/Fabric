@@ -8,7 +8,7 @@ using namespace metal;
 
 #include "../../lygia/sampler.msl"
 #include "../../lygia/math/mod.msl"
-#include "../../Shaders/FabricImageTextureTransform.metal"
+#include "../../Shaders/fabric/FabricImageTextureTransform.metal"
 
 
 typedef struct {
