@@ -713,10 +713,10 @@ public extension NodeFileLoadingProtocol
         guard port.connectedOutlets.isEmpty,
               let directoryURL = self.graph?.fileReferenceBaseURL,
               let reference = port.value, reference.hasPrefix("file://"),
-              let url = DocumentFileReference.resolve(reference, relativeTo: directoryURL)
+              let url = URL(fileReference: reference, relativeTo: directoryURL)
         else { return }
 
-        let relativeReference = DocumentFileReference.reference(for: url, relativeTo: directoryURL)
+        let relativeReference = url.fileReference(relativeTo: directoryURL)
         if reference != relativeReference
         {
             port.value = relativeReference

@@ -49,7 +49,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     }
 
     public func setFileURL(_ url: URL) {
-        self.inputFilePathParam.value = DocumentFileReference.reference(for: url, relativeTo: self.graph?.fileReferenceBaseURL)
+        self.inputFilePathParam.value = url.fileReference(relativeTo: self.graph?.fileReferenceBaseURL)
     }
 
     override public class var name:String { "Movie Provider" }
@@ -561,8 +561,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
             return
         }
 
-        guard let inputURL = self.graph?.resolveFileReference(path)
-            ?? DocumentFileReference.resolve(path, relativeTo: nil) else
+        guard let inputURL = URL(fileReference: path, relativeTo: self.graph?.fileReferenceBaseURL) else
         {
             self.unloadCurrentAsset()
             throw FabricError(.execution(.fileNotFound),

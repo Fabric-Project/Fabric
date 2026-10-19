@@ -574,11 +574,11 @@ internal import AnyCodable
                       filePort.parameter?.controlType == .filepicker,
                       filePort.connectedOutlets.isEmpty,
                       let reference = filePort.value,
-                      DocumentFileReference.isAbsolute(reference),
-                      let sourceURL = self.resolveFileReference(reference)
+                      // Without a directory, only absolute references resolve.
+                      let sourceURL = URL(fileReference: reference, relativeTo: nil)
                 else { continue }
 
-                let rewrittenReference = DocumentFileReference.reference(for: sourceURL, relativeTo: directoryURL)
+                let rewrittenReference = sourceURL.fileReference(relativeTo: directoryURL)
                 if rewrittenReference != reference
                 {
                     filePort.value = rewrittenReference
@@ -592,16 +592,6 @@ internal import AnyCodable
         }
 
         self.updateFileReferenceBaseURL(directoryURL)
-    }
-
-    /// Resolves an absolute file URL, absolute filesystem path, or path relative
-    /// to the directory containing this graph's document.
-    public func resolveFileReference(_ reference: String,
-                                     directoryHint: URL.DirectoryHint = .inferFromPath) -> URL?
-    {
-        DocumentFileReference.resolve(reference,
-                                      relativeTo: self.fileReferenceBaseURL,
-                                      directoryHint: directoryHint)
     }
 
     

@@ -4,16 +4,16 @@ import Testing
 @testable import Fabric
 
 @Suite("Document File References")
-struct DocumentFileReferenceTests
+struct URLFileReferenceTests
 {
     @Test("Absolute file URLs and filesystem paths resolve without a document")
     func absoluteReferencesResolveWithoutDocument()
     {
         let expectedURL = URL(filePath: "/tmp/Fabric Asset.mov").standardizedFileURL
 
-        #expect(DocumentFileReference.resolve(expectedURL.absoluteString, relativeTo: nil) == expectedURL)
-        #expect(DocumentFileReference.resolve(expectedURL.path, relativeTo: nil) == expectedURL)
-        #expect(DocumentFileReference.reference(for: expectedURL, relativeTo: nil) == expectedURL.absoluteString)
+        #expect(URL(fileReference: expectedURL.absoluteString, relativeTo: nil) == expectedURL)
+        #expect(URL(fileReference: expectedURL.path, relativeTo: nil) == expectedURL)
+        #expect(expectedURL.fileReference(relativeTo: nil) == expectedURL.absoluteString)
     }
 
     @Test("Local paths resolve relative to the saved document directory")
@@ -24,9 +24,8 @@ struct DocumentFileReferenceTests
             .appending(path: "Assets/My Image.png")
             .standardizedFileURL
 
-        #expect(DocumentFileReference.resolve("Assets/My Image.png",
-                                              relativeTo: documentDirectoryURL) == expectedURL)
-        #expect(DocumentFileReference.resolve("Assets/My Image.png", relativeTo: nil) == nil)
+        #expect(URL(fileReference: "Assets/My Image.png", relativeTo: documentDirectoryURL) == expectedURL)
+        #expect(URL(fileReference: "Assets/My Image.png", relativeTo: nil) == nil)
     }
 
     @Test("References round-trip and preserve literal filename characters")
@@ -37,8 +36,8 @@ struct DocumentFileReferenceTests
                      "/Volumes/Media/movie.mov", "/tmp/Project/Graphs"]
         {
             let sourceURL = URL(filePath: path).standardizedFileURL
-            let reference = DocumentFileReference.reference(for: sourceURL, relativeTo: directoryURL)
-            #expect(DocumentFileReference.resolve(reference, relativeTo: directoryURL)?.path == sourceURL.path)
+            let reference = sourceURL.fileReference(relativeTo: directoryURL)
+            #expect(URL(fileReference: reference, relativeTo: directoryURL)?.path == sourceURL.path)
         }
     }
 
@@ -48,7 +47,7 @@ struct DocumentFileReferenceTests
         let directoryURL = URL(filePath: "/tmp/Project/Graphs", directoryHint: .isDirectory)
         func reference(_ path: String) -> String
         {
-            DocumentFileReference.reference(for: URL(filePath: path), relativeTo: directoryURL)
+            URL(filePath: path).fileReference(relativeTo: directoryURL)
         }
 
         #expect(reference("/tmp/Project/Graphs/image.png") == "image.png")
@@ -83,7 +82,7 @@ struct DocumentFileReferenceTests
         reopenedGraph.updateFileReferenceBaseURL(directoryURL)
         let reopenedNode = try #require(reopenedGraph.nodes.first as? TextFileLoaderNode)
         #expect(reopenedNode.inputFilePathParam.value == "Assets/source.txt")
-        #expect(reopenedGraph.resolveFileReference(try #require(reopenedNode.inputFilePathParam.value)) == sourceURL)
+        #expect(URL(fileReference: try #require(reopenedNode.inputFilePathParam.value), relativeTo: reopenedGraph.fileReferenceBaseURL) == sourceURL)
     }
 
     @Test("File loaders consume raw picker URLs and graph save handles other paths")
@@ -133,7 +132,7 @@ struct DocumentFileReferenceTests
         graph.rewriteFileReferences(relativeTo: newDirectory)
         #expect(loader.inputFilePathParam.value == "Assets/source.txt")
         #expect(subgraphNode.subGraph.fileReferenceBaseURL == newDirectory)
-        #expect(subgraphNode.subGraph.resolveFileReference(try #require(loader.inputFilePathParam.value))
+        #expect(URL(fileReference: try #require(loader.inputFilePathParam.value), relativeTo: subgraphNode.subGraph.fileReferenceBaseURL)
             == newDirectory.appending(path: "Assets/source.txt"))
     }
 
@@ -186,7 +185,7 @@ struct DocumentFileReferenceTests
         let movedDirectory = URL(filePath: "/tmp/Moved Project", directoryHint: .isDirectory)
         graph.updateFileReferenceBaseURL(movedDirectory)
         #expect(node.inputFilePathParam.value == "Assets/source.txt")
-        #expect(graph.resolveFileReference(try #require(node.inputFilePathParam.value))
+        #expect(URL(fileReference: try #require(node.inputFilePathParam.value), relativeTo: graph.fileReferenceBaseURL)
             == movedDirectory.appending(path: "Assets/source.txt"))
     }
 
@@ -266,7 +265,7 @@ struct DocumentFileReferenceTests
         #expect(decodedGraph.connections.count == 1)
 
         decodedGraph.updateFileReferenceBaseURL(rootURL)
-        #expect(decodedGraph.resolveFileReference("look.cube")
+        #expect(URL(fileReference: "look.cube", relativeTo: decodedGraph.fileReferenceBaseURL)
             == rootURL.appending(path: "look.cube").standardizedFileURL)
     }
 
