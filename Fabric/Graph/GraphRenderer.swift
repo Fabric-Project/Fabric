@@ -414,6 +414,9 @@ public class GraphRenderer : ViewRenderer
 
     private struct GraphExecutionPlanCache
     {
+        /// A plan holds its graph's nodes; a graph gone takes its plan with it
+        /// at the next plan made.
+        weak var graph: Graph?
         var graphID: UUID
         var connectionTopologyGeneration: Int
         var executionTopologyGeneration: Int
@@ -441,7 +444,9 @@ public class GraphRenderer : ViewRenderer
         }
 
         let nodesInExecutionOrder = buildNodesInExecutionOrder(for: graph)
+        executionPlanCaches = executionPlanCaches.filter { $0.value.graph != nil }
         executionPlanCaches[graphIdentifier] = GraphExecutionPlanCache(
+            graph: graph,
             graphID: graph.id,
             connectionTopologyGeneration: graph.connectionTopologyGeneration,
             executionTopologyGeneration: graph.executionTopologyGeneration,
