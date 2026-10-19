@@ -46,7 +46,7 @@ public class LUTProcessorNode : BaseImageNode
 
     override public func setFileURL(_ url: URL)
     {
-        self.inputFilePathParam.value = DocumentFileReference.reference(for: url, relativeTo: self.graph?.fileReferenceBaseURL)
+        self.inputFilePathParam.value = url.fileReference(relativeTo: self.graph?.fileReferenceBaseURL)
     }
     
     public required init(context: Context, fileURL: URL) throws
@@ -112,8 +112,7 @@ public class LUTProcessorNode : BaseImageNode
             return
         }
 
-        guard let url = self.graph?.resolveFileReference(path)
-            ?? DocumentFileReference.resolve(path, relativeTo: nil) else
+        guard let url = URL(fileReference: path, relativeTo: self.graph?.fileReferenceBaseURL) else
         {
             self.url = nil
             self.texture = nil

@@ -54,8 +54,7 @@ final class ModelFileLoader
             return .noModel(throwing: nil)
         }
 
-        guard let url = node.graph?.resolveFileReference(path)
-            ?? DocumentFileReference.resolve(path, relativeTo: nil) else
+        guard let url = URL(fileReference: path, relativeTo: node.graph?.fileReferenceBaseURL) else
         {
             return self.fail(.fileNotFound, message: "Model file path is invalid: \(path)")
         }
