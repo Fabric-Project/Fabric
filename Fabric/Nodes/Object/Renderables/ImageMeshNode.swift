@@ -29,6 +29,11 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
             ("inputColor", ParameterPort(parameter: Float4Parameter("Color", .one, .zero, .one, .colorpicker, "Tint color applied to the image (RGBA)"))),
             ("inputSize", ParameterPort(parameter: FloatParameter("Size", 1.0, .inputfield, "Size of the image mesh in world units"))),
             ("inputSizingDimension", ParameterPort(parameter: StringParameter("Sizing Dimension", "Width", ["Width", "Height"], .dropdown, "Which dimension the Size parameter controls"))),
+            ("inputBlending", ParameterPort(parameter: StringParameter("Blending Mode", "Alpha", ["Disabled", "Alpha", "Additive", "Subtractive"], .dropdown, "Blending mode for combining with background pixels"))),
+            ("inputWriteDepth", ParameterPort(parameter: BoolParameter("Write Depth", true, .button, "When enabled, writes depth values to the depth buffer"))),
+            ("inputDepthTest", ParameterPort(parameter: BoolParameter("Depth Test", true, .button, "When enabled, performs depth testing against existing geometry"))),
+            ("inputDoubleSided", ParameterPort(parameter: BoolParameter("Double Sided", true, .button, "When enabled, the image shows from behind as well as in front"))),
+            ("inputCastsShadow", ParameterPort(parameter: BoolParameter("Enable Shadows", false, .button, "When enabled, the image mesh casts and receives shadows"))),
         ] + rest
     }
 
@@ -37,6 +42,11 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
     public var inputColor: ParameterPort<simd_float4> { port(named: "inputColor") }
     public var inputSize: ParameterPort<Float> { port(named: "inputSize") }
     public var inputSizingDimension: ParameterPort<String> { port(named: "inputSizingDimension") }
+    public var inputBlending: ParameterPort<String> { port(named: "inputBlending") }
+    public var inputWriteDepth: ParameterPort<Bool> { port(named: "inputWriteDepth") }
+    public var inputDepthTest: ParameterPort<Bool> { port(named: "inputDepthTest") }
+    public var inputDoubleSided: ParameterPort<Bool> { port(named: "inputDoubleSided") }
+    public var inputCastsShadow: ParameterPort<Bool> { port(named: "inputCastsShadow") }
 
     override public var object: Mesh? {
         return self.mesh
@@ -56,7 +66,6 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
         super.init(context: context)
 
         self.material.setup()
-        self.mesh.doubleSided = true
     }
 
     public required init(from decoder: any Decoder) throws
@@ -73,7 +82,6 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
         try super.init(from: decoder)
 
         self.material.setup()
-        self.mesh.doubleSided = true
     }
 
     override public func execute(renderer:GraphRenderer,
@@ -92,6 +100,35 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
            let color = self.inputColor.value
         {
             self.material.color = color
+        }
+
+        if self.inputBlending.valueDidChange
+        {
+            self.material.blending = self.blendingMode()
+        }
+
+        if self.inputWriteDepth.valueDidChange,
+           let writeDepth = self.inputWriteDepth.value
+        {
+            self.material.depthWriteEnabled = writeDepth
+        }
+
+        if self.inputDepthTest.valueDidChange,
+           let depthTest = self.inputDepthTest.value
+        {
+            self.material.depthCompareFunction = depthTest ? .greaterEqual : .always
+        }
+
+        if self.inputDoubleSided.valueDidChange
+        {
+            self.mesh.doubleSided = self.inputDoubleSided.value ?? true
+        }
+
+        if self.inputCastsShadow.valueDidChange
+        {
+            let castsShadow = self.inputCastsShadow.value ?? false
+            self.mesh.castShadow = castsShadow
+            self.mesh.receiveShadow = castsShadow
         }
 
         if self.inputImage.valueDidChange
@@ -124,5 +161,22 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
         }
 
         let _ = self.evaluate(object: mesh, atTime: executionInfo.timing.time)
+    }
+
+    private func blendingMode() -> Blending
+    {
+        switch self.inputBlending.value
+        {
+        case "Alpha":
+            return .alpha
+
+        case "Additive":
+            return .additive
+
+        case "Subtractive":
+            return .subtract
+
+        default: return .disabled
+        }
     }
 }
