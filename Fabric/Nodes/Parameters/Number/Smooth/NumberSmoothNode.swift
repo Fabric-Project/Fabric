@@ -219,7 +219,7 @@ public class NumberSmoothNode : StrategyNode
                 let cutoff = Self.euroMaxCutoff * pow(Self.euroMinCutoff / Self.euroMaxCutoff, smoothing)
                 self.oneEuroFilter.setMinCutoff(cutoff)
                 self.oneEuroFilter.beta = Double(min(1, max(0, self.responsivenessValue()))) * Self.euroMaxBeta
-                self.heldValue = Float(self.oneEuroFilter.Filter(Double(input), timestamp: executionInfo.timing.systemTime))
+                self.heldValue = Float(self.oneEuroFilter.Filter(Double(input), timestamp: executionInfo.timing.time))
 
             case .slew:
                 let secondsPerUnit = Self.slewMinTime * pow(Self.slewMaxTime / Self.slewMinTime, smoothing)

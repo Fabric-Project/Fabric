@@ -14,36 +14,8 @@ import AppKit
 import UIKit
 #endif
 
-/// GraphRenderTiming is constructed for every render call
-public struct GraphExecutionTiming : Hashable
-{
-    /// Relative time based on when rendering started
-    public let time:TimeInterval
-    
-    /// Absolute Difference between consecutive execute calls made GraphRenderer
-    public let deltaTime:TimeInterval
-
-    /// If execution is being displayed to a screen, this is the time when is expect content to appear on screen. Naive implementations may have `time` == `displayTime` while more advanced implementations may have displayTime lead time by a fraction of the frame rate.
-    public let displayTime:TimeInterval?
-    
-    /// System absolute time when graph execution as requested
-    public let systemTime:TimeInterval
-
-
-    public let hostMediaTime:TimeInterval
-
-    /// The frame number being requested
-    public let frameNumber:Int
-    
-    public init(time: TimeInterval, deltaTime: TimeInterval, displayTime: TimeInterval?, systemTime: TimeInterval, hostMediaTime:TimeInterval, frameNumber: Int) {
-        self.time = time
-        self.deltaTime = deltaTime
-        self.displayTime = displayTime
-        self.systemTime = systemTime
-        self.frameNumber = frameNumber
-        self.hostMediaTime = hostMediaTime
-    }
-}
+/// The graph executes at Satin's frame time: one per frame, shared by every execution in it.
+public typealias GraphExecutionTiming = FrameTime
 
 public struct GraphEventInfo : Hashable
 {

@@ -109,8 +109,9 @@ public class OneEuroFilter {
     public func Filter(_ value:Double, timestamp:Double = -1.0) -> Double {
         prevValue = currValue
     
-        // update the sampling frequency based on timestamps
-        if (lasttime != -1.0 && timestamp != -1.0){
+        // update the sampling frequency based on timestamps; a timestamp that does not advance
+        // (the same frame again, or time starting over) keeps the last frequency
+        if lasttime != -1.0 && timestamp > lasttime {
             freq = 1.0 / (timestamp - lasttime)
         }
         lasttime = timestamp
