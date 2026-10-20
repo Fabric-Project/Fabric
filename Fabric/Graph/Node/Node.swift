@@ -474,7 +474,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         port.parameter = param
     }
 
-    internal func reorderPorts(_ reordered: [Port])
+    public func reorderPorts(_ reordered: [Port])
     {
         self.registry.reorder(reordered)
         self.invalidatePortCaches()

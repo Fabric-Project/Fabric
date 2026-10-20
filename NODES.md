@@ -247,6 +247,7 @@ HDR -> SDR conversion
 - [x] Apply Mask
 - [x] Foreground Mask (ML)
 - [x] Person Mask (ML)
+- [x] Joint Bilateral Filter (edge-aware smoothing guided by a second image, e.g. sharpening a low-res segmentation mask against the source frame)
 
 ### Tiling
 

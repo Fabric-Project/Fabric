@@ -88,6 +88,10 @@ public final class PluginMain: NSObject, FabricPlugin
 }
 ```
 
+## Command Buffers
+
+The command buffer handed to `execute` is always an `MPSCommandBuffer`: `GraphRenderer` and `GraphExportRenderer` wrap it once, where they create it, before any node sees it. Nodes may encode Metal Performance Shaders work on it, including `MPSGraphExecutable.encode(to:)`, which may call `commitAndContinue()`. Nodes must never wrap it in another `MPSCommandBuffer`, and never commit it: the renderer owns it and commits it once per frame.
+
 ## Discovery
 
 `NodeRegistry` transparently asks `PluginLoader` to load plugins on first use. The embedded core plugin is always loaded first.
