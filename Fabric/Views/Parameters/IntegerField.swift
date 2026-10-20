@@ -6,25 +6,29 @@
 import SwiftUI
 
 /// An integer field whose label drags the value. The stepping and commit
-/// rules are `NumericField`'s; the step is one unless given.
+/// rules, `writesWhileTyping` among them, are `NumericField`'s; the step is
+/// one unless given.
 public struct IntegerField<Value: FixedWidthInteger>: View
 {
     private let title: String
     private let value: Binding<Value>
     private let step: Value
     private let unit: String?
+    private let writesWhileTyping: Bool
     private let onEditingChanged: (Bool) -> Void
 
     public init(_ title: String,
                 value: Binding<Value>,
                 step: Value = 1,
                 unit: String? = nil,
+                writesWhileTyping: Bool = true,
                 onEditingChanged: @escaping (Bool) -> Void = { _ in })
     {
         self.title = title
         self.value = value
         self.step = step
         self.unit = unit
+        self.writesWhileTyping = writesWhileTyping
         self.onEditingChanged = onEditingChanged
     }
 
@@ -36,6 +40,7 @@ public struct IntegerField<Value: FixedWidthInteger>: View
                          fractionDigits: 0,
                          unit: unit,
                          integral: true,
+                         writesWhileTyping: writesWhileTyping,
                          write: { value.wrappedValue = NumericFieldStepping.integer($0) },
                          onEditingChanged: onEditingChanged)
     }
