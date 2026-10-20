@@ -40,7 +40,7 @@ public class SignalNode : Node
     throws
     {
         let signal = self.inputValue.valueDidChange
-        print("Signal \(signal)")
-        self.outputSignal.send(signal, force: true)
+        // Force to continue signalling when the input changes on successive frames
+        self.outputSignal.send(signal, force: signal)
     }
 }
