@@ -9,6 +9,24 @@ import Satin
 @Suite("Iterator records")
 struct IteratorRecordTests
 {
+    private final class ImageCollectorNode: Node {
+        override class var name: String { "Image Collector" }
+        override class var nodeType: Node.NodeType { .Utility }
+        override class var nodeExecutionMode: Node.ExecutionMode { .Consumer }
+        override class var nodeTimeMode: Node.TimeMode { .None }
+        override class var nodeDescription: String { "Collects each iteration's image for tests" }
+        var images: [FabricImage] = []
+        var inputImage: NodePort<FabricImage> { port(named: "inputImage") }
+        override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)] {
+            super.registerPorts(context: context) + [
+                ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet))
+            ]
+        }
+        override func execute(renderer: GraphRenderer, executionInfo: GraphExecutionInfo,
+                              renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws {
+            if let image = inputImage.value { images.append(image) }
+        }
+    }
     /// Places its mesh by the iteration it executes in: iteration `i` at x = `offsets[i]`.
     private final class IterationPlacedMeshNode: MeshNode
     {
@@ -38,19 +56,22 @@ struct IteratorRecordTests
         let iterator = IteratorNode(context: harness.context)
         graph.addNode(iterator)
 
+        addMesh(to: iterator.subGraph, harness: harness)
+        iterator.inputIteratonCount.value = iterations
+        return (graph, iterator)
+    }
+
+    private func addMesh(to graph: Graph, harness: GraphExecutionTestHarness) {
         let geometry = BoxGeometryNode(context: harness.context)
         let material = BasicColorMaterialNode(context: harness.context)
         let mesh = IterationPlacedMeshNode(context: harness.context)
         mesh.offsets = Self.offsets
         mesh.inputScale.value = Self.scale
-        iterator.subGraph.addNode(geometry)
-        iterator.subGraph.addNode(material)
-        iterator.subGraph.addNode(mesh)
-        iterator.subGraph.connect(geometry.outputGeometry, to: mesh.inputGeometry)
-        iterator.subGraph.connect(material.outputMaterial, to: mesh.inputMaterial)
-
-        iterator.inputIteratonCount.value = iterations
-        return (graph, iterator)
+        graph.addNode(geometry)
+        graph.addNode(material)
+        graph.addNode(mesh)
+        graph.connect(geometry.outputGeometry, to: mesh.inputGeometry)
+        graph.connect(material.outputMaterial, to: mesh.inputMaterial)
     }
 
     /// One plain mesh per offset in `offsets`, in the graph's own scene.
@@ -128,6 +149,69 @@ struct IteratorRecordTests
 
         #expect(reference != empty, "the reference draws its meshes")
         #expect(iterated == reference, "two iterations draw both placements, not the last one twice")
+    }
+
+    @Test("Iterator inside Render to Image draws all occurrences into its own target")
+    func iteratorInsideRenderToImageMatchesRootRendering() throws {
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
+        let (inside, _) = makeIteratorGraph(harness, iterations: 2)
+        let imageNode = DeferredSubgraphNode(context: harness.context, subGraph: inside)
+        imageNode.inputWidth.value = 64
+        imageNode.inputHeight.value = 64
+        let outer = Graph(context: harness.context)
+        outer.addNode(imageNode)
+        let reference = makeReferenceGraph(harness, offsets: Self.offsets[...])
+        try harness.graphRenderer(for: outer).startExecution()
+        try harness.graphRenderer(for: reference).startExecution()
+        defer {
+            try? harness.graphRenderer(for: outer).stopExecution()
+            try? harness.graphRenderer(for: reference).stopExecution()
+        }
+        try harness.render(graph: outer, executionInfo: harness.makeExecutionInfo())
+        let image = try #require(imageNode.outputColorTexture.value)
+        #expect(try pixels(of: image.texture, harness) == render(reference, harness))
+    }
+
+    @Test("Render to Image inside Iterator publishes distinct iteration images")
+    func renderToImageInsideIteratorKeepsEachImage() throws {
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
+        let inside = Graph(context: harness.context)
+        addMesh(to: inside, harness: harness)
+        let imageNode = DeferredSubgraphNode(context: harness.context, subGraph: inside)
+        imageNode.inputWidth.value = 64
+        imageNode.inputHeight.value = 64
+        let collector = ImageCollectorNode(context: harness.context)
+        let iterator = IteratorNode(context: harness.context)
+        iterator.inputIteratonCount.value = 2
+        iterator.subGraph.addNode(imageNode)
+        iterator.subGraph.addNode(collector)
+        iterator.subGraph.connect(imageNode.outputColorTexture, to: collector.inputImage)
+        let outer = Graph(context: harness.context)
+        outer.addNode(iterator)
+        let first = makeReferenceGraph(harness, offsets: Self.offsets.prefix(1))
+        let second = makeReferenceGraph(harness, offsets: Self.offsets.suffix(1))
+        for graph in [outer, first, second] { try harness.graphRenderer(for: graph).startExecution() }
+        defer { for graph in [outer, first, second] { try? harness.graphRenderer(for: graph).stopExecution() } }
+        try harness.render(graph: outer, executionInfo: harness.makeExecutionInfo())
+        #expect(collector.images.count == 2)
+        guard collector.images.count == 2 else { return }
+        #expect(collector.images[0].texture !== collector.images[1].texture)
+        #expect(try pixels(of: collector.images[0].texture, harness) == render(first, harness))
+        #expect(try pixels(of: collector.images[1].texture, harness) == render(second, harness))
+    }
+
+    @Test("An inner Iterator restores the enclosing iteration context")
+    func innerIteratorRestoresOuterContext() throws {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let iterator = IteratorNode(context: harness.context)
+        iterator.inputIteratonCount.value = 0
+        let execution = harness.makeExecutionInfo()
+        let outer = GraphIterationInfo(totalIterationCount: 3, currentIteration: 1)
+        execution.iterationInfo = outer
+        let commands = try #require(harness.renderer.makeCommandBuffer())
+        try iterator.execute(renderer: harness.renderer, executionInfo: execution,
+                             renderPassDescriptor: MTLRenderPassDescriptor(), commandBuffer: commands)
+        #expect(execution.iterationInfo == outer)
     }
 
     @Test("Changing the iteration count changes what the next frame draws")

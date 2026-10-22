@@ -57,9 +57,10 @@ public class IteratorNode: SubgraphNode
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer) throws
     {
+        let enclosingIteration = executionInfo.iterationInfo
+        defer { executionInfo.iterationInfo = enclosingIteration }
         let iterationCount = resolvedIterationCount()
         guard iterationCount > 0 else {
-            executionInfo.iterationInfo = nil
             self.forwardPortValues(force:true)
             return
         }
@@ -106,8 +107,6 @@ public class IteratorNode: SubgraphNode
             }
             try submission.record(scene: subGraph.scene)
         }
-
-        executionInfo.iterationInfo = nil
 
         // We need to call this to ensure any published port values also get forwarded.
         self.forwardPortValues(force:true)
