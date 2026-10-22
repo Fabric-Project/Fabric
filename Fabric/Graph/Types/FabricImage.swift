@@ -9,6 +9,7 @@ import CoreImage
 import CoreGraphics
 import CoreVideo
 import simd
+import Foundation
 
 public final class FabricImage: Identifiable, Equatable
 {
@@ -38,15 +39,14 @@ public final class FabricImage: Identifiable, Equatable
 
     // MARK: - Managed/unmanaged
 
-    private var onRelease: ((MTLTexture) -> Void)?
-    private var didRelease = false
+    let storageLease: FabricImageStorageLease
 
     // Factory-only
     private init(texture: MTLTexture, onRelease: ((MTLTexture) -> Void)?)
     {
         self.texture = texture
         self.presentationSize = CGSize(width: texture.width, height: texture.height)
-        self.onRelease = onRelease
+        self.storageLease = FabricImageStorageLease(texture: texture, onRelease: onRelease)
     }
 
     /// Created by GraphRenderer (or other pool owner). Returned to pool on `release()` / `deinit`.
@@ -63,16 +63,14 @@ public final class FabricImage: Identifiable, Equatable
 
     deinit
     {
-        release()
+        storageLease.releaseLogicalOwner()
     }
 
-    /// Optional explicit release for deterministic reuse (recommended in hot paths).
+    /// Compatibility entry point. Storage is returned only after the last image alias and GPU
+    /// use have gone away. Release a caller's reference instead of invalidating shared aliases.
+    @available(*, deprecated, message: "Release your image reference; storage follows image and GPU ownership")
     public func release()
     {
-        guard !didRelease else { return }
-        didRelease = true
-        onRelease?(texture)
-        onRelease = nil
     }
 
     // MARK: - Equatable

@@ -153,7 +153,7 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
         self.compute.set(inTex, index: .Custom0)
         self.compute.set(outImage.texture, index: .Custom1)
     
-        self.compute.update(ComputeEncodingContext(commandBuffer: commandBuffer, computeEncoder: computeEncoder))
+        self.compute.update(computeEncoder)
         
         computeEncoder.endEncoding()
         

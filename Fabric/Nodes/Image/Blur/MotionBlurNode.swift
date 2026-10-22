@@ -83,7 +83,7 @@ public final class MotionBlurNode: BaseMultiPassBlurEffectNode {
             steps.append(MultiPassStep(width: outputWidth, height: outputHeight, amountScale: 1.0))
         }
 
-        if let outputImage = self.runPassChain(renderer: renderer,
+        if let outputImage = try self.runPassChain(renderer: renderer,
                                                executionInfo: executionInfo,
                                                commandBuffer: commandBuffer,
                                                inputImage: inputImage,

@@ -105,7 +105,8 @@ public final class GaussianBlurChannelsNode: BaseMultiPassBlurEffectTwoChannelNo
             steps.append(MultiPassStep(width: outputWidth, height: outputHeight, amountScale: 0.333, vector: simd_float2(0.0, 1.0)))
         }
 
-        let outputImage = self.runChannelPassChain(renderer: renderer,
+        let outputImage = try self.runChannelPassChain(renderer: renderer,
+                                                   executionInfo: executionInfo,
                                                    commandBuffer: commandBuffer,
                                                    inputImage: inputImage,
                                                    originalImage: originalImage,
@@ -119,10 +120,11 @@ public final class GaussianBlurChannelsNode: BaseMultiPassBlurEffectTwoChannelNo
     }
 
     private func runChannelPassChain(renderer: GraphRenderer,
+                                     executionInfo: GraphExecutionInfo,
                                      commandBuffer: MTLCommandBuffer,
                                      inputImage: FabricImage,
                                      originalImage: FabricImage,
-                                     steps: [MultiPassStep]) -> FabricImage? {
+                                     steps: [MultiPassStep]) throws -> FabricImage? {
         guard !steps.isEmpty else {
             return nil
         }
@@ -148,17 +150,15 @@ public final class GaussianBlurChannelsNode: BaseMultiPassBlurEffectTwoChannelNo
                                        originalImage.textureTransform],
                                       forStepIndex: index)
 
-            self.postProcessor.mesh.preDraw = { renderEncoder in
-                renderEncoder.setFragmentTexture(currentTexture, index: FragmentTextureIndex.Custom0.rawValue)
-                renderEncoder.setFragmentTexture(originalImage.texture, index: FragmentTextureIndex.Custom1.rawValue)
-            }
+            self.postMaterial.set(currentTexture, index: FragmentTextureIndex.Custom0)
+            self.postMaterial.set(originalImage.texture, index: FragmentTextureIndex.Custom1)
 
             self.postProcessor.resize(size: (width: Float(step.width), height: Float(step.height)), scaleFactor: 1)
 
             let renderPassDescriptor = MTLRenderPassDescriptor()
             renderPassDescriptor.colorAttachments[0].texture = nextImage.texture
 
-            self.postProcessor.draw(renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+            try self.postProcessor.draw(frame: executionInfo.timing, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
 
             currentImage?.release()
             currentImage = nextImage

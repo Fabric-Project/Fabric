@@ -549,3 +549,14 @@ Array nodes are type-agnostic and can work with any compatible Fabric port type 
 
  
  
+
+
+### Frame command buffers and image ownership
+
+The display renderer and `GraphRenderer.makeCommandBuffer()` provide an MPS-compatible command buffer. Offscreen hosts should use that factory when nodes may continue a frame across command-buffer segments. Caller-created MPS wrappers are rejected at graph entry because their internal continuations cannot participate in Fabric's image-lifetime tracking. Ordinary Metal command buffers remain usable for graph execution that does not require MPS continuation/readback.
+
+A synchronous analyzer ends its encoders, encodes any required managed-storage synchronization, then calls `try renderer.waitForGPUResults(commandBuffer:)` on the graph execution owner. The owner captures and waits for the submitted underlying segment, checks its error, and leaves the stable wrapper ready for downstream encoding. Nodes do not commit the final frame or present it.
+
+Managed images keep a pool lease separately from the Metal texture reference. Graph execution retains image uses, including images in collections and virtual ports, across pending segments. Calling `FabricImage.release()` no longer invalidates shared image aliases; relinquish references normally. Raw Metal resources still require their actual contents to remain valid for pending uses.
+
+Render to Image publishes distinct copies of reusable depth and MRT attachments so subsequent invocations do not overwrite published outputs. Colour outputs already use a fresh image per invocation. Shared Iterator lighting and shadow collection is the next implementation stage of `FRAME_CONTRACT_SPEC.md`; it is not completed by these lifetime changes.

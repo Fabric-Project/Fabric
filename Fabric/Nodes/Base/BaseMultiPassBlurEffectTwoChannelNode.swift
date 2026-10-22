@@ -80,7 +80,7 @@ public class BaseMultiPassBlurEffectTwoChannelNode: BaseImageNode
                              inputAImage: FabricImage,
                              inputBImage: FabricImage,
                              steps: [MultiPassStep],
-                             prepareStep: (Int, MultiPassStep) -> Void) -> FabricImage?
+                             prepareStep: (Int, MultiPassStep) -> Void) throws -> FabricImage?
     {
 
         guard !steps.isEmpty else {
@@ -102,17 +102,15 @@ public class BaseMultiPassBlurEffectTwoChannelNode: BaseImageNode
                                        inputBImage.textureTransform],
                                       forStepIndex: index)
 
-            self.postProcessor.mesh.preDraw = { renderEncoder in
-                renderEncoder.setFragmentTexture(currentTexture, index: FragmentTextureIndex.Custom0.rawValue)
-                renderEncoder.setFragmentTexture(inputBImage.texture, index: FragmentTextureIndex.Custom1.rawValue)
-            }
+            self.postMaterial.set(currentTexture, index: FragmentTextureIndex.Custom0)
+            self.postMaterial.set(inputBImage.texture, index: FragmentTextureIndex.Custom1)
 
             self.postProcessor.resize(size: (width: Float(step.width), height: Float(step.height)), scaleFactor: 1)
 
             let renderPassDescriptor = MTLRenderPassDescriptor()
             renderPassDescriptor.colorAttachments[0].texture = nextImage.texture
 
-            self.postProcessor.draw(renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+            try self.postProcessor.draw(frame: executionInfo.timing, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
 
             currentImage?.release()
             currentImage = nextImage

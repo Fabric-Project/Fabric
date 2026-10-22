@@ -29,6 +29,10 @@ public class GraphRenderer : ViewRenderer
 
     public private(set) var currentCamera: Camera? = nil
     private let defaultCamera: PerspectiveCamera
+
+    /// This frame's Satin submission, made the first time a node records into it (an Iterator).
+    private var pendingSubmission: SubmissionBuilder?
+    private var frameImageUses: GraphFrameImageUses?
     private let sceneProxy: Object
 
     // Regular subgraphs execute by re-entering execute(graph:) on this renderer.
@@ -68,6 +72,7 @@ public class GraphRenderer : ViewRenderer
             stencilStoreAction: .dontCare,
             frameBufferOnly: false
         )
+
         self.renderEncoder.sortObjects = true
 
         self.sceneProxy = Object(context: context)
@@ -195,6 +200,17 @@ public class GraphRenderer : ViewRenderer
 
     // MARK: - Draw
 
+    override public func preDraw() -> MTLCommandBuffer? {
+        guard let commandBuffer = super.preDraw() else { return nil }
+        return GraphCommandBuffer(commandBuffer: commandBuffer)
+    }
+
+    /// For offscreen callers. Use the same stable MPS wrapper as the display-driven path.
+    public func makeCommandBuffer() -> MTLCommandBuffer? {
+        guard let commandBuffer = commandQueue.makeCommandBuffer() else { return nil }
+        return GraphCommandBuffer(commandBuffer: commandBuffer)
+    }
+
     override public func draw(renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
         renderPassDescriptor.colorAttachments[0].loadAction = .clear
@@ -215,6 +231,23 @@ public class GraphRenderer : ViewRenderer
         }
     }
 
+    // MARK: - Frame submission
+
+    /// The submission this frame's records go into, made on first use from the current camera and
+    /// this renderer's settings as they are then. Satin freezes both when it's made: a camera node,
+    /// or a node changing the renderer's settings, that runs after the first record takes effect the
+    /// next frame. (Camera nodes are to run first.) Record with `record(scene:)` after updating and
+    /// encoding the scene; the graph's own scene is recorded and the frame drawn after execution.
+    public func frameSubmission(frame: FrameTime) -> SubmissionBuilder
+    {
+        if let pendingSubmission { return pendingSubmission }
+        let submission = self.renderEncoder.makeSubmissionBuilder(frame: frame,
+                                                                  cameras: [self.currentCamera ?? self.defaultCamera],
+                                                                  viewports: [self.renderEncoder.viewport])
+        self.pendingSubmission = submission
+        return submission
+    }
+
     // MARK: - On-demand graph evaluation (for exporters and subgraph callers)
 
     public func executeAndDraw(renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
@@ -224,6 +257,12 @@ public class GraphRenderer : ViewRenderer
 
     public func executeAndDraw(executionInfo: GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
+        try validateContinuationOwnership(commandBuffer)
+        let imageUses = beginImageUses(commandBuffer: commandBuffer)
+        defer { finishImageUses(imageUses, commandBuffer: commandBuffer) }
+        retainTargetImages(renderPassDescriptor)
+        // A frame that throws before drawing gives up its records; the next frame starts clean.
+        defer { self.pendingSubmission = nil }
         let clearColor = self.renderEncoder.clearColor
         let colorLoadAction = self.renderEncoder.colorLoadAction
         let depthLoadAction = self.renderEncoder.depthLoadAction
@@ -265,10 +304,23 @@ public class GraphRenderer : ViewRenderer
             graph.syncNodesToScene()
         }
 
-        self.renderEncoder.draw(renderPassDescriptor: renderPassDescriptor,
-                                commandBuffer: commandBuffer,
-                                scene: graph.scene,
-                                camera: self.currentCamera ?? self.defaultCamera)
+        if let submission = self.pendingSubmission
+        {
+            // Iterator records come first; the graph's scene, recorded now, draws ahead of them per layer.
+            self.pendingSubmission = nil
+            try submission.record(scene: graph.scene,
+                                  renderPassDescriptor: renderPassDescriptor,
+                                  preparationCommandBuffer: commandBuffer)
+            try submission.seal().encode(into: commandBuffer)
+        }
+        else
+        {
+            try self.renderEncoder.draw(frame: executionInfo.timing,
+                                        renderPassDescriptor: renderPassDescriptor,
+                                        commandBuffer: commandBuffer,
+                                        scene: graph.scene,
+                                        camera: self.currentCamera ?? self.defaultCamera)
+        }
 
         self.executionCount += 1
 
@@ -286,6 +338,9 @@ public class GraphRenderer : ViewRenderer
                         clearFlags: Bool = true,
                         forceEvaluationForTheseNodes: [Node] = []) throws
     {
+        try validateContinuationOwnership(commandBuffer)
+        let imageUses = beginImageUses(commandBuffer: commandBuffer)
+        defer { finishImageUses(imageUses, commandBuffer: commandBuffer) }
         self.resetTextureCaches(for: executionInfo)
 
         defer {
@@ -324,6 +379,10 @@ public class GraphRenderer : ViewRenderer
         let graphTraceFrame = beginGraphExecutionTrace()
 
         for (orderIndex, node) in scheduledNodes.enumerated() {
+            // Capture existing outputs even for clean nodes, and inputs before execute can
+            // replace them. Nested Render to Image outputs join their parent's lifetime here.
+            frameImageUses?.retainImages(in: node.inputPorts())
+            frameImageUses?.retainImages(in: node.outputPorts())
             if self.graphRequiresResize {
                 node.resize(size: self.renderEncoder.size, scaleFactor: self.resizeScaleFactor)
             }
@@ -359,6 +418,7 @@ public class GraphRenderer : ViewRenderer
 #endif
 
             endNodeExecutionTrace(nodeTrace, result: executionError == nil ? .executed : .error)
+            frameImageUses?.retainImages(in: node.outputPorts())
 
             if clearFlags {
                 node.markClean()
@@ -833,6 +893,71 @@ public class GraphRenderer : ViewRenderer
 
     // MARK: - Execution Helpers
 
+    /// Publishes a distinct image version of a reusable, resolved 2D render target. The GPU copy
+    /// is encoded here, before a later invocation can overwrite the source target.
+    public func newImage(copying texture: MTLTexture, commandBuffer: MTLCommandBuffer) throws -> FabricImage {
+        guard texture.textureType == .type2D, texture.sampleCount == 1,
+              let image = privateTextureCache.newManagedImage(width: texture.width,
+                                                               height: texture.height,
+                                                               pixelFormat: texture.pixelFormat,
+                                                               usage: [.shaderRead, .renderTarget],
+                                                               mipmapped: texture.mipmapLevelCount > 1),
+              let blit = commandBuffer.makeBlitCommandEncoder() else {
+            throw FabricError(.execution(.failed), severity: .recoverable,
+                              message: "Could not copy resolved render target into a new image")
+        }
+        frameImageUses?.retain(image)
+        let copyUses = GraphFrameImageUses()
+        copyUses.retain(image)
+        privateTextureCache.retainStorage(of: texture, in: copyUses)
+        sharedTextureCache.retainStorage(of: texture, in: copyUses)
+        copyUses.retain(untilCompleted: commandBuffer)
+        for level in 0..<texture.mipmapLevelCount {
+            blit.copy(from: texture, sourceSlice: 0, sourceLevel: level,
+                      sourceOrigin: .init(x: 0, y: 0, z: 0),
+                      sourceSize: .init(width: max(1, texture.width >> level),
+                                        height: max(1, texture.height >> level), depth: 1),
+                      to: image.texture, destinationSlice: 0, destinationLevel: level,
+                      destinationOrigin: .init(x: 0, y: 0, z: 0))
+        }
+        blit.endEncoding()
+        return image
+    }
+
+    private func beginImageUses(commandBuffer: MTLCommandBuffer) -> GraphFrameImageUses? {
+        guard frameImageUses == nil else { return nil }
+        let uses = GraphFrameImageUses()
+        frameImageUses = uses
+        (commandBuffer as? GraphCommandBuffer)?.beginImageUses(uses)
+        return uses
+    }
+
+    private func retainTargetImages(_ descriptor: MTLRenderPassDescriptor) {
+        guard let uses = frameImageUses else { return }
+        func retain(_ texture: MTLTexture?) {
+            guard let texture else { return }
+            privateTextureCache.retainStorage(of: texture, in: uses)
+            sharedTextureCache.retainStorage(of: texture, in: uses)
+        }
+        for index in 0..<8 {
+            retain(descriptor.colorAttachments[index].texture)
+            retain(descriptor.colorAttachments[index].resolveTexture)
+        }
+        retain(descriptor.depthAttachment.texture)
+        retain(descriptor.depthAttachment.resolveTexture)
+        retain(descriptor.stencilAttachment.texture)
+        retain(descriptor.stencilAttachment.resolveTexture)
+    }
+
+    private func finishImageUses(_ uses: GraphFrameImageUses?, commandBuffer: MTLCommandBuffer) {
+        guard let uses else { return }
+        // MPS forwards this handler to its current underlying buffer, after any continuation
+        // performed during execution. Earlier segments precede it on the same Metal queue.
+        uses.retain(untilCompleted: commandBuffer)
+        (commandBuffer as? GraphCommandBuffer)?.endImageUses(uses)
+        frameImageUses = nil
+    }
+
     public func newImage(withWidth width: Int, height: Int) throws -> FabricImage
     {
         return try self.newImage(withWidth: width, height: height, format: self.colorPixelFormat)
@@ -843,6 +968,7 @@ public class GraphRenderer : ViewRenderer
         if let image = self.privateTextureCache.newManagedImage(width: width, height: height, pixelFormat: format)
             ?? self.newImageDirect(withWidth: width, height: height, format: format)
         {
+            frameImageUses?.retain(image)
             return image
         }
 
@@ -866,6 +992,7 @@ public class GraphRenderer : ViewRenderer
                                                            mipmapped: true)
             ?? newImageDirect(withWidth: width, height: height, format: format, mipmapped: true)
         {
+            frameImageUses?.retain(image)
             return image
         }
 
@@ -926,6 +1053,7 @@ public class GraphRenderer : ViewRenderer
 
         let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
         image.texture.replace(region: region, mipmapLevel: 0, withBytes: baseAddr, bytesPerRow: bpr)
+        frameImageUses?.retain(image)
         
         
         return image

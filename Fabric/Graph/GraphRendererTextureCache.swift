@@ -15,8 +15,8 @@ import Metal
 //
 // - Allocations come from heap.makeTexture(descriptor:)
 // - "Deallocation" is implemented as recycling into a pool keyed by a descriptor signature.
-// - Safety: recycled textures go into the *current* frame pool, and are only reused when
-//   that pool comes around again (ring-buffered), avoiding most in-flight reuse hazards.
+// - Safety: FabricImage storage leases return textures only after logical ownership and all
+//   registered GPU uses end. The frame ring is a reuse policy, not a GPU lifetime guarantee.
 //
 // Designed to vend FabricImage using the new API:
 //
@@ -75,11 +75,13 @@ internal final class GraphRendererTextureCache {
     // MARK: State
 
     private let device: MTLDevice
+    private let stateLock = NSRecursiveLock()
     public let config: Configuration
 
     private var heaps: [MTLHeap] = []
     private var available: [[TextureKey: [MTLTexture]]] = []
     private var frameIndex: Int = 0
+    private var leasedStorage: [ObjectIdentifier: FabricImageStorageLease] = [:]
 
     // Optional stats/debug
     public private(set) var totalHeapsCreated: Int = 0
@@ -104,6 +106,8 @@ internal final class GraphRendererTextureCache {
     /// Use a monotonically increasing frameNumber (e.g. timing.frameNumber).
     public func resetCacheFor(executionContext:GraphExecutionInfo)
     {
+        stateLock.lock()
+        defer { stateLock.unlock() }
         let frameNumber = executionContext.timing.frameNumber
         let count = max(1, config.framePoolCount)
         self.frameIndex = ((frameNumber % count) + count) % count
@@ -136,9 +140,20 @@ internal final class GraphRendererTextureCache {
 
         // IMPORTANT: avoid a retain cycle.
         // The FabricImage retains the onRelease closure; the closure should not strongly retain self.
-        return FabricImage.managed(texture: texture) { [weak self] tex in
+        let image = FabricImage.managed(texture: texture) { [weak self] tex in
             self?.recycleTexture(tex)
         }
+        stateLock.lock()
+        leasedStorage[ObjectIdentifier(texture)] = image.storageLease
+        stateLock.unlock()
+        return image
+    }
+
+    func retainStorage(of texture: MTLTexture, in uses: GraphFrameImageUses) {
+        stateLock.lock()
+        let lease = leasedStorage[ObjectIdentifier(texture)]
+        if let lease { uses.retain(lease) }
+        stateLock.unlock()
     }
 
     /// Wrap an externally created texture (assets, static defaults, imported resources).
@@ -152,6 +167,8 @@ internal final class GraphRendererTextureCache {
     /// Drops all cached reusable textures (does NOT destroy heaps immediately, but releases references).
     /// Useful for memory pressure events or when changing output resolution dramatically.
     public func flushReusableTextures() {
+        stateLock.lock()
+        defer { stateLock.unlock() }
         for i in available.indices {
             available[i].removeAll(keepingCapacity: false)
         }
@@ -160,6 +177,8 @@ internal final class GraphRendererTextureCache {
     /// Drops all heaps and cached textures. Next allocation will recreate heaps.
     /// Use sparingly (it forces reallocations).
     public func reset() {
+        stateLock.lock()
+        defer { stateLock.unlock() }
         flushReusableTextures()
         heaps.removeAll(keepingCapacity: false)
         totalResets += 1
@@ -168,6 +187,8 @@ internal final class GraphRendererTextureCache {
     // MARK: Internals: allocate/reuse
 
     private func makeTexture(descriptor: MTLTextureDescriptor, label: String?) -> MTLTexture? {
+        stateLock.lock()
+        defer { stateLock.unlock() }
         let key = TextureKey(width: descriptor.width,
                              height: descriptor.height,
                              pixelFormat: descriptor.pixelFormat,
@@ -227,6 +248,9 @@ internal final class GraphRendererTextureCache {
 
     private func recycleTexture(_ texture: MTLTexture)
     {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        leasedStorage.removeValue(forKey: ObjectIdentifier(texture))
         // Only recycle textures that match our storage mode.
         // (A stronger check is possible, but this is a good first line of defense.)
         guard texture.storageMode == config.storageMode else { return }

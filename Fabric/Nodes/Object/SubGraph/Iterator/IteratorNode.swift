@@ -36,8 +36,9 @@ public class IteratorNode: SubgraphNode
         nil
     }
 
-    private var preparedForCount: Int = 0
-    private var preparedRenderableIdentifiers = Set<ObjectIdentifier>()
+    /// Last frame's iteration count: motion pairs iteration k with last frame's iteration k, so a
+    /// change starts every renderable still.
+    private var previousIterationCount = 0
 
     public required init(context: Context)
     {
@@ -63,11 +64,18 @@ public class IteratorNode: SubgraphNode
             return
         }
 
-        var subgraphIndex = subGraph.scene.sceneIndex
-        var renderableChildren = renderables(in: subgraphIndex)
-        
-        prepareRepeatedEncodingIfNeeded( renderables: renderableChildren,
-                                         count: iterationCount)
+        let subgraphIndex = subGraph.scene.sceneIndex
+        if iterationCount != previousIterationCount {
+            for renderable in renderables(in: subgraphIndex) {
+                renderable.resetMotion()
+            }
+            previousIterationCount = iterationCount
+        }
+
+        // Each iteration is recorded into the frame's submission as it is now: its transforms,
+        // uniforms, instances and poses are snapshotted, so the next iteration's changes don't reach it.
+        let submission = renderer.frameSubmission(frame: executionInfo.timing)
+        let encodingContext = submission.encodingContext(commandBuffer: commandBuffer)
 
         for iteration in 0..<iterationCount
         {
@@ -75,7 +83,6 @@ public class IteratorNode: SubgraphNode
                                                    currentIteration: iteration)
             executionInfo.iterationInfo = iterationInfo
 
-            
             let needsSceneSync = subGraph.consumePendingConnectionSceneSync()
 
             try renderer.execute(graph: subGraph,
@@ -89,55 +96,18 @@ public class IteratorNode: SubgraphNode
             {
                 subGraph.syncNodesToScene()
             }
-            
-            subgraphIndex = subGraph.scene.sceneIndex
-            renderableChildren = renderables(in: subgraphIndex)
-            
-            prepareRepeatedEncodingIfNeeded(
-                renderables: renderableChildren,
-                count: iterationCount
-            )
 
+            // Recording neither updates nor encodes: do both first.
             subGraph.scene.update()
-            subGraph.scene.encode(commandBuffer)
-            for entry in subgraphIndex.entries {
+            subGraph.scene.encode(in: encodingContext)
+            for entry in subGraph.scene.sceneIndex.entries {
                 entry.object.update()
-                entry.object.encode(commandBuffer)
+                entry.object.encode(in: encodingContext)
             }
-
-            for renderable in renderableChildren {
-                renderable.captureRepeatedEncodingState(
-                    iteration: iteration,
-                    count: iterationCount
-                )
-            }
+            try submission.record(scene: subGraph.scene)
         }
 
         executionInfo.iterationInfo = nil
-
-        let renderablesByLayer = Dictionary(grouping: renderableChildren) {
-            $0.renderLayer.rawValue
-        }
-
-        for renderLayer in renderablesByLayer.keys.sorted() {
-            guard let layerRenderables = renderablesByLayer[renderLayer] else { continue }
-            renderer.renderEncoder.scheduleCurrentPassEncoding(
-                renderables: layerRenderables
-            ) { [weak renderer] renderEncoderState in
-                guard let renderEncoder = renderer?.renderEncoder else { return }
-
-                for iteration in 0..<iterationCount {
-                    renderEncoderState.renderEncoder.pushDebugGroup("Iterator \(iteration)")
-                    renderEncoder.encodeCurrentPass(
-                        renderables: layerRenderables,
-                        renderEncoderState: renderEncoderState,
-                        repeatedIteration: iteration,
-                        repeatedCount: iterationCount
-                    )
-                    renderEncoderState.renderEncoder.popDebugGroup()
-                }
-            }
-        }
 
         // We need to call this to ensure any published port values also get forwarded.
         self.forwardPortValues(force:true)
@@ -165,22 +135,5 @@ public class IteratorNode: SubgraphNode
     private func renderables(in subgraphIndex: SceneIndex) -> [Renderable] {
         guard let sceneRenderable = subGraph.scene as? Renderable else { return subgraphIndex.renderables }
         return [sceneRenderable] + subgraphIndex.renderables
-    }
-
-    private func prepareRepeatedEncodingIfNeeded(
-        renderables: [Renderable],
-        count: Int
-    ) {
-        let renderableIdentifiers = Set(renderables.map { ObjectIdentifier($0) })
-        guard count != preparedForCount ||
-            renderableIdentifiers != preparedRenderableIdentifiers
-        else { return }
-
-        for renderable in renderables {
-            renderable.prepareForRepeatedEncoding(count: count)
-        }
-
-        preparedForCount = count
-        preparedRenderableIdentifiers = renderableIdentifiers
     }
 }

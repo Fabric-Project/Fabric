@@ -121,7 +121,7 @@ public final class ContourPathNode: Node {
         if let computeEncoder = commandBuffer.makeComputeCommandEncoder()
         {
             // Dispatch the compute pass
-            proc.update(ComputeEncodingContext(commandBuffer: commandBuffer, computeEncoder: computeEncoder))
+            proc.update(computeEncoder)
             
             computeEncoder.endEncoding()
         }

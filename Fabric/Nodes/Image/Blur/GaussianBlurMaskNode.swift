@@ -92,7 +92,7 @@ public final class GaussianBlurMaskNode: BaseMultiPassBlurEffectTwoChannelNode {
             steps.append(MultiPassStep(width: outputWidth, height: outputHeight, amountScale: 1.0, vector: simd_float2(0.0, 1.0)))
         }
 
-        if let outputImage = self.runPassChain(renderer: renderer,
+        if let outputImage = try self.runPassChain(renderer: renderer,
                                                executionInfo: executionInfo,
                                                commandBuffer: commandBuffer,
                                                inputAImage: inputImage,
