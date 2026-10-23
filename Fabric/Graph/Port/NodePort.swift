@@ -104,6 +104,7 @@ public class NodePort<Value : PortValueRepresentable>: Port
 
     public func send(_ v: Value?, force:Bool = false)
     {
+        if deferredSendCapture?.stage(v, port: self, index: deferredOutputIndex, force: force) == true { return }
         if self.value != v || force
         {
             self.value = v

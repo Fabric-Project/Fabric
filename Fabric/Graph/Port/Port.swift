@@ -118,6 +118,8 @@ extension UTType
     internal func sendBoxed(_ boxed: PortValue?, force: Bool) { sendBoxed(boxed) }
     
     @ObservationIgnored public weak var node: Node?
+    @ObservationIgnored internal var deferredSendCapture: GraphDeferredSendCapture?
+    @ObservationIgnored internal var deferredOutputIndex = 0
     @ObservationIgnored internal var onValueChanged: (() -> Void)?
 
     internal var connections: [Connection] = []

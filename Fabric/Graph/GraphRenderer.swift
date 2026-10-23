@@ -32,7 +32,8 @@ public class GraphRenderer : ViewRenderer
 
     /// This frame's Satin submission, made the first time a node records into it (an Iterator).
     private var pendingSubmission: SubmissionBuilder?
-    private var frameImageUses: GraphFrameImageUses?
+    internal private(set) var deferredGPUResults: GraphDeferredResults?
+    private var textureRecyclingScope: GraphTextureRecyclingScope?
     private let sceneProxy: Object
 
     // Regular subgraphs execute by re-entering execute(graph:) on this renderer.
@@ -201,14 +202,56 @@ public class GraphRenderer : ViewRenderer
     // MARK: - Draw
 
     override public func preDraw() -> MTLCommandBuffer? {
-        guard let commandBuffer = super.preDraw() else { return nil }
-        return GraphCommandBuffer(commandBuffer: commandBuffer)
+        let batch = admitDeferredFrame()
+        guard let commandBuffer = super.preDraw() else {
+            batch?.finishRecording()
+            return nil
+        }
+        let commands = GraphCommandBuffer(commandBuffer: commandBuffer)
+        commands.graphRenderer = self
+        commands.deferredBatch = batch
+        return commands
     }
 
     /// For offscreen callers. Use the same stable MPS wrapper as the display-driven path.
     public func makeCommandBuffer() -> MTLCommandBuffer? {
-        guard let commandBuffer = commandQueue.makeCommandBuffer() else { return nil }
-        return GraphCommandBuffer(commandBuffer: commandBuffer)
+        let batch = admitDeferredFrame()
+        guard let commandBuffer = commandQueue.makeCommandBuffer() else {
+            batch?.finishRecording()
+            return nil
+        }
+        let commands = GraphCommandBuffer(commandBuffer: commandBuffer)
+        commands.graphRenderer = self
+        commands.deferredBatch = batch
+        return commands
+    }
+
+    internal func ensureDeferredResults() -> GraphDeferredResults {
+        if let deferredGPUResults { return deferredGPUResults }
+        let results = GraphDeferredResults(limit: context.maxBuffersInFlight)
+        deferredGPUResults = results
+        return results
+    }
+
+    private func reportDeferredErrors(_ results: GraphDeferredResults) {
+        for error in results.takeErrors() { errorDelegate?.renderer(self, didFailWith: error) }
+    }
+
+    private func admitDeferredFrame() -> GraphDeferredFrameBatch? {
+        guard let deferredGPUResults else { return nil }
+        let batch = deferredGPUResults.admit()
+        reportDeferredErrors(deferredGPUResults)
+        return batch
+    }
+
+    private func prepareDeferredExecution(_ commandBuffer: MTLCommandBuffer) {
+        guard let commands = commandBuffer as? GraphCommandBuffer else { return }
+        if commands.graphRenderer == nil { commands.graphRenderer = self }
+        guard commands.executingNode == nil,
+              let owner = commands.graphRenderer, let results = owner.deferredGPUResults else { return }
+        if commands.deferredBatch == nil { commands.deferredBatch = results.admit() }
+        else { results.processReady() }
+        owner.reportDeferredErrors(results)
     }
 
     override public func draw(renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
@@ -258,9 +301,9 @@ public class GraphRenderer : ViewRenderer
     public func executeAndDraw(executionInfo: GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
         try validateContinuationOwnership(commandBuffer)
-        let imageUses = beginImageUses(commandBuffer: commandBuffer)
-        defer { finishImageUses(imageUses, commandBuffer: commandBuffer) }
-        retainTargetImages(renderPassDescriptor)
+        prepareDeferredExecution(commandBuffer)
+        let recyclingScope = beginTextureRecycling(commandBuffer: commandBuffer)
+        defer { finishTextureRecycling(recyclingScope, commandBuffer: commandBuffer) }
         // A frame that throws before drawing gives up its records; the next frame starts clean.
         defer { self.pendingSubmission = nil }
         let clearColor = self.renderEncoder.clearColor
@@ -339,8 +382,9 @@ public class GraphRenderer : ViewRenderer
                         forceEvaluationForTheseNodes: [Node] = []) throws
     {
         try validateContinuationOwnership(commandBuffer)
-        let imageUses = beginImageUses(commandBuffer: commandBuffer)
-        defer { finishImageUses(imageUses, commandBuffer: commandBuffer) }
+        prepareDeferredExecution(commandBuffer)
+        let recyclingScope = beginTextureRecycling(commandBuffer: commandBuffer)
+        defer { finishTextureRecycling(recyclingScope, commandBuffer: commandBuffer) }
         self.resetTextureCaches(for: executionInfo)
 
         defer {
@@ -379,10 +423,6 @@ public class GraphRenderer : ViewRenderer
         let graphTraceFrame = beginGraphExecutionTrace()
 
         for (orderIndex, node) in scheduledNodes.enumerated() {
-            // Capture existing outputs even for clean nodes, and inputs before execute can
-            // replace them. Nested Render to Image outputs join their parent's lifetime here.
-            frameImageUses?.retainImages(in: node.inputPorts())
-            frameImageUses?.retainImages(in: node.outputPorts())
             if self.graphRequiresResize {
                 node.resize(size: self.renderEncoder.size, scaleFactor: self.resizeScaleFactor)
             }
@@ -391,8 +431,18 @@ public class GraphRenderer : ViewRenderer
             guard node.executionState == .started else { continue }
 
             let nodeTrace = beginNodeExecutionTrace(node: node, orderIndex: orderIndex)
+            let commands = commandBuffer as? GraphCommandBuffer
+            let enclosingNode = commands?.executingNode
+            commands?.executingNode = node
+            defer { commands?.executingNode = enclosingNode }
+            var hasDeferredDelivery = false
+            if let binding = node.deferredResultsBinding, let commands {
+                let state = commands.resultScope().state(for: binding)
+                hasDeferredDelivery = state.hasPreparedDelivery
+                state.publish(binding: binding)
+            }
 
-            guard node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider else {
+            guard hasDeferredDelivery || node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider else {
                 endNodeExecutionTrace(nodeTrace, result: .skippedClean)
                 continue
             }
@@ -418,7 +468,6 @@ public class GraphRenderer : ViewRenderer
 #endif
 
             endNodeExecutionTrace(nodeTrace, result: executionError == nil ? .executed : .error)
-            frameImageUses?.retainImages(in: node.outputPorts())
 
             if clearFlags {
                 node.markClean()
@@ -735,6 +784,7 @@ public class GraphRenderer : ViewRenderer
     public func stopExecution(saveTraceTo url: URL? = nil) throws
     {
         try transitionExecution(to: .stopped)
+        deferredGPUResults?.cancelAllDelivery()
 
         if let url {
             try saveExecutionTrace(to: url)
@@ -755,6 +805,7 @@ public class GraphRenderer : ViewRenderer
     public func disableExecution() throws
     {
         try transitionExecution(to: .disabled)
+        deferredGPUResults?.cancelAllDelivery()
         self.currentCamera = nil
     }
 
@@ -896,6 +947,8 @@ public class GraphRenderer : ViewRenderer
     /// Publishes a distinct image version of a reusable, resolved 2D render target. The GPU copy
     /// is encoded here, before a later invocation can overwrite the source target.
     public func newImage(copying texture: MTLTexture, commandBuffer: MTLCommandBuffer) throws -> FabricImage {
+        let recyclingScope = beginTextureRecycling(commandBuffer: commandBuffer)
+        defer { finishTextureRecycling(recyclingScope, commandBuffer: commandBuffer) }
         guard texture.textureType == .type2D, texture.sampleCount == 1,
               let image = privateTextureCache.newManagedImage(width: texture.width,
                                                                height: texture.height,
@@ -906,12 +959,6 @@ public class GraphRenderer : ViewRenderer
             throw FabricError(.execution(.failed), severity: .recoverable,
                               message: "Could not copy resolved render target into a new image")
         }
-        frameImageUses?.retain(image)
-        let copyUses = GraphFrameImageUses()
-        copyUses.retain(image)
-        privateTextureCache.retainStorage(of: texture, in: copyUses)
-        sharedTextureCache.retainStorage(of: texture, in: copyUses)
-        copyUses.retain(untilCompleted: commandBuffer)
         for level in 0..<texture.mipmapLevelCount {
             blit.copy(from: texture, sourceSlice: 0, sourceLevel: level,
                       sourceOrigin: .init(x: 0, y: 0, z: 0),
@@ -924,38 +971,23 @@ public class GraphRenderer : ViewRenderer
         return image
     }
 
-    private func beginImageUses(commandBuffer: MTLCommandBuffer) -> GraphFrameImageUses? {
-        guard frameImageUses == nil else { return nil }
-        let uses = GraphFrameImageUses()
-        frameImageUses = uses
-        (commandBuffer as? GraphCommandBuffer)?.beginImageUses(uses)
-        return uses
+    private func beginTextureRecycling(commandBuffer: MTLCommandBuffer) -> GraphTextureRecyclingScope? {
+        if let commands = commandBuffer as? GraphCommandBuffer { return commands.beginTextureRecycling() }
+        guard textureRecyclingScope == nil else { return nil }
+        let scope = GraphTextureRecycling.shared.beginExecution()
+        textureRecyclingScope = scope
+        return scope
     }
 
-    private func retainTargetImages(_ descriptor: MTLRenderPassDescriptor) {
-        guard let uses = frameImageUses else { return }
-        func retain(_ texture: MTLTexture?) {
-            guard let texture else { return }
-            privateTextureCache.retainStorage(of: texture, in: uses)
-            sharedTextureCache.retainStorage(of: texture, in: uses)
+    private func finishTextureRecycling(_ scope: GraphTextureRecyclingScope?, commandBuffer: MTLCommandBuffer) {
+        guard let scope else { return }
+        if let commands = commandBuffer as? GraphCommandBuffer {
+            commands.endTextureRecycling(scope)
+        } else {
+            scope.retain(untilCompleted: commandBuffer)
+            scope.end()
+            textureRecyclingScope = nil
         }
-        for index in 0..<8 {
-            retain(descriptor.colorAttachments[index].texture)
-            retain(descriptor.colorAttachments[index].resolveTexture)
-        }
-        retain(descriptor.depthAttachment.texture)
-        retain(descriptor.depthAttachment.resolveTexture)
-        retain(descriptor.stencilAttachment.texture)
-        retain(descriptor.stencilAttachment.resolveTexture)
-    }
-
-    private func finishImageUses(_ uses: GraphFrameImageUses?, commandBuffer: MTLCommandBuffer) {
-        guard let uses else { return }
-        // MPS forwards this handler to its current underlying buffer, after any continuation
-        // performed during execution. Earlier segments precede it on the same Metal queue.
-        uses.retain(untilCompleted: commandBuffer)
-        (commandBuffer as? GraphCommandBuffer)?.endImageUses(uses)
-        frameImageUses = nil
     }
 
     public func newImage(withWidth width: Int, height: Int) throws -> FabricImage
@@ -968,7 +1000,6 @@ public class GraphRenderer : ViewRenderer
         if let image = self.privateTextureCache.newManagedImage(width: width, height: height, pixelFormat: format)
             ?? self.newImageDirect(withWidth: width, height: height, format: format)
         {
-            frameImageUses?.retain(image)
             return image
         }
 
@@ -992,7 +1023,6 @@ public class GraphRenderer : ViewRenderer
                                                            mipmapped: true)
             ?? newImageDirect(withWidth: width, height: height, format: format, mipmapped: true)
         {
-            frameImageUses?.retain(image)
             return image
         }
 
@@ -1053,7 +1083,6 @@ public class GraphRenderer : ViewRenderer
 
         let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
         image.texture.replace(region: region, mipmapLevel: 0, withBytes: baseAddr, bytesPerRow: bpr)
-        frameImageUses?.retain(image)
         
         
         return image

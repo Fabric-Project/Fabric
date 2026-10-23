@@ -33,6 +33,11 @@ public final class ContourPathNode: Node {
             ("inputMaxSegments", ParameterPort(parameter: IntParameter("Max Segments", Self.kMaxSegments, .inputfield, "Maximum number of contour segments to generate"))),
             ("inputJoinEpsilon", ParameterPort(parameter: FloatParameter("Join Epsilon (px)", 1.0, .inputfield, "Pixel tolerance for joining contour endpoints"))),
 
+            ("inputResultDelivery", ParameterPort(parameter: StringParameter(
+                "Result Timing", GPUResultDeliveryMode.sameFrame.rawValue,
+                GPUResultDeliveryMode.allCases.map(\.rawValue), .dropdown,
+                "Same Frame waits for GPU results; Next Frame publishes the latest completed result on a later frame"))),
+
             // Output (arbitrary payload for now)
             ("outputContour", NodePort<ContiguousArray<simd_float2>>(name: "Contour (points)", kind: .Outlet, description: "Ordered contour points in pixel coordinates")),
         ]
@@ -46,13 +51,20 @@ public final class ContourPathNode: Node {
 
     public var outputContour: NodePort<ContiguousArray<simd_float2>>  { port(named: "outputContour") }
 
+    public var inputResultDelivery: ParameterPort<String> { port(named: "inputResultDelivery") }
+    public var resultDeliveryMode: GPUResultDeliveryMode {
+        get { GPUResultDeliveryMode(rawValue: inputResultDelivery.value ?? "") ?? .sameFrame }
+        set { inputResultDelivery.value = newValue.rawValue }
+    }
+
     // MARK: - Satin Compute
     private var processor: TextureComputeProcessor?
-    private var segmentsBuffer: MTLBuffer?
-    private var counterBuffer: MTLBuffer?
-
-    // For quick reuse
-    private var lastAllocatedFor: (w: Int, h: Int, maxSegs: Int) = (0, 0, 0)
+    private let readback = GPUResultReadback<ContiguousArray<simd_float2>>()
+    private var previousDeliveryMode: GPUResultDeliveryMode?
+    override public var isDirty: Bool {
+        get { super.isDirty || readback.hasPendingResult }
+        set { } // Node owns its dirty flag through markDirty()/markClean().
+    }
 
     // MARK: - Lifecycle
     required public init(context: Context) {
@@ -78,152 +90,106 @@ public final class ContourPathNode: Node {
         let proc = TextureComputeProcessor(device: context.device,
                                            pipelineURL: url,
                                            live: false)
+        // Discover the reflected uniform layout before assigning invocation-specific values.
+        proc.update()
         self.processor = proc
     }
 
+    override public func stopExecution(renderer: GraphRenderer) throws {
+        readback.reset()
+        previousDeliveryMode = nil
+        try super.stopExecution(renderer: renderer)
+    }
+
     // MARK: - Execute
-    public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
-    throws
-    {
-        guard
-            inputMask.valueDidChange,
-            let proc = processor,
-            let inputMaskImage = inputMask.value
-        else {
+    public override func execute(renderer: GraphRenderer, executionInfo: GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws {
+        let mode = resultDeliveryMode
+        let modeChanged = previousDeliveryMode != mode
+        if modeChanged {
+            readback.reset()
+            previousDeliveryMode = mode
+        }
+        guard let image = inputMask.value else {
+            readback.reset()
             outputContour.send(nil)
-//            print("not outputting contour")
             return
         }
-        let inTex = inputMaskImage.texture
-        
-        let device = renderer.context.device
-
-//        print("recomputing contour")
-
-        // Bind input for sizing/dispatch
-        proc.set(inTex, index: .Custom0)
-        
-        // Ensure buffers sized for this frame
-        let maxSegs = max(1, inputMaxSegments.value ?? Self.kMaxSegments)
-        ensureBuffers(device: device, width: inTex.width, height: inTex.height, maxSegments: maxSegs)
-        
-        // Bind buffers
-        if let seg = segmentsBuffer { proc.set(seg, index: .Custom0) }   // segments
-        if let ctr = counterBuffer  { proc.set(ctr, index: .Custom1) }   // atomic counter
-        
-        // Push uniforms
-        proc.set("Iso", inputIso.value ?? 0.5)
-        proc.set("MaxSegments", UInt32(maxSegs))
-
-        // Clear the counter to zero before compute (tiny inline reset)
-        try zeroCounter(commandBuffer: commandBuffer)
-        
-        if let computeEncoder = commandBuffer.makeComputeCommandEncoder()
-        {
-            // Dispatch the compute pass
-            proc.update(computeEncoder)
-            
-            computeEncoder.endEncoding()
+        if let points = try readback.takeCompleted(beforeFrame: executionInfo.timing.frameNumber) {
+            outputContour.send(points)
         }
-        
-        // Read back & stitch to a single ordered contour
-        let epsilon = inputJoinEpsilon.value ?? 1.0
-        /*let points = */readAndBuildContour(device: device,
-                                         commandBuffer: commandBuffer,
-                                         image: inputMaskImage,
-                                         epsilon: epsilon)
-
-        // Emit
-//        outputContour.send( points )
-    }
-
-    // MARK: - Buffers
-    private func ensureBuffers(device: MTLDevice, width: Int, height: Int, maxSegments: Int) {
-        // Worst case per-cell up to 2 segments → user-specified cap controls
-        let needRealloc =
-            segmentsBuffer == nil ||
-            counterBuffer  == nil ||
-            lastAllocatedFor.w != width ||
-            lastAllocatedFor.h != height ||
-            lastAllocatedFor.maxSegs != maxSegments
-
-        if !needRealloc { return }
-
-        print("Allocing")
-        // Segments are float4: (x0, y0, x1, y1)
-        let segmentStride = MemoryLayout<simd_float4>.stride
-        let segLen = segmentStride * maxSegments
-
-        segmentsBuffer = device.makeBuffer(length: segLen, options: .storageModeShared)
-        segmentsBuffer?.label = "ContourSegments"
-
-        // Counter: single uint32
-        counterBuffer = device.makeBuffer(length: MemoryLayout<UInt32>.stride, options: .storageModeShared)
-        counterBuffer?.label = "ContourCounter"
-
-        lastAllocatedFor = (width, height, maxSegments)
-    }
-
-    private func zeroCounter(commandBuffer: MTLCommandBuffer) throws
-    {
-        
-        if let blit = commandBuffer.makeBlitCommandEncoder(),
-           let counterBuffer,
-           let segmentsBuffer
-        {
-            blit.fill(buffer: counterBuffer, range: 0 ..< MemoryLayout<UInt32>.size, value: 0)
-
-            blit.fill(buffer: segmentsBuffer, range: 0 ..< counterBuffer.allocatedSize, value:0)
-
-            blit.endEncoding()
+        guard modeChanged || readback.needsRetry || inputMask.valueDidChange || inputIso.valueDidChange
+                || inputMaxSegments.valueDidChange || inputJoinEpsilon.valueDidChange else { return }
+        guard let processor else {
+            throw FabricError(.execution(.gpu), severity: .recoverable, message: "Contour compute processor is unavailable")
         }
-    }
-
-    // MARK: - Readback & Stitching
-    private func readAndBuildContour(device: MTLDevice,
-                                     commandBuffer: MTLCommandBuffer,
-                                     image: FabricImage,
-                                     epsilon: Float)
-    {
-        guard
-            let segBuf = segmentsBuffer,
-            let ctrBuf = counterBuffer
-        else { return /*[]*/ }
-
-        // Count
-        let count = ctrBuf.contents().assumingMemoryBound(to: UInt32.self).pointee
-        let segCount = min( Int(count), self.inputMaxSegments.value ?? Self.kMaxSegments )
-        
-        if segCount == 0 { return /*[]*/ }
-        
-        // Copy segments
-        let segPtr = segBuf.contents().bindMemory(to: simd_float4.self, capacity: segCount)
-        var segments: [simd_float4] = []
-        segments.reserveCapacity(segCount)
+        let device = context.device
+        let requested = max(1, inputMaxSegments.value ?? Self.kMaxSegments)
+        let maximumCells = max(0, image.texture.width - 1).multipliedReportingOverflow(by: max(0, image.texture.height - 1))
+        let cellLimit = maximumCells.overflow ? Int.max : maximumCells.partialValue
+        let doubledCells = cellLimit.multipliedReportingOverflow(by: 2)
+        let geometryLimit = doubledCells.overflow ? Int.max : max(1, doubledCells.partialValue)
+        let maxSegments = min(requested, geometryLimit, Int(UInt32.max), device.maxBufferLength / MemoryLayout<simd_float4>.stride)
+        guard maxSegments > 0,
+              let segments = device.makeBuffer(length: maxSegments * MemoryLayout<simd_float4>.stride, options: .storageModeShared),
+              let counter = device.makeBuffer(length: MemoryLayout<UInt32>.stride, options: .storageModeShared) else {
+            throw FabricError(.execution(.gpu), severity: .recoverable, message: "Unable to allocate contour readback buffers")
+        }
+        segments.label = "Contour Segments"
+        counter.label = "Contour Counter"
+        // Only the counter needs clearing: the GPU writes every segment below its returned count.
+        guard let blit = commandBuffer.makeBlitCommandEncoder() else {
+            throw FabricError(.execution(.gpu), severity: .recoverable, message: "Unable to reset contour counter")
+        }
+        blit.fill(buffer: counter, range: 0..<MemoryLayout<UInt32>.stride, value: 0)
+        blit.endEncoding()
+        processor.set(image.texture, index: .Custom0)
+        processor.set(segments, index: .Custom0)
+        processor.set(counter, index: .Custom1)
+        processor.set("Iso", inputIso.value ?? 0.5)
+        processor.set("MaxSegments", UInt32(maxSegments))
+        guard let compute = commandBuffer.makeComputeCommandEncoder() else {
+            throw FabricError(.execution(.gpu), severity: .recoverable, message: "Unable to encode contour analysis")
+        }
+        processor.update(compute)
+        compute.endEncoding()
+        let requestedEpsilon = inputJoinEpsilon.value ?? 1
+        let epsilon = requestedEpsilon.isFinite && requestedEpsilon > 0 ? requestedEpsilon : 0.25
+        // Capture the orientation and dimensions now; FabricImage metadata remains mutable.
+        let transform = image.textureTransform
         let storageSize = simd_float2(Float(image.texture.width), Float(image.texture.height))
-        let presentationSize = simd_float2(Float(image.presentationSize.width),
-                                           Float(image.presentationSize.height))
-
-        func presentationPoint(fromStoredPoint point: simd_float2) -> simd_float2
-        {
-            image.canonicalTextureCoordinate(fromStoredTextureCoordinate: point / storageSize)
-                * presentationSize
+        let presentationSize = simd_float2(Float(image.presentationSize.width), Float(image.presentationSize.height))
+        let points = try readback.read(renderer: renderer, commandBuffer: commandBuffer, mode: mode,
+                                       frameNumber: executionInfo.timing.frameNumber) {
+            let count = min(Int(counter.contents().load(as: UInt32.self)), maxSegments)
+            let pointer = segments.contents().assumingMemoryBound(to: simd_float4.self)
+            let inverse = simd_inverse(transform)
+            func point(_ stored: simd_float2) -> simd_float2 {
+                let uv = stored / storageSize
+                let canonical = inverse * simd_float4(uv.x, uv.y, 0, 1)
+                return simd_float2(canonical.x, canonical.y) * presentationSize
+            }
+            var values: [simd_float4] = []
+            values.reserveCapacity(count)
+            for index in 0..<count {
+                let segment = pointer[index]
+                let start = point(simd_float2(segment.x, segment.y))
+                let end = point(simd_float2(segment.z, segment.w))
+                values.append(simd_float4(start.x, start.y, end.x, end.y))
+            }
+            return Self.stitchSegments(values, snapPx: max(epsilon, 0.0001))
         }
-
-        for i in 0..<segCount {
-            let segment = segPtr[i]
-            let start = presentationPoint(fromStoredPoint: simd_float2(segment.x, segment.y))
-            let end = presentationPoint(fromStoredPoint: simd_float2(segment.z, segment.w))
-            segments.append(simd_float4(start.x, start.y, end.x, end.y))
-        }
-        
-        self.outputContour.send( self.stitchSegmentsToPath(segments: segments) )
+        if let points { outputContour.send(points) }
     }
-    
-    @inline(__always)
-    private func isFinite(_ p: simd_float2) -> Bool { p.x.isFinite && p.y.isFinite }
 
-    public func stitchSegmentsToPath( segments: [simd_float4], snapPx: Float = 0.25) -> ContiguousArray<simd_float2> {
+    @inline(__always)
+    private static func isFinite(_ p: simd_float2) -> Bool { p.x.isFinite && p.y.isFinite }
+
+    public func stitchSegmentsToPath(segments: [simd_float4], snapPx: Float = 0.25) -> ContiguousArray<simd_float2> {
+        Self.stitchSegments(segments, snapPx: snapPx)
+    }
+
+    private static func stitchSegments(_ segments: [simd_float4], snapPx: Float) -> ContiguousArray<simd_float2> {
 
         // ---- keys & helpers ----
         struct IntKey: Hashable, Comparable
@@ -432,7 +398,7 @@ public final class ContourPathNode: Node {
 //    }
 //
 //    @inline(__always)
-//    private func isFinite(_ p: simd_float2) -> Bool { p.x.isFinite && p.y.isFinite }
+//    private static func isFinite(_ p: simd_float2) -> Bool { p.x.isFinite && p.y.isFinite }
 //
 //    /// Build one closed contour from unordered marching-squares segments.
 //    /// - Parameters:

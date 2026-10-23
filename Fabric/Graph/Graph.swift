@@ -1441,7 +1441,9 @@ internal import AnyCodable
         undoManager?.setActionName("Create Subgraph")
     }
 
-    internal func withoutUndoRegistration(_ operation: () -> Void)
+    /// Group plugin-owned topology changes under the plugin's own undo operation, without
+    /// registering each intermediate port edit as another undo action.
+    public func withoutUndoRegistration(_ operation: () -> Void)
     {
         let shouldRestoreUndoRegistration = undoManager?.isUndoRegistrationEnabled == true
         if shouldRestoreUndoRegistration { undoManager?.disableUndoRegistration() }

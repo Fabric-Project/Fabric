@@ -39,14 +39,14 @@ public final class FabricImage: Identifiable, Equatable
 
     // MARK: - Managed/unmanaged
 
-    let storageLease: FabricImageStorageLease
+    private let onRelease: ((MTLTexture) -> Void)?
 
     // Factory-only
     private init(texture: MTLTexture, onRelease: ((MTLTexture) -> Void)?)
     {
         self.texture = texture
         self.presentationSize = CGSize(width: texture.width, height: texture.height)
-        self.storageLease = FabricImageStorageLease(texture: texture, onRelease: onRelease)
+        self.onRelease = onRelease
     }
 
     /// Created by GraphRenderer (or other pool owner). Returned to pool on `release()` / `deinit`.
@@ -63,11 +63,11 @@ public final class FabricImage: Identifiable, Equatable
 
     deinit
     {
-        storageLease.releaseLogicalOwner()
+        onRelease?(texture)
     }
 
-    /// Compatibility entry point. Storage is returned only after the last image alias and GPU
-    /// use have gone away. Release a caller's reference instead of invalidating shared aliases.
+    /// Compatibility entry point. Release a caller's reference instead of invalidating shared
+    /// aliases. The pool defers recycling released storage while GPU execution is pending.
     @available(*, deprecated, message: "Release your image reference; storage follows image and GPU ownership")
     public func release()
     {

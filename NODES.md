@@ -557,6 +557,37 @@ The display renderer and `GraphRenderer.makeCommandBuffer()` provide an MPS-comp
 
 A synchronous analyzer ends its encoders, encodes any required managed-storage synchronization, then calls `try renderer.waitForGPUResults(commandBuffer:)` on the graph execution owner. The owner captures and waits for the submitted underlying segment, checks its error, and leaves the stable wrapper ready for downstream encoding. Nodes do not commit the final frame or present it.
 
-Managed images keep a pool lease separately from the Metal texture reference. Graph execution retains image uses, including images in collections and virtual ports, across pending segments. Calling `FabricImage.release()` no longer invalidates shared image aliases; relinquish references normally. Raw Metal resources still require their actual contents to remain valid for pending uses.
+Graph execution opens a texture-recycling scope; nested renderers on its command buffer reuse that scope. When a managed image loses its last owner, its texture stays out of the reusable pool until pending execution scopes and all their command-buffer segments finish. Scopes are shared across Fabric pools because cached images can cross renderer boundaries. This conservatively delays recycling during overlapping executions, without inspecting ports or registering individual image uses. Abandoning an uncommitted segment releases its scope ownership while earlier submitted segments remain protected. Calling `FabricImage.release()` does not invalidate shared image aliases; relinquish references normally. Raw Metal resources still require their actual contents to remain valid for pending uses.
 
 Render to Image publishes distinct copies of reusable depth and MRT attachments so subsequent invocations do not overwrite published outputs. Colour outputs already use a fresh image per invocation. Iterator records contribute lights and shadow casters to the current target alongside their colour draws. Root and iterated objects share target-wide lighting and shadows; captured commands preserve each iteration rather than reading the final mutable object again. An Iterator inside Render to Image contributes all iterations to that target; Render to Image inside an Iterator publishes a separate image per invocation. Nested Iterators restore their enclosing iteration information on return.
+
+### CPU results from GPU analysis
+
+Contour Path now exposes **Result Timing**, also available procedurally as `resultDeliveryMode: GPUResultDeliveryMode`. `.sameFrame` (the default) completes the work so far through `GraphRenderer.waitForGPUResults(commandBuffer:)`, decodes the contour and publishes it before downstream execution. `.nextFrame` leaves submission to the frame owner and publishes the latest completed result on a later frame. If the GPU is behind, delivery may take more than one frame; it never waits in this mode. Switching timing invalidates older deferred delivery and evaluates the current input again.
+
+`GPUResultReadback<Value>` supplies the shared handoff for plugin and built-in analyzers. Each request captures immutable readback storage and invocation values. Completion handlers only make that request ready; `takeCompleted(beforeFrame:)` decodes on the execution owner, where the node can update ports. A processor must stay eligible while `hasPendingResult` is true, including when its inputs are unchanged. `needsRetry` asks it to re-encode a request whose uncommitted buffer was abandoned. Reset the handoff when inputs disappear, execution stops or the delivery mode changes. GPU failures and decoding errors propagate on the execution owner. Managed-storage synchronization, if required, must be encoded before registering readback.
+
+Contour Path allocates independently owned counter/segment buffers for each request, caps capacity by the image's possible segment count and the device's buffer limit, and keeps unchanged completed output without re-running GPU analysis. This migration covers Fabric's direct GPU-buffer-to-CPU analyzer. Sight's matching feature branch adopts the shared handoff for MPS numerical inference and calibration; Fabric's Vision-based Face/Hand analysis remains a separate migration.
+
+Plugin processors can override the read-only `Node.isDirty` getter to include pending result delivery, combining it with `super.isDirty`. `markDirty()` and `markClean()` continue to own Fabric's input dirty flag. `Node.reorderPorts(_:)` and `Graph.withoutUndoRegistration(_:)` are public so plugin settings can preserve port identities/order and register one coherent undo operation for a topology change.
+
+### Deferred GPU results, including Iterators
+
+For new nonblocking analyzers, register decoding during `execute` with the graph-provided command buffer:
+
+```swift
+// Encode GPU work and any managed-storage synchronization first.
+// Each request owns its readback storage until this closure has run.
+try commandBuffer.addCompletion { [readbackBuffer, output] in
+    let result = try decode(readbackBuffer)
+    output.send(result)
+}
+```
+
+Metal's completion callback only signals readiness. Fabric runs the closure on the graph execution owner at a later root execution boundary. Sends are staged atomically: a throwing closure publishes none of its sends. Staged values become visible immediately before the next matching node execution, including a clean processor, so downstream consumers run with the delivered value. A slower GPU can postpone delivery beyond the next display frame. Do not mutate live node state or execute graph work from an ordinary Metal completion handler.
+
+Inside an Iterator, Fabric restores each iteration's most recently delivered outputs; an iteration with no delivered value receives nil for participating outputs. Nested Iterators have independent scopes under each enclosing iteration. Outside an Iterator, the same API uses the renderer's default scope. Synchronous nodes need no changes. `cancelPendingCompletions()` invalidates earlier requests when a setting or input makes them obsolete; stopping/removing nodes, changing port schemas, and removing iteration slots also cancel their delivery. Cancellation does not release GPU readback storage before submitted work finishes.
+
+Use `GraphRenderer.makeCommandBuffer()` for offscreen execution. `addCompletion` throws outside active node execution or with an ordinary caller-created Metal command buffer. Do not commit the final graph buffer from a node. Submitted continuations deliver independently of an abandoned final segment. Whole-frame admission bounds outstanding GPU/decode batches by `Context.maxBuffersInFlight`; it drains ready results before waiting. No work is silently dropped.
+
+The mechanism is opt-in: output capture cells, typed result storage, and iteration scopes are created only for participating nodes. Warmed scopes use root-local integer handles and direct array slots, not per-node identity maps or port scans. Request closures and independently owned readback resources still have real lifetime/allocation costs. Existing `GPUResultReadback` analyzers are not automatically migrated by this API; their request-storage capacity and delivery behavior must be reviewed when adopting it.

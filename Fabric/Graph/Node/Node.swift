@@ -151,6 +151,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     open var ports:[Port] { self.registry.all()   }
     private var cachedInputPorts: [Port]?
     private var cachedOutputPorts: [Port]?
+    internal var deferredResultsBinding: GraphDeferredNodeBinding?
     public private(set) var inputNodes:[Node] = []
     public private(set) var outputNodes:[Node]  = []
 
@@ -201,7 +202,10 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     internal let subtitleSubject = PassthroughSubject<Void, Never>()
 
     // Dirty Handling
-    private(set) public var isDirty: Bool = true
+    private var inputsAreDirty = true
+    /// Whether this processor needs another execution. Plugins may include pending owner-consumed
+    /// results in this hook; markDirty()/markClean() still own the underlying input dirty flag.
+    open var isDirty: Bool { inputsAreDirty }
 
     // Input Parameter update tracking:
     var inputParamCancellables: [AnyCancellable] = []
@@ -474,7 +478,8 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         port.parameter = param
     }
 
-    internal func reorderPorts(_ reordered: [Port])
+    /// Reorders registered ports without changing their identities or connections.
+    public func reorderPorts(_ reordered: [Port])
     {
         self.registry.reorder(reordered)
         self.invalidatePortCaches()
@@ -504,6 +509,8 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     internal func invalidatePortCaches()
     {
+        deferredResultsBinding?.retire()
+        deferredResultsBinding = nil
         self.cachedInputPorts = nil
         self.cachedOutputPorts = nil
     }
@@ -555,7 +562,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     public func markClean()
     {
-        isDirty = false
+        inputsAreDirty = false
 
         // See https://github.com/Fabric-Project/Fabric/issues/41
         for port in ports
@@ -566,7 +573,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     public func markDirty()
     {
-        isDirty = true
+        inputsAreDirty = true
     }
 
     public func synchronizeParameters()
@@ -602,12 +609,21 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     public private(set) var executionState: ExecutionState = .disabled
 
     open func startExecution(renderer:GraphRenderer) throws { executionState = .started }
-    open func stopExecution(renderer:GraphRenderer) throws { executionState = .stopped }
+    /// Cancel obsolete asynchronous publications without releasing submitted GPU resources.
+    public func cancelPendingCompletions() { deferredResultsBinding?.invalidate() }
+
+    open func stopExecution(renderer:GraphRenderer) throws {
+        deferredResultsBinding?.retire()
+        deferredResultsBinding = nil
+        executionState = .stopped
+    }
 
     open func enableExecution(renderer:GraphRenderer) throws {
         executionState = .enabled
     }
     open func disableExecution(renderer:GraphRenderer) throws {
+        deferredResultsBinding?.retire()
+        deferredResultsBinding = nil
         executionState = .disabled
     }
 

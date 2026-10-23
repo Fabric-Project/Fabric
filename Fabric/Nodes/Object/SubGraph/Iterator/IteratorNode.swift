@@ -39,6 +39,33 @@ public class IteratorNode: SubgraphNode
     /// Last frame's iteration count: motion pairs iteration k with last frame's iteration k, so a
     /// change starts every renderable still.
     private var previousIterationCount = 0
+    internal private(set) var deferredScopes: GraphDeferredIteratorScopes?
+    private var enclosingDeferredIterator: IteratorNode?
+    private var deferredIterationIndex = 0
+    private var deferredIterationCount = 0
+
+    internal func deferredResultScope(commands: GraphCommandBuffer) -> GraphDeferredResultScope {
+        let parent: GraphDeferredResultScope
+        if let enclosingDeferredIterator { parent = enclosingDeferredIterator.deferredResultScope(commands: commands) }
+        else {
+            guard let owner = commands.graphRenderer else { preconditionFailure("Iterator results require a graph owner") }
+            parent = owner.ensureDeferredResults().defaultScope
+        }
+        guard let owner = commands.graphRenderer else { preconditionFailure("Iterator results require a graph owner") }
+        let root = owner.ensureDeferredResults().defaultScope
+        if deferredScopes?.root !== root {
+            deferredScopes?.invalidate()
+            deferredScopes = GraphDeferredIteratorScopes(root: root)
+        }
+        guard let deferredScopes else { preconditionFailure("Missing Iterator result storage") }
+        return deferredScopes.scope(parent: parent, index: deferredIterationIndex, count: deferredIterationCount)
+    }
+
+    override public func stopExecution(renderer: GraphRenderer) throws {
+        deferredScopes?.invalidate()
+        deferredScopes = nil
+        try super.stopExecution(renderer: renderer)
+    }
 
     public required init(context: Context)
     {
@@ -60,6 +87,17 @@ public class IteratorNode: SubgraphNode
         let enclosingIteration = executionInfo.iterationInfo
         defer { executionInfo.iterationInfo = enclosingIteration }
         let iterationCount = resolvedIterationCount()
+        let commands = commandBuffer as? GraphCommandBuffer
+        let parentIterator = commands?.executingIterator
+        enclosingDeferredIterator = parentIterator
+        deferredIterationCount = iterationCount
+        defer { enclosingDeferredIterator = nil; commands?.executingIterator = parentIterator }
+        if let deferredScopes, let commands {
+            let parent = parentIterator?.deferredResultScope(commands: commands)
+                ?? commands.graphRenderer?.ensureDeferredResults().defaultScope
+            if let parent { _ = deferredScopes.prepare(parent: parent, count: iterationCount) }
+        }
+        commands?.executingIterator = self
         guard iterationCount > 0 else {
             self.forwardPortValues(force:true)
             return
@@ -80,6 +118,7 @@ public class IteratorNode: SubgraphNode
 
         for iteration in 0..<iterationCount
         {
+            deferredIterationIndex = iteration
             let iterationInfo = GraphIterationInfo(totalIterationCount: iterationCount,
                                                    currentIteration: iteration)
             executionInfo.iterationInfo = iterationInfo
