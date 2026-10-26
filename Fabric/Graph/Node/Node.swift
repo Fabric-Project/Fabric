@@ -203,6 +203,9 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     // Dirty Handling
     private var inputsAreDirty = true
+    /// Nested execution defers cleanup until its enclosing graph finishes. Only nodes that
+    /// actually ran may have their input changes consumed by that cleanup.
+    internal var hasPendingExecutionCleanup = false
     /// Whether this processor needs another execution. Plugins may include pending owner-consumed
     /// results in this hook; markDirty()/markClean() still own the underlying input dirty flag.
     open var isDirty: Bool { inputsAreDirty }
@@ -563,6 +566,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     public func markClean()
     {
         inputsAreDirty = false
+        hasPendingExecutionCleanup = false
 
         // See https://github.com/Fabric-Project/Fabric/issues/41
         for port in ports

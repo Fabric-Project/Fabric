@@ -622,8 +622,10 @@ internal import AnyCodable
                 }
             }
 
-            self.maybeDeleteNodeFromScene(node)
             self.nodes.removeAll { $0.id == node.id }
+            // Disconnecting inputs can make getObject() nil while its previous object
+            // is still attached. Reconcile from the remaining nodes, not that accessor.
+            self.syncNodesToScene()
             node.graph = nil
             self.nodeMembershipDidChange(node)
             // Remove ViewModel after removing from nodes so any in-flight
@@ -1482,15 +1484,6 @@ internal import AnyCodable
         else
         {
 //            print("Graph: \(self.id) Scene: Skipped Child", node)
-        }
-    }
-    
-    private func maybeDeleteNodeFromScene(_ node:Node)
-    {
-        if let objectNode = node as? BaseObjectNode,
-           let object = objectNode.getObject()
-        {
-            self.scene.remove( object )
         }
     }
     

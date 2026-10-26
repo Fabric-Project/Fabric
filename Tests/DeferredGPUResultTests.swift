@@ -87,6 +87,8 @@ private class DeferredProbeNode: Node {
     var continueAfterRequest = false
     var addTailRequest = false
     var failDecode = false
+    var externalGate: DeferredOperationGate?
+    var receivedExternalResults = 0
     override func execute(renderer: GraphRenderer, executionInfo: GraphExecutionInfo,
                           renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws {
         observed.append(output.value)
@@ -97,9 +99,19 @@ private class DeferredProbeNode: Node {
         blit.endEncoding()
         let output = self.output
         let failDecode = self.failDecode
-        try commandBuffer.addCompletion { [readback, output] in
-            output.send(Int(readback.contents().load(as: UInt8.self)))
-            if failDecode { throw GraphExecutionTestFailure("Intentional decode failure") }
+        if let externalGate {
+            try commandBuffer.addCompletion(operation: { [readback] in
+                await externalGate.wait()
+                return Int(readback.contents().load(as: UInt8.self))
+            }, receive: { value in
+                self.receivedExternalResults += 1
+                output.send(value)
+            })
+        } else {
+            try commandBuffer.addCompletion { [readback, output] in
+                output.send(Int(readback.contents().load(as: UInt8.self)))
+                if failDecode { throw GraphExecutionTestFailure("Intentional decode failure") }
+            }
         }
         requestCount += 1
         if continueAfterRequest { try renderer.waitForGPUResults(commandBuffer: commandBuffer) }
@@ -416,5 +428,114 @@ extension DeferredGPUResultTests {
         try renderer.startExecution()
         try execute(renderer, graph: graph, harness: harness, frame: 1)
         #expect(probe.output.value == nil)
+    }
+}
+
+private actor DeferredOperationGate {
+    private var continuations: [CheckedContinuation<Void, Never>] = []
+    private var opened = false
+    func wait() async {
+        if opened { return }
+        await withCheckedContinuation { continuations.append($0) }
+    }
+    func open() {
+        opened = true
+        for continuation in continuations { continuation.resume() }
+        continuations.removeAll()
+    }
+}
+
+extension DeferredGPUResultTests {
+    @Test("External inference result slots reuse storage after frame processing")
+    func externalResultSlotReuse() throws {
+        let segment = GraphDeferredSegment(signal: GraphDeferredSignal())
+        let first: GraphAsyncCompletionResult<Int> = segment.asyncResult()
+        first.store(.success(11))
+        #expect(try first.take() == 11)
+        segment.clearAsyncResults()
+        let second: GraphAsyncCompletionResult<Int> = segment.asyncResult()
+        #expect(first === second)
+        second.store(.success(22))
+        #expect(try second.take() == 22)
+    }
+
+    @Test("External inference stages on the owner and restores each iteration", arguments: [false, true])
+    func externalOperationDelivery(insideIterator: Bool) async throws {
+        let harness = try #require(GraphExecutionTestHarness())
+        let graph = Graph(context: harness.context)
+        let probe = DeferredProbeNode(context: harness.context)
+        let gate = DeferredOperationGate()
+        probe.externalGate = gate
+        let count = insideIterator ? 3 : 1
+        if insideIterator {
+            let iterator = IteratorNode(context: harness.context)
+            iterator.inputIteratonCount.value = count
+            iterator.subGraph.addNode(probe)
+            graph.addNode(iterator)
+        } else { graph.addNode(probe) }
+        let renderer = harness.graphRenderer(for: graph)
+        try renderer.startExecution()
+        try execute(renderer, graph: graph, harness: harness, frame: 0)
+        try execute(renderer, graph: graph, harness: harness, frame: 1)
+        #expect(probe.receivedExternalResults == 0)
+        #expect(probe.observed == Array(repeating: nil, count: count * 2))
+        await gate.open()
+        for _ in 0..<1000 {
+            renderer.deferredGPUResults?.processReady()
+            if probe.receivedExternalResults == count { break }
+            try await Task.sleep(for: .milliseconds(1))
+        }
+        #expect(probe.receivedExternalResults == count)
+        #expect(probe.output.value == nil, "Owner-side staging must not publish ports early")
+        try execute(renderer, graph: graph, harness: harness, frame: 2)
+        #expect(Array(probe.observed.suffix(count)) == (0..<count).map { Optional(10 + $0) })
+    }
+
+    @Test("GPU completion cannot release a frame while external inference is pending")
+    func externalOperationKeepsFrameAdmitted() async throws {
+        let results = GraphDeferredResults(limit: 1)
+        let batch = results.admit()
+        let segment = batch.appendSegment()
+        let gate = DeferredOperationGate()
+        segment.appendAsyncOperation { await gate.wait() }
+        segment.markSubmitted()
+        batch.finishRecording()
+        segment.complete(.completed, generation: segment.generation)
+        results.processReady()
+        #expect(batch.inUse)
+        if case .pending = segment.completionStatus {} else { Issue.record("Inference must hold readiness") }
+        await gate.open()
+        for _ in 0..<1000 {
+            if case .completed = segment.completionStatus { break }
+            try await Task.sleep(for: .milliseconds(1))
+        }
+        results.processReady()
+        #expect(!batch.inUse)
+    }
+
+    @Test("Failed GPU work never starts external inference")
+    func gpuFailureSkipsExternalOperation() async {
+        let results = GraphDeferredResults(limit: 1)
+        let batch = results.admit()
+        let segment = batch.appendSegment()
+        let gate = DeferredOperationGate()
+        weak var retainedInput: NSObject?
+        do {
+            let input = NSObject()
+            retainedInput = input
+            segment.appendAsyncOperation { [input] in
+                await gate.wait()
+                withExtendedLifetime(input) {}
+            }
+        }
+        segment.markSubmitted()
+        batch.finishRecording()
+        segment.complete(.failed(nil), generation: segment.generation)
+        results.processReady()
+        #expect(!batch.inUse)
+        #expect(results.takeErrors().count == 1)
+        // A launched operation would still own its input while suspended at the gate.
+        #expect(retainedInput == nil)
+        await gate.open()
     }
 }

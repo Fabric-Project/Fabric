@@ -1,5 +1,6 @@
 import Metal
 import MetalPerformanceShaders
+import Foundation
 
 public enum GraphCompletionError: Error {
     case requiresGraphCommandBuffer
@@ -16,6 +17,40 @@ extension MTLCommandBuffer {
             throw GraphCompletionError.requiresGraphCommandBuffer
         }
         try commands.registerCompletion(body)
+    }
+
+    /// After this GPU segment completes, perform asynchronous work on independent inputs.
+    /// Only `receive` runs on the graph execution owner, with the original node/Iterator scope.
+    /// The operation must not access nodes or ports; capture invocation-owned data instead.
+    public func addCompletion<Value>(operation: @escaping () async throws -> Value,
+                                     receive: @escaping (Value) throws -> Void) throws {
+        guard let commands = self as? GraphCommandBuffer else {
+            throw GraphCompletionError.requiresGraphCommandBuffer
+        }
+        try commands.registerAsyncCompletion(operation: operation, receive: receive)
+    }
+}
+
+/// Typed result slots are reused with their admitted frame segment; ordinary Metal completions
+/// never allocate these. Only result transfer crosses threads, not node or port state.
+class GraphDeferredAsyncResultSlot {
+    func clear() {}
+}
+
+final class GraphAsyncCompletionResult<Value>: GraphDeferredAsyncResultSlot {
+    private let lock = NSLock()
+    private var result: Result<Value, Error>?
+
+    func store(_ result: Result<Value, Error>) { lock.withLock { self.result = result } }
+    override func clear() { lock.withLock { result = nil } }
+
+    func take() throws -> Value {
+        let result = lock.withLock {
+            defer { self.result = nil }
+            return self.result
+        }
+        guard let result else { preconditionFailure("Asynchronous completion delivered before its result") }
+        return try result.get()
     }
 }
 
@@ -95,6 +130,21 @@ final class GraphCommandBuffer: MPSCommandBuffer {
         let scope = resultScope()
         currentDeferredSegment().requests.append(.init(binding: binding, scope: scope,
             state: scope.state(for: binding), generation: binding.generation, body: body))
+    }
+
+    fileprivate func registerAsyncCompletion<Value>(operation: @escaping () async throws -> Value,
+                                                     receive: @escaping (Value) throws -> Void) throws {
+        guard let graphRenderer, executingNode != nil else { throw GraphCompletionError.requiresNodeExecution }
+        guard !recordingEnded, rootCommandBuffer.status.rawValue < MTLCommandBufferStatus.committed.rawValue
+        else { throw GraphCompletionError.commandBufferAlreadySubmitted }
+        if deferredBatch == nil { deferredBatch = graphRenderer.ensureDeferredResults().admit() }
+        let segment = currentDeferredSegment()
+        let result: GraphAsyncCompletionResult<Value> = segment.asyncResult()
+        try registerCompletion { try receive(result.take()) }
+        segment.appendAsyncOperation {
+            do { result.store(.success(try await operation())) }
+            catch { result.store(.failure(error)) }
+        }
     }
 
     deinit {

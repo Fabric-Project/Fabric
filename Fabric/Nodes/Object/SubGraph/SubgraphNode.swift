@@ -272,7 +272,7 @@ open class SubgraphNode: BaseObjectNode
 
     override open func markClean()
     {
-        for node in self.subGraph.nodes
+        for node in self.subGraph.nodes where node.hasPendingExecutionCleanup
         {
             node.markClean()
         }

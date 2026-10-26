@@ -336,6 +336,10 @@ final class GraphDeferredSegment {
     private(set) var submitted = false
     var requests: [Request] = []
     var processed = false
+    private var asyncOperations: [() async -> Void] = []
+    private var outstandingAsyncOperations = 0
+    private var asyncResults: [GraphDeferredAsyncResultSlot] = []
+    private var asyncResultCount = 0
 
     init(signal: GraphDeferredSignal) { self.signal = signal }
     func reset() {
@@ -343,15 +347,71 @@ final class GraphDeferredSegment {
         generation &+= 1
         status = .pending
         submitted = false
+        outstandingAsyncOperations = 0
         signal.condition.unlock()
+        asyncOperations.removeAll(keepingCapacity: true)
+        clearAsyncResults()
         requests.removeAll(keepingCapacity: true)
         processed = false
     }
     func markSubmitted() { submitted = true }
+    func appendAsyncOperation(_ operation: @escaping () async -> Void) {
+        asyncOperations.append(operation)
+    }
+    func asyncResult<Value>() -> GraphAsyncCompletionResult<Value> {
+        let index = asyncResultCount
+        asyncResultCount += 1
+        if index < asyncResults.count {
+            if let result = asyncResults[index] as? GraphAsyncCompletionResult<Value> { return result }
+            let result = GraphAsyncCompletionResult<Value>()
+            asyncResults[index] = result
+            return result
+        }
+        let result = GraphAsyncCompletionResult<Value>()
+        asyncResults.append(result)
+        return result
+    }
+    func clearAsyncResults() {
+        for index in 0..<asyncResultCount { asyncResults[index].clear() }
+        asyncResultCount = 0
+    }
     func complete(_ status: Status, generation: UInt64) {
         signal.condition.lock()
-        if self.generation == generation {
+        guard self.generation == generation else {
+            signal.condition.unlock()
+            return
+        }
+        if asyncOperations.isEmpty {
             self.status = status
+            signal.notifyLocked()
+            signal.condition.unlock()
+            return
+        }
+        // Keep readiness pending until every task is launched and the closure array is cleared.
+        // This lets us reuse that array without copying it, or racing owner-side segment reuse.
+        self.status = .pending
+        if case .completed = status { outstandingAsyncOperations = asyncOperations.count }
+        signal.condition.unlock()
+        // Start only after successful GPU completion, outside the condition lock. No node state
+        // is touched here; the existing owner-side drain performs every output publication.
+        if case .completed = status {
+            for operation in asyncOperations {
+                Task {
+                    await operation()
+                    self.finishAsyncOperation(generation: generation)
+                }
+            }
+        }
+        asyncOperations.removeAll(keepingCapacity: true)
+        signal.condition.lock()
+        self.status = status
+        signal.notifyLocked()
+        signal.condition.unlock()
+    }
+    private func finishAsyncOperation(generation: UInt64) {
+        signal.condition.lock()
+        if self.generation == generation {
+            outstandingAsyncOperations -= 1
             signal.notifyLocked()
         }
         signal.condition.unlock()
@@ -359,7 +419,12 @@ final class GraphDeferredSegment {
     func abandonIfUnsubmitted() {
         if !submitted { complete(.abandoned, generation: generation) }
     }
-    var completionStatus: Status { signal.condition.withLock { status } }
+    var completionStatus: Status {
+        signal.condition.withLock {
+            if case .completed = status, outstandingAsyncOperations > 0 { return .pending }
+            return status
+        }
+    }
 }
 
 final class GraphDeferredFrameBatch {
@@ -408,6 +473,7 @@ final class GraphDeferredFrameBatch {
             case .abandoned: break
             }
             segment.requests.removeAll(keepingCapacity: true)
+            segment.clearAsyncResults()
             segment.processed = true
         }
         if recordingEnded { inUse = false }

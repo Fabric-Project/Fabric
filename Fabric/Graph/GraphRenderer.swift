@@ -451,6 +451,7 @@ public class GraphRenderer : ViewRenderer
             commandBuffer.pushDebugGroup(node.debugDescription)
 #endif
             var executionError: (any Error)?
+            node.hasPendingExecutionCleanup = true
 
             do
             {
