@@ -28,7 +28,7 @@ The rule that delivers it, for every node output (images, geometry, buffers):
 
 - Raw Metal, MPS and Satin compute work is encoded into the frame's command buffer in graph and iteration order.
 - Raw work never blocks between iterations; the immutability rule keeps each iteration's results intact.
-- Satin-owned GPU inputs (uniforms, registered buffers, compute inputs) are copied or ring-snapshotted per record or dispatch, never rebound live.
+- Satin-owned read-only GPU inputs (uniforms, registered buffers, compute inputs) are copied or ring-snapshotted per record or dispatch, never rebound live. Compute buffers that reset or update kernels can write bind their original storage; copying them would hide the kernel's outputs. Shader reflection determines access, with unknown access treated as potentially writable. Producers must version writable outputs before publishing new contents, and must not overwrite storage pending GPU work still reads.
 
 ## 3. Layering
 

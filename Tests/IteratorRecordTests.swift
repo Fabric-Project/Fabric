@@ -47,6 +47,52 @@ struct IteratorRecordTests
         }
     }
 
+    private final class FailingIteratorNode: IteratorNode {
+        var failAfterRecording = false
+
+        override func execute(renderer: GraphRenderer, executionInfo: GraphExecutionInfo,
+                              renderPassDescriptor: MTLRenderPassDescriptor,
+                              commandBuffer: MTLCommandBuffer) throws {
+            try super.execute(renderer: renderer, executionInfo: executionInfo,
+                              renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+            if failAfterRecording {
+                throw FabricError(.execution(.failed), severity: .fatal, message: "Failure after Iterator recording")
+            }
+        }
+    }
+
+    @Test("Direct evaluation never replays its Iterator records in a later draw", arguments: [false, true])
+    func directEvaluationDiscardsRecords(fails: Bool) throws {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let graph = Graph(context: harness.context)
+        let iterator = FailingIteratorNode(context: harness.context)
+        iterator.inputIteratonCount.value = 2
+        iterator.failAfterRecording = fails
+        addMesh(to: iterator.subGraph, harness: harness)
+        graph.addNode(iterator)
+        let renderer = harness.graphRenderer(for: graph)
+        try renderer.startExecution()
+        defer { try? renderer.stopExecution() }
+
+        if fails {
+            #expect(throws: FabricError.self) {
+                try harness.execute(graph: graph, executionInfo: harness.makeExecutionInfo(), drawScene: false)
+            }
+        } else {
+            try harness.execute(graph: graph, executionInfo: harness.makeExecutionInfo(), drawScene: false)
+        }
+
+        iterator.failAfterRecording = false
+        iterator.inputIteratonCount.value = 0
+        let actual = try render(graph, harness, frameNumber: 1)
+        let empty = Graph(context: harness.context)
+        let emptyRenderer = harness.graphRenderer(for: empty)
+        try emptyRenderer.startExecution()
+        defer { try? emptyRenderer.stopExecution() }
+        let expected = try render(empty, harness)
+        #expect(actual.elementsEqual(expected), "Direct evaluation's old mesh records must not reach the next draw")
+    }
+
     private static let offsets: [Float] = [-0.5, 0.5]
     private static let scale = simd_float3(repeating: 0.3)
 

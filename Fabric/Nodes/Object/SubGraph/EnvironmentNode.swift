@@ -61,7 +61,11 @@ public class EnvironmentNode: SubgraphNode
            let environmentTexture = self.inputEnvironmentTexture.value,
            let iblScene = self.subGraph.scene as? IBLScene
         {
-            iblScene.setEnvironment(texture: environmentTexture.texture, cubemapSize: 2048, reflectionSize:2048, irradianceSize: 32)
+            iblScene.setEnvironment(texture: environmentTexture.texture, cubemapSize: 2048, reflectionSize:2048, irradianceSize: 32) { result in
+                if case let .failure(error) = result {
+                    print("Environment lighting failed: \(error)")
+                }
+            }
         }
         
         if self.inputEnvironmentIntensity.valueDidChange,

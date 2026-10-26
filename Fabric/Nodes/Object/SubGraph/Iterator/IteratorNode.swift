@@ -139,10 +139,10 @@ public class IteratorNode: SubgraphNode
 
             // Recording neither updates nor encodes: do both first.
             subGraph.scene.update()
-            subGraph.scene.encode(in: encodingContext)
+            try subGraph.scene.encode(in: encodingContext)
             for entry in subGraph.scene.sceneIndex.entries {
                 entry.object.update()
-                entry.object.encode(in: encodingContext)
+                try entry.object.encode(in: encodingContext)
             }
             try submission.record(scene: subGraph.scene)
         }

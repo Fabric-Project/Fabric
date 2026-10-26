@@ -122,6 +122,7 @@ final class GraphDeferredNodeState {
     private var slots: [GraphDeferredOutputSlot?] = []
     private var touchedIndices: [Int] = []
     private(set) var hasPreparedDelivery = false
+    var needsRetry = false
     private(set) var slotCreationCount = 0
 
     init(generation: UInt64) { self.generation = generation }
@@ -130,6 +131,7 @@ final class GraphDeferredNodeState {
         slots.removeAll(keepingCapacity: true)
         touchedIndices.removeAll(keepingCapacity: true)
         hasPreparedDelivery = false
+        needsRetry = false
         self.generation = generation
     }
 
@@ -470,7 +472,10 @@ final class GraphDeferredFrameBatch {
                     segment.requests[requestIndex].body = nil
                 }
             case let .failed(error): errors.append(GraphReadbackError.commandBufferFailed(error))
-            case .abandoned: break
+            case .abandoned:
+                for request in segment.requests where request.scope.valid && request.binding.generation == request.generation {
+                    request.state.needsRetry = true
+                }
             }
             segment.requests.removeAll(keepingCapacity: true)
             segment.clearAsyncResults()

@@ -36,7 +36,7 @@ public final class ContourPathNode: Node {
             ("inputResultDelivery", ParameterPort(parameter: StringParameter(
                 "Result Timing", GPUResultDeliveryMode.sameFrame.rawValue,
                 GPUResultDeliveryMode.allCases.map(\.rawValue), .dropdown,
-                "Same Frame waits for GPU results; Next Frame publishes the latest completed result on a later frame"))),
+                "Same Frame waits for GPU results; Next Frame publishes completed results on a later matching execution"))),
 
             // Output (arbitrary payload for now)
             ("outputContour", NodePort<ContiguousArray<simd_float2>>(name: "Contour (points)", kind: .Outlet, description: "Ordered contour points in pixel coordinates")),
@@ -59,12 +59,7 @@ public final class ContourPathNode: Node {
 
     // MARK: - Satin Compute
     private var processor: TextureComputeProcessor?
-    private let readback = GPUResultReadback<ContiguousArray<simd_float2>>()
     private var previousDeliveryMode: GPUResultDeliveryMode?
-    override public var isDirty: Bool {
-        get { super.isDirty || readback.hasPendingResult }
-        set { } // Node owns its dirty flag through markDirty()/markClean().
-    }
 
     // MARK: - Lifecycle
     required public init(context: Context) {
@@ -96,7 +91,6 @@ public final class ContourPathNode: Node {
     }
 
     override public func stopExecution(renderer: GraphRenderer) throws {
-        readback.reset()
         previousDeliveryMode = nil
         try super.stopExecution(renderer: renderer)
     }
@@ -107,18 +101,15 @@ public final class ContourPathNode: Node {
         let mode = resultDeliveryMode
         let modeChanged = previousDeliveryMode != mode
         if modeChanged {
-            readback.reset()
+            cancelPendingCompletions()
             previousDeliveryMode = mode
         }
         guard let image = inputMask.value else {
-            readback.reset()
+            cancelPendingCompletions()
             outputContour.send(nil)
             return
         }
-        if let points = try readback.takeCompleted(beforeFrame: executionInfo.timing.frameNumber) {
-            outputContour.send(points)
-        }
-        guard modeChanged || readback.needsRetry || inputMask.valueDidChange || inputIso.valueDidChange
+        guard modeChanged || inputMask.valueDidChange || inputIso.valueDidChange
                 || inputMaxSegments.valueDidChange || inputJoinEpsilon.valueDidChange else { return }
         guard let processor else {
             throw FabricError(.execution(.gpu), severity: .recoverable, message: "Contour compute processor is unavailable")
@@ -151,16 +142,18 @@ public final class ContourPathNode: Node {
         guard let compute = commandBuffer.makeComputeCommandEncoder() else {
             throw FabricError(.execution(.gpu), severity: .recoverable, message: "Unable to encode contour analysis")
         }
-        processor.update(compute)
-        compute.endEncoding()
+        do {
+            defer { compute.endEncoding() }
+            try processor.update(compute)
+        }
         let requestedEpsilon = inputJoinEpsilon.value ?? 1
         let epsilon = requestedEpsilon.isFinite && requestedEpsilon > 0 ? requestedEpsilon : 0.25
         // Capture the orientation and dimensions now; FabricImage metadata remains mutable.
         let transform = image.textureTransform
         let storageSize = simd_float2(Float(image.texture.width), Float(image.texture.height))
         let presentationSize = simd_float2(Float(image.presentationSize.width), Float(image.presentationSize.height))
-        let points = try readback.read(renderer: renderer, commandBuffer: commandBuffer, mode: mode,
-                                       frameNumber: executionInfo.timing.frameNumber) {
+        let output = outputContour
+        let deliver = {
             let count = min(Int(counter.contents().load(as: UInt32.self)), maxSegments)
             let pointer = segments.contents().assumingMemoryBound(to: simd_float4.self)
             let inverse = simd_inverse(transform)
@@ -177,9 +170,14 @@ public final class ContourPathNode: Node {
                 let end = point(simd_float2(segment.z, segment.w))
                 values.append(simd_float4(start.x, start.y, end.x, end.y))
             }
-            return Self.stitchSegments(values, snapPx: max(epsilon, 0.0001))
+            output.send(Self.stitchSegments(values, snapPx: max(epsilon, 0.0001)))
         }
-        if let points { outputContour.send(points) }
+        if mode == .sameFrame {
+            try renderer.waitForGPUResults(commandBuffer: commandBuffer)
+            deliver()
+        } else {
+            try commandBuffer.addCompletion(deliver)
+        }
     }
 
     @inline(__always)

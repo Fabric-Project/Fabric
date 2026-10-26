@@ -32,6 +32,7 @@ public class GraphRenderer : ViewRenderer
 
     /// This frame's Satin submission, made the first time a node records into it (an Iterator).
     private var pendingSubmission: SubmissionBuilder?
+    private var submissionScopeDepth = 0
     internal private(set) var deferredGPUResults: GraphDeferredResults?
     private var textureRecyclingScope: GraphTextureRecyclingScope?
     private let sceneProxy: Object
@@ -291,6 +292,18 @@ public class GraphRenderer : ViewRenderer
         return submission
     }
 
+    // Nested graph/Iterator evaluations contribute to the enclosing draw. Standalone
+    // evaluation owns a temporary scope instead: its records cannot escape to a later draw.
+    private func beginSubmissionScope() {
+        if submissionScopeDepth == 0 { pendingSubmission = nil }
+        submissionScopeDepth += 1
+    }
+
+    private func endSubmissionScope() {
+        submissionScopeDepth -= 1
+        if submissionScopeDepth == 0 { pendingSubmission = nil }
+    }
+
     // MARK: - On-demand graph evaluation (for exporters and subgraph callers)
 
     public func executeAndDraw(renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
@@ -304,8 +317,8 @@ public class GraphRenderer : ViewRenderer
         prepareDeferredExecution(commandBuffer)
         let recyclingScope = beginTextureRecycling(commandBuffer: commandBuffer)
         defer { finishTextureRecycling(recyclingScope, commandBuffer: commandBuffer) }
-        // A frame that throws before drawing gives up its records; the next frame starts clean.
-        defer { self.pendingSubmission = nil }
+        beginSubmissionScope()
+        defer { endSubmissionScope() }
         let clearColor = self.renderEncoder.clearColor
         let colorLoadAction = self.renderEncoder.colorLoadAction
         let depthLoadAction = self.renderEncoder.depthLoadAction
@@ -374,6 +387,8 @@ public class GraphRenderer : ViewRenderer
         }
     }
 
+    /// Evaluate without drawing this graph's scene. Iterator records belong to the enclosing
+    /// executeAndDraw call, if any; standalone evaluation discards them on return or failure.
     public func execute(graph: Graph,
                         executionInfo: GraphExecutionInfo,
                         renderPassDescriptor: MTLRenderPassDescriptor,
@@ -385,6 +400,8 @@ public class GraphRenderer : ViewRenderer
         prepareDeferredExecution(commandBuffer)
         let recyclingScope = beginTextureRecycling(commandBuffer: commandBuffer)
         defer { finishTextureRecycling(recyclingScope, commandBuffer: commandBuffer) }
+        beginSubmissionScope()
+        defer { endSubmissionScope() }
         self.resetTextureCaches(for: executionInfo)
 
         defer {
@@ -440,6 +457,13 @@ public class GraphRenderer : ViewRenderer
                 let state = commands.resultScope().state(for: binding)
                 hasDeferredDelivery = state.hasPreparedDelivery
                 state.publish(binding: binding)
+                if state.needsRetry {
+                    state.needsRetry = false
+                    node.markDirty()
+                    // Re-evaluate once after abandonment, including nodes whose work is guarded
+                    // by inlet changes. Only async-participating contexts enter this path.
+                    for input in node.inputPorts() { input.valueDidChange = true }
+                }
             }
 
             guard hasDeferredDelivery || node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider else {
