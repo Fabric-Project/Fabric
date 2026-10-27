@@ -180,6 +180,9 @@ public class GraphRenderer : ViewRenderer
         teardown()
         do { try super.cleanup() }
         catch { if capturedError == nil { capturedError = error } }
+        // Torn-down nodes no longer hold their images: give the now-empty heaps back. Heaps still
+        // used by in-flight GPU work or other renderers sharing the allocator are kept.
+        context.gpuAllocator.trim(retainingEmptyHeaps: 0)
 
         if let capturedError
         {

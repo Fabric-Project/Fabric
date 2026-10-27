@@ -48,4 +48,19 @@ struct GraphImageAllocatorTests {
         #expect(renderer.context.gpuAllocator.statistics(for: .gpuOnly).heapCount > 0)
         #expect(renderer.context.gpuAllocator.statistics(for: .cpuReads).heapCount > 0)
     }
+
+    @Test("Renderer cleanup gives empty heaps back and keeps heaps with live images")
+    func cleanupTrimsEmptyHeaps() throws {
+        guard let released = GraphExecutionTestHarness(renderWidth: 4, renderHeight: 4) else { return }
+        do { _ = try released.renderer.newImage(withWidth: 8, height: 8) }
+        #expect(released.context.gpuAllocator.statistics(for: .gpuOnly).heapCount == 1)
+        try released.renderer.cleanup()
+        #expect(released.context.gpuAllocator.statistics(for: .gpuOnly).heapCount == 0)
+
+        guard let held = GraphExecutionTestHarness(renderWidth: 4, renderHeight: 4) else { return }
+        let liveImage = try held.renderer.newImage(withWidth: 8, height: 8)
+        try held.renderer.cleanup()
+        #expect(held.context.gpuAllocator.statistics(for: .gpuOnly).heapCount == 1)
+        #expect(liveImage.texture.heap != nil)
+    }
 }
