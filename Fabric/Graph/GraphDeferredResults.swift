@@ -8,7 +8,10 @@ final class GraphDeferredSendCapture {
     /// The occurrence whose node is executing. Its synchronous sends go out as usual and also
     /// become that occurrence's stored value, so republication never restores an older result.
     var executingState: GraphDeferredNodeState?
-    var executingBinding: GraphDeferredNodeBinding?
+    /// The owning binding's current generation and output count, kept current by the binding.
+    /// Values, not the binding: the binding owns this cell, so a reference back would be a cycle.
+    var bindingGeneration: UInt64 = 0
+    var bindingOutputCount = 0
     /// Orders requests and synchronous sends: a delivery loses to a send made after its request.
     private(set) var sequence: UInt64 = 0
 
@@ -23,9 +26,9 @@ final class GraphDeferredSendCapture {
             state.stage(value, port: port, index: index, force: force)
             return true
         }
-        if let executingState, let executingBinding {
-            executingState.recordSynchronousSend(value, port: port, index: index,
-                                                 binding: executingBinding, sequence: nextSequence())
+        if let executingState {
+            executingState.recordSynchronousSend(value, port: port, index: index, generation: bindingGeneration,
+                                                 outputCount: bindingOutputCount, sequence: nextSequence())
         }
         return false
     }
@@ -53,6 +56,7 @@ final class GraphDeferredNodeBinding {
     init(outputs: [Port]) {
         self.outputs = outputs
         participating = Array(repeating: false, count: outputs.count)
+        captureCell.bindingOutputCount = outputs.count
         for index in outputs.indices {
             outputs[index].deferredSendCapture = captureCell
             outputs[index].deferredOutputIndex = index
@@ -61,6 +65,7 @@ final class GraphDeferredNodeBinding {
 
     func invalidate() {
         generation &+= 1
+        captureCell.bindingGeneration = generation
         for state in states { state.reset(generation: generation) }
     }
 
@@ -72,6 +77,7 @@ final class GraphDeferredNodeBinding {
             output.deferredSendCapture = nil
         }
         outputs.removeAll()
+        captureCell.bindingOutputCount = 0
         states.removeAll()
     }
 
@@ -87,12 +93,10 @@ final class GraphDeferredNodeBinding {
     func beginExecution(in state: GraphDeferredNodeState) {
         guard captureCell.executingState == nil else { return }
         captureCell.executingState = state
-        captureCell.executingBinding = self
     }
 
     func endExecution() {
         captureCell.executingState = nil
-        captureCell.executingBinding = nil
     }
 
     func capture(in state: GraphDeferredNodeState, requestSequence: UInt64 = .max,
@@ -193,8 +197,9 @@ final class GraphDeferredNodeState {
 
     /// The port already sent `value`; keep it as this occurrence's latest so republication restores it.
     func recordSynchronousSend<Value>(_ value: Value?, port: NodePort<Value>, index: Int,
-                                      binding: GraphDeferredNodeBinding, sequence: UInt64) {
-        prepare(generation: binding.generation, outputCount: binding.outputs.count)
+                                      generation: UInt64, outputCount: Int, sequence: UInt64) {
+        guard index < outputCount else { return }
+        prepare(generation: generation, outputCount: outputCount)
         let slot = slot(for: port, index: index)
         slot.stored = value
         slot.storedForce = false
