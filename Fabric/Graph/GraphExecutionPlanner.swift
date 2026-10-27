@@ -151,8 +151,12 @@ internal final class GraphExecutionPlanner {
     private func pullConnections(_ input: Port, ordered: inout [Node]) -> (attempted: Int, active: Int) {
         var attempted = 0
         var active = 0
-        for output in input.connectedOutletsForActiveConnections {
-            guard let node = output.node else { continue }
+        // Array iteration keeps the connection list stable if a pull hook edits
+        // it. Connection activity and weak endpoints are checked as visited.
+        for connection in input.connections {
+            guard connection.active, connection.inletPortID == input.id,
+                  let output = connection.outletPort, let node = output.node
+            else { continue }
             attempted += 1
             if pull(node, requestedOutputPort: output, ordered: &ordered) { active += 1 }
         }

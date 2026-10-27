@@ -180,6 +180,104 @@ struct GraphExecutionPlanningTests {
         #expect(planner.plan(roots: [], alreadyScheduledNodes: [first], forcedNodes: [alias]).isEmpty)
     }
 
+    // Multiple inlet connections can appear in restored graphs and custom port
+    // arrangements. Wire them directly here because Graph.connect intentionally
+    // replaces an inlet's previous connection in the ordinary editing API.
+    @discardableResult
+    private func connectForPlanning(_ output: Fabric.Port, to input: Fabric.Port,
+                                    active: Bool = true) -> Connection {
+        let connection = Connection(outletPortID: output.id, inletPortID: input.id, active: active)
+        connection.outletPortReference = output
+        connection.inletPortReference = input
+        output.connections.append(connection)
+        input.connections.append(connection)
+        return connection
+    }
+
+    @Test("Single connections respect activity and disconnection between passes")
+    func singleConnectionChanges() throws {
+        let context = try context()
+        let graph = Graph(context: context)
+        let source = PlanningTestNode(context: context)
+        let sink = PlanningTestNode(context: context)
+        graph.addNode(source)
+        graph.addNode(sink)
+        let connection = try #require(graph.connect(source.output, to: sink.first))
+        let planner = GraphExecutionPlanner(nodes: graph.nodes)
+        #expect(planner.plan(roots: [], forcedNodes: [sink]).map(\.id) == [source.id, sink.id])
+        connection.active = false
+        #expect(planner.plan(roots: [], forcedNodes: [sink]).map(\.id) == [sink.id])
+        connection.active = true
+        #expect(planner.plan(roots: [], forcedNodes: [sink]).map(\.id) == [source.id, sink.id])
+        graph.disconnect(connection)
+        #expect(planner.plan(roots: [], forcedNodes: [sink]).map(\.id) == [sink.id])
+    }
+
+    @Test("Connection activity is checked when visited after upstream hooks")
+    func activityCheckedWhenVisited() throws {
+        let context = try context()
+        let first = PlanningTestNode(context: context)
+        let second = PlanningTestNode(context: context)
+        let inactive = PlanningTestNode(context: context)
+        let sink = PlanningTestNode(context: context)
+        connectForPlanning(first.output, to: sink.first)
+        let secondConnection = connectForPlanning(second.output, to: sink.first)
+        let inactiveConnection = connectForPlanning(inactive.output, to: sink.first, active: false)
+        first.onPull = {
+            secondConnection.active = false
+            inactiveConnection.active = true
+        }
+        let planner = GraphExecutionPlanner(nodes: [first, second, inactive, sink])
+        #expect(planner.plan(roots: [], forcedNodes: [sink]).map(\.id) == [first.id, inactive.id, sink.id])
+        #expect(planner.plan(roots: [], forcedNodes: [sink]).map(\.id) == [first.id, inactive.id, sink.id])
+    }
+
+    @Test("Removing connections during an upstream pull does not invalidate traversal")
+    func removalDuringPull() throws {
+        let context = try context()
+        let first = PlanningTestNode(context: context)
+        let second = PlanningTestNode(context: context)
+        let sink = PlanningTestNode(context: context)
+        connectForPlanning(first.output, to: sink.first)
+        connectForPlanning(second.output, to: sink.first)
+        first.onPull = { [weak sink] in sink?.first.connections.removeAll() }
+        let planner = GraphExecutionPlanner(nodes: [first, second, sink])
+        #expect(planner.plan(roots: [], forcedNodes: [sink]).map(\.id) == [first.id, second.id, sink.id])
+        #expect(planner.plan(roots: [], forcedNodes: [sink]).map(\.id) == [sink.id])
+    }
+
+    @Test("Multiple connections preserve nested dependency order across repeated passes")
+    func nestedConnectionSnapshots() throws {
+        let context = try context()
+        let leaves = (0..<4).map { _ in PlanningTestNode(context: context) }
+        let middle = PlanningTestNode(context: context)
+        let sink = PlanningTestNode(context: context)
+        for leaf in leaves.prefix(3) { connectForPlanning(leaf.output, to: middle.first) }
+        connectForPlanning(middle.output, to: sink.first)
+        connectForPlanning(leaves[3].output, to: sink.first)
+        let planner = GraphExecutionPlanner(nodes: leaves + [middle, sink])
+        let expected = leaves.prefix(3).map(\.id) + [middle.id, leaves[3].id, sink.id]
+        for _ in 0..<3 {
+            let result = planner.plan(roots: [], forcedNodes: [sink]).map(\.id)
+            #expect(result == expected)
+        }
+    }
+
+    @Test("Connection traversal does not retain detached outlets")
+    func connectionTraversalLifetime() throws {
+        let context = try context()
+        let sink = PlanningTestNode(context: context)
+        var detached: NodePort<Float>? = NodePort<Float>(name: "Detached", kind: .Outlet)
+        weak var retired = detached
+        let other = NodePort<Float>(name: "Other", kind: .Outlet)
+        connectForPlanning(try #require(detached), to: sink.first)
+        connectForPlanning(other, to: sink.first)
+        let planner = GraphExecutionPlanner(nodes: [sink])
+        _ = planner.plan(roots: [], forcedNodes: [sink])
+        detached = nil
+        #expect(retired == nil)
+    }
+
     @Test("Reentrant pull hooks cannot overwrite an outer planning pass")
     func reentrantPlanning() throws {
         let context = try context()

@@ -225,17 +225,6 @@ extension UTType
         }
     }
 
-    internal var connectedOutletsForActiveConnections: [Port]
-    {
-        connections.compactMap { connection in
-            guard connection.active,
-                  connection.inletPortID == id
-            else { return nil }
-
-            return connection.outletPort
-        }
-    }
-
     public func connection(to port: Port) -> Connection?
     {
         connections.first { connection in
