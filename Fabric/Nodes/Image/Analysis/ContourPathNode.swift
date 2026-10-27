@@ -34,7 +34,7 @@ public final class ContourPathNode: Node {
             ("inputJoinEpsilon", ParameterPort(parameter: FloatParameter("Join Epsilon (px)", 1.0, .inputfield, "Pixel tolerance for joining contour endpoints"))),
 
             ("inputResultDelivery", ParameterPort(parameter: StringParameter(
-                "Result Timing", GPUResultDeliveryMode.sameFrame.rawValue,
+                "Result Timing", GPUResultDeliveryMode.sync.rawValue,
                 GPUResultDeliveryMode.allCases.map(\.rawValue), .dropdown,
                 "Same Frame waits for GPU results; Next Frame publishes completed results on a later matching execution"))),
 
@@ -53,7 +53,7 @@ public final class ContourPathNode: Node {
 
     public var inputResultDelivery: ParameterPort<String> { port(named: "inputResultDelivery") }
     public var resultDeliveryMode: GPUResultDeliveryMode {
-        get { GPUResultDeliveryMode(rawValue: inputResultDelivery.value ?? "") ?? .sameFrame }
+        get { GPUResultDeliveryMode(rawValue: inputResultDelivery.value ?? "") ?? .sync }
         set { inputResultDelivery.value = newValue.rawValue }
     }
 
@@ -172,7 +172,7 @@ public final class ContourPathNode: Node {
             }
             output.send(Self.stitchSegments(values, snapPx: max(epsilon, 0.0001)))
         }
-        if mode == .sameFrame {
+        if mode == .sync {
             try renderer.waitForGPUResults(commandBuffer: commandBuffer)
             deliver()
         } else {

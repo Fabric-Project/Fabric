@@ -80,8 +80,8 @@ struct ContourReadbackTests {
             // Identify the widely separated masks without depending on contour start-point order.
             return consumer.observedCenters.map { $0.map { Int($0 / 16) } }
         }
-        let synchronous = try run(mode: .sameFrame)
-        let deferred = try run(mode: .nextFrame)
+        let synchronous = try run(mode: .sync)
+        let deferred = try run(mode: .async)
         #expect(synchronous.count == 6)
         #expect(Array(synchronous.prefix(3)) == [0, 1, 2], "The synchronous control visits each distinct mask")
         #expect(deferred.prefix(3).allSatisfy { $0 == nil })

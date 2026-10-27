@@ -3,8 +3,8 @@ import Metal
 
 /// When an analyzer makes a GPU-produced CPU value available to downstream nodes.
 public enum GPUResultDeliveryMode: String, CaseIterable, Codable {
-    case sameFrame = "Same Frame"
-    case nextFrame = "Next Frame"
+    case sync = "Sync" // Same execution
+    case async = "Async" // Future execution after command buffer completes
 }
 
 /// A per-node result handoff. GPU completion only marks an immutable readback ready; decoding and
@@ -84,7 +84,7 @@ public final class GPUResultReadback<Value> {
     public func read(renderer: GraphRenderer, commandBuffer: MTLCommandBuffer,
                      mode: GPUResultDeliveryMode, frameNumber: Int,
                      reader: @escaping () throws -> Value) throws -> Value? {
-        if mode == .sameFrame {
+        if mode == .sync {
             reset()
             try renderer.waitForGPUResults(commandBuffer: commandBuffer)
             return try reader()

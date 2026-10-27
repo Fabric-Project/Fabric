@@ -43,11 +43,11 @@ struct GPUResultReadbackTests {
         let commands = try #require(harness.renderer.makeCommandBuffer())
         let first = try fill(harness, commands: commands, value: 7)
         let readback = GPUResultReadback<UInt8>()
-        _ = try readback.read(renderer: harness.renderer, commandBuffer: commands, mode: .nextFrame, frameNumber: 0) {
+        _ = try readback.read(renderer: harness.renderer, commandBuffer: commands, mode: .async, frameNumber: 0) {
             first.contents().load(as: UInt8.self)
         }
         let second = try fill(harness, commands: commands, value: 11)
-        let immediate = try readback.read(renderer: harness.renderer, commandBuffer: commands, mode: .sameFrame, frameNumber: 0) {
+        let immediate = try readback.read(renderer: harness.renderer, commandBuffer: commands, mode: .sync, frameNumber: 0) {
             second.contents().load(as: UInt8.self)
         }
         #expect(immediate == 11)
