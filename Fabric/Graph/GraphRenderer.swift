@@ -49,6 +49,8 @@ public class GraphRenderer : ViewRenderer
     public private(set) var resizeScaleFactor: Float = 1.0
 
     private var executionPlanCaches: [ObjectIdentifier: GraphExecutionPlanCache] = [:]
+    // Iterator executes the same graph many times a frame; skip hashing for a repeat.
+    private var lastExecutionPlan: GraphExecutionPlanCache?
     private var traceExecutionIndex = 0
     private var graphExecutionTraceStack: [GraphExecutionTraceFrameBuilder] = []
     private var nodeExecutionTraceStack: [NodeExecutionTraceBuilder] = []
@@ -423,16 +425,10 @@ public class GraphRenderer : ViewRenderer
         }
 
         var capturedError: (any Error)?
-        let executionPlan = executionPlan(for: graph)
-        var scheduledNodes = executionPlan.nodesInExecutionOrder
-
-        if !forceEvaluationForTheseNodes.isEmpty {
-            scheduledNodes.append(contentsOf: executionPlan.planner.plan(roots: [],
-                                                                       alreadyScheduledNodes: scheduledNodes,
-                                                                       forcedNodes: forceEvaluationForTheseNodes))
-        }
+        let scheduledNodes = executionPlan(for: graph).scheduledNodes(forcing: forceEvaluationForTheseNodes)
 
         let graphTraceFrame = beginGraphExecutionTrace()
+        let commands = commandBuffer as? GraphCommandBuffer
 
         for (orderIndex, node) in scheduledNodes.enumerated() {
             if self.graphRequiresResize {
@@ -443,7 +439,6 @@ public class GraphRenderer : ViewRenderer
             guard node.executionState == .started else { continue }
 
             let nodeTrace = beginNodeExecutionTrace(node: node, orderIndex: orderIndex)
-            let commands = commandBuffer as? GraphCommandBuffer
             let enclosingNode = commands?.executingNode
             commands?.executingNode = node
             defer { commands?.executingNode = enclosingNode }
@@ -524,14 +519,20 @@ public class GraphRenderer : ViewRenderer
     private final class GraphExecutionPlanCache
     {
         let graphID: UUID
+        let graphIdentifier: ObjectIdentifier
         let connectionTopologyGeneration: Int
         private(set) var executionTopologyGeneration: Int
         private(set) var nodesInExecutionOrder: [Node]
         let planner: GraphExecutionPlanner
+        // Forced extensions follow the same invariant as the root plan: pull
+        // decisions only change with the graph's execution topology generation.
+        private var forcedNodes: [Node]?
+        private var nodesInExecutionOrderWithForcedNodes: [Node] = []
 
         init(graph: Graph, roots: [(node: Node, requestedOutputPort: Port?)])
         {
             graphID = graph.id
+            graphIdentifier = ObjectIdentifier(graph)
             connectionTopologyGeneration = graph.connectionTopologyGeneration
             executionTopologyGeneration = graph.executionTopologyGeneration
             planner = GraphExecutionPlanner(nodes: graph.nodes)
@@ -542,13 +543,40 @@ public class GraphRenderer : ViewRenderer
         {
             executionTopologyGeneration = graph.executionTopologyGeneration
             nodesInExecutionOrder = planner.plan(roots: roots)
+            forcedNodes = nil
+        }
+
+        func scheduledNodes(forcing nodesToForce: [Node]) -> [Node]
+        {
+            if nodesToForce.isEmpty { return nodesInExecutionOrder }
+
+            if let forcedNodes, Self.isSameNodeList(forcedNodes, nodesToForce) {
+                return nodesInExecutionOrderWithForcedNodes
+            }
+
+            forcedNodes = nodesToForce
+            nodesInExecutionOrderWithForcedNodes = nodesInExecutionOrder
+                + planner.plan(roots: [], alreadyScheduledNodes: nodesInExecutionOrder, forcedNodes: nodesToForce)
+            return nodesInExecutionOrderWithForcedNodes
+        }
+
+        /// Iterator passes `graph.nodes` every iteration, so shared storage is the common case.
+        private static func isSameNodeList(_ lhs: [Node], _ rhs: [Node]) -> Bool
+        {
+            guard lhs.count == rhs.count else { return false }
+            let sharesStorage = lhs.withUnsafeBufferPointer { lhsBuffer in
+                rhs.withUnsafeBufferPointer { $0.baseAddress == lhsBuffer.baseAddress }
+            }
+            return sharesStorage || zip(lhs, rhs).allSatisfy { $0 === $1 }
         }
     }
 
     private func executionPlan(for graph: Graph) -> GraphExecutionPlanCache
     {
         let graphIdentifier = ObjectIdentifier(graph)
-        if let cached = executionPlanCaches[graphIdentifier],
+        let candidate = lastExecutionPlan.flatMap { $0.graphIdentifier == graphIdentifier ? $0 : nil }
+            ?? executionPlanCaches[graphIdentifier]
+        if let cached = candidate,
            cached.graphID == graph.id,
            cached.connectionTopologyGeneration == graph.connectionTopologyGeneration
         {
@@ -557,12 +585,28 @@ public class GraphRenderer : ViewRenderer
             if cached.executionTopologyGeneration != graph.executionTopologyGeneration {
                 cached.refreshPullDecisions(for: graph, roots: executionRoots(for: graph))
             }
+            lastExecutionPlan = cached
             return cached
         }
 
         let plan = GraphExecutionPlanCache(graph: graph, roots: executionRoots(for: graph))
         executionPlanCaches[graphIdentifier] = plan
+        lastExecutionPlan = plan
         return plan
+    }
+
+    /// Plans hold their graph's nodes strongly. A deleted subgraph node's inner
+    /// graphs never execute again, so release their plans with it.
+    private func forgetExecutionPlans(forSubgraphsOf node: Node)
+    {
+        guard let subgraphNode = node as? SubgraphNode else { return }
+        let graphIdentifier = ObjectIdentifier(subgraphNode.subGraph)
+        executionPlanCaches[graphIdentifier] = nil
+        if lastExecutionPlan?.graphIdentifier == graphIdentifier { lastExecutionPlan = nil }
+        for nestedSubgraphNode in subgraphNode.subGraph.subgraphNodes
+        {
+            forgetExecutionPlans(forSubgraphsOf: nestedSubgraphNode)
+        }
     }
 
     private func executionRoots(for graph: Graph) -> [(node: Node, requestedOutputPort: Port?)]
@@ -783,6 +827,7 @@ public class GraphRenderer : ViewRenderer
         if node.graph == nil
         {
             target = .disabled
+            forgetExecutionPlans(forSubgraphsOf: node)
         }
         else if ceiling != .started
         {

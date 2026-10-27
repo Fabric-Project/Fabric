@@ -56,6 +56,42 @@ struct GraphExecutionPlanningTests {
         #expect(planner.plan(roots: [], forcedNodes: [sink]).map(\.id) == [source.id, middle.id, sink.id])
     }
 
+    @Test("Renderer reuses a forced plan until the execution topology changes")
+    func rendererReusesForcedPlan() throws {
+        let context = try context()
+        let graph = Graph(context: context)
+        let left = PlanningTestNode(context: context)
+        let right = PlanningTestNode(context: context)
+        let route = PlanningTestNode(context: context)
+        for node in [route, left, right] { graph.addNode(node) }
+        graph.connect(left.output, to: route.first)
+        graph.connect(right.output, to: route.second)
+        var pullCount = 0
+        route.onPull = { pullCount += 1 }
+
+        let renderer = GraphRenderer(context: context, graph: graph)
+        try renderer.startExecution()
+        let executionInfo = GraphExecutionInfo(timing: GraphExecutionTiming(
+            time: 0, deltaTime: 1.0 / 60.0, displayTime: 0, systemTime: 0, hostMediaTime: 0, frameNumber: 0))
+        func executeForcingAllNodes() throws {
+            let commandBuffer = try #require(renderer.commandQueue.makeCommandBuffer())
+            try renderer.execute(graph: graph, executionInfo: executionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor(), commandBuffer: commandBuffer,
+                                 clearFlags: false, forceEvaluationForTheseNodes: graph.nodes)
+        }
+
+        try executeForcingAllNodes()
+        let pullsAfterFirstPass = pullCount
+        try executeForcingAllNodes()
+        try executeForcingAllNodes()
+        #expect(pullCount == pullsAfterFirstPass)
+
+        route.selectedInput = 1
+        graph.markExecutionTopologyChanged()
+        try executeForcingAllNodes()
+        #expect(pullCount > pullsAfterFirstPass)
+    }
+
     @Test("Pull decisions are reevaluated between forced passes")
     func dynamicRouting() throws {
         let context = try context()
