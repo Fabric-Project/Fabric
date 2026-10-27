@@ -14,6 +14,7 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
 {
     private var subscription:AnyCancellable? = nil
     private var _parameter: GenericParameter<ParamValue>
+    private var isUpdatingParameterValue = false
 
     // Proxy the parameter's description
     // Setter ignores empty values to preserve parameter's description during decoding of old files
@@ -55,9 +56,7 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
                 self._parameter = newParam
                 self.value = self._parameter.value
 
-                self.subscription = _parameter.valuePublisher.eraseToAnyPublisher().sink{ [weak self] value in
-                        self?.value = value
-                }
+                self.subscribeToParameter()
             }
         }
     }
@@ -77,9 +76,7 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
 
         self.value = self._parameter.value
 
-        self.subscription = parameter.valuePublisher.eraseToAnyPublisher().sink{ [weak self] value in
-                self?.value = value
-        }
+        self.subscribeToParameter()
     }
 
     enum CodingKeys : String, CodingKey
@@ -122,12 +119,20 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
 
         self.value = self._parameter.value
 
-        self.subscription = _parameter.valuePublisher.eraseToAnyPublisher().sink{ [weak self] value in
-
-                self?.value = value
-        }
+        self.subscribeToParameter()
     }
     
+    private func subscribeToParameter()
+    {
+        self.subscription = self._parameter.valuePublisher.sink { [weak self] value in
+            // Port edits already uploaded this value. Do not feed the parameter's
+            // synchronous notification back through the port setter a second time.
+            guard let self else { return }
+            if self.isUpdatingParameterValue, self.value == value { return }
+            self.value = value
+        }
+    }
+
     deinit
     {
         self.subscription?.cancel()
@@ -206,21 +211,13 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
                 return
             }
 
-            // Overriding the property's didSet replaces the parent's
-            // observer, so the change-tracking bookkeeping the parent
-            // does (NodePort.value) has to be repeated here. Without it,
-            // values pushed in via the parameter's Combine publisher
-            // (the path UI dropdowns / inputfields go through) update
-            // the value but never raise `valueDidChange`, so executors
-            // that gate on `valueDidChange` — e.g. NumberBinaryOperator
-            // re-parsing its operator string — silently miss the change
-            // and stay on the previous value.
-            self.valueDidChange = true
-            self.node?.markDirty()
-            self.onValueChanged?()
-
+            // Swift also runs NodePort.value's observer for this assignment;
+            // change flags, node invalidation and callbacks belong there.
             if self._parameter.value != value
             {
+                let wasUpdatingParameterValue = self.isUpdatingParameterValue
+                self.isUpdatingParameterValue = true
+                defer { self.isUpdatingParameterValue = wasUpdatingParameterValue }
                 self._parameter.value = value
             }
         }
