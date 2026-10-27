@@ -233,12 +233,32 @@ public class DeferredSubgraphNode: SubgraphNode
         )
     }
 
+    /// An output something reads: connected here, or published to a parent graph. Unused secondary
+    /// outputs get no image, so nothing is allocated or copied for them.
+    private static func isUsed(_ port: Port) -> Bool
+    {
+        port.published || !port.connections.isEmpty
+    }
+
+    /// A fresh depth image the inner scene renders into directly, or nil where the encoder must keep
+    /// its own depth texture: a combined depth-stencil format (that texture is also the stencil
+    /// attachment) or deferred-geometry lighting (which reads it). Those keep the per-frame copy.
+    private func makeDirectDepthImage(width: Int, height: Int) throws -> FabricImage?
+    {
+        let encoder = self.graphRenderer.renderEncoder
+        let format = encoder.depthPixelFormat
+        guard format != .invalid, format != .depth32Float_stencil8, encoder.renderingMode != .deferredGeometry
+        else { return nil }
+        return try self.graphRenderer.makeImage(width: width, height: height, pixelFormat: format,
+                                                usage: [.renderTarget, .shaderRead])
+    }
+
     private func sendAuxiliaryTexture(_ texture: MTLTexture?, toPortNamed portName: String,
                                       commandBuffer: MTLCommandBuffer) throws
     {
         guard let port = self.findPort(named: portName, as: NodePort<FabricImage>.self) else { return }
 
-        if let texture
+        if let texture, Self.isUsed(port)
         {
             port.send(try graphRenderer.newImage(copying: texture, commandBuffer: commandBuffer))
         }
@@ -289,6 +309,11 @@ public class DeferredSubgraphNode: SubgraphNode
         let outputImage = try self.graphRenderer.newImage(withWidth: width, height: height)
         rpd1.colorAttachments[0].texture = outputImage.texture
 
+        // Depth renders straight into its own output image instead of being copied each frame.
+        let depthIsUsed = Self.isUsed(self.outputDepthTexture)
+        let depthImage = depthIsUsed ? try self.makeDirectDepthImage(width: width, height: height) : nil
+        rpd1.depthAttachment.texture = depthImage?.texture
+
         var recoverableError: (any Error)?
         do
         {
@@ -305,7 +330,15 @@ public class DeferredSubgraphNode: SubgraphNode
 
         self.outputColorTexture.send(outputImage)
         
-        if let texture = self.graphRenderer.renderEncoder.depthTexture
+        if !depthIsUsed
+        {
+            self.outputDepthTexture.send(nil)
+        }
+        else if let depthImage
+        {
+            self.outputDepthTexture.send(depthImage)
+        }
+        else if let texture = self.graphRenderer.renderEncoder.depthTexture
         {
             self.outputDepthTexture.send(try graphRenderer.newImage(copying: texture, commandBuffer: commandBuffer))
         }
