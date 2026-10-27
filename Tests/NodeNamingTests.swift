@@ -52,6 +52,16 @@ private final class NamingTestNode: Node
 
 @Suite struct NodeNamingTests
 {
+    /// NodeViewModel applies node changes on a later main-queue turn. Main runs queued blocks in
+    /// order, so once this resumes every update queued before it has been applied: no timeouts.
+    @MainActor
+    private func drainMainQueue() async
+    {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.main.async { continuation.resume() }
+        }
+    }
+
     private func makeContext() -> Context?
     {
         guard let device = MTLCreateSystemDefaultDevice() else { return nil }
@@ -187,6 +197,7 @@ private final class NamingTestNode: Node
     }
 
     @Test("NodeViewModel mirrors rename and derived subtitle changes")
+    @MainActor
     func viewModelMirrorsResolvedSubtitle() async throws
     {
         guard let context = makeContext() else { return }
@@ -206,30 +217,22 @@ private final class NamingTestNode: Node
         #expect(nodeViewModel.subtitle == "Latest Context")
 
         node.setDerivedSubtitle("Subject Update")
-        for _ in 0..<50 where nodeViewModel.subtitle != "Subject Update"
-        {
-            try await Task.sleep(for: .milliseconds(10))
-        }
+        await drainMainQueue()
         #expect(nodeViewModel.subtitle == "Subject Update")
 
         node.userName = "Direct Node Rename"
-        for _ in 0..<50 where nodeViewModel.subtitle != "Direct Node Rename"
-        {
-            try await Task.sleep(for: .milliseconds(10))
-        }
+        await drainMainQueue()
         #expect(nodeViewModel.userName == "Direct Node Rename")
         #expect(nodeViewModel.subtitle == "Direct Node Rename")
 
         node.userName = nil
-        for _ in 0..<50 where nodeViewModel.subtitle != "Subject Update"
-        {
-            try await Task.sleep(for: .milliseconds(10))
-        }
+        await drainMainQueue()
         #expect(nodeViewModel.userName == nil)
         #expect(nodeViewModel.subtitle == "Subject Update")
     }
 
     @Test("NodeViewModel mirrors instance title changes")
+    @MainActor
     func viewModelMirrorsInstanceTitleChanges() async throws
     {
         guard let context = makeContext() else { return }
@@ -237,10 +240,7 @@ private final class NamingTestNode: Node
         let nodeViewModel = NodeViewModel(node: node)
 
         node.setDerivedTitle("Updated Instance Title")
-        for _ in 0..<50 where nodeViewModel.title != "Updated Instance Title"
-        {
-            try await Task.sleep(for: .milliseconds(10))
-        }
+        await drainMainQueue()
 
         #expect(nodeViewModel.title == "Updated Instance Title")
     }
@@ -281,6 +281,7 @@ private final class NamingTestNode: Node
     }
 
     @Test("NodeViewModel mirrors status changes")
+    @MainActor
     func viewModelMirrorsStatus() async throws
     {
         guard let context = makeContext() else { return }
@@ -290,18 +291,12 @@ private final class NamingTestNode: Node
         #expect(nodeViewModel.status == .warning("Initial"))
 
         node.setDerivedStatuses([.warning("Initial"), .error("Broken")])
-        for _ in 0..<50 where nodeViewModel.status != .error("Broken")
-        {
-            try await Task.sleep(for: .milliseconds(10))
-        }
+        await drainMainQueue()
         #expect(nodeViewModel.status == .error("Broken"))
         #expect(nodeViewModel.statuses == [.error("Broken"), .warning("Initial")])
 
         node.setDerivedStatuses([])
-        for _ in 0..<50 where nodeViewModel.status != nil
-        {
-            try await Task.sleep(for: .milliseconds(10))
-        }
+        await drainMainQueue()
         #expect(nodeViewModel.status == nil)
     }
 }
