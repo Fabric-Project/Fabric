@@ -228,7 +228,8 @@ public class DeferredSubgraphNode: SubgraphNode
             normalsPixelFormat: self.context.normalsPixelFormat,
             pbrPixelFormat: self.context.pbrPixelFormat,
             velocityPixelFormat: self.context.velocityPixelFormat,
-            emissivePixelFormat: self.context.emissivePixelFormat
+            emissivePixelFormat: self.context.emissivePixelFormat,
+            gpuAllocator: self.context.gpuAllocator
         )
     }
 
