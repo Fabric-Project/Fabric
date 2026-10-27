@@ -114,39 +114,44 @@ public class NodePort<Value : PortValueRepresentable>: Port
                 if let inlet = inlet as? NodePort<Value>
                 {
                     self.send(v, to:inlet, force: force)
+                    continue
                 }
-                
-                else if
-                    let v = v,
-                    v.canConvertTo(other: inlet.portType)
+
+                if let v
                 {
-                    if let converted = v.convertTo(other: inlet.portType) as? Bool,
-                       let inlet = inlet as? NodePort<Bool>
+                    let destinationType = inlet.portType
+                    if v.canConvertTo(other: destinationType)
                     {
-                        self.send(converted, to:inlet, force: force)
-                    }
-                    
-                    else if let converted = v.convertTo(other: inlet.portType) as? Int,
-                       let inlet = inlet as? NodePort<Int>
-                    {
-                        self.send(converted, to:inlet, force: force)
-                    }
-                    
-                    else if let converted = v.convertTo(other: inlet.portType) as? Float,
-                       let inlet = inlet as? NodePort<Float>
-                    {
-                        self.send(converted, to:inlet, force: force)
-                    }
-                    
-                    else if let converted = v.convertTo(other: inlet.portType) as? String,
-                       let inlet = inlet as? NodePort<String>
-                    {
-                        self.send(converted, to:inlet, force: force)
+                        let convertedValue = v.convertTo(other: destinationType)
+                        if let converted = convertedValue as? Bool,
+                           let inlet = inlet as? NodePort<Bool>
+                        {
+                            self.send(converted, to:inlet, force: force)
+                        }
+
+                        else if let converted = convertedValue as? Int,
+                           let inlet = inlet as? NodePort<Int>
+                        {
+                            self.send(converted, to:inlet, force: force)
+                        }
+
+                        else if let converted = convertedValue as? Float,
+                           let inlet = inlet as? NodePort<Float>
+                        {
+                            self.send(converted, to:inlet, force: force)
+                        }
+
+                        else if let converted = convertedValue as? String,
+                           let inlet = inlet as? NodePort<String>
+                        {
+                            self.send(converted, to:inlet, force: force)
+                        }
+                        continue
                     }
                 }
 
                 // Our new boxed virtual
-                else if let inlet = inlet as? NodePort<PortValue>
+                if let inlet = inlet as? NodePort<PortValue>
                 {
                     self.send(v?.toPortValue(), to:inlet, force: force)
                 }

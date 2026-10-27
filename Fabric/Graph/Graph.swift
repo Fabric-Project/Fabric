@@ -1020,7 +1020,7 @@ internal import AnyCodable
         }
     }
      
-    // MARK: -Rendering Helpers
+    // MARK: - Rendering Helpers
     internal var latestCamera:Camera? = nil
 
     private func setCameraSelection(_ camera: Camera?)
@@ -1083,7 +1083,7 @@ internal import AnyCodable
         return nil
     }
     
-    // MARK: -Selection
+    // MARK: - Selection
     
     public enum NodeSelectionDirection: Equatable {
         case Up
