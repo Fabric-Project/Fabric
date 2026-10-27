@@ -100,8 +100,6 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
                                                 material: material,
                                                 depthPixelFormat: .invalid,
                                                 stencilPixelFormat: .invalid,
-                                                depthStoreAction: .dontCare,
-                                                stencilStoreAction: .dontCare,
                                                 frameBufferOnly: false)
 
         super.init(context: context)
@@ -121,8 +119,6 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
                                                 material: material,
                                                 depthPixelFormat: .invalid,
                                                 stencilPixelFormat: .invalid,
-                                                depthStoreAction: .dontCare,
-                                                stencilStoreAction: .dontCare,
                                                 frameBufferOnly: false)
 
         super.init(context: context)
@@ -174,8 +170,6 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
                                                         material: material,
                                                         depthPixelFormat: .invalid,
                                                         stencilPixelFormat: .invalid,
-                                                        depthStoreAction: .dontCare,
-                                                        stencilStoreAction: .dontCare,
                                                         frameBufferOnly: false)
             }
             else {
@@ -190,8 +184,6 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
                                                         material: material,
                                                         depthPixelFormat: .invalid,
                                                         stencilPixelFormat: .invalid,
-                                                        depthStoreAction: .dontCare,
-                                                        stencilStoreAction: .dontCare,
                                                         frameBufferOnly: false)
             }
         }
@@ -207,8 +199,6 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
                                                     material: material,
                                                     depthPixelFormat: .invalid,
                                                     stencilPixelFormat: .invalid,
-                                                    depthStoreAction: .dontCare,
-                                                    stencilStoreAction: .dontCare,
                                                     frameBufferOnly: false)
         }
 
@@ -618,8 +608,7 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
             let renderPassDesc = MTLRenderPassDescriptor()
             renderPassDesc.colorAttachments[0].texture = outImage.texture
             
-            self.postProcessor.mesh.preDraw = nil
-            self.postProcessor.draw(renderPassDescriptor: renderPassDesc, commandBuffer: commandBuffer)
+            try self.postProcessor.draw(frame: executionInfo.timing, renderPassDescriptor: renderPassDesc, commandBuffer: commandBuffer)
             self.outputTexturePort.send(outImage)
             return
         }
@@ -647,11 +636,10 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
         self.postMaterial.set(self.inputTextureTransformBuffer, index: FragmentBufferIndex.Custom10)
         outImage.textureTransform = matrix_identity_float4x4
 
-        self.postProcessor.mesh.preDraw = { renderEncoder in
-            for (index, texture) in textures.enumerated() {
-                let fallbackTexture = texture ?? inputTexture0
-                renderEncoder.setFragmentTexture(fallbackTexture, index: FragmentTextureIndex.Custom0.rawValue + index)
-            }
+        // Recorded with this draw: a later draw of the same material sets its own.
+        for (index, texture) in textures.enumerated() {
+            guard let slot = FragmentTextureIndex(rawValue: FragmentTextureIndex.Custom0.rawValue + index) else { continue }
+            self.postMaterial.set(texture ?? inputTexture0, index: slot)
         }
 
         self.postProcessor.resize(size: (width: Float(outputWidth), height: Float(outputHeight)), scaleFactor: 1)
@@ -659,7 +647,7 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
         let renderPassDesc = MTLRenderPassDescriptor()
         renderPassDesc.colorAttachments[0].texture = outImage.texture
 
-        self.postProcessor.draw(renderPassDescriptor: renderPassDesc, commandBuffer: commandBuffer)
+        try self.postProcessor.draw(frame: executionInfo.timing, renderPassDescriptor: renderPassDesc, commandBuffer: commandBuffer)
         self.outputTexturePort.send(outImage)
     }
 

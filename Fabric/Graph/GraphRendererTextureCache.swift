@@ -8,23 +8,9 @@
 import Foundation
 import Metal
 
-// MARK: - TextureHeapCache
-//
-// A standalone manager that allocates textures from one or more MTLHeaps and
-// reuses them via a per-frame ring pool.
-//
-// - Allocations come from heap.makeTexture(descriptor:)
-// - "Deallocation" is implemented as recycling into a pool keyed by a descriptor signature.
-// - Safety: recycled textures go into the *current* frame pool, and are only reused when
-//   that pool comes around again (ring-buffered), avoiding most in-flight reuse hazards.
-//
-// Designed to vend FabricImage using the new API:
-//
-//   FabricImage.managed(texture:onRelease:)  // internal factory
-//   FabricImage.unmanaged(texture:)         // public factory
-//   image.release()                         // optional explicit return; also called in deinit
-//
-
+/// Renderer-local heap storage. Every image version gets its own texture object; normal texture
+/// ownership (ports, materials, recordings and Metal command buffers) keeps its allocation live.
+/// Automatic heaps reuse memory only after the last resource owner releases it.
 internal final class GraphRendererTextureCache {
 
     // MARK: Configuration
@@ -34,9 +20,6 @@ internal final class GraphRendererTextureCache {
         public var storageMode: MTLStorageMode = .private
         public var cpuCacheMode: MTLCPUCacheMode = .defaultCache
         public var heapType: MTLHeapType = .automatic
-
-        /// Number of frame pools in the reuse ring. (Triple buffering default.)
-        public var framePoolCount: Int = 3
 
         /// When we need a new heap, allocate at least this many bytes (helps avoid tiny heaps).
         public var minimumHeapSizeBytes: Int = 1024 * 1024 * 1024 // 1GB
@@ -48,74 +31,39 @@ internal final class GraphRendererTextureCache {
         /// Alignment floor used when aligning heap sizes.
         public var heapSizeAlignment: Int = 256
 
-        /// Hard cap on number of heaps retained by the cache.
-        /// If reached, allocation misses trigger recovery (flush/reset) before creating more heaps.
+        /// Maximum number of heaps retained by the cache. Live textures can keep an evicted
+        /// heap alive independently until their own CPU/GPU owners release them.
         public var maxHeapCount: Int = 16
 
-        /// Cap per reuse bucket to prevent unbounded growth when sizes churn.
-        public var maxTexturesPerBucket: Int = 16
-
         public init() {}
-    }
-
-    // MARK: Types
-
-    private struct TextureKey: Hashable
-    {
-        let width: Int
-        let height: Int
-        let pixelFormat: MTLPixelFormat
-        let mipmapLevelCount: Int
-        let sampleCount: Int
-        let textureType: MTLTextureType
-        let usageRawValue: UInt
-        let storageMode: MTLStorageMode
     }
 
     // MARK: State
 
     private let device: MTLDevice
+    private let stateLock = NSLock()
     public let config: Configuration
 
     private var heaps: [MTLHeap] = []
-    private var available: [[TextureKey: [MTLTexture]]] = []
-    private var frameIndex: Int = 0
 
     // Optional stats/debug
     public private(set) var totalHeapsCreated: Int = 0
-    public private(set) var totalTexturesReused: Int = 0
     public private(set) var totalTexturesAllocated: Int = 0
     public private(set) var totalAllocationMisses: Int = 0
-    public private(set) var totalRecoveryFlushes: Int = 0
     public private(set) var totalResets: Int = 0
     public private(set) var totalHeapsEvicted: Int = 0
 
     // MARK: Init
 
-    public init(device: MTLDevice, config: Configuration = .init()) {
+    init(device: MTLDevice, config: Configuration = .init()) {
         self.device = device
         self.config = config
-        self.available = Array(repeating: [:], count: max(1, config.framePoolCount))
-    }
-
-    // MARK: Frame lifecycle
-
-    /// Call once per renderer frame (or per graph evaluation tick).
-    /// Use a monotonically increasing frameNumber (e.g. timing.frameNumber).
-    public func resetCacheFor(executionContext:GraphExecutionInfo)
-    {
-        let frameNumber = executionContext.timing.frameNumber
-        let count = max(1, config.framePoolCount)
-        self.frameIndex = ((frameNumber % count) + count) % count
     }
 
     // MARK: Public API: vend images
 
-    /// Create a managed FabricImage allocated from heaps + cache.
-    /// The returned FabricImage will automatically recycle its texture when released/deinitialized,
-    /// assuming FabricImage calls its `onRelease` callback.
-    ///
-    /// You can customize usage as needed. Default is suitable for "render + compute" intermediate images.
+    /// Allocate a distinct texture from reusable heap storage. Releasing the image never
+    /// reissues its texture: material, recording or GPU owners can still be using that resource.
     public func newManagedImage(width: Int,
                                 height: Int,
                                 pixelFormat: MTLPixelFormat,
@@ -134,128 +82,46 @@ internal final class GraphRendererTextureCache {
 
         guard let texture = makeTexture(descriptor: desc, label: label) else { return nil }
 
-        // IMPORTANT: avoid a retain cycle.
-        // The FabricImage retains the onRelease closure; the closure should not strongly retain self.
-        return FabricImage.managed(texture: texture) { [weak self] tex in
-            self?.recycleTexture(tex)
-        }
+        return FabricImage.unmanaged(texture: texture)
     }
 
     /// Wrap an externally created texture (assets, static defaults, imported resources).
-    /// This does NOT participate in heap allocation or recycling.
+    /// This does not allocate new heap storage.
     public func newUnmanagedImage(from texture: MTLTexture) -> FabricImage {
         FabricImage.unmanaged(texture: texture)
     }
 
     // MARK: Optional: explicit flush / maintenance
 
-    /// Drops all cached reusable textures (does NOT destroy heaps immediately, but releases references).
-    /// Useful for memory pressure events or when changing output resolution dramatically.
-    public func flushReusableTextures() {
-        for i in available.indices {
-            available[i].removeAll(keepingCapacity: false)
-        }
-    }
-
-    /// Drops all heaps and cached textures. Next allocation will recreate heaps.
-    /// Use sparingly (it forces reallocations).
+    /// Drop cached heaps. Existing textures keep their own backing storage alive.
     public func reset() {
-        flushReusableTextures()
+        stateLock.lock()
+        defer { stateLock.unlock() }
         heaps.removeAll(keepingCapacity: false)
         totalResets += 1
     }
 
-    // MARK: Internals: allocate/reuse
+    // MARK: Internals: allocate heap storage
 
     private func makeTexture(descriptor: MTLTextureDescriptor, label: String?) -> MTLTexture? {
-        let key = TextureKey(width: descriptor.width,
-                             height: descriptor.height,
-                             pixelFormat: descriptor.pixelFormat,
-                             mipmapLevelCount: descriptor.mipmapLevelCount,
-                             sampleCount: descriptor.sampleCount,
-                             textureType: descriptor.textureType,
-                             usageRawValue: descriptor.usage.rawValue,
-                             storageMode: descriptor.storageMode)
-
-        // 1) Reuse from pool
-        if var bucket = available[frameIndex][key], let tex = bucket.popLast() {
-            available[frameIndex][key] = bucket
-            totalTexturesReused += 1
-            if let label { tex.label = label }
-            return tex
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        if let texture = allocateFromExistingHeaps(descriptor: descriptor, label: label) {
+            totalTexturesAllocated += 1
+            return texture
         }
 
         totalAllocationMisses += 1
-
-        // 2) Allocate from existing heap(s)
-        if let tex = allocateFromExistingHeaps(descriptor: descriptor, label: label) {
+        if let texture = allocateFromNewHeap(descriptor: descriptor, label: label) {
             totalTexturesAllocated += 1
-            return tex
+            return texture
         }
-
-        // 3) Miss recovery path before growing heaps forever:
-        // flush reusable caches first, then retry existing heaps.
-        if !available.isEmpty {
-            flushReusableTextures()
-            totalRecoveryFlushes += 1
-
-            if let tex = allocateFromExistingHeaps(descriptor: descriptor, label: label) {
-                totalTexturesAllocated += 1
-                return tex
-            }
-        }
-
-        // 4) If we are at/over heap cap, reset the cache as a hard recovery.
-        // This prevents unbounded heap retention in highly dynamic workloads.
-        if heaps.count >= max(1, config.maxHeapCount) {
-            reset()
-
-            if let tex = allocateFromExistingHeaps(descriptor: descriptor, label: label) {
-                totalTexturesAllocated += 1
-                return tex
-            }
-        }
-
-        // 5) Grow: create a new heap sized for this texture (plus headroom)
-        if let tex = allocateFromNewHeap(descriptor: descriptor, label: label) {
-            totalTexturesAllocated += 1
-            return tex
-        }
-
         return nil
-    }
-
-    private func recycleTexture(_ texture: MTLTexture)
-    {
-        // Only recycle textures that match our storage mode.
-        // (A stronger check is possible, but this is a good first line of defense.)
-        guard texture.storageMode == config.storageMode else { return }
-
-        let key = TextureKey(width: texture.width,
-                             height: texture.height,
-                             pixelFormat: texture.pixelFormat,
-                             mipmapLevelCount: texture.mipmapLevelCount,
-                             sampleCount: texture.sampleCount,
-                             textureType: texture.textureType,
-                             usageRawValue: texture.usage.rawValue,
-                             storageMode: texture.storageMode)
-
-        var bucket = available[frameIndex][key, default: []]
-        bucket.append(texture)
-
-        // Keep per-bucket cache bounded.
-        let cap = max(1, config.maxTexturesPerBucket)
-        if bucket.count > cap {
-            let overflow = bucket.count - cap
-            bucket.removeFirst(overflow)
-        }
-
-        available[frameIndex][key] = bucket
     }
 
     private func allocateFromExistingHeaps(descriptor: MTLTextureDescriptor, label: String?) -> MTLTexture?
     {
-        // Simple first-fit scan. If you want to optimize, track heap free space heuristics.
+        // A bounded first-fit scan; texture ownership determines available heap storage.
         for heap in heaps
         {
             if let tex = heap.makeTexture(descriptor: descriptor)

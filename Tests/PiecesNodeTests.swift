@@ -100,7 +100,7 @@ struct PiecesNodeTests
         #expect(posed !== geometry, "The output is a posed view of the input")
         let palette = try #require(posed.jointPalette)
         #expect(palette.jointCount == 3)
-        #expect(palette.joints.map(\.current) == [parentMotion, parentMotion, parentMotion * childMotion])
+        #expect(palette.matrices == [parentMotion, parentMotion, parentMotion * childMotion])
         #expect(node.deriveStatuses().isEmpty)
     }
 

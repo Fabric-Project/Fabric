@@ -9,11 +9,27 @@ import Combine
 import Foundation
 import Satin
 
+/// Internal coverage for Node's parameter invalidation. Proxies deliberately do
+/// not conform: their inner port invalidates a different node.
+protocol NodeInvalidatingParameterPort: AnyObject {
+    var observedParameter: any Parameter { get }
+}
+
 // A Port that wraps a parameter - use for input ports you want to have as a UI
-public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hashable> : NodePort<ParamValue>
+public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hashable> : NodePort<ParamValue>, NodeInvalidatingParameterPort
 {
     private var subscription:AnyCancellable? = nil
     private var _parameter: GenericParameter<ParamValue>
+    private var isUpdatingParameterValue = false
+
+    override internal func restoreValue(from boxed: PortValue?)
+    {
+        // A parameter-backed port has no valueless state. Resolve its resting
+        // value before assigning so restoration reports one final value change.
+        super.restoreValue(from: boxed ?? _parameter.value.toPortValue())
+    }
+
+    internal var observedParameter: any Parameter { self._parameter }
 
     // Proxy the parameter's description
     // Setter ignores empty values to preserve parameter's description during decoding of old files
@@ -55,9 +71,7 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
                 self._parameter = newParam
                 self.value = self._parameter.value
 
-                self.subscription = _parameter.valuePublisher.eraseToAnyPublisher().sink{ [weak self] value in
-                        self?.value = value
-                }
+                self.subscribeToParameter()
             }
         }
     }
@@ -77,9 +91,7 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
 
         self.value = self._parameter.value
 
-        self.subscription = parameter.valuePublisher.eraseToAnyPublisher().sink{ [weak self] value in
-                self?.value = value
-        }
+        self.subscribeToParameter()
     }
 
     enum CodingKeys : String, CodingKey
@@ -122,12 +134,20 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
 
         self.value = self._parameter.value
 
-        self.subscription = _parameter.valuePublisher.eraseToAnyPublisher().sink{ [weak self] value in
-
-                self?.value = value
-        }
+        self.subscribeToParameter()
     }
     
+    private func subscribeToParameter()
+    {
+        // Unowned: this port owns the subscription and cancels it in deinit.
+        self.subscription = self._parameter.valuePublisher.sink { [unowned self] value in
+            // Port edits already uploaded this value. Do not feed the parameter's
+            // synchronous notification back through the port setter a second time.
+            if self.isUpdatingParameterValue, self.value == value { return }
+            self.value = value
+        }
+    }
+
     deinit
     {
         self.subscription?.cancel()
@@ -188,41 +208,30 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
         return nil
     }
 
-    override public var value: ParamValue?
+    override internal func valueDidSet()
     {
-        didSet
+        // A parameter-backed inlet has no valueless state: the parameter is
+        // its resting value. Disconnecting an upstream port force-sends nil
+        // downstream so the inlet doesn't keep stale data, which would
+        // otherwise leave this port — and everything reading it — with a
+        // missing value for as long as it stays unwired. Re-seat on the
+        // parameter instead; the re-entrant assignment runs this hook again.
+        guard let value = self.value
+        else
         {
-            // A parameter-backed inlet has no valueless state: the parameter is
-            // its resting value. Disconnecting an upstream port force-sends nil
-            // downstream so the inlet doesn't keep stale data, which would
-            // otherwise leave this port — and everything reading it — with a
-            // missing value for as long as it stays unwired. Re-seat on the
-            // parameter instead; the re-entrant assignment runs the change
-            // bookkeeping below.
-            guard let value = self.value
-            else
-            {
-                self.value = self._parameter.value
-                return
-            }
-
-            // Overriding the property's didSet replaces the parent's
-            // observer, so the change-tracking bookkeeping the parent
-            // does (NodePort.value) has to be repeated here. Without it,
-            // values pushed in via the parameter's Combine publisher
-            // (the path UI dropdowns / inputfields go through) update
-            // the value but never raise `valueDidChange`, so executors
-            // that gate on `valueDidChange` — e.g. NumberBinaryOperator
-            // re-parsing its operator string — silently miss the change
-            // and stay on the previous value.
-            self.valueDidChange = true
-            self.node?.markDirty()
-            self.onValueChanged?()
-
-            if self._parameter.value != value
-            {
-                self._parameter.value = value
-            }
+            self.value = self._parameter.value
+            return
         }
+
+        // Change flags, node invalidation and callbacks belong to NodePort.value.
+        if self._parameter.value != value
+        {
+            let wasUpdatingParameterValue = self.isUpdatingParameterValue
+            self.isUpdatingParameterValue = true
+            defer { self.isUpdatingParameterValue = wasUpdatingParameterValue }
+            self._parameter.value = value
+        }
+
+        super.valueDidSet()
     }
 }

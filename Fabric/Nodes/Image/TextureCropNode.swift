@@ -55,8 +55,6 @@ public class TextureCropNode: Node
                                                 material: material,
                                                 depthPixelFormat: .invalid,
                                                 stencilPixelFormat: .invalid,
-                                                depthStoreAction: .dontCare,
-                                                stencilStoreAction: .dontCare,
                                                 frameBufferOnly: false)
         super.init(context: context)
     }
@@ -73,8 +71,6 @@ public class TextureCropNode: Node
                                                 material: material,
                                                 depthPixelFormat: .invalid,
                                                 stencilPixelFormat: .invalid,
-                                                depthStoreAction: .dontCare,
-                                                stencilStoreAction: .dontCare,
                                                 frameBufferOnly: false)
         try super.init(from: decoder)
     }
@@ -108,8 +104,9 @@ public class TextureCropNode: Node
 
         let cropRenderPassDescriptor = MTLRenderPassDescriptor()
         cropRenderPassDescriptor.colorAttachments[0].texture = outImage.texture
-        self.cropProcessor.draw(renderPassDescriptor: cropRenderPassDescriptor,
-                                commandBuffer: commandBuffer)
+        try self.cropProcessor.draw(frame: executionInfo.timing,
+                                    renderPassDescriptor: cropRenderPassDescriptor,
+                                    commandBuffer: commandBuffer)
 
         outputTexture.send(outImage)
     }

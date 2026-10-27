@@ -102,7 +102,7 @@ public final class GraphExportRenderer {
         self.renderPassDescriptor.renderTargetWidth = self.size.width
         self.renderPassDescriptor.renderTargetHeight = self.size.height
 
-        guard let commandBuffer = self.graphRenderer.commandQueue.makeCommandBuffer() else {
+        guard let commandBuffer = self.graphRenderer.makeCommandBuffer() else {
             throw GraphExportRendererError.commandBufferCreationFailed
         }
         

@@ -132,8 +132,17 @@ open class StrategyNode: Node
     /// The currently selected strategy resolved to its typed option.
     public func strategyOption<T: NodeStrategyOption>(as _: T.Type = T.self) -> T?
     {
-        Self.strategyOption(matching: strategy)
+        // `strategyOptions` builds its array on every call; resolve once per strategy.
+        if resolvedStrategyRawValue != strategy
+        {
+            resolvedStrategyRawValue = strategy
+            resolvedStrategyOption = Self.strategyOptions.first { $0.rawValue == strategy }
+        }
+        return resolvedStrategyOption as? T
     }
+
+    private var resolvedStrategyRawValue: String?
+    private var resolvedStrategyOption: (any NodeStrategyOption)?
 
     var strategy: String
     {

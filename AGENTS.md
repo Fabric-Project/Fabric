@@ -1,5 +1,7 @@
 # Fabric Engineering Specification
 
+**Read [PRINCIPLES.md](PRINCIPLES.md) first. It overrides everything in this file.**
+
 Review README.md, Architecture.md, Glossary.md, Nodes.md, 
 
 ## Engineering Guidelines

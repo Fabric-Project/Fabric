@@ -365,3 +365,52 @@ struct GraphNodeLifecycleTests
         #expect(node.executeCount == 0)
     }
 }
+
+extension GraphNodeLifecycleTests {
+    @Test("Deleting a connected mesh removes its rendered object before or after saving", arguments: [false, true], [false, true])
+    func deletingConnectedMeshClearsScene(saveFirst: Bool, deleteAllNodes: Bool) throws {
+        let harness = try #require(GraphExecutionTestHarness())
+        let graph = Graph(context: harness.context)
+        let geometry = BoxGeometryNode(context: harness.context)
+        let material = StandardMaterialNode(context: harness.context)
+        let mesh = MeshNode(context: harness.context)
+        graph.addNode(geometry)
+        graph.addNode(material)
+        graph.addNode(mesh)
+        graph.connect(geometry.outputGeometry, to: mesh.inputGeometry)
+        graph.connect(material.outputMaterial, to: mesh.inputMaterial)
+        let renderer = harness.graphRenderer(for: graph)
+        try renderer.startExecution()
+        defer { try? renderer.stopExecution() }
+        try harness.execute(graph: graph, executionInfo: harness.makeExecutionInfo(frameNumber: 0), drawScene: true)
+        #expect(graph.scene.sceneIndex.renderables.count == 1)
+        if saveFirst {
+            let data = try JSONEncoder().encode(graph)
+            // First-save path rebasing decodes a temporary snapshot, then updates the live graph.
+            let decoder = JSONDecoder()
+            decoder.context = DecoderContext(documentContext: harness.context)
+            let snapshot = try decoder.decode(Graph.self, from: data)
+            snapshot.rewriteFileReferences(relativeTo: URL(filePath: "/tmp/Fabric Save Regression"))
+            graph.rewriteFileReferences(relativeTo: URL(filePath: "/tmp/Fabric Save Regression"))
+        }
+        let undoManager = UndoManager()
+        graph.undoManager = undoManager
+        undoManager.beginUndoGrouping()
+        if deleteAllNodes {
+            for node in graph.nodes { graph.delete(node: node) }
+        } else {
+            graph.delete(node: mesh)
+        }
+        undoManager.endUndoGrouping()
+        #expect(graph.scene.sceneIndex.renderables.isEmpty)
+        try harness.execute(graph: graph, executionInfo: harness.makeExecutionInfo(frameNumber: 1), drawScene: true)
+        #expect(renderer.graph === graph)
+        #expect(mesh.executionState == .disabled)
+        #expect(graph.scene.sceneIndex.renderables.isEmpty)
+        undoManager.undo()
+        try harness.execute(graph: graph, executionInfo: harness.makeExecutionInfo(frameNumber: 2), drawScene: true)
+        #expect(graph.nodes.contains { $0 === mesh })
+        #expect(mesh.executionState == .started)
+        #expect(graph.scene.sceneIndex.renderables.count == 1)
+    }
+}

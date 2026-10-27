@@ -9,6 +9,7 @@ import CoreImage
 import CoreGraphics
 import CoreVideo
 import simd
+import Foundation
 
 public final class FabricImage: Identifiable, Equatable
 {
@@ -38,8 +39,7 @@ public final class FabricImage: Identifiable, Equatable
 
     // MARK: - Managed/unmanaged
 
-    private var onRelease: ((MTLTexture) -> Void)?
-    private var didRelease = false
+    private let onRelease: ((MTLTexture) -> Void)?
 
     // Factory-only
     private init(texture: MTLTexture, onRelease: ((MTLTexture) -> Void)?)
@@ -49,13 +49,13 @@ public final class FabricImage: Identifiable, Equatable
         self.onRelease = onRelease
     }
 
-    /// Created by GraphRenderer (or other pool owner). Returned to pool on `release()` / `deinit`.
+    /// Attach external-owner cleanup to the image lifetime, such as a pixel-buffer unlock.
     internal static func managed(texture: MTLTexture, onRelease: @escaping (MTLTexture) -> Void) -> FabricImage
     {
         FabricImage(texture: texture, onRelease: onRelease)
     }
 
-    /// Asset / external ownership. No pooling.
+    /// Ordinary texture ownership, including heap-backed images. No texture-object recycling.
     public static func unmanaged(texture: MTLTexture) -> FabricImage
     {
         FabricImage(texture: texture, onRelease: nil)
@@ -63,16 +63,7 @@ public final class FabricImage: Identifiable, Equatable
 
     deinit
     {
-        release()
-    }
-
-    /// Optional explicit release for deterministic reuse (recommended in hot paths).
-    public func release()
-    {
-        guard !didRelease else { return }
-        didRelease = true
         onRelease?(texture)
-        onRelease = nil
     }
 
     // MARK: - Equatable

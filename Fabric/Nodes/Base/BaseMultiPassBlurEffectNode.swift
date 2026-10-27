@@ -75,7 +75,7 @@ public class BaseMultiPassBlurEffectNode: BaseImageNode
                              commandBuffer: MTLCommandBuffer,
                              inputImage: FabricImage,
                              steps: [MultiPassStep],
-                             prepareStep: (Int, MultiPassStep) -> Void ) -> FabricImage? {
+                             prepareStep: (Int, MultiPassStep) -> Void ) throws -> FabricImage? {
 
         guard !steps.isEmpty else {
             return nil
@@ -86,7 +86,6 @@ public class BaseMultiPassBlurEffectNode: BaseImageNode
 
         for (index, step) in steps.enumerated() {
             guard let nextImage = try? renderer.newImage(withWidth: step.width, height: step.height) else {
-                currentImage?.release()
                 return nil
             }
 
@@ -101,18 +100,15 @@ public class BaseMultiPassBlurEffectNode: BaseImageNode
             textureTransformBuffer.update(data: [textureTransform])
             self.postMaterial.set(textureTransformBuffer, index: FragmentBufferIndex.Custom10)
 
-            self.postProcessor.mesh.preDraw = { renderEncoder in
-                renderEncoder.setFragmentTexture(currentTexture, index: FragmentTextureIndex.Custom0.rawValue)
-            }
+            self.postMaterial.set(currentTexture, index: FragmentTextureIndex.Custom0)
 
             self.postProcessor.resize(size: (width: Float(step.width), height: Float(step.height)), scaleFactor: 1)
 
             let renderPassDescriptor = MTLRenderPassDescriptor()
             renderPassDescriptor.colorAttachments[0].texture = nextImage.texture
 
-            self.postProcessor.draw(renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+            try self.postProcessor.draw(frame: executionInfo.timing, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
 
-            currentImage?.release()
             currentImage = nextImage
             currentTexture = nextImage.texture
             

@@ -41,6 +41,10 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     // Identifiable
     public let id:UUID
 
+    // Runtime-only hint, validated by each renderer against its own planning entries.
+    // This is neither serialized identity nor mutable execution state.
+    internal final var executionPlanningSlot: Int = -1
+
     // Hashable
     public func hash(into hasher: inout Hasher)
     {
@@ -151,6 +155,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     open var ports:[Port] { self.registry.all()   }
     private var cachedInputPorts: [Port]?
     private var cachedOutputPorts: [Port]?
+    internal var deferredResultsBinding: GraphDeferredNodeBinding?
     public private(set) var inputNodes:[Node] = []
     public private(set) var outputNodes:[Node]  = []
 
@@ -201,7 +206,13 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     internal let subtitleSubject = PassthroughSubject<Void, Never>()
 
     // Dirty Handling
-    private(set) public var isDirty: Bool = true
+    private var inputsAreDirty = true
+    /// Nested execution defers cleanup until its enclosing graph finishes. Only nodes that
+    /// actually ran may have their input changes consumed by that cleanup.
+    internal var hasPendingExecutionCleanup = false
+    /// Whether this processor needs another execution. Plugins may include pending owner-consumed
+    /// results in this hook; markDirty()/markClean() still own the underlying input dirty flag.
+    open var isDirty: Bool { inputsAreDirty }
 
     // Input Parameter update tracking:
     var inputParamCancellables: [AnyCancellable] = []
@@ -313,7 +324,10 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     deinit
     {
-//        print("Deleted node \(id)")
+        // Ports and parameter sinks reference this node unowned; clear both
+        // before they can dangle. Subclass ports are still alive here.
+        self.inputParamCancellables.forEach { $0.cancel() }
+        for port in self.ports { port.node = nil }
     }
 
 
@@ -407,6 +421,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         if let param = p.parameter
         {
             self.parameterGroup.append(param)
+            self.synchronizeParameters()
         }
 
         self.graph?.markConnectionsChanged()
@@ -429,6 +444,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         if let param = p.parameter
         {
             self.parameterGroup.remove(param)
+            self.synchronizeParameters()
         }
 
         self.graph?.markConnectionsChanged()
@@ -472,9 +488,11 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         self.parameterGroup.append(param)
 
         port.parameter = param
+        self.synchronizeParameters()
     }
 
-    internal func reorderPorts(_ reordered: [Port])
+    /// Reorders registered ports without changing their identities or connections.
+    public func reorderPorts(_ reordered: [Port])
     {
         self.registry.reorder(reordered)
         self.invalidatePortCaches()
@@ -504,6 +522,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     internal func invalidatePortCaches()
     {
+        retireDeferredResults()
         self.cachedInputPorts = nil
         self.cachedOutputPorts = nil
     }
@@ -555,7 +574,8 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     public func markClean()
     {
-        isDirty = false
+        inputsAreDirty = false
+        hasPendingExecutionCleanup = false
 
         // See https://github.com/Fabric-Project/Fabric/issues/41
         for port in ports
@@ -566,26 +586,38 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     public func markDirty()
     {
-        isDirty = true
+        inputsAreDirty = true
     }
 
+    /// Rebuild dirty notifications when the parameter/port structure changes.
+    /// Parameters observed by this node's ports already invalidate it; standalone
+    /// and proxy parameters still need a Node subscription.
     public func synchronizeParameters()
     {
-        self.inputParamCancellables.forEach( { $0.cancel() } )
-        self.inputParamCancellables.removeAll()
+        self.inputParamCancellables.forEach { $0.cancel() }
+        self.inputParamCancellables.removeAll(keepingCapacity: true)
 
+        let ports = self.ports
         for parameter in self.parameterGroup.params
         {
-            let cancellable = self.makeCancelable(parameter: parameter)
+            let observedByPort = ports.contains { port in
+                guard let observingPort = port as? any NodeInvalidatingParameterPort,
+                      observingPort.observedParameter === parameter
+                else { return false }
+                return port.node === self
+            }
+            if observedByPort { continue }
 
+            let cancellable = self.makeCancelable(parameter: parameter)
             self.inputParamCancellables.append(cancellable)
         }
     }
 
     private func makeCancelable(parameter: some Parameter) -> AnyCancellable
     {
-        let cancellable = parameter.valuePublisher.eraseToAnyPublisher().sink{ [weak self] _ in
-            self?.markDirty()
+        // Unowned: this node owns the subscription and cancels it in deinit.
+        let cancellable = parameter.valuePublisher.sink { [unowned self] _ in
+            self.markDirty()
         }
 
         return cancellable
@@ -602,13 +634,27 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     public private(set) var executionState: ExecutionState = .disabled
 
     open func startExecution(renderer:GraphRenderer) throws { executionState = .started }
-    open func stopExecution(renderer:GraphRenderer) throws { executionState = .stopped }
+    /// Cancel obsolete asynchronous publications without releasing submitted GPU resources.
+    public func cancelPendingCompletions() { deferredResultsBinding?.invalidate() }
+
+    open func stopExecution(renderer:GraphRenderer) throws {
+        retireDeferredResults()
+        executionState = .stopped
+    }
 
     open func enableExecution(renderer:GraphRenderer) throws {
         executionState = .enabled
     }
     open func disableExecution(renderer:GraphRenderer) throws {
+        retireDeferredResults()
         executionState = .disabled
+    }
+
+    /// Drops in-flight results and their storage. The renderer also calls this before stopping or
+    /// disabling a node, so a subclass callback that throws before reaching super cannot skip it.
+    internal func retireDeferredResults() {
+        deferredResultsBinding?.retire()
+        deferredResultsBinding = nil
     }
 
     open func execute(renderer:GraphRenderer,

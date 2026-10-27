@@ -88,7 +88,7 @@ public final class DepthOfFieldNode: Node
         self.postProcessor.resolutionScale = self.inputResolutionScale.value ?? 0.5
         self.postProcessor.blend = self.inputBlend.value ?? 1.0
         self.postProcessor.resize(size: (Float(colorTexture.width), Float(colorTexture.height)), scaleFactor: 1.0)
-        self.postProcessor.draw(renderPassDescriptor: MTLRenderPassDescriptor(), commandBuffer: commandBuffer)
+        try self.postProcessor.draw(frame: executionInfo.timing, renderPassDescriptor: MTLRenderPassDescriptor(), commandBuffer: commandBuffer)
 
         guard let processedTexture = self.postProcessor.outputTexture else
         {

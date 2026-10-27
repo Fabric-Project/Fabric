@@ -22,6 +22,11 @@ public class GraphRenderer : ViewRenderer
 
     public var executionCount = 0
     public private(set) var executionTrace: GraphExecutionTrace?
+    {
+        didSet { isTracingExecution = executionTrace != nil }
+    }
+    // Checked per node per iteration; cheaper than testing the Optional trace each time.
+    private var isTracingExecution = false
 
     public private(set) var currentExecutionInfo: GraphExecutionInfo = GraphExecutionInfo(
         timing: .zero
@@ -29,6 +34,11 @@ public class GraphRenderer : ViewRenderer
 
     public private(set) var currentCamera: Camera? = nil
     private let defaultCamera: PerspectiveCamera
+
+    /// This frame's Satin submission, made the first time a node records into it (an Iterator).
+    private var pendingSubmission: SubmissionBuilder?
+    private var submissionScopeDepth = 0
+    internal private(set) var deferredGPUResults: GraphDeferredResults?
     private let sceneProxy: Object
 
     // Regular subgraphs execute by re-entering execute(graph:) on this renderer.
@@ -44,6 +54,8 @@ public class GraphRenderer : ViewRenderer
     public private(set) var resizeScaleFactor: Float = 1.0
 
     private var executionPlanCaches: [ObjectIdentifier: GraphExecutionPlanCache] = [:]
+    // Iterator executes the same graph many times a frame; skip hashing for a repeat.
+    private var lastExecutionPlan: GraphExecutionPlanCache?
     private var traceExecutionIndex = 0
     private var graphExecutionTraceStack: [GraphExecutionTraceFrameBuilder] = []
     private var nodeExecutionTraceStack: [NodeExecutionTraceBuilder] = []
@@ -68,6 +80,7 @@ public class GraphRenderer : ViewRenderer
             stencilStoreAction: .dontCare,
             frameBufferOnly: false
         )
+
         self.renderEncoder.sortObjects = true
 
         self.sceneProxy = Object(context: context)
@@ -195,6 +208,59 @@ public class GraphRenderer : ViewRenderer
 
     // MARK: - Draw
 
+    override public func preDraw() -> MTLCommandBuffer? {
+        let batch = admitDeferredFrame()
+        guard let commandBuffer = super.preDraw() else {
+            batch?.finishRecording()
+            return nil
+        }
+        let commands = GraphCommandBuffer(commandBuffer: commandBuffer)
+        commands.graphRenderer = self
+        commands.deferredBatch = batch
+        return commands
+    }
+
+    /// For offscreen callers. Use the same stable MPS wrapper as the display-driven path.
+    public func makeCommandBuffer() -> MTLCommandBuffer? {
+        let batch = admitDeferredFrame()
+        guard let commandBuffer = commandQueue.makeCommandBuffer() else {
+            batch?.finishRecording()
+            return nil
+        }
+        let commands = GraphCommandBuffer(commandBuffer: commandBuffer)
+        commands.graphRenderer = self
+        commands.deferredBatch = batch
+        return commands
+    }
+
+    internal func ensureDeferredResults() -> GraphDeferredResults {
+        if let deferredGPUResults { return deferredGPUResults }
+        let results = GraphDeferredResults(limit: context.maxBuffersInFlight)
+        deferredGPUResults = results
+        return results
+    }
+
+    private func reportDeferredErrors(_ results: GraphDeferredResults) {
+        for error in results.takeErrors() { errorDelegate?.renderer(self, didFailWith: error) }
+    }
+
+    private func admitDeferredFrame() -> GraphDeferredFrameBatch? {
+        guard let deferredGPUResults else { return nil }
+        let batch = deferredGPUResults.admit()
+        reportDeferredErrors(deferredGPUResults)
+        return batch
+    }
+
+    private func prepareDeferredExecution(_ commandBuffer: MTLCommandBuffer) {
+        guard let commands = commandBuffer as? GraphCommandBuffer else { return }
+        if commands.graphRenderer == nil { commands.graphRenderer = self }
+        guard commands.executingNode == nil,
+              let owner = commands.graphRenderer, let results = owner.deferredGPUResults else { return }
+        if commands.deferredBatch == nil { commands.deferredBatch = results.admit() }
+        else { results.processReady() }
+        owner.reportDeferredErrors(results)
+    }
+
     override public func draw(renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
         renderPassDescriptor.colorAttachments[0].loadAction = .clear
@@ -215,6 +281,35 @@ public class GraphRenderer : ViewRenderer
         }
     }
 
+    // MARK: - Frame submission
+
+    /// The submission this frame's records go into, made on first use from the current camera and
+    /// this renderer's settings as they are then. Satin freezes both when it's made: a camera node,
+    /// or a node changing the renderer's settings, that runs after the first record takes effect the
+    /// next frame. (Camera nodes are to run first.) Record with `record(scene:)` after updating and
+    /// encoding the scene; the graph's own scene is recorded and the frame drawn after execution.
+    public func frameSubmission(frame: FrameTime) -> SubmissionBuilder
+    {
+        if let pendingSubmission { return pendingSubmission }
+        let submission = self.renderEncoder.makeSubmissionBuilder(frame: frame,
+                                                                  cameras: [self.currentCamera ?? self.defaultCamera],
+                                                                  viewports: [self.renderEncoder.viewport])
+        self.pendingSubmission = submission
+        return submission
+    }
+
+    // Nested graph/Iterator evaluations contribute to the enclosing draw. Standalone
+    // evaluation owns a temporary scope instead: its records cannot escape to a later draw.
+    private func beginSubmissionScope() {
+        if submissionScopeDepth == 0 { pendingSubmission = nil }
+        submissionScopeDepth += 1
+    }
+
+    private func endSubmissionScope() {
+        submissionScopeDepth -= 1
+        if submissionScopeDepth == 0 { pendingSubmission = nil }
+    }
+
     // MARK: - On-demand graph evaluation (for exporters and subgraph callers)
 
     public func executeAndDraw(renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
@@ -224,6 +319,10 @@ public class GraphRenderer : ViewRenderer
 
     public func executeAndDraw(executionInfo: GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
+        try validateContinuationOwnership(commandBuffer)
+        prepareDeferredExecution(commandBuffer)
+        beginSubmissionScope()
+        defer { endSubmissionScope() }
         let clearColor = self.renderEncoder.clearColor
         let colorLoadAction = self.renderEncoder.colorLoadAction
         let depthLoadAction = self.renderEncoder.depthLoadAction
@@ -265,10 +364,23 @@ public class GraphRenderer : ViewRenderer
             graph.syncNodesToScene()
         }
 
-        self.renderEncoder.draw(renderPassDescriptor: renderPassDescriptor,
-                                commandBuffer: commandBuffer,
-                                scene: graph.scene,
-                                camera: self.currentCamera ?? self.defaultCamera)
+        if let submission = self.pendingSubmission
+        {
+            // Iterator records come first; the graph's scene, recorded now, draws ahead of them per layer.
+            self.pendingSubmission = nil
+            try submission.record(scene: graph.scene,
+                                  renderPassDescriptor: renderPassDescriptor,
+                                  preparationCommandBuffer: commandBuffer)
+            try submission.seal().encode(into: commandBuffer)
+        }
+        else
+        {
+            try self.renderEncoder.draw(frame: executionInfo.timing,
+                                        renderPassDescriptor: renderPassDescriptor,
+                                        commandBuffer: commandBuffer,
+                                        scene: graph.scene,
+                                        camera: self.currentCamera ?? self.defaultCamera)
+        }
 
         self.executionCount += 1
 
@@ -279,6 +391,8 @@ public class GraphRenderer : ViewRenderer
         }
     }
 
+    /// Evaluate without drawing this graph's scene. Iterator records belong to the enclosing
+    /// executeAndDraw call, if any; standalone evaluation discards them on return or failure.
     public func execute(graph: Graph,
                         executionInfo: GraphExecutionInfo,
                         renderPassDescriptor: MTLRenderPassDescriptor,
@@ -286,7 +400,10 @@ public class GraphRenderer : ViewRenderer
                         clearFlags: Bool = true,
                         forceEvaluationForTheseNodes: [Node] = []) throws
     {
-        self.resetTextureCaches(for: executionInfo)
+        try validateContinuationOwnership(commandBuffer)
+        prepareDeferredExecution(commandBuffer)
+        beginSubmissionScope()
+        defer { endSubmissionScope() }
 
         defer {
             if clearFlags {
@@ -313,15 +430,10 @@ public class GraphRenderer : ViewRenderer
         }
 
         var capturedError: (any Error)?
-        var scheduledNodes = nodesInExecutionOrder(for: graph)
-
-        if !forceEvaluationForTheseNodes.isEmpty {
-            let alreadyScheduledNodeIDs = Set(scheduledNodes.map(\.id))
-            scheduledNodes.append(contentsOf: executionPlanExtension(forcing: forceEvaluationForTheseNodes,
-                                                                     alreadyScheduledNodeIDs: alreadyScheduledNodeIDs))
-        }
+        let scheduledNodes = executionPlan(for: graph).scheduledNodes(forcing: forceEvaluationForTheseNodes)
 
         let graphTraceFrame = beginGraphExecutionTrace()
+        let commands = commandBuffer as? GraphCommandBuffer
 
         for (orderIndex, node) in scheduledNodes.enumerated() {
             if self.graphRequiresResize {
@@ -332,8 +444,26 @@ public class GraphRenderer : ViewRenderer
             guard node.executionState == .started else { continue }
 
             let nodeTrace = beginNodeExecutionTrace(node: node, orderIndex: orderIndex)
+            let enclosingNode = commands?.executingNode
+            commands?.executingNode = node
+            defer { commands?.executingNode = enclosingNode }
+            var hasDeferredDelivery = false
+            var deferredState: GraphDeferredNodeState?
+            if let binding = node.deferredResultsBinding, let commands {
+                let state = commands.resultScope().state(for: binding)
+                deferredState = state
+                hasDeferredDelivery = state.hasPreparedDelivery
+                state.publish(binding: binding)
+                if state.needsRetry {
+                    state.needsRetry = false
+                    node.markDirty()
+                    // Re-evaluate once after abandonment, including nodes whose work is guarded
+                    // by inlet changes. Only async-participating contexts enter this path.
+                    for input in node.inputPorts() { input.valueDidChange = true }
+                }
+            }
 
-            guard node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider else {
+            guard hasDeferredDelivery || node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider else {
                 endNodeExecutionTrace(nodeTrace, result: .skippedClean)
                 continue
             }
@@ -342,6 +472,8 @@ public class GraphRenderer : ViewRenderer
             commandBuffer.pushDebugGroup(node.debugDescription)
 #endif
             var executionError: (any Error)?
+            node.hasPendingExecutionCleanup = true
+            if let deferredState { node.deferredResultsBinding?.beginExecution(in: deferredState) }
 
             do
             {
@@ -354,6 +486,7 @@ public class GraphRenderer : ViewRenderer
             {
                 executionError = error
             }
+            node.deferredResultsBinding?.endExecution()
 #if DEBUG
             commandBuffer.popDebugGroup()
 #endif
@@ -392,92 +525,97 @@ public class GraphRenderer : ViewRenderer
         }
     }
 
-    private struct GraphExecutionPlanCache
+    private final class GraphExecutionPlanCache
     {
-        var graphID: UUID
-        var connectionTopologyGeneration: Int
-        var executionTopologyGeneration: Int
-        var nodesInExecutionOrder: [Node]
+        let graphID: UUID
+        let graphIdentifier: ObjectIdentifier
+        let connectionTopologyGeneration: Int
+        private(set) var executionTopologyGeneration: Int
+        private(set) var nodesInExecutionOrder: [Node]
+        let planner: GraphExecutionPlanner
+        // Forced extensions follow the same invariant as the root plan: pull
+        // decisions only change with the graph's execution topology generation.
+        private var forcedNodes: [Node]?
+        private var nodesInExecutionOrderWithForcedNodes: [Node] = []
+
+        init(graph: Graph, roots: [(node: Node, requestedOutputPort: Port?)])
+        {
+            graphID = graph.id
+            graphIdentifier = ObjectIdentifier(graph)
+            connectionTopologyGeneration = graph.connectionTopologyGeneration
+            executionTopologyGeneration = graph.executionTopologyGeneration
+            planner = GraphExecutionPlanner(nodes: graph.nodes)
+            nodesInExecutionOrder = planner.plan(roots: roots)
+        }
+
+        func refreshPullDecisions(for graph: Graph, roots: [(node: Node, requestedOutputPort: Port?)])
+        {
+            executionTopologyGeneration = graph.executionTopologyGeneration
+            nodesInExecutionOrder = planner.plan(roots: roots)
+            forcedNodes = nil
+        }
+
+        func scheduledNodes(forcing nodesToForce: [Node]) -> [Node]
+        {
+            if nodesToForce.isEmpty { return nodesInExecutionOrder }
+
+            if let forcedNodes, Self.isSameNodeList(forcedNodes, nodesToForce) {
+                return nodesInExecutionOrderWithForcedNodes
+            }
+
+            forcedNodes = nodesToForce
+            nodesInExecutionOrderWithForcedNodes = nodesInExecutionOrder
+                + planner.plan(roots: [], alreadyScheduledNodes: nodesInExecutionOrder, forcedNodes: nodesToForce)
+            return nodesInExecutionOrderWithForcedNodes
+        }
+
+        /// Iterator passes `graph.nodes` every iteration, so shared storage is the common case.
+        private static func isSameNodeList(_ lhs: [Node], _ rhs: [Node]) -> Bool
+        {
+            guard lhs.count == rhs.count else { return false }
+            let sharesStorage = lhs.withUnsafeBufferPointer { lhsBuffer in
+                rhs.withUnsafeBufferPointer { $0.baseAddress == lhsBuffer.baseAddress }
+            }
+            return sharesStorage || zip(lhs, rhs).allSatisfy { $0 === $1 }
+        }
     }
 
-    private enum GraphExecutionPlanningState
-    {
-        case processing
-        case processed
-        case keepAliveWalked
-        case declined
-    }
-
-    private func nodesInExecutionOrder(for graph: Graph) -> [Node]
+    private func executionPlan(for graph: Graph) -> GraphExecutionPlanCache
     {
         let graphIdentifier = ObjectIdentifier(graph)
-
-        if let cached = executionPlanCaches[graphIdentifier],
+        let candidate = lastExecutionPlan.flatMap { $0.graphIdentifier == graphIdentifier ? $0 : nil }
+            ?? executionPlanCaches[graphIdentifier]
+        if let cached = candidate,
            cached.graphID == graph.id,
-           cached.connectionTopologyGeneration == graph.connectionTopologyGeneration,
-           cached.executionTopologyGeneration == graph.executionTopologyGeneration
+           cached.connectionTopologyGeneration == graph.connectionTopologyGeneration
         {
-            return cached.nodesInExecutionOrder
+            // Route changes invalidate pull decisions, not the nodes' identity
+            // slots. Reuse storage even when a Gate changes every iteration.
+            if cached.executionTopologyGeneration != graph.executionTopologyGeneration {
+                cached.refreshPullDecisions(for: graph, roots: executionRoots(for: graph))
+            }
+            lastExecutionPlan = cached
+            return cached
         }
 
-        let nodesInExecutionOrder = buildNodesInExecutionOrder(for: graph)
-        executionPlanCaches[graphIdentifier] = GraphExecutionPlanCache(
-            graphID: graph.id,
-            connectionTopologyGeneration: graph.connectionTopologyGeneration,
-            executionTopologyGeneration: graph.executionTopologyGeneration,
-            nodesInExecutionOrder: nodesInExecutionOrder
-        )
-
-        return nodesInExecutionOrder
+        let plan = GraphExecutionPlanCache(graph: graph, roots: executionRoots(for: graph))
+        executionPlanCaches[graphIdentifier] = plan
+        lastExecutionPlan = plan
+        return plan
     }
 
-    private func buildNodesInExecutionOrder(for graph: Graph) -> [Node]
+    /// Plans hold their graph's nodes strongly. A deleted subgraph node's inner
+    /// graphs never execute again, so release their plans with it.
+    private func forgetExecutionPlans(forSubgraphsOf node: Node)
     {
-        var ordered: [Node] = []
-        ordered.reserveCapacity(graph.nodes.count)
-
-        var processingStates: [UUID: GraphExecutionPlanningState] = [:]
-
-        for root in executionRoots(for: graph)
+        guard let subgraphNode = node as? SubgraphNode else { return }
+        let graphIdentifier = ObjectIdentifier(subgraphNode.subGraph)
+        executionPlanCaches[graphIdentifier] = nil
+        if lastExecutionPlan?.graphIdentifier == graphIdentifier { lastExecutionPlan = nil }
+        for nestedSubgraphNode in subgraphNode.subGraph.subgraphNodes
         {
-            pullNodeForExecutionPlan(node: root.node,
-                                     requestedOutputPort: root.requestedOutputPort,
-                                     processingStates: &processingStates,
-                                     orderedNodes: &ordered)
+            forgetExecutionPlans(forSubgraphsOf: nestedSubgraphNode)
         }
-
-        return ordered
-    }
-
-    /// Extends the cached execution plan for callers that force extra nodes to run
-    /// (Iterator forces its whole subgraph). Each forced node is pulled exactly as
-    /// buildNodesInExecutionOrder pulls its roots, so forced nodes and any
-    /// unscheduled upstream dependencies are appended in dependency order rather
-    /// than caller array order. Forced nodes whose pull declines them are still
-    /// appended at the end — the caller asked for them to run.
-    private func executionPlanExtension(forcing forcedNodes: [Node], alreadyScheduledNodeIDs: Set<UUID>) -> [Node]
-    {
-        var processingStates: [UUID: GraphExecutionPlanningState] = [:]
-        processingStates.reserveCapacity(alreadyScheduledNodeIDs.count + forcedNodes.count)
-
-        for scheduledNodeID in alreadyScheduledNodeIDs {
-            processingStates[scheduledNodeID] = .processed
-        }
-
-        var ordered: [Node] = []
-
-        for forcedNode in forcedNodes {
-            pullNodeForExecutionPlan(node: forcedNode,
-                                     requestedOutputPort: nil,
-                                     processingStates: &processingStates,
-                                     orderedNodes: &ordered)
-        }
-
-        for forcedNode in forcedNodes where processingStates[forcedNode.id] != .processed {
-            ordered.append(forcedNode)
-        }
-
-        return ordered
     }
 
     private func executionRoots(for graph: Graph) -> [(node: Node, requestedOutputPort: Port?)]
@@ -495,100 +633,11 @@ public class GraphRenderer : ViewRenderer
         return roots
     }
 
-    @discardableResult
-    private func pullNodeForExecutionPlan(node: Node,
-                                          requestedOutputPort: Port?,
-                                          processingStates: inout [UUID: GraphExecutionPlanningState],
-                                          orderedNodes: inout [Node]) -> Bool
-    {
-        switch node.respondToPull(requestedOutputPort: requestedOutputPort)
-        {
-        case .declined(let keepAlivePorts):
-            if processingStates[node.id] == nil
-            {
-                processingStates[node.id] = .keepAliveWalked
-                for inputPort in keepAlivePorts
-                {
-                    pullInletConnectionsForExecutionPlan(inputPort,
-                                                         processingStates: &processingStates,
-                                                         orderedNodes: &orderedNodes)
-                }
-            }
-            return false
-
-        case .evaluate(let pullingPorts):
-            switch processingStates[node.id]
-            {
-            case .processed, .processing:
-                return true
-            case .declined:
-                return false
-            case .keepAliveWalked, nil:
-                break
-            }
-
-            processingStates[node.id] = .processing
-
-            var attemptedPullCount = 0
-            var activePullCount = 0
-
-            for inputPort in pullingPorts
-            {
-                let pulled = pullInletConnectionsForExecutionPlan(inputPort,
-                                                                  processingStates: &processingStates,
-                                                                  orderedNodes: &orderedNodes)
-                attemptedPullCount += pulled.attempted
-                activePullCount += pulled.active
-            }
-
-            if attemptedPullCount > 0 && activePullCount == 0
-            {
-                processingStates[node.id] = .declined
-                return false
-            }
-
-            orderedNodes.append(node)
-            processingStates[node.id] = .processed
-            return true
-        }
-    }
-
-    @discardableResult
-    private func pullInletConnectionsForExecutionPlan(_ inputPort: Port,
-                                                      processingStates: inout [UUID: GraphExecutionPlanningState],
-                                                      orderedNodes: inout [Node]) -> (attempted: Int, active: Int)
-    {
-        var attempted = 0
-        var active = 0
-
-        for outletPort in inputPort.connectedOutletsForActiveConnections
-        {
-            guard let node = outletPort.node else { continue }
-
-            attempted += 1
-            if pullNodeForExecutionPlan(node: node,
-                                        requestedOutputPort: outletPort,
-                                        processingStates: &processingStates,
-                                        orderedNodes: &orderedNodes)
-            {
-                active += 1
-            }
-        }
-
-        return (attempted, active)
-    }
-
-    private func resetTextureCaches(for executionInfo: GraphExecutionInfo)
-    {
-        self.privateTextureCache.resetCacheFor(executionContext: executionInfo)
-        self.sharedTextureCache.resetCacheFor(executionContext: executionInfo)
-    }
-
     // MARK: - Execution Trace
 
     private func beginGraphExecutionTrace() -> GraphExecutionTraceFrameBuilder?
     {
-        guard executionTrace != nil else { return nil }
+        guard isTracingExecution else { return nil }
 
         let builder = GraphExecutionTraceFrameBuilder(executionIndex: traceExecutionIndex,
                                                       startedAt: CACurrentMediaTime())
@@ -620,7 +669,7 @@ public class GraphRenderer : ViewRenderer
 
     private func beginNodeExecutionTrace(node: Node, orderIndex: Int) -> NodeExecutionTraceBuilder?
     {
-        guard executionTrace != nil,
+        guard isTracingExecution,
               graphExecutionTraceStack.isEmpty == false
         else { return nil }
 
@@ -675,6 +724,7 @@ public class GraphRenderer : ViewRenderer
     public func stopExecution(saveTraceTo url: URL? = nil) throws
     {
         try transitionExecution(to: .stopped)
+        deferredGPUResults?.cancelAllDelivery()
 
         if let url {
             try saveExecutionTrace(to: url)
@@ -695,6 +745,7 @@ public class GraphRenderer : ViewRenderer
     public func disableExecution() throws
     {
         try transitionExecution(to: .disabled)
+        deferredGPUResults?.cancelAllDelivery()
         self.currentCamera = nil
     }
 
@@ -785,6 +836,7 @@ public class GraphRenderer : ViewRenderer
         if node.graph == nil
         {
             target = .disabled
+            forgetExecutionPlans(forSubgraphsOf: node)
         }
         else if ceiling != .started
         {
@@ -795,6 +847,12 @@ public class GraphRenderer : ViewRenderer
             // A published port connects the node through its subgraph node, or to the host.
             let isConnected = !node.inputNodes.isEmpty || !node.outputNodes.isEmpty || !node.publishedPorts().isEmpty
             target = startsAllNodes || isConnected || node.nodeExecutionMode == .Consumer ? .started : .stopped
+        }
+
+        // Leaving execution drops in-flight results even when the node's own stop or disable throws.
+        if target == .stopped || target == .disabled, node.executionState != target
+        {
+            node.retireDeferredResults()
         }
 
         switch (node.executionState, target)
@@ -832,6 +890,31 @@ public class GraphRenderer : ViewRenderer
     }
 
     // MARK: - Execution Helpers
+
+    /// Publishes a distinct image version of a reusable, resolved 2D render target. The GPU copy
+    /// is encoded here, before a later invocation can overwrite the source target.
+    public func newImage(copying texture: MTLTexture, commandBuffer: MTLCommandBuffer) throws -> FabricImage {
+        guard texture.textureType == .type2D, texture.sampleCount == 1,
+              let image = privateTextureCache.newManagedImage(width: texture.width,
+                                                               height: texture.height,
+                                                               pixelFormat: texture.pixelFormat,
+                                                               usage: [.shaderRead, .renderTarget],
+                                                               mipmapped: texture.mipmapLevelCount > 1),
+              let blit = commandBuffer.makeBlitCommandEncoder() else {
+            throw FabricError(.execution(.failed), severity: .recoverable,
+                              message: "Could not copy resolved render target into a new image")
+        }
+        for level in 0..<texture.mipmapLevelCount {
+            blit.copy(from: texture, sourceSlice: 0, sourceLevel: level,
+                      sourceOrigin: .init(x: 0, y: 0, z: 0),
+                      sourceSize: .init(width: max(1, texture.width >> level),
+                                        height: max(1, texture.height >> level), depth: 1),
+                      to: image.texture, destinationSlice: 0, destinationLevel: level,
+                      destinationOrigin: .init(x: 0, y: 0, z: 0))
+        }
+        blit.endEncoding()
+        return image
+    }
 
     public func newImage(withWidth width: Int, height: Int) throws -> FabricImage
     {

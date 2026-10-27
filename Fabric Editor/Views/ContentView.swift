@@ -18,7 +18,7 @@ struct ContentView: View {
         let radialGradientEndRadius: CGFloat
     }
     
-    @Binding var document: FabricDocument
+    let document: FabricDocument
     let documentURL: URL?
     @Environment(\.undoManager) private var undoManager
 
@@ -39,8 +39,8 @@ struct ContentView: View {
     // route and move focus. Never shadow it with plain @State.
     @FocusState private var focusTarget: FabricEditorFocusTarget?
 
-    init(document: Binding<FabricDocument>, documentURL: URL? = nil) {
-        self._document = document
+    init(document: FabricDocument, documentURL: URL? = nil) {
+        self.document = document
         self.documentURL = documentURL
     }
 
@@ -280,5 +280,5 @@ struct CanvasBackdropView: View {
 }
 
 #Preview {
-    ContentView(document: .constant(FabricDocument()))
+    ContentView(document: FabricDocument())
 }

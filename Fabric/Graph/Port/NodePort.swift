@@ -26,10 +26,6 @@ public class NodePort<Value : PortValueRepresentable>: Port
         {
             self.value = nil
         }
-
-        self.valueDidChange = true
-        self.node?.markDirty()
-        self.onValueChanged?()
     }
 
     override internal func sendBoxed(_ boxed: PortValue?)
@@ -50,7 +46,10 @@ public class NodePort<Value : PortValueRepresentable>: Port
         }
     }
     
-    public var value: Value?
+    /// Final so reads in specialized code skip the vtable: an overridable getter runs
+    /// unspecialized and looks up `Optional<Value>` metadata on every read.
+    /// Subclasses react to assignments in `valueDidSet()` instead of overriding this.
+    public final var value: Value?
     {
         didSet
         {
@@ -62,8 +61,26 @@ public class NodePort<Value : PortValueRepresentable>: Port
             self.valueDidChange = true
             self.node?.markDirty()
             self.onValueChanged?()
+            self.valueDidSet()
         }
     }
+
+    /// Runs after every assignment to `value`, once its change bookkeeping is done.
+    /// Overrides call `super` to keep a publishing proxy in step.
+    internal func valueDidSet()
+    {
+        self.publishingProxy?.mirrorInnerValue(self.value)
+    }
+
+    /// The proxy publishing this port from its subgraph. Unowned so ports avoid side
+    /// tables; the proxy clears it as it deinitializes.
+    internal unowned var publishingProxy: ProxyPort<Value>?
+    {
+        didSet { self.publishingProxyIdentifier = self.publishingProxy.map(ObjectIdentifier.init) }
+    }
+
+    /// Lets a deinitializing proxy recognize itself without loading the unowned reference.
+    internal private(set) var publishingProxyIdentifier: ObjectIdentifier?
         
     public var valueType: Any.Type { Value.self }
 
@@ -104,6 +121,7 @@ public class NodePort<Value : PortValueRepresentable>: Port
 
     public func send(_ v: Value?, force:Bool = false)
     {
+        if deferredSendCapture?.stage(v, port: self, index: deferredOutputIndex, force: force) == true { return }
         if self.value != v || force
         {
             self.value = v
@@ -117,39 +135,44 @@ public class NodePort<Value : PortValueRepresentable>: Port
                 if let inlet = inlet as? NodePort<Value>
                 {
                     self.send(v, to:inlet, force: force)
+                    continue
                 }
-                
-                else if
-                    let v = v,
-                    v.canConvertTo(other: inlet.portType)
+
+                if let v
                 {
-                    if let converted = v.convertTo(other: inlet.portType) as? Bool,
-                       let inlet = inlet as? NodePort<Bool>
+                    let destinationType = inlet.portType
+                    if v.canConvertTo(other: destinationType)
                     {
-                        self.send(converted, to:inlet, force: force)
-                    }
-                    
-                    else if let converted = v.convertTo(other: inlet.portType) as? Int,
-                       let inlet = inlet as? NodePort<Int>
-                    {
-                        self.send(converted, to:inlet, force: force)
-                    }
-                    
-                    else if let converted = v.convertTo(other: inlet.portType) as? Float,
-                       let inlet = inlet as? NodePort<Float>
-                    {
-                        self.send(converted, to:inlet, force: force)
-                    }
-                    
-                    else if let converted = v.convertTo(other: inlet.portType) as? String,
-                       let inlet = inlet as? NodePort<String>
-                    {
-                        self.send(converted, to:inlet, force: force)
+                        let convertedValue = v.convertTo(other: destinationType)
+                        if let converted = convertedValue as? Bool,
+                           let inlet = inlet as? NodePort<Bool>
+                        {
+                            self.send(converted, to:inlet, force: force)
+                        }
+
+                        else if let converted = convertedValue as? Int,
+                           let inlet = inlet as? NodePort<Int>
+                        {
+                            self.send(converted, to:inlet, force: force)
+                        }
+
+                        else if let converted = convertedValue as? Float,
+                           let inlet = inlet as? NodePort<Float>
+                        {
+                            self.send(converted, to:inlet, force: force)
+                        }
+
+                        else if let converted = convertedValue as? String,
+                           let inlet = inlet as? NodePort<String>
+                        {
+                            self.send(converted, to:inlet, force: force)
+                        }
+                        continue
                     }
                 }
 
                 // Our new boxed virtual
-                else if let inlet = inlet as? NodePort<PortValue>
+                if let inlet = inlet as? NodePort<PortValue>
                 {
                     self.send(v?.toPortValue(), to:inlet, force: force)
                 }

@@ -39,8 +39,10 @@ open class SubgraphNode: BaseObjectNode
 
         // Remove proxies whose inner port is no longer published
         self.proxyPorts.removeAll { proxy in
-            guard let proxy = proxy as? any ProxyPortProtocol else { return true }
-            return !publishedIDs.contains(proxy.innerPortID)
+            let isRetired = (proxy as? any ProxyPortProtocol).map { !publishedIDs.contains($0.innerPortID) } ?? true
+            // A retired proxy can outlive this node in views; it must not keep an unowned owner.
+            if isRetired { proxy.node = nil }
+            return isRetired
         }
 
         // Add proxies for newly published ports
@@ -272,7 +274,7 @@ open class SubgraphNode: BaseObjectNode
 
     override open func markClean()
     {
-        for node in self.subGraph.nodes
+        for node in self.subGraph.nodes where node.hasPendingExecutionCleanup
         {
             node.markClean()
         }

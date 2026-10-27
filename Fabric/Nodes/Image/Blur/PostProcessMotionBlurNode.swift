@@ -71,7 +71,7 @@ public final class PostProcessMotionBlurNode: Node
         self.postProcessor.motionBlurMaterial.samples = Int32(self.inputSamples.value ?? 16)
         self.postProcessor.motionBlurMaterial.jitter = self.inputJitter.value ?? 1.0
         self.postProcessor.resize(size: (Float(colorTexture.width), Float(colorTexture.height)), scaleFactor: 1.0)
-        self.postProcessor.draw(renderPassDescriptor: MTLRenderPassDescriptor(), commandBuffer: commandBuffer)
+        try self.postProcessor.draw(frame: executionInfo.timing, renderPassDescriptor: MTLRenderPassDescriptor(), commandBuffer: commandBuffer)
 
         guard let processedTexture = self.postProcessor.outputTexture else
         {

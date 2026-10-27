@@ -25,7 +25,7 @@ struct ModelMeshAnimationTests
     /// How the model's skins are posed: each skinned mesh's joint matrices, in mesh order.
     private func jointMatrices(_ object: Object?) -> [simd_float4x4]
     {
-        (object?.getChildren(true) ?? []).compactMap { $0 as? Mesh }.flatMap { $0.geometry?.jointPalette?.joints.map(\.current) ?? [] }
+        (object?.getChildren(true) ?? []).compactMap { $0 as? Mesh }.flatMap { $0.geometry.jointPalette?.matrices ?? [] }
     }
 
     private func isClose(_ a: simd_float4x4, _ b: simd_float4x4, tolerance: Float = 1e-4) -> Bool

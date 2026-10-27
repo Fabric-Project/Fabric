@@ -30,8 +30,7 @@ final class PosedPieces: PosedGeometry
     init(source: Geometry, transforms: [simd_float4x4])
     {
         self.transforms = transforms
-        let jointPalette = JointPalette(device: source.context.device, jointCount: source.pieces?.count ?? 0,
-                                        maxBuffersInFlight: source.context.maxBuffersInFlight)
+        let jointPalette = JointPalette(jointCount: source.pieces?.count ?? 0)
         super.init(source: source, jointPalette: jointPalette)
         // A new pose is not motion: no velocity on its first frame.
         jointPalette.reset(matrices: composedTransforms)

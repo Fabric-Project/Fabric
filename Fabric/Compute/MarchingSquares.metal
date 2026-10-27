@@ -125,8 +125,9 @@ kernel void Update(const uint2 gid [[thread_position_in_grid]],
         // Reserve contiguous memory space ONCE for all segments from this cell
         uint base = atomic_fetch_add_explicit(segCounter, segCount, memory_order_relaxed);
         
-        // Check bounds after getting the base index
-        if (base + segCount > uniforms.MaxSegments) return;
+        // A two-segment cell can straddle the cap. Initialize the available first slot
+        // even when its second slot is out of range, so min(counter, cap) is a valid prefix.
+        if (base >= uniforms.MaxSegments) return;
         
         // Write first segment
         if (segs[0].x >= 0) {
@@ -136,7 +137,7 @@ kernel void Update(const uint2 gid [[thread_position_in_grid]],
         }
         
         // Write second segment if it exists, offset by 1
-        if (segs[1].x >= 0) {
+        if (segs[1].x >= 0 && base + 1u < uniforms.MaxSegments) {
             float2 a = e[segs[1].x];
             float2 b = e[segs[1].y];
             segments[base + 1u] = float4(a, b); // Use base + 1u

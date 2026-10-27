@@ -46,3 +46,18 @@ A simple Fabric Scene rendering a Cube:
 * Allow procedural building of Fabric graphs via API
 * Support rendering of Fabric content on macOS, iOS, visionOS, just like its underlying engine, Satin
 * Find opportunities to expand Satin engine to support new features.
+
+## Follow-up: Fabric execution performance
+
+After completing and validating the current single-threaded Iterator correctness and frame-contract branch, profile and optimize Fabric using the lessons from Satin. Keep this separate from the correctness work.
+
+The 2026-10-23 profile shows substantial Swift reference-counting slow-path activity: `doDecrementSlow` accounts for 59 ms (4.2%) in the supplied sample. Callers include `GraphFrameImageUses.retainImages(in:)`, port/parameter setters and Combine sinks, `Node.markClean()` / `SubgraphNode.markClean()`, and `GraphRenderer.executionPlanExtension(forcing:alreadyScheduledNodeIDs:)`. `objc_msgSend` also accounts for 47 ms (3.3%). These are investigation leads, not proof that every caller or weak reference needs replacement; sampled costs overlap and should not be summed.
+
+Review repeated traversal, temporary arrays and ownership churn, parameter/port notification cascades, weak-reference and delegate accesses, and hashing or synchronization reached during steady-state execution. Reuse existing identities and cached execution information, invalidate on actual changes, and preserve Iterator behavior, image lifetimes, and the public node contract. Measure representative graphs before and after each focused change; avoid example-specific paths and unrelated API redesigns.
+
+Specific leads from subsequent 2026-10-23 profiles:
+
+- **Iterator execution-plan extension:** `GraphRenderer.executionPlanExtension(forcing:alreadyScheduledNodeIDs:)` accounts for 74 ms (47.4%) in a supplied 156 ms sample, under nested `GraphRenderer.execute` / `IteratorNode.execute`. Dictionary reads account for 26 ms, writes for 19 ms, and `reserveCapacity` / resizing for 12 ms; UUID hashing and `pullNodeForExecutionPlan` also appear. Investigate why forced execution plans are rebuilt during iteration, whether unchanged topology and forced-node selections can reuse plans, and how to avoid repeated UUID hashing, traversal-state dictionaries, and allocation in steady state. Preserve pull semantics, requested-output behavior, forced evaluation, and topology invalidation. This is the larger lead in this particular sample; inclusive costs overlap.
+- **Compose Vector and similar strategy nodes:** `ComposeVectorNode.execute` constructs `"inputComponent\(i)"` for change checks and again for component reads, then looks up ports through the registry dictionary. It also resolves its typed strategy from a string on execution. One sample attributes 39 ms (0.7%) to `comp(_:)`, including string interpolation/allocation; another attributes 5 ms to the change-check closure's named port lookups. Investigate retaining typed component/output port references and the resolved strategy when `rebuildPorts(forStrategy:)` runs, refreshing them on rebuild/decode, so execution reads references directly. Audit sibling strategy nodes for the same pattern without redesigning their public API.
+
+The earlier `GraphFrameImageUses` port-scanning mechanism has since been replaced by texture-recycling scopes. Reprofile the current implementation before treating that older stack as remaining work.

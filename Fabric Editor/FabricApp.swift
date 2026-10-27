@@ -28,7 +28,9 @@ struct FabricApp: App {
 
         DocumentGroup(newDocument: FabricDocument(withTemplate: true) ) { file in
             
-            ContentView(document: file.$document, documentURL: file.fileURL)
+            ContentView(document: file.document, documentURL: file.fileURL)
+                // Presentation and canvas state belong to this document instance.
+                .id(ObjectIdentifier(file.document))
                 .focusedSceneValue(\.document, file.$document)
 
         }

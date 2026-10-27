@@ -34,6 +34,8 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
 {
     private let innerPort: NodePort<Value>
     private let declaredPortType: PortType?
+    /// Set while this proxy and its inner port copy a value across, so neither echoes it back.
+    private var isSyncingWithInnerPort = false
 
     public var innerPortID: UUID { innerPort.id }
 
@@ -64,6 +66,7 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
         // ensure we proxy other values
         self.parameter = innerPort.parameter
         self.value = innerPort.value
+        innerPort.publishingProxy = self
         self.published = published
         self.publishedName = publishedName
     }
@@ -98,6 +101,7 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
         try super.init(from: decoder)
         self.parameter = typedInnerPort.parameter
         self.value = typedInnerPort.value
+        typedInnerPort.publishingProxy = self
     }
 
     private enum CodingKeys: String, CodingKey
@@ -119,12 +123,34 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
     /// When the parent graph sends a value to this proxy (inlet case),
     /// forward it to the inner port so the sub graph receives it.
     
-    override public var value: Value?
+    /// The parent graph sent a value: forward it to the inner port. The inner port
+    /// may resolve it differently (a parameter re-seats nil), so read the result back.
+    override internal func valueDidSet()
     {
-        get { innerPort.value }
-        set {
-            innerPort.value = newValue
-            super.value = newValue
+        if !self.isSyncingWithInnerPort
+        {
+            self.isSyncingWithInnerPort = true
+            self.innerPort.value = self.value
+            if self.innerPort.value != self.value { self.value = self.innerPort.value }
+            self.isSyncingWithInnerPort = false
+        }
+        super.valueDidSet()
+    }
+
+    /// The inner port changed inside the subgraph: keep this proxy's value the same.
+    internal final func mirrorInnerValue(_ innerValue: Value?)
+    {
+        guard !self.isSyncingWithInnerPort else { return }
+        self.isSyncingWithInnerPort = true
+        self.value = innerValue
+        self.isSyncingWithInnerPort = false
+    }
+
+    deinit
+    {
+        if self.innerPort.publishingProxyIdentifier == ObjectIdentifier(self)
+        {
+            self.innerPort.publishingProxy = nil
         }
     }
     

@@ -232,13 +232,14 @@ public class DeferredSubgraphNode: SubgraphNode
         )
     }
 
-    private func sendAuxiliaryTexture(_ texture: MTLTexture?, toPortNamed portName: String)
+    private func sendAuxiliaryTexture(_ texture: MTLTexture?, toPortNamed portName: String,
+                                      commandBuffer: MTLCommandBuffer) throws
     {
         guard let port = self.findPort(named: portName, as: NodePort<FabricImage>.self) else { return }
 
         if let texture
         {
-            port.send(FabricImage.unmanaged(texture: texture))
+            port.send(try graphRenderer.newImage(copying: texture, commandBuffer: commandBuffer))
         }
         else
         {
@@ -305,7 +306,7 @@ public class DeferredSubgraphNode: SubgraphNode
         
         if let texture = self.graphRenderer.renderEncoder.depthTexture
         {
-            self.outputDepthTexture.send( FabricImage.unmanaged(texture: texture) )
+            self.outputDepthTexture.send(try graphRenderer.newImage(copying: texture, commandBuffer: commandBuffer))
         }
         else
         {
@@ -314,11 +315,11 @@ public class DeferredSubgraphNode: SubgraphNode
 
         if self.deferredMRTEnabled
         {
-            self.sendAuxiliaryTexture(self.graphRenderer.renderEncoder.albedoTexture, toPortNamed: "outputAlbedoTexture")
-            self.sendAuxiliaryTexture(self.graphRenderer.renderEncoder.normalTexture, toPortNamed: "outputNormalsTexture")
-            self.sendAuxiliaryTexture(self.graphRenderer.renderEncoder.pbrTexture, toPortNamed: "outputPBRTexture")
-            self.sendAuxiliaryTexture(self.graphRenderer.renderEncoder.velocityTexture, toPortNamed: "outputVelocityTexture")
-            self.sendAuxiliaryTexture(self.graphRenderer.renderEncoder.emissiveTexture, toPortNamed: "outputEmissiveTexture")
+            try self.sendAuxiliaryTexture(self.graphRenderer.renderEncoder.albedoTexture, toPortNamed: "outputAlbedoTexture", commandBuffer: commandBuffer)
+            try self.sendAuxiliaryTexture(self.graphRenderer.renderEncoder.normalTexture, toPortNamed: "outputNormalsTexture", commandBuffer: commandBuffer)
+            try self.sendAuxiliaryTexture(self.graphRenderer.renderEncoder.pbrTexture, toPortNamed: "outputPBRTexture", commandBuffer: commandBuffer)
+            try self.sendAuxiliaryTexture(self.graphRenderer.renderEncoder.velocityTexture, toPortNamed: "outputVelocityTexture", commandBuffer: commandBuffer)
+            try self.sendAuxiliaryTexture(self.graphRenderer.renderEncoder.emissiveTexture, toPortNamed: "outputEmissiveTexture", commandBuffer: commandBuffer)
         }
         
         // We need to call this to ensure any published port values also get forwarded.

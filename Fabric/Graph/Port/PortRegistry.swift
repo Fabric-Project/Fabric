@@ -26,10 +26,10 @@ import Foundation
 
 final class PortRegistry
 {
-    // stable order for UI/layout, serialize as array
-    private(set) var ordered: [Port] = []
-    // lookup by friendly name
-    private var byName: [String: Port] = [:]
+    // Stable order for UI/layout and serialization. Name lookup returns an
+    // integer first so optimized reads can borrow the port from this storage.
+    private(set) var ordered: ContiguousArray<Port> = []
+    private var byName: [String: Int] = [:]
     // lookup by UUID for connections remap
     private var byID: [UUID: Port] = [:]
     
@@ -37,7 +37,7 @@ final class PortRegistry
     {
         port.node = owner
         self.ordered.append(port)
-        self.byName[name] = port
+        self.byName[name] = self.ordered.count - 1
         self.byID[port.id] = port
     }
 
@@ -52,10 +52,19 @@ final class PortRegistry
             graph.disconnectAll(from: p)
         }
         self.byID[p.id] = nil
-        if let i = ordered.firstIndex(where: { $0.id == p.id }) { self.ordered.remove(at: i) }
-        for (name, port) in self.byName where port.id == p.id
+        if let removedIndex = ordered.firstIndex(where: { $0.id == p.id })
         {
-            self.byName[name] = nil
+            // Inspect the old storage before removing its element. Keys for
+            // later ports shift with the array; registry keys are not labels.
+            for (name, index) in self.byName
+            {
+                if self.ordered[index].id == p.id {
+                    self.byName[name] = nil
+                } else if index > removedIndex {
+                    self.byName[name] = index - 1
+                }
+            }
+            self.ordered.remove(at: removedIndex)
         }
         // Dynamic type changes replace a Port instance while preserving its
         // UUID. Detach the retired instance so a transient SwiftUI view cannot
@@ -72,23 +81,34 @@ final class PortRegistry
         guard oldIDs == newIDs else { return }
 
         let namesByID: [UUID: String] = Dictionary(uniqueKeysWithValues: self.byName.map { (key, value) in
-            (value.id, key)
+            (self.ordered[value].id, key)
         })
 
-        self.ordered = reordered
+        self.ordered = ContiguousArray(reordered)
         self.byName.removeAll(keepingCapacity: true)
         self.byID.removeAll(keepingCapacity: true)
 
-        for port in self.ordered {
+        for (index, port) in self.ordered.enumerated() {
             let name = namesByID[port.id] ?? port.name
-            self.byName[name] = port
+            self.byName[name] = index
             self.byID[port.id] = port
         }
     }
     
-    func port(named name: String) -> Port? { self.byName[name] }
-    func name(of port: Port) -> String? { self.byName.first { $0.value.id == port.id }?.key }
-    func all() -> [Port] { self.ordered }
+    func port(named name: String) -> Port?
+    {
+        guard let index = self.byName[name] else { return nil }
+        return self.ordered[index]
+    }
+
+    func name(of port: Port) -> String?
+    {
+        self.byName.first { self.ordered[$0.value].id == port.id }?.key
+    }
+
+    // Native Array and ContiguousArray share storage here. Preserve the public
+    // Array API and its copy-on-write snapshot semantics.
+    func all() -> [Port] { Array(self.ordered) }
 
     /// A port's persisted form: registry key plus the encoded port object.
     /// Decode treats it as a hydration source only — the port instances that
@@ -104,7 +124,7 @@ final class PortRegistry
         self.ordered.map { port in
 
             let name = byName.first(where: { (key, value) in
-                port.id == value.id
+                port.id == self.ordered[value].id
             })?.key ?? port.name
 
             return Snapshot(name: name, payload: AnyPort(port))
