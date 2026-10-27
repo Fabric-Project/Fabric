@@ -324,7 +324,10 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     deinit
     {
-//        print("Deleted node \(id)")
+        // Ports and parameter sinks reference this node unowned; clear both
+        // before they can dangle. Subclass ports are still alive here.
+        self.inputParamCancellables.forEach { $0.cancel() }
+        for port in self.ports { port.node = nil }
     }
 
 
@@ -613,8 +616,9 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     private func makeCancelable(parameter: some Parameter) -> AnyCancellable
     {
-        let cancellable = parameter.valuePublisher.sink { [weak self] _ in
-            self?.markDirty()
+        // Unowned: this node owns the subscription and cancels it in deinit.
+        let cancellable = parameter.valuePublisher.sink { [unowned self] _ in
+            self.markDirty()
         }
 
         return cancellable

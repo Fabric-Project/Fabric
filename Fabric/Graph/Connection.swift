@@ -24,8 +24,10 @@ public final class Connection: Codable, Identifiable, Hashable
     }
 
     internal weak var graph: Graph?
-    internal weak var outletPortReference: Port?
-    internal weak var inletPortReference: Port?
+    // Unowned, not weak, so ports avoid Swift side tables. Graph clears these on
+    // detach and a port clears its own on deinit.
+    internal unowned var outletPortReference: Port?
+    internal unowned var inletPortReference: Port?
 
     private enum CodingKeys: String, CodingKey
     {

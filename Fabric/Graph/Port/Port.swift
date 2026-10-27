@@ -117,7 +117,9 @@ extension UTType
     /// compares equal to the previous value.
     internal func sendBoxed(_ boxed: PortValue?, force: Bool) { sendBoxed(boxed) }
     
-    @ObservationIgnored public weak var node: Node?
+    // Unowned, not weak: any weak reference gives Node a Swift side table, which
+    // slows every retain and release of it. Cleared on registry removal and Node deinit.
+    @ObservationIgnored public unowned var node: Node?
     @ObservationIgnored internal var deferredSendCapture: GraphDeferredSendCapture?
     @ObservationIgnored internal var deferredOutputIndex = 0
     @ObservationIgnored internal var onValueChanged: (() -> Void)?
@@ -190,6 +192,13 @@ extension UTType
     
     deinit
     {
+        // Connections reference their endpoints unowned. A connection in this
+        // port's list points at this port; clear it before it can dangle.
+        for connection in self.connections
+        {
+            if connection.outletPortID == self.id { connection.outletPortReference = nil }
+            if connection.inletPortID == self.id { connection.inletPortReference = nil }
+        }
         self.connections.removeAll()
 //        print("Deinit Port \(self.id)")
     }

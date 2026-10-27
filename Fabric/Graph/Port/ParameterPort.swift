@@ -139,10 +139,10 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
     
     private func subscribeToParameter()
     {
-        self.subscription = self._parameter.valuePublisher.sink { [weak self] value in
+        // Unowned: this port owns the subscription and cancels it in deinit.
+        self.subscription = self._parameter.valuePublisher.sink { [unowned self] value in
             // Port edits already uploaded this value. Do not feed the parameter's
             // synchronous notification back through the port setter a second time.
-            guard let self else { return }
             if self.isUpdatingParameterValue, self.value == value { return }
             self.value = value
         }
