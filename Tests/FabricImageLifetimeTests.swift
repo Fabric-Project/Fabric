@@ -11,12 +11,11 @@ struct FabricImageLifetimeTests {
         return try #require(device.makeTexture(descriptor: descriptor))
     }
 
-    @Test("An explicit release cannot invalidate another image alias")
-    func explicitReleasePreservesAliases() throws {
+    @Test("Dropping one reference cannot release an image another alias holds")
+    func droppingAReferencePreservesAliases() throws {
         var returns = 0
         var image: FabricImage? = .managed(texture: try texture()) { _ in returns += 1 }
         var alias = image
-        image?.release()
         image = nil
         #expect(alias != nil)
         #expect(returns == 0)

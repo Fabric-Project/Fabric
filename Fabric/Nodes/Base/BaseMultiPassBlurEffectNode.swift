@@ -86,7 +86,6 @@ public class BaseMultiPassBlurEffectNode: BaseImageNode
 
         for (index, step) in steps.enumerated() {
             guard let nextImage = try? renderer.newImage(withWidth: step.width, height: step.height) else {
-                currentImage?.release()
                 return nil
             }
 
@@ -110,7 +109,6 @@ public class BaseMultiPassBlurEffectNode: BaseImageNode
 
             try self.postProcessor.draw(frame: executionInfo.timing, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
 
-            currentImage?.release()
             currentImage = nextImage
             currentTexture = nextImage.texture
             

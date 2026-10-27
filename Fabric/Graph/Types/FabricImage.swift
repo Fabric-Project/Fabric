@@ -66,13 +66,6 @@ public final class FabricImage: Identifiable, Equatable
         onRelease?(texture)
     }
 
-    /// Compatibility entry point. Release a caller's reference instead of invalidating shared
-    /// aliases. Texture owners, including pending GPU work, preserve the backing storage.
-    @available(*, deprecated, message: "Release your image reference; storage follows image and GPU ownership")
-    public func release()
-    {
-    }
-
     // MARK: - Equatable
 
     public static func == (lhs: FabricImage, rhs: FabricImage) -> Bool
