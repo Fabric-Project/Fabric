@@ -34,7 +34,6 @@ public class GraphRenderer : ViewRenderer
     private var pendingSubmission: SubmissionBuilder?
     private var submissionScopeDepth = 0
     internal private(set) var deferredGPUResults: GraphDeferredResults?
-    private var textureRecyclingScope: GraphTextureRecyclingScope?
     private let sceneProxy: Object
 
     // Regular subgraphs execute by re-entering execute(graph:) on this renderer.
@@ -315,8 +314,6 @@ public class GraphRenderer : ViewRenderer
     {
         try validateContinuationOwnership(commandBuffer)
         prepareDeferredExecution(commandBuffer)
-        let recyclingScope = beginTextureRecycling(commandBuffer: commandBuffer)
-        defer { finishTextureRecycling(recyclingScope, commandBuffer: commandBuffer) }
         beginSubmissionScope()
         defer { endSubmissionScope() }
         let clearColor = self.renderEncoder.clearColor
@@ -398,11 +395,8 @@ public class GraphRenderer : ViewRenderer
     {
         try validateContinuationOwnership(commandBuffer)
         prepareDeferredExecution(commandBuffer)
-        let recyclingScope = beginTextureRecycling(commandBuffer: commandBuffer)
-        defer { finishTextureRecycling(recyclingScope, commandBuffer: commandBuffer) }
         beginSubmissionScope()
         defer { endSubmissionScope() }
-        self.resetTextureCaches(for: executionInfo)
 
         defer {
             if clearFlags {
@@ -712,12 +706,6 @@ public class GraphRenderer : ViewRenderer
         return (attempted, active)
     }
 
-    private func resetTextureCaches(for executionInfo: GraphExecutionInfo)
-    {
-        self.privateTextureCache.resetCacheFor(executionContext: executionInfo)
-        self.sharedTextureCache.resetCacheFor(executionContext: executionInfo)
-    }
-
     // MARK: - Execution Trace
 
     private func beginGraphExecutionTrace() -> GraphExecutionTraceFrameBuilder?
@@ -972,8 +960,6 @@ public class GraphRenderer : ViewRenderer
     /// Publishes a distinct image version of a reusable, resolved 2D render target. The GPU copy
     /// is encoded here, before a later invocation can overwrite the source target.
     public func newImage(copying texture: MTLTexture, commandBuffer: MTLCommandBuffer) throws -> FabricImage {
-        let recyclingScope = beginTextureRecycling(commandBuffer: commandBuffer)
-        defer { finishTextureRecycling(recyclingScope, commandBuffer: commandBuffer) }
         guard texture.textureType == .type2D, texture.sampleCount == 1,
               let image = privateTextureCache.newManagedImage(width: texture.width,
                                                                height: texture.height,
@@ -994,25 +980,6 @@ public class GraphRenderer : ViewRenderer
         }
         blit.endEncoding()
         return image
-    }
-
-    private func beginTextureRecycling(commandBuffer: MTLCommandBuffer) -> GraphTextureRecyclingScope? {
-        if let commands = commandBuffer as? GraphCommandBuffer { return commands.beginTextureRecycling() }
-        guard textureRecyclingScope == nil else { return nil }
-        let scope = GraphTextureRecycling.shared.beginExecution()
-        textureRecyclingScope = scope
-        return scope
-    }
-
-    private func finishTextureRecycling(_ scope: GraphTextureRecyclingScope?, commandBuffer: MTLCommandBuffer) {
-        guard let scope else { return }
-        if let commands = commandBuffer as? GraphCommandBuffer {
-            commands.endTextureRecycling(scope)
-        } else {
-            scope.retain(untilCompleted: commandBuffer)
-            scope.end()
-            textureRecyclingScope = nil
-        }
     }
 
     public func newImage(withWidth width: Int, height: Int) throws -> FabricImage

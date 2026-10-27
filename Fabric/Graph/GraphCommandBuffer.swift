@@ -54,8 +54,7 @@ final class GraphAsyncCompletionResult<Value>: GraphDeferredAsyncResultSlot {
     }
 }
 
-/// One recycling scope for nested graph execution on this buffer. Every submitted segment
-/// participates, including continuations made by MPS and an abandoned final segment.
+/// A stable MPS command buffer for graph execution, continuation segments and deferred results.
 final class GraphCommandBuffer: MPSCommandBuffer {
     var graphRenderer: GraphRenderer?
     var executingNode: Node?
@@ -63,24 +62,8 @@ final class GraphCommandBuffer: MPSCommandBuffer {
     var deferredBatch: GraphDeferredFrameBatch?
     private var deferredSegment: GraphDeferredSegment?
     private var recordingEnded = false
-    private var recyclingScope: GraphTextureRecyclingScope?
-
-    func beginTextureRecycling() -> GraphTextureRecyclingScope? {
-        guard recyclingScope == nil else { return nil }
-        let scope = GraphTextureRecycling.shared.beginExecution()
-        recyclingScope = scope
-        return scope
-    }
-
-    func endTextureRecycling(_ scope: GraphTextureRecyclingScope) {
-        scope.retain(untilCompleted: self)
-        scope.end()
-        recyclingScope = nil
-    }
-
     override func commitAndContinue() {
         if deferredBatch != nil { currentDeferredSegment().markSubmitted() }
-        recyclingScope?.retain(untilCompleted: rootCommandBuffer)
         super.commitAndContinue()
         deferredSegment = nil
     }

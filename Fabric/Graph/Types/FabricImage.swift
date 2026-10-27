@@ -49,13 +49,13 @@ public final class FabricImage: Identifiable, Equatable
         self.onRelease = onRelease
     }
 
-    /// Created by GraphRenderer (or other pool owner). Returned to pool on `release()` / `deinit`.
+    /// Attach external-owner cleanup to the image lifetime, such as a pixel-buffer unlock.
     internal static func managed(texture: MTLTexture, onRelease: @escaping (MTLTexture) -> Void) -> FabricImage
     {
         FabricImage(texture: texture, onRelease: onRelease)
     }
 
-    /// Asset / external ownership. No pooling.
+    /// Ordinary texture ownership, including heap-backed images. No texture-object recycling.
     public static func unmanaged(texture: MTLTexture) -> FabricImage
     {
         FabricImage(texture: texture, onRelease: nil)
@@ -67,7 +67,7 @@ public final class FabricImage: Identifiable, Equatable
     }
 
     /// Compatibility entry point. Release a caller's reference instead of invalidating shared
-    /// aliases. The pool defers recycling released storage while GPU execution is pending.
+    /// aliases. Texture owners, including pending GPU work, preserve the backing storage.
     @available(*, deprecated, message: "Release your image reference; storage follows image and GPU ownership")
     public func release()
     {

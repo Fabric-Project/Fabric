@@ -93,6 +93,68 @@ struct IteratorRecordTests
         #expect(actual.elementsEqual(expected), "Direct evaluation's old mesh records must not reach the next draw")
     }
 
+    private final class IterationImageProducer: Node {
+        override class var name: String { "Iteration Image Producer" }
+        override class var nodeType: Node.NodeType { .Utility }
+        override class var nodeExecutionMode: Node.ExecutionMode { .Provider }
+        override class var nodeTimeMode: Node.TimeMode { .None }
+        override class var nodeDescription: String { "Produces an occurrence-specific colour image" }
+        override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)] {
+            super.registerPorts(context: context) + [
+                ("outputImage", NodePort<FabricImage>(name: "Image", kind: .Outlet))
+            ]
+        }
+        var outputImage: NodePort<FabricImage> { port(named: "outputImage") }
+        override func execute(renderer: GraphRenderer, executionInfo: GraphExecutionInfo,
+                              renderPassDescriptor: MTLRenderPassDescriptor,
+                              commandBuffer: MTLCommandBuffer) throws {
+            let image = try renderer.newImage(withWidth: 4, height: 4)
+            let pass = MTLRenderPassDescriptor()
+            pass.colorAttachments[0].texture = image.texture
+            pass.colorAttachments[0].loadAction = .clear
+            pass.colorAttachments[0].storeAction = .store
+            pass.colorAttachments[0].clearColor = executionInfo.iterationInfo?.currentIteration == 0
+                ? MTLClearColorMake(1, 0, 0, 1) : MTLClearColorMake(0, 0, 1, 1)
+            let encoder = try #require(commandBuffer.makeRenderCommandEncoder(descriptor: pass))
+            encoder.endEncoding()
+            outputImage.send(image, force: true)
+        }
+    }
+
+    private final class IterationImageMesh: ImageMeshNode {
+        override func execute(renderer: GraphRenderer, executionInfo: GraphExecutionInfo,
+                              renderPassDescriptor: MTLRenderPassDescriptor,
+                              commandBuffer: MTLCommandBuffer) throws {
+            try super.execute(renderer: renderer, executionInfo: executionInfo,
+                              renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+            object?.position.x = executionInfo.iterationInfo?.currentIteration == 0 ? -0.5 : 0.5
+        }
+    }
+
+    @Test("Recorded image meshes preserve each occurrence's image after ports advance")
+    func recordedImageVersionsStayDistinct() throws {
+        let harness = try #require(GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64))
+        let graph = Graph(context: harness.context)
+        let iterator = IteratorNode(context: harness.context)
+        iterator.inputIteratonCount.value = 2
+        let producer = IterationImageProducer(context: harness.context)
+        let mesh = IterationImageMesh(context: harness.context)
+        mesh.inputSize.value = 0.5
+        iterator.subGraph.addNode(producer)
+        iterator.subGraph.addNode(mesh)
+        iterator.subGraph.connect(producer.outputImage, to: mesh.inputImage)
+        graph.addNode(iterator)
+        let renderer = harness.graphRenderer(for: graph)
+        try renderer.startExecution()
+        defer { try? renderer.stopExecution() }
+        let result = try render(graph, harness)
+        let left = (32 * 64 + 16) * 4
+        let right = (32 * 64 + 48) * 4
+        // The target is BGRA; both draws replay after the two input images were produced.
+        #expect(Array(result[left..<(left + 4)]) == [0, 0, 255, 255])
+        #expect(Array(result[right..<(right + 4)]) == [255, 0, 0, 255])
+    }
+
     private static let offsets: [Float] = [-0.5, 0.5]
     private static let scale = simd_float3(repeating: 0.3)
 
