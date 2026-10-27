@@ -111,8 +111,10 @@ final class GraphCommandBuffer: MPSCommandBuffer {
             executingNode.deferredResultsBinding = binding
         }
         let scope = resultScope()
-        currentDeferredSegment().requests.append(.init(binding: binding, scope: scope,
-            state: scope.state(for: binding), generation: binding.generation, body: body))
+        let state = scope.state(for: binding)
+        binding.beginExecution(in: state)
+        currentDeferredSegment().requests.append(.init(binding: binding, scope: scope, state: state,
+            generation: binding.generation, body: body, sequence: binding.captureCell.nextSequence()))
     }
 
     fileprivate func registerAsyncCompletion<Value>(operation: @escaping () async throws -> Value,

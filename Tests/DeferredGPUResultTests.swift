@@ -288,7 +288,7 @@ extension DeferredGPUResultTests {
     }
 }
 
-private final class DeferredProcessorProbe: DeferredProbeNode {
+private class DeferredProcessorProbe: DeferredProbeNode {
     override class var nodeExecutionMode: Node.ExecutionMode { .Processor }
 }
 
@@ -537,5 +537,64 @@ extension DeferredGPUResultTests {
         // A launched operation would still own its input while suspended at the gate.
         #expect(retainedInput == nil)
         await gate.open()
+    }
+}
+
+/// Sends synchronously on chosen frames, around the probe's frame-0 deferred request.
+private final class DeferredSynchronousProbe: DeferredProcessorProbe {
+    var synchronousSendsByFrame: [Int: Int] = [:]
+    var sendAfterFirstRequest: Int?
+    override func execute(renderer: GraphRenderer, executionInfo: GraphExecutionInfo,
+                          renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws {
+        let frame = Int(executionInfo.timing.frameNumber)
+        if let value = synchronousSendsByFrame[frame] {
+            output.send(value)
+            return
+        }
+        try super.execute(renderer: renderer, executionInfo: executionInfo,
+                          renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+        if frame == 0, let sendAfterFirstRequest { output.send(sendAfterFirstRequest) }
+    }
+}
+
+extension DeferredGPUResultTests {
+    private func publishedSynchronousProbe(_ harness: GraphExecutionTestHarness) -> (Graph, DeferredSynchronousProbe) {
+        let graph = Graph(context: harness.context)
+        let probe = DeferredSynchronousProbe(context: harness.context)
+        probe.output.published = true
+        graph.addNode(probe)
+        graph.rebuildPublishedParameterGroup()
+        return (graph, probe)
+    }
+
+    @Test("A newer synchronous send is not replaced by republishing an older deferred result")
+    func synchronousSendSurvivesRepublication() throws {
+        let harness = try #require(GraphExecutionTestHarness())
+        let (graph, probe) = publishedSynchronousProbe(harness)
+        probe.synchronousSendsByFrame = [2: 5]
+        let renderer = harness.graphRenderer(for: graph)
+        try renderer.startExecution()
+        var outputs: [Int?] = []
+        for frame in 0..<6 {
+            if frame == 2 { probe.markDirty() }
+            try execute(renderer, graph: graph, harness: harness, frame: frame)
+            outputs.append(probe.output.value)
+        }
+        #expect(outputs == [nil, 10, 5, 5, 5, 5])
+    }
+
+    @Test("A synchronous send made after a request wins over that request's later delivery")
+    func synchronousSendAfterRequestWins() throws {
+        let harness = try #require(GraphExecutionTestHarness())
+        let (graph, probe) = publishedSynchronousProbe(harness)
+        probe.sendAfterFirstRequest = 5
+        let renderer = harness.graphRenderer(for: graph)
+        try renderer.startExecution()
+        var outputs: [Int?] = []
+        for frame in 0..<3 {
+            try execute(renderer, graph: graph, harness: harness, frame: frame)
+            outputs.append(probe.output.value)
+        }
+        #expect(outputs == [5, 5, 5])
     }
 }

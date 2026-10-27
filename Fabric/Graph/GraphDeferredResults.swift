@@ -5,12 +5,29 @@ final class GraphDeferredSendCapture {
     var state: GraphDeferredNodeState?
     var binding: GraphDeferredNodeBinding?
     var generation: UInt64 = 0
+    /// The occurrence whose node is executing. Its synchronous sends go out as usual and also
+    /// become that occurrence's stored value, so republication never restores an older result.
+    var executingState: GraphDeferredNodeState?
+    var executingBinding: GraphDeferredNodeBinding?
+    /// Orders requests and synchronous sends: a delivery loses to a send made after its request.
+    private(set) var sequence: UInt64 = 0
+
+    func nextSequence() -> UInt64 {
+        sequence &+= 1
+        return sequence
+    }
 
     func stage<Value>(_ value: Value?, port: NodePort<Value>, index: Int, force: Bool) -> Bool {
-        guard let state, let binding else { return false }
-        guard generation == binding.generation else { return true }
-        state.stage(value, port: port, index: index, force: force)
-        return true
+        if let state, let binding {
+            guard generation == binding.generation else { return true }
+            state.stage(value, port: port, index: index, force: force)
+            return true
+        }
+        if let executingState, let executingBinding {
+            executingState.recordSynchronousSend(value, port: port, index: index,
+                                                 binding: executingBinding, sequence: nextSequence())
+        }
+        return false
     }
 }
 
@@ -49,6 +66,7 @@ final class GraphDeferredNodeBinding {
 
     func retire() {
         invalidate()
+        endExecution()
         retired = true
         for output in outputs where output.deferredSendCapture === captureCell {
             output.deferredSendCapture = nil
@@ -64,7 +82,21 @@ final class GraphDeferredNodeBinding {
         return state
     }
 
-    func capture(in state: GraphDeferredNodeState, body: () throws -> Void) throws {
+    /// Called around the node's execute for one occurrence. Idempotent: a first completion
+    /// request creates the binding mid-execute and begins tracking from there.
+    func beginExecution(in state: GraphDeferredNodeState) {
+        guard captureCell.executingState == nil else { return }
+        captureCell.executingState = state
+        captureCell.executingBinding = self
+    }
+
+    func endExecution() {
+        captureCell.executingState = nil
+        captureCell.executingBinding = nil
+    }
+
+    func capture(in state: GraphDeferredNodeState, requestSequence: UInt64 = .max,
+                 body: () throws -> Void) throws {
         state.prepare(generation: generation, outputCount: outputs.count)
         captureCell.state = state
         captureCell.binding = self
@@ -76,7 +108,7 @@ final class GraphDeferredNodeBinding {
         }
         do {
             try body()
-            if generation == capturedGeneration { state.commit(binding: self) }
+            if generation == capturedGeneration { state.commit(binding: self, requestSequence: requestSequence) }
             else { state.discard() }
         } catch {
             state.discard()
@@ -87,6 +119,8 @@ final class GraphDeferredNodeBinding {
 
 private class GraphDeferredOutputSlot {
     var touched = false
+    /// Sequence of the latest synchronous send through this occurrence's output.
+    var synchronousSequence: UInt64 = 0
     func commit() {}
     func discard() {}
     func publish() {}
@@ -149,24 +183,38 @@ final class GraphDeferredNodeState {
         }
     }
 
+    private func slot<Value>(for port: NodePort<Value>, index: Int) -> GraphDeferredTypedSlot<Value> {
+        if let existing = slots[index] as? GraphDeferredTypedSlot<Value> { return existing }
+        let slot = GraphDeferredTypedSlot(port: port)
+        slots[index] = slot
+        slotCreationCount += 1
+        return slot
+    }
+
+    /// The port already sent `value`; keep it as this occurrence's latest so republication restores it.
+    func recordSynchronousSend<Value>(_ value: Value?, port: NodePort<Value>, index: Int,
+                                      binding: GraphDeferredNodeBinding, sequence: UInt64) {
+        prepare(generation: binding.generation, outputCount: binding.outputs.count)
+        let slot = slot(for: port, index: index)
+        slot.stored = value
+        slot.storedForce = false
+        slot.synchronousSequence = sequence
+    }
+
     func stage<Value>(_ value: Value?, port: NodePort<Value>, index: Int, force: Bool) {
-        let slot: GraphDeferredTypedSlot<Value>
-        if let existing = slots[index] as? GraphDeferredTypedSlot<Value> {
-            slot = existing
-        } else {
-            slot = GraphDeferredTypedSlot(port: port)
-            slots[index] = slot
-            slotCreationCount += 1
-        }
+        let slot = slot(for: port, index: index)
         if !slot.touched { touchedIndices.append(index) }
         slot.staged = value
         slot.stagedForce = force
         slot.touched = true
     }
 
-    func commit(binding: GraphDeferredNodeBinding) {
+    func commit(binding: GraphDeferredNodeBinding, requestSequence: UInt64) {
         for index in touchedIndices {
-            slots[index]?.commit()
+            guard let slot = slots[index] else { continue }
+            // A synchronous send made after this request is newer data: keep it.
+            if slot.synchronousSequence > requestSequence { slot.discard() }
+            else { slot.commit() }
             if !binding.participating[index] {
                 binding.participating[index] = true
                 binding.participatingIndices.append(index)
@@ -330,6 +378,7 @@ final class GraphDeferredSegment {
         let state: GraphDeferredNodeState
         let generation: UInt64
         var body: (() throws -> Void)?
+        var sequence: UInt64 = .max
     }
     enum Status { case pending, completed, failed(Error?), abandoned }
     let signal: GraphDeferredSignal
@@ -466,7 +515,7 @@ final class GraphDeferredFrameBatch {
                     let request = segment.requests[requestIndex]
                     if request.scope.valid, request.binding.generation == request.generation,
                        let body = request.body {
-                        do { try request.binding.capture(in: request.state, body: body) }
+                        do { try request.binding.capture(in: request.state, requestSequence: request.sequence, body: body) }
                         catch { errors.append(error) }
                     }
                     segment.requests[requestIndex].body = nil

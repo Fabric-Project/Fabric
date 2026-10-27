@@ -448,8 +448,10 @@ public class GraphRenderer : ViewRenderer
             commands?.executingNode = node
             defer { commands?.executingNode = enclosingNode }
             var hasDeferredDelivery = false
+            var deferredState: GraphDeferredNodeState?
             if let binding = node.deferredResultsBinding, let commands {
                 let state = commands.resultScope().state(for: binding)
+                deferredState = state
                 hasDeferredDelivery = state.hasPreparedDelivery
                 state.publish(binding: binding)
                 if state.needsRetry {
@@ -471,6 +473,7 @@ public class GraphRenderer : ViewRenderer
 #endif
             var executionError: (any Error)?
             node.hasPendingExecutionCleanup = true
+            if let deferredState { node.deferredResultsBinding?.beginExecution(in: deferredState) }
 
             do
             {
@@ -483,6 +486,7 @@ public class GraphRenderer : ViewRenderer
             {
                 executionError = error
             }
+            node.deferredResultsBinding?.endExecution()
 #if DEBUG
             commandBuffer.popDebugGroup()
 #endif
