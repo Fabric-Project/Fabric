@@ -22,6 +22,11 @@ public class GraphRenderer : ViewRenderer
 
     public var executionCount = 0
     public private(set) var executionTrace: GraphExecutionTrace?
+    {
+        didSet { isTracingExecution = executionTrace != nil }
+    }
+    // Checked per node per iteration; cheaper than testing the Optional trace each time.
+    private var isTracingExecution = false
 
     public private(set) var currentExecutionInfo: GraphExecutionInfo = GraphExecutionInfo(
         timing: .zero
@@ -628,7 +633,7 @@ public class GraphRenderer : ViewRenderer
 
     private func beginGraphExecutionTrace() -> GraphExecutionTraceFrameBuilder?
     {
-        guard executionTrace != nil else { return nil }
+        guard isTracingExecution else { return nil }
 
         let builder = GraphExecutionTraceFrameBuilder(executionIndex: traceExecutionIndex,
                                                       startedAt: CACurrentMediaTime())
@@ -660,7 +665,7 @@ public class GraphRenderer : ViewRenderer
 
     private func beginNodeExecutionTrace(node: Node, orderIndex: Int) -> NodeExecutionTraceBuilder?
     {
-        guard executionTrace != nil,
+        guard isTracingExecution,
               graphExecutionTraceStack.isEmpty == false
         else { return nil }
 
