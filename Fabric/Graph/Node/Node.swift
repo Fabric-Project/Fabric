@@ -41,6 +41,10 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     // Identifiable
     public let id:UUID
 
+    // Runtime-only hint, validated by each renderer against its own planning entries.
+    // This is neither serialized identity nor mutable execution state.
+    internal final var executionPlanningSlot: Int = -1
+
     // Hashable
     public func hash(into hasher: inout Hasher)
     {

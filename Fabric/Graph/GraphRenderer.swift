@@ -423,12 +423,13 @@ public class GraphRenderer : ViewRenderer
         }
 
         var capturedError: (any Error)?
-        var scheduledNodes = nodesInExecutionOrder(for: graph)
+        let executionPlan = executionPlan(for: graph)
+        var scheduledNodes = executionPlan.nodesInExecutionOrder
 
         if !forceEvaluationForTheseNodes.isEmpty {
-            let alreadyScheduledNodeIDs = Set(scheduledNodes.map(\.id))
-            scheduledNodes.append(contentsOf: executionPlanExtension(forcing: forceEvaluationForTheseNodes,
-                                                                     alreadyScheduledNodeIDs: alreadyScheduledNodeIDs))
+            scheduledNodes.append(contentsOf: executionPlan.planner.plan(roots: [],
+                                                                       alreadyScheduledNodes: scheduledNodes,
+                                                                       forcedNodes: forceEvaluationForTheseNodes))
         }
 
         let graphTraceFrame = beginGraphExecutionTrace()
@@ -520,92 +521,48 @@ public class GraphRenderer : ViewRenderer
         }
     }
 
-    private struct GraphExecutionPlanCache
+    private final class GraphExecutionPlanCache
     {
-        var graphID: UUID
-        var connectionTopologyGeneration: Int
-        var executionTopologyGeneration: Int
-        var nodesInExecutionOrder: [Node]
+        let graphID: UUID
+        let connectionTopologyGeneration: Int
+        private(set) var executionTopologyGeneration: Int
+        private(set) var nodesInExecutionOrder: [Node]
+        let planner: GraphExecutionPlanner
+
+        init(graph: Graph, roots: [(node: Node, requestedOutputPort: Port?)])
+        {
+            graphID = graph.id
+            connectionTopologyGeneration = graph.connectionTopologyGeneration
+            executionTopologyGeneration = graph.executionTopologyGeneration
+            planner = GraphExecutionPlanner(nodes: graph.nodes)
+            nodesInExecutionOrder = planner.plan(roots: roots)
+        }
+
+        func refreshPullDecisions(for graph: Graph, roots: [(node: Node, requestedOutputPort: Port?)])
+        {
+            executionTopologyGeneration = graph.executionTopologyGeneration
+            nodesInExecutionOrder = planner.plan(roots: roots)
+        }
     }
 
-    private enum GraphExecutionPlanningState
-    {
-        case processing
-        case processed
-        case keepAliveWalked
-        case declined
-    }
-
-    private func nodesInExecutionOrder(for graph: Graph) -> [Node]
+    private func executionPlan(for graph: Graph) -> GraphExecutionPlanCache
     {
         let graphIdentifier = ObjectIdentifier(graph)
-
         if let cached = executionPlanCaches[graphIdentifier],
            cached.graphID == graph.id,
-           cached.connectionTopologyGeneration == graph.connectionTopologyGeneration,
-           cached.executionTopologyGeneration == graph.executionTopologyGeneration
+           cached.connectionTopologyGeneration == graph.connectionTopologyGeneration
         {
-            return cached.nodesInExecutionOrder
+            // Route changes invalidate pull decisions, not the nodes' identity
+            // slots. Reuse storage even when a Gate changes every iteration.
+            if cached.executionTopologyGeneration != graph.executionTopologyGeneration {
+                cached.refreshPullDecisions(for: graph, roots: executionRoots(for: graph))
+            }
+            return cached
         }
 
-        let nodesInExecutionOrder = buildNodesInExecutionOrder(for: graph)
-        executionPlanCaches[graphIdentifier] = GraphExecutionPlanCache(
-            graphID: graph.id,
-            connectionTopologyGeneration: graph.connectionTopologyGeneration,
-            executionTopologyGeneration: graph.executionTopologyGeneration,
-            nodesInExecutionOrder: nodesInExecutionOrder
-        )
-
-        return nodesInExecutionOrder
-    }
-
-    private func buildNodesInExecutionOrder(for graph: Graph) -> [Node]
-    {
-        var ordered: [Node] = []
-        ordered.reserveCapacity(graph.nodes.count)
-
-        var processingStates: [UUID: GraphExecutionPlanningState] = [:]
-
-        for root in executionRoots(for: graph)
-        {
-            pullNodeForExecutionPlan(node: root.node,
-                                     requestedOutputPort: root.requestedOutputPort,
-                                     processingStates: &processingStates,
-                                     orderedNodes: &ordered)
-        }
-
-        return ordered
-    }
-
-    /// Extends the cached execution plan for callers that force extra nodes to run
-    /// (Iterator forces its whole subgraph). Each forced node is pulled exactly as
-    /// buildNodesInExecutionOrder pulls its roots, so forced nodes and any
-    /// unscheduled upstream dependencies are appended in dependency order rather
-    /// than caller array order. Forced nodes whose pull declines them are still
-    /// appended at the end — the caller asked for them to run.
-    private func executionPlanExtension(forcing forcedNodes: [Node], alreadyScheduledNodeIDs: Set<UUID>) -> [Node]
-    {
-        var processingStates: [UUID: GraphExecutionPlanningState] = [:]
-        processingStates.reserveCapacity(alreadyScheduledNodeIDs.count + forcedNodes.count)
-
-        for scheduledNodeID in alreadyScheduledNodeIDs {
-            processingStates[scheduledNodeID] = .processed
-        }
-
-        var ordered: [Node] = []
-
-        for forcedNode in forcedNodes {
-            pullNodeForExecutionPlan(node: forcedNode,
-                                     requestedOutputPort: nil,
-                                     processingStates: &processingStates,
-                                     orderedNodes: &ordered)
-        }
-
-        for forcedNode in forcedNodes where processingStates[forcedNode.id] != .processed {
-            ordered.append(forcedNode)
-        }
-
-        return ordered
+        let plan = GraphExecutionPlanCache(graph: graph, roots: executionRoots(for: graph))
+        executionPlanCaches[graphIdentifier] = plan
+        return plan
     }
 
     private func executionRoots(for graph: Graph) -> [(node: Node, requestedOutputPort: Port?)]
@@ -621,89 +578,6 @@ public class GraphRenderer : ViewRenderer
         }
 
         return roots
-    }
-
-    @discardableResult
-    private func pullNodeForExecutionPlan(node: Node,
-                                          requestedOutputPort: Port?,
-                                          processingStates: inout [UUID: GraphExecutionPlanningState],
-                                          orderedNodes: inout [Node]) -> Bool
-    {
-        switch node.respondToPull(requestedOutputPort: requestedOutputPort)
-        {
-        case .declined(let keepAlivePorts):
-            if processingStates[node.id] == nil
-            {
-                processingStates[node.id] = .keepAliveWalked
-                for inputPort in keepAlivePorts
-                {
-                    pullInletConnectionsForExecutionPlan(inputPort,
-                                                         processingStates: &processingStates,
-                                                         orderedNodes: &orderedNodes)
-                }
-            }
-            return false
-
-        case .evaluate(let pullingPorts):
-            switch processingStates[node.id]
-            {
-            case .processed, .processing:
-                return true
-            case .declined:
-                return false
-            case .keepAliveWalked, nil:
-                break
-            }
-
-            processingStates[node.id] = .processing
-
-            var attemptedPullCount = 0
-            var activePullCount = 0
-
-            for inputPort in pullingPorts
-            {
-                let pulled = pullInletConnectionsForExecutionPlan(inputPort,
-                                                                  processingStates: &processingStates,
-                                                                  orderedNodes: &orderedNodes)
-                attemptedPullCount += pulled.attempted
-                activePullCount += pulled.active
-            }
-
-            if attemptedPullCount > 0 && activePullCount == 0
-            {
-                processingStates[node.id] = .declined
-                return false
-            }
-
-            orderedNodes.append(node)
-            processingStates[node.id] = .processed
-            return true
-        }
-    }
-
-    @discardableResult
-    private func pullInletConnectionsForExecutionPlan(_ inputPort: Port,
-                                                      processingStates: inout [UUID: GraphExecutionPlanningState],
-                                                      orderedNodes: inout [Node]) -> (attempted: Int, active: Int)
-    {
-        var attempted = 0
-        var active = 0
-
-        for outletPort in inputPort.connectedOutletsForActiveConnections
-        {
-            guard let node = outletPort.node else { continue }
-
-            attempted += 1
-            if pullNodeForExecutionPlan(node: node,
-                                        requestedOutputPort: outletPort,
-                                        processingStates: &processingStates,
-                                        orderedNodes: &orderedNodes)
-            {
-                active += 1
-            }
-        }
-
-        return (attempted, active)
     }
 
     // MARK: - Execution Trace
