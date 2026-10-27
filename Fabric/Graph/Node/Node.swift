@@ -414,6 +414,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         if let param = p.parameter
         {
             self.parameterGroup.append(param)
+            self.synchronizeParameters()
         }
 
         self.graph?.markConnectionsChanged()
@@ -436,6 +437,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         if let param = p.parameter
         {
             self.parameterGroup.remove(param)
+            self.synchronizeParameters()
         }
 
         self.graph?.markConnectionsChanged()
@@ -479,6 +481,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         self.parameterGroup.append(param)
 
         port.parameter = param
+        self.synchronizeParameters()
     }
 
     /// Reorders registered ports without changing their identities or connections.
@@ -580,22 +583,33 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         inputsAreDirty = true
     }
 
+    /// Rebuild dirty notifications when the parameter/port structure changes.
+    /// Parameters observed by this node's ports already invalidate it; standalone
+    /// and proxy parameters still need a Node subscription.
     public func synchronizeParameters()
     {
-        self.inputParamCancellables.forEach( { $0.cancel() } )
-        self.inputParamCancellables.removeAll()
+        self.inputParamCancellables.forEach { $0.cancel() }
+        self.inputParamCancellables.removeAll(keepingCapacity: true)
 
+        let ports = self.ports
         for parameter in self.parameterGroup.params
         {
-            let cancellable = self.makeCancelable(parameter: parameter)
+            let observedByPort = ports.contains { port in
+                guard let observingPort = port as? any NodeInvalidatingParameterPort,
+                      observingPort.observedParameter === parameter
+                else { return false }
+                return port.node === self
+            }
+            if observedByPort { continue }
 
+            let cancellable = self.makeCancelable(parameter: parameter)
             self.inputParamCancellables.append(cancellable)
         }
     }
 
     private func makeCancelable(parameter: some Parameter) -> AnyCancellable
     {
-        let cancellable = parameter.valuePublisher.eraseToAnyPublisher().sink{ [weak self] _ in
+        let cancellable = parameter.valuePublisher.sink { [weak self] _ in
             self?.markDirty()
         }
 

@@ -9,12 +9,20 @@ import Combine
 import Foundation
 import Satin
 
+/// Internal coverage for Node's parameter invalidation. Proxies deliberately do
+/// not conform: their inner port invalidates a different node.
+protocol NodeInvalidatingParameterPort: AnyObject {
+    var observedParameter: any Parameter { get }
+}
+
 // A Port that wraps a parameter - use for input ports you want to have as a UI
-public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hashable> : NodePort<ParamValue>
+public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hashable> : NodePort<ParamValue>, NodeInvalidatingParameterPort
 {
     private var subscription:AnyCancellable? = nil
     private var _parameter: GenericParameter<ParamValue>
     private var isUpdatingParameterValue = false
+
+    internal var observedParameter: any Parameter { self._parameter }
 
     // Proxy the parameter's description
     // Setter ignores empty values to preserve parameter's description during decoding of old files
