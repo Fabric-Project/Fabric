@@ -208,33 +208,30 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
         return nil
     }
 
-    override public var value: ParamValue?
+    override internal func valueDidSet()
     {
-        didSet
+        // A parameter-backed inlet has no valueless state: the parameter is
+        // its resting value. Disconnecting an upstream port force-sends nil
+        // downstream so the inlet doesn't keep stale data, which would
+        // otherwise leave this port — and everything reading it — with a
+        // missing value for as long as it stays unwired. Re-seat on the
+        // parameter instead; the re-entrant assignment runs this hook again.
+        guard let value = self.value
+        else
         {
-            // A parameter-backed inlet has no valueless state: the parameter is
-            // its resting value. Disconnecting an upstream port force-sends nil
-            // downstream so the inlet doesn't keep stale data, which would
-            // otherwise leave this port — and everything reading it — with a
-            // missing value for as long as it stays unwired. Re-seat on the
-            // parameter instead; the re-entrant assignment runs the change
-            // bookkeeping below.
-            guard let value = self.value
-            else
-            {
-                self.value = self._parameter.value
-                return
-            }
-
-            // Swift also runs NodePort.value's observer for this assignment;
-            // change flags, node invalidation and callbacks belong there.
-            if self._parameter.value != value
-            {
-                let wasUpdatingParameterValue = self.isUpdatingParameterValue
-                self.isUpdatingParameterValue = true
-                defer { self.isUpdatingParameterValue = wasUpdatingParameterValue }
-                self._parameter.value = value
-            }
+            self.value = self._parameter.value
+            return
         }
+
+        // Change flags, node invalidation and callbacks belong to NodePort.value.
+        if self._parameter.value != value
+        {
+            let wasUpdatingParameterValue = self.isUpdatingParameterValue
+            self.isUpdatingParameterValue = true
+            defer { self.isUpdatingParameterValue = wasUpdatingParameterValue }
+            self._parameter.value = value
+        }
+
+        super.valueDidSet()
     }
 }

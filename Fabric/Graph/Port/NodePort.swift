@@ -46,7 +46,10 @@ public class NodePort<Value : PortValueRepresentable>: Port
         }
     }
     
-    public var value: Value?
+    /// Final so reads in specialized code skip the vtable: an overridable getter runs
+    /// unspecialized and looks up `Optional<Value>` metadata on every read.
+    /// Subclasses react to assignments in `valueDidSet()` instead of overriding this.
+    public final var value: Value?
     {
         didSet
         {
@@ -58,8 +61,26 @@ public class NodePort<Value : PortValueRepresentable>: Port
             self.valueDidChange = true
             self.node?.markDirty()
             self.onValueChanged?()
+            self.valueDidSet()
         }
     }
+
+    /// Runs after every assignment to `value`, once its change bookkeeping is done.
+    /// Overrides call `super` to keep a publishing proxy in step.
+    internal func valueDidSet()
+    {
+        self.publishingProxy?.mirrorInnerValue(self.value)
+    }
+
+    /// The proxy publishing this port from its subgraph. Unowned so ports avoid side
+    /// tables; the proxy clears it as it deinitializes.
+    internal unowned var publishingProxy: ProxyPort<Value>?
+    {
+        didSet { self.publishingProxyIdentifier = self.publishingProxy.map(ObjectIdentifier.init) }
+    }
+
+    /// Lets a deinitializing proxy recognize itself without loading the unowned reference.
+    internal private(set) var publishingProxyIdentifier: ObjectIdentifier?
         
     public var valueType: Any.Type { Value.self }
 
