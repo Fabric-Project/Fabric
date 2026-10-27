@@ -22,6 +22,13 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
     private var _parameter: GenericParameter<ParamValue>
     private var isUpdatingParameterValue = false
 
+    override internal func restoreValue(from boxed: PortValue?)
+    {
+        // A parameter-backed port has no valueless state. Resolve its resting
+        // value before assigning so restoration reports one final value change.
+        super.restoreValue(from: boxed ?? _parameter.value.toPortValue())
+    }
+
     internal var observedParameter: any Parameter { self._parameter }
 
     // Proxy the parameter's description

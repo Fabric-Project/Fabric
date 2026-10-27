@@ -26,10 +26,6 @@ public class NodePort<Value : PortValueRepresentable>: Port
         {
             self.value = nil
         }
-
-        self.valueDidChange = true
-        self.node?.markDirty()
-        self.onValueChanged?()
     }
 
     override internal func sendBoxed(_ boxed: PortValue?)

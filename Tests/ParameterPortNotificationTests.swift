@@ -84,4 +84,37 @@ struct ParameterPortNotificationTests {
         #expect(portChanges == 1)
     }
 
+    @Test("Restoring a plain port notifies once, including equal values and nil",
+          arguments: [Float?(3), Float?(1), nil])
+    func restorePlainPort(value: Float?) {
+        let port = NodePort<Float>(name: "Value", kind: .Outlet)
+        port.value = 1
+        port.valueDidChange = false
+        var portChanges = 0
+        port.onValueChanged = { portChanges += 1 }
+
+        port.restoreValue(from: value?.toPortValue())
+
+        #expect(port.value == value)
+        #expect(port.valueDidChange)
+        #expect(portChanges == 1)
+    }
+
+    @Test("Restoring a parameter-backed port notifies once and preserves its resting value",
+          arguments: [Float?(3), Float?(1), nil])
+    func restoreParameterPort(value: Float?) {
+        let parameter = FloatParameter("Value", 1)
+        let port = ParameterPort(parameter: parameter)
+        port.valueDidChange = false
+        var portChanges = 0
+        port.onValueChanged = { portChanges += 1 }
+
+        port.restoreValue(from: value?.toPortValue())
+
+        #expect(port.value == (value ?? 1))
+        #expect(parameter.value == (value ?? 1))
+        #expect(port.valueDidChange)
+        #expect(portChanges == 1)
+    }
+
 }
