@@ -522,8 +522,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     internal func invalidatePortCaches()
     {
-        deferredResultsBinding?.retire()
-        deferredResultsBinding = nil
+        retireDeferredResults()
         self.cachedInputPorts = nil
         self.cachedOutputPorts = nil
     }
@@ -639,8 +638,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     public func cancelPendingCompletions() { deferredResultsBinding?.invalidate() }
 
     open func stopExecution(renderer:GraphRenderer) throws {
-        deferredResultsBinding?.retire()
-        deferredResultsBinding = nil
+        retireDeferredResults()
         executionState = .stopped
     }
 
@@ -648,9 +646,15 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         executionState = .enabled
     }
     open func disableExecution(renderer:GraphRenderer) throws {
+        retireDeferredResults()
+        executionState = .disabled
+    }
+
+    /// Drops in-flight results and their storage. The renderer also calls this before stopping or
+    /// disabling a node, so a subclass callback that throws before reaching super cannot skip it.
+    internal func retireDeferredResults() {
         deferredResultsBinding?.retire()
         deferredResultsBinding = nil
-        executionState = .disabled
     }
 
     open func execute(renderer:GraphRenderer,

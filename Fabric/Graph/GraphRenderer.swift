@@ -849,6 +849,12 @@ public class GraphRenderer : ViewRenderer
             target = startsAllNodes || isConnected || node.nodeExecutionMode == .Consumer ? .started : .stopped
         }
 
+        // Leaving execution drops in-flight results even when the node's own stop or disable throws.
+        if target == .stopped || target == .disabled, node.executionState != target
+        {
+            node.retireDeferredResults()
+        }
+
         switch (node.executionState, target)
         {
         case (.disabled, .enabled), (.disabled, .stopped):

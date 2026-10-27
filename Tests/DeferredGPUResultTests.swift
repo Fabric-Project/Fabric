@@ -617,3 +617,30 @@ extension DeferredGPUResultTests {
         #expect(outputs == [nil, 10, 5, 5, 5, 5])
     }
 }
+
+/// A node whose own stop and disable work fails before reaching super.
+private final class ThrowingLifecycleProbe: DeferredProbeNode {
+    override func stopExecution(renderer: GraphRenderer) throws {
+        throw GraphExecutionTestFailure("Intentional stop failure")
+    }
+    override func disableExecution(renderer: GraphRenderer) throws {
+        throw GraphExecutionTestFailure("Intentional disable failure")
+    }
+}
+
+extension DeferredGPUResultTests {
+    @Test("Deleting a node retires its pending results even when its stop and disable throw")
+    func throwingLifecycleStillRetiresResults() throws {
+        let harness = try #require(GraphExecutionTestHarness())
+        let graph = Graph(context: harness.context)
+        let probe = ThrowingLifecycleProbe(context: harness.context)
+        graph.addNode(probe)
+        let renderer = harness.graphRenderer(for: graph)
+        try renderer.startExecution()
+        try execute(renderer, graph: graph, harness: harness, frame: 0)
+        #expect(probe.deferredResultsBinding != nil)
+        graph.delete(node: probe)
+        try execute(renderer, graph: graph, harness: harness, frame: 1)
+        #expect(probe.deferredResultsBinding == nil)
+    }
+}
