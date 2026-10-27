@@ -26,7 +26,7 @@ struct GraphRendererConfigurationTests
         #expect(clearColor.alpha == 0)
     }
 
-    @Test func realtimeExecutionUsesRelativeGraphTimeAndAbsoluteSystemTime() throws
+    @Test func realtimeExecutionUsesTheFrameTimeItIsHanded() throws
     {
         guard let device = MTLCreateSystemDefaultDevice() else { return }
 
@@ -42,11 +42,9 @@ struct GraphRendererConfigurationTests
         try renderer.setup()
         defer { try? renderer.cleanup() }
 
-        try renderer.update()
+        let frame = FrameTime(time: 2.5, deltaTime: 0.5, displayTime: 2.75, systemTime: 1_000, hostMediaTime: 500, frameNumber: 7)
+        try renderer.update(frame: frame)
 
-        #expect(renderer.currentExecutionInfo.timing.time >= 0)
-        #expect(renderer.currentExecutionInfo.timing.time < 1)
-        #expect(renderer.currentExecutionInfo.timing.deltaTime >= 0)
-        #expect(abs(renderer.currentExecutionInfo.timing.systemTime - Date.timeIntervalSinceReferenceDate) < 1)
+        #expect(renderer.currentExecutionInfo.timing == frame)
     }
 }

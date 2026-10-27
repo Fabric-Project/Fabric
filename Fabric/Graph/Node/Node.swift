@@ -226,7 +226,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         {
             fatalError("Required Decode Context Not set")
         }
-
+        
         self.context = decodeContext.documentContext
         self.graph = decodeContext.currentGraph
 

@@ -272,7 +272,7 @@ class FabricDocument: FileDocument
     @MainActor
     func exportSnapshotImage()
     {
-        let snapshotExportTime = self.renderer.lastGraphExecutionTime
+        let snapshotExportTime = self.renderer.currentExecutionInfo.timing.time
         let savePanel = NSSavePanel()
         savePanel.allowedContentTypes = [.png]
         savePanel.canCreateDirectories = true

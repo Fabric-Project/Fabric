@@ -34,8 +34,8 @@ public final class GraphExportRenderer {
     private let renderPassDescriptor = MTLRenderPassDescriptor()
 
     private var started = false
-    private var frameNumber = 0
-    private var lastRenderedTime: TimeInterval?
+    /// The last frame rendered this session; the next follows it.
+    private var lastRenderedFrame: FrameTime?
 
     public init(
         graph: Graph,
@@ -77,8 +77,7 @@ public final class GraphExportRenderer {
             throw error
         }
 
-        self.frameNumber = 0
-        self.lastRenderedTime = nil
+        self.lastRenderedFrame = nil
         self.started = true
     }
 
@@ -94,14 +93,9 @@ public final class GraphExportRenderer {
         try self.validateColorTexture(colorTexture)
         try self.validateDepthTexture(depthTexture)
 
-        let deltaTime: TimeInterval
-        if let lastRenderedTime = self.lastRenderedTime {
-            deltaTime = time - lastRenderedTime
-        } else {
-            deltaTime = 0
-        }
-        
-        let executionInfo = self.makeExecutionInfo(time: time,deltaTime: deltaTime, frameNumber: self.frameNumber)
+        // Export frames are displayed at the time they render.
+        let frame = self.lastRenderedFrame?.next(time: time, displayTime: time) ?? .first(time: time, displayTime: time)
+        let executionInfo = GraphExecutionInfo(timing: frame, iterationInfo: nil, eventInfo: nil)
 
         self.renderPassDescriptor.colorAttachments[0].texture = colorTexture
         self.renderPassDescriptor.depthAttachment.texture = depthTexture
@@ -123,8 +117,7 @@ public final class GraphExportRenderer {
             throw GraphExportRendererError.commandBufferFailed(commandBuffer.error)
         }
 
-        self.lastRenderedTime = time
-        self.frameNumber += 1
+        self.lastRenderedFrame = frame
     }
 
     public func renderSingleFrame(
@@ -153,33 +146,13 @@ public final class GraphExportRenderer {
         self.renderPassDescriptor.renderTargetWidth = 0
         self.renderPassDescriptor.renderTargetHeight = 0
 
-        self.frameNumber = 0
-        self.lastRenderedTime = nil
+        self.lastRenderedFrame = nil
         self.started = false
 
         if let capturedError
         {
             throw capturedError
         }
-    }
-
-    private func makeExecutionInfo(
-        time: TimeInterval,
-        deltaTime: TimeInterval,
-        frameNumber: Int
-    ) -> GraphExecutionInfo {
-        GraphExecutionInfo(
-            timing: GraphExecutionTiming(
-                time: time,
-                deltaTime: deltaTime,
-                displayTime: time,
-                systemTime: Date.timeIntervalSinceReferenceDate,
-                hostMediaTime: CACurrentMediaTime(),
-                frameNumber: frameNumber
-            ),
-            iterationInfo: nil,
-            eventInfo: nil
-        )
     }
 
     private func validateColorTexture(_ texture: MTLTexture) throws {

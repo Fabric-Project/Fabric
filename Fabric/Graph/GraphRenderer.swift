@@ -23,11 +23,8 @@ public class GraphRenderer : ViewRenderer
     public var executionCount = 0
     public private(set) var executionTrace: GraphExecutionTrace?
 
-    public private(set) var lastGraphExecutionTime = CACurrentMediaTime()
-    private var graphExecutionStartTime = CACurrentMediaTime()
-
     public private(set) var currentExecutionInfo: GraphExecutionInfo = GraphExecutionInfo(
-        timing: GraphExecutionTiming(time: 0, deltaTime: 0, displayTime: nil, systemTime: 0, hostMediaTime: 0, frameNumber: -1)
+        timing: .zero
     )
 
     public private(set) var currentCamera: Camera? = nil
@@ -92,32 +89,15 @@ public class GraphRenderer : ViewRenderer
     override public func setup() throws {
         try super.setup()
 
-        let now = CACurrentMediaTime()
-        self.graphExecutionStartTime = now
-        self.lastGraphExecutionTime = now
-
         // Starting enables each node first, and one failing node does not keep the rest from starting.
         try startExecution(trace: traceEditorExecution)
     }
 
-    override public func update() throws {
-        try super.update()
-        
-        let now = CACurrentMediaTime()
-        let delta = now - lastGraphExecutionTime
-        lastGraphExecutionTime = now
-        
-        let timing = GraphExecutionTiming(
-            time: now - self.graphExecutionStartTime,
-            deltaTime: delta,
-            displayTime: now - self.graphExecutionStartTime,
-            systemTime: Date.timeIntervalSinceReferenceDate,
-            hostMediaTime: now,
-            frameNumber: frameIndex
-        )
-        currentExecutionInfo = GraphExecutionInfo(timing: timing, eventInfo: pendingEventInfo)
+    override public func update(frame: FrameTime) throws {
+        try super.update(frame: frame)
+
+        currentExecutionInfo = GraphExecutionInfo(timing: frame, eventInfo: pendingEventInfo)
         pendingEventInfo = nil
-        
     }
 
 #if os(macOS)
