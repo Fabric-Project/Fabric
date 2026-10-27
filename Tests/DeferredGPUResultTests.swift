@@ -598,3 +598,22 @@ extension DeferredGPUResultTests {
         #expect(outputs == [5, 5, 5])
     }
 }
+
+extension DeferredGPUResultTests {
+    @Test("Cancelling pending results keeps what the output already shows")
+    func cancellationKeepsCurrentOutput() throws {
+        let harness = try #require(GraphExecutionTestHarness())
+        let (graph, probe) = publishedSynchronousProbe(harness)
+        probe.synchronousSendsByFrame = [2: 5]
+        let renderer = harness.graphRenderer(for: graph)
+        try renderer.startExecution()
+        var outputs: [Int?] = []
+        for frame in 0..<6 {
+            if frame == 2 { probe.markDirty() }
+            try execute(renderer, graph: graph, harness: harness, frame: frame)
+            if frame == 2 { probe.cancelPendingCompletions() }
+            outputs.append(probe.output.value)
+        }
+        #expect(outputs == [nil, 10, 5, 5, 5, 5])
+    }
+}

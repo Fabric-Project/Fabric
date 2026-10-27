@@ -67,6 +67,10 @@ final class GraphDeferredNodeBinding {
         generation &+= 1
         captureCell.bindingGeneration = generation
         for state in states { state.reset(generation: generation) }
+        // Cancelling drops pending and stored results; it must not blank the outputs. With nothing
+        // left to republish, ports keep what they show until the next capture registers them again.
+        for index in participatingIndices { participating[index] = false }
+        participatingIndices.removeAll(keepingCapacity: true)
     }
 
     func retire() {
