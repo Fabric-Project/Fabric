@@ -15,7 +15,8 @@ import SwiftUI
 ///
 /// The value is written live through a drag, bracketed by `onEditingChanged`
 /// as on `Slider`, so a caller can register one undo per drag. Typed entry
-/// writes once, on Return or loss of focus.
+/// writes at each keystroke that parses, or with `writesWhileTyping` off, once,
+/// on Return or loss of focus.
 public struct NumericField<Value: BinaryFloatingPoint>: View
 {
     private let title: String
@@ -23,6 +24,7 @@ public struct NumericField<Value: BinaryFloatingPoint>: View
     private let step: Value
     private let fractionDigits: Int
     private let unit: String?
+    private let writesWhileTyping: Bool
     private let onEditingChanged: (Bool) -> Void
 
     public init(_ title: String,
@@ -30,6 +32,7 @@ public struct NumericField<Value: BinaryFloatingPoint>: View
                 step: Value,
                 fractionDigits: Int = 2,
                 unit: String? = nil,
+                writesWhileTyping: Bool = true,
                 onEditingChanged: @escaping (Bool) -> Void = { _ in })
     {
         self.title = title
@@ -37,6 +40,7 @@ public struct NumericField<Value: BinaryFloatingPoint>: View
         self.step = step
         self.fractionDigits = fractionDigits
         self.unit = unit
+        self.writesWhileTyping = writesWhileTyping
         self.onEditingChanged = onEditingChanged
     }
 
@@ -48,6 +52,7 @@ public struct NumericField<Value: BinaryFloatingPoint>: View
                          fractionDigits: fractionDigits,
                          unit: unit,
                          integral: false,
+                         writesWhileTyping: writesWhileTyping,
                          write: { value.wrappedValue = Value($0) },
                          onEditingChanged: onEditingChanged)
     }
