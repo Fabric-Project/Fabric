@@ -66,8 +66,6 @@ public class GraphRenderer : ViewRenderer
     // the lifecycle it has actually reached through its own executionState.
     public private(set) var executionState: ExecutionState = .disabled
 
-    // Texture caches — private is GPU-private, shared allows CPU updates
-
     public init(context: Context, graph: Graph)
     {
         self.graph = graph

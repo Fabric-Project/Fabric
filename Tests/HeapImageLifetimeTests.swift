@@ -9,7 +9,10 @@ struct HeapImageLifetimeTests {
     private func makeAllocator() throws -> GPUAllocator {
         let device = try #require(MTLCreateSystemDefaultDevice())
         var configuration = GPUAllocator.Configuration()
-        configuration.heapGrowthSize = 1024 * 1024
+        let small = GPUAllocator.HeapSizing(minimumSize: 1 << 20, maximumSize: 1 << 20)
+        configuration.gpuOnly = small
+        configuration.cpuWrites = small
+        configuration.cpuReads = small
         return GPUAllocator(device: device, configuration: configuration)
     }
 
