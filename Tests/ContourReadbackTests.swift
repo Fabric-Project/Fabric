@@ -107,7 +107,7 @@ struct ContourReadbackTests {
             let commands = try #require(renderer.makeCommandBuffer())
             try renderer.execute(graph: graph, executionInfo: harness.makeExecutionInfo(frameNumber: frameNumber),
                                  renderPassDescriptor: MTLRenderPassDescriptor(), commandBuffer: commands)
-            if frameNumber == 0 && mode == .nextFrame { #expect(consumer.pointCount == 0) }
+            if frameNumber == 0 && mode == .async { #expect(consumer.pointCount == 0) }
             else { #expect(consumer.pointCount >= 2) }
             commands.commit()
             commands.waitUntilCompleted()
@@ -149,7 +149,7 @@ struct ContourReadbackTests {
     func nextFrameContour() throws {
         let harness = try #require(GraphExecutionTestHarness())
         let node = ContourPathNode(context: harness.context)
-        node.resultDeliveryMode = .nextFrame
+        node.resultDeliveryMode = .async
         node.inputMaxSegments.value = 32
         node.inputMask.value = try mask(harness)
         let (graph, renderer) = graph(for: node, harness: harness)
@@ -220,7 +220,7 @@ struct ContourReadbackTests {
     func abandonedFrameRetries() throws {
         let harness = try #require(GraphExecutionTestHarness())
         let node = ContourPathNode(context: harness.context)
-        node.resultDeliveryMode = .nextFrame
+        node.resultDeliveryMode = .async
         node.inputMask.value = try mask(harness)
         node.inputMaxSegments.value = 32
         let (graph, renderer) = graph(for: node, harness: harness)

@@ -20,8 +20,9 @@ struct GPUResultReadbackTests {
         let output = try fill(harness, commands: commands, value: 7)
         let readback = GPUResultReadback<UInt8>()
         var reads = 0
-        let immediate = try readback.read(renderer: harness.renderer, commandBuffer: commands,
-                                         mode: .nextFrame, frameNumber: 0) {
+        let immediate = try readback.read(renderer: harness.renderer,
+                                          commandBuffer: commands,
+                                          mode: .async, frameNumber: 0) {
             reads += 1
             return output.contents().load(as: UInt8.self)
         }
@@ -63,7 +64,7 @@ struct GPUResultReadbackTests {
         let commands = try #require(harness.renderer.makeCommandBuffer())
         let output = try fill(harness, commands: commands, value: 7)
         let readback = GPUResultReadback<UInt8>()
-        _ = try readback.read(renderer: harness.renderer, commandBuffer: commands, mode: .nextFrame, frameNumber: 0) {
+        _ = try readback.read(renderer: harness.renderer, commandBuffer: commands, mode: .async, frameNumber: 0) {
             output.contents().load(as: UInt8.self)
         }
         readback.reset()
@@ -79,7 +80,7 @@ struct GPUResultReadbackTests {
         let readback = GPUResultReadback<UInt8>()
         for value in UInt8(1)...8 {
             let output = try fill(harness, commands: commands, value: value)
-            _ = try readback.read(renderer: harness.renderer, commandBuffer: commands, mode: .nextFrame, frameNumber: 0) {
+            _ = try readback.read(renderer: harness.renderer, commandBuffer: commands, mode: .async, frameNumber: 0) {
                 output.contents().load(as: UInt8.self)
             }
         }
@@ -95,7 +96,7 @@ struct GPUResultReadbackTests {
         try autoreleasepool {
             let commands = try #require(harness.renderer.makeCommandBuffer())
             let output = try fill(harness, commands: commands, value: 7)
-            _ = try readback.read(renderer: harness.renderer, commandBuffer: commands, mode: .nextFrame, frameNumber: 0) {
+            _ = try readback.read(renderer: harness.renderer, commandBuffer: commands, mode: .async, frameNumber: 0) {
                 output.contents().load(as: UInt8.self)
             }
             #expect(readback.hasPendingResult)
@@ -113,7 +114,7 @@ struct GPUResultReadbackTests {
         let harness = try #require(GraphExecutionTestHarness())
         let commands = try #require(harness.renderer.makeCommandBuffer())
         let readback = GPUResultReadback<Int>()
-        _ = try readback.read(renderer: harness.renderer, commandBuffer: commands, mode: .nextFrame, frameNumber: 0) {
+        _ = try readback.read(renderer: harness.renderer, commandBuffer: commands, mode: .async, frameNumber: 0) {
             throw Failure.invalidResult
         }
         commands.commit()
