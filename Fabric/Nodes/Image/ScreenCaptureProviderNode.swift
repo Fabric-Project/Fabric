@@ -35,25 +35,23 @@ public class ScreenCaptureProviderNode: Node
         case application(SCRunningApplication)
     }
 
-    private final class StreamOutputHandler: NSObject, SCStreamOutput, SCStreamDelegate
+    private final class StreamDelegate: NSObject, SCStreamOutput, SCStreamDelegate
     {
-        private let lock = NSLock()
-        private var latestPixelBuffer: CVPixelBuffer? = nil
+        // Written on the sample handler queue, taken by execute on the render thread.
+        private let latestPixelBuffer = Mutex<CVPixelBuffer?>(nil)
 
-        func consumeLatestPixelBuffer() -> CVPixelBuffer?
+        /// The newest frame since the last call, or nil when none has arrived.
+        func takeLatestPixelBuffer() -> CVPixelBuffer?
         {
-            lock.lock()
-            defer { lock.unlock() }
-            let pixelBuffer = latestPixelBuffer
-            self.latestPixelBuffer = nil
-            return pixelBuffer
+            self.latestPixelBuffer.withLock { latest in
+                defer { latest = nil }
+                return latest
+            }
         }
 
         func clear()
         {
-            lock.lock()
-            defer { lock.unlock() }
-            self.latestPixelBuffer = nil
+            self.latestPixelBuffer.withLock { $0 = nil }
         }
 
         func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType)
@@ -65,9 +63,7 @@ public class ScreenCaptureProviderNode: Node
                 return
             }
 
-            lock.lock()
-            self.latestPixelBuffer = pixelBuffer
-            lock.unlock()
+            self.latestPixelBuffer.withLock { $0 = pixelBuffer }
         }
     }
 
@@ -91,7 +87,7 @@ public class ScreenCaptureProviderNode: Node
     public var inputCaptureSource: ParameterPort<String> { port(named: "inputCaptureSource") }
     public var outputTexturePort: NodePort<FabricImage> { port(named: "outputTexturePort") }
 
-    private let streamOutputHandler = StreamOutputHandler()
+    private let streamDelegate = StreamDelegate()
     private let sampleHandlerQueue = DispatchQueue(label: "fabric.ScreenCaptureProviderNode.sample_handler")
     private var stream: SCStream? = nil
     private var optionsToTargets: [String: CaptureTarget] = [:]
@@ -99,9 +95,9 @@ public class ScreenCaptureProviderNode: Node
     /// Set by start and Retry, which can run outside execution; execute restarts
     /// the capture.
     private let captureRestartRequested = Atomic<Bool>(false)
-    /// Whether a source listing is in flight. One at a time: each holds a frame
-    /// batch until ScreenCaptureKit answers.
-    private var isListingTargets = false
+    /// Bumped by each restart and stop. A listing starts capture only if no
+    /// restart or stop came after it.
+    private let captureGeneration = Atomic<Int>(0)
 
     // MARK: - Capture Status
 
@@ -184,13 +180,13 @@ public class ScreenCaptureProviderNode: Node
     public required init(context: Context)
     {
         super.init(context: context)
-        self.listTargetsForSettings()
+        self.listTargets(startingCaptureFor: nil)
     }
 
     public required init(from decoder: any Decoder) throws
     {
         try super.init(from: decoder)
-        self.listTargetsForSettings()
+        self.listTargets(startingCaptureFor: nil)
     }
 
     override public func startExecution(renderer: GraphRenderer)
@@ -222,18 +218,10 @@ public class ScreenCaptureProviderNode: Node
         let sourceChanged = self.inputCaptureType.valueDidChange || self.inputCaptureSource.valueDidChange
         if self.captureRestartRequested.exchange(false, ordering: .relaxed) || sourceChanged
         {
-            if self.isListingTargets
-            {
-                // Restarts once the listing in flight arrives.
-                self.captureRestartRequested.store(true, ordering: .relaxed)
-            }
-            else
-            {
-                try self.restartCapture(commandBuffer: commandBuffer)
-            }
+            self.restartCapture()
         }
 
-        if let pixelBuffer = streamOutputHandler.consumeLatestPixelBuffer()
+        if let pixelBuffer = streamDelegate.takeLatestPixelBuffer()
         {
             let image = try renderer.newImage(fromPixelBuffer: pixelBuffer)
 
@@ -243,48 +231,50 @@ public class ScreenCaptureProviderNode: Node
 
     // MARK: - Capture
 
-    /// Stops the stream and lists the sources off the execution owner. The listing
-    /// arrives at a later execution, which starts the stream. A stop drops a
-    /// listing still in flight, so a stopped node never starts a stream.
-    private func restartCapture(commandBuffer: MTLCommandBuffer) throws
+    /// Stops the stream, then lists the sources and starts the stream on main.
+    private func restartCapture()
     {
         self.stopStream()
-        self.isListingTargets = true
-        try commandBuffer.addCompletion(operation: {
-            do { return Result<SCShareableContent, any Error>.success(try await SCShareableContent.current) }
-            catch { return .failure(error) }
-        }, receive: { listing in
-            self.isListingTargets = false
-            switch listing
-            {
-            case .success(let shareableContent):
-                self.applyTargets(shareableContent)
-                self.startStream()
-
-            case .failure(let error):
-                Self.log.error("Could not list capture sources: \(error, privacy: .public)")
-                self.outputTexturePort.send(nil)
-                self.reportCaptureFailure("Cannot list screens and windows: \(error.localizedDescription). If Screen Recording is not allowed, allow it in System Settings › Privacy & Security, then relaunch.",
-                                          canRetry: false)
-            }
-        })
+        let generation = self.captureGeneration.wrappingAdd(1, ordering: .relaxed).newValue
+        self.listTargets(startingCaptureFor: generation)
     }
 
     private func stopCapture()
     {
         self.captureRestartRequested.store(false, ordering: .relaxed)
-        self.isListingTargets = false
+        self.captureGeneration.wrappingAdd(1, ordering: .relaxed)
         self.stopStream()
         self.outputTexturePort.send(nil)
         self.reportCaptureFailure(nil)
     }
 
-    /// Fills the source dropdown before the node first starts.
-    private func listTargetsForSettings()
+    /// Lists the sources, then fills the dropdown on main. With a generation,
+    /// it also starts capture, unless a restart or stop came after it.
+    private func listTargets(startingCaptureFor generation: Int?)
     {
-        Task { [weak self] in
-            guard let shareableContent = try? await SCShareableContent.current, let self else { return }
-            self.performOnMainAsync { self.applyTargets(shareableContent) }
+        Task
+        {
+            let listing: Result<SCShareableContent, any Error>
+            do { listing = .success(try await SCShareableContent.current) }
+            catch { listing = .failure(error) }
+
+            self.performOnMainAsync
+            {
+                let startsCapture = generation == self.captureGeneration.load(ordering: .relaxed)
+                switch listing
+                {
+                case .success(let shareableContent):
+                    self.applyTargets(shareableContent)
+                    if startsCapture { self.startStream() }
+
+                case .failure(let error):
+                    guard startsCapture else { return }
+                    Self.log.error("Could not list capture sources: \(error, privacy: .public)")
+                    self.outputTexturePort.send(nil)
+                    self.reportCaptureFailure("Cannot list screens and windows: \(error.localizedDescription). If Screen Recording is not allowed, allow it in System Settings › Privacy & Security, then relaunch.",
+                                              canRetry: false)
+                }
+            }
         }
     }
 
@@ -339,11 +329,11 @@ public class ScreenCaptureProviderNode: Node
         streamConfiguration.width = width
         streamConfiguration.height = height
 
-        let stream = SCStream(filter: filter, configuration: streamConfiguration, delegate: streamOutputHandler)
+        let stream = SCStream(filter: filter, configuration: streamConfiguration, delegate: streamDelegate)
 
         do
         {
-            try stream.addStreamOutput(streamOutputHandler, type: .screen, sampleHandlerQueue: sampleHandlerQueue)
+            try stream.addStreamOutput(streamDelegate, type: .screen, sampleHandlerQueue: sampleHandlerQueue)
         }
         catch
         {
@@ -370,12 +360,12 @@ public class ScreenCaptureProviderNode: Node
         {
             // Removing the output stops frames at once; stopping finishes later,
             // and the task holds the stream until it has.
-            try? stream.removeStreamOutput(self.streamOutputHandler, type: .screen)
+            try? stream.removeStreamOutput(self.streamDelegate, type: .screen)
             Task { try? await stream.stopCapture() }
         }
 
         self.stream = nil
-        self.streamOutputHandler.clear()
+        self.streamDelegate.clear()
     }
 
     private func contentFilter(for target: CaptureTarget) -> SCContentFilter?
