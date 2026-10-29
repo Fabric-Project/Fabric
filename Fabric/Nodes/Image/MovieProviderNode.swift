@@ -843,9 +843,9 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     /// bytes into a compressed MTLTexture in one upload. No RGB
     /// expansion, no memcpy of decompressed pixels.
     ///
-    /// Textures come from `GraphRenderer.sharedTextureCache` — heap-
-    /// backed, ring-recycled per-frame. BC formats are sampled-only,
-    /// so we override the cache's default usage to `[.shaderRead]`;
+    /// Textures come from the context's GPU allocator (shared heaps;
+    /// each frame is a new texture). BC formats are sampled-only,
+    /// so we override the default image usage to `[.shaderRead]`;
     /// `.shared` storage is required because the upload is a CPU-side
     /// `replace(region:)` (illegal on `.private` on macOS).
     ///
@@ -907,12 +907,12 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         let dxtData = frame.dxtDatas[0]
         guard dxtData != nil else { return nil }
 
-        guard let image = renderer.sharedTextureCache.newManagedImage(
+        guard let image = try? renderer.makeImage(
             width: texWidth,
             height: texHeight,
             pixelFormat: mtlFormat,
+            storageMode: .shared,
             usage: [.shaderRead],
-            mipmapped: false,
             label: "MovieProviderNode.HapDXT"
         ) else { return nil }
 

@@ -6,16 +6,22 @@ import Satin
 
 @Suite("Heap-backed image lifetime", .serialized)
 struct HeapImageLifetimeTests {
-    private func cache() throws -> GraphRendererTextureCache {
+    private func makeAllocator() throws -> GPUAllocator {
         let device = try #require(MTLCreateSystemDefaultDevice())
-        var configuration = GraphRendererTextureCache.Configuration()
-        configuration.minimumHeapSizeBytes = 1024 * 1024
-        configuration.storageMode = .shared
-        return GraphRendererTextureCache(device: device, config: configuration)
+        var configuration = GPUAllocator.Configuration()
+        let small = GPUAllocator.HeapSizing(minimumSize: 1 << 20, maximumSize: 1 << 20)
+        configuration.gpuOnly = small
+        configuration.cpuWrites = small
+        configuration.cpuReads = small
+        return GPUAllocator(device: device, configuration: configuration)
     }
 
-    private func image(_ cache: GraphRendererTextureCache) throws -> FabricImage {
-        try #require(cache.newManagedImage(width: 4, height: 4, pixelFormat: .rgba8Unorm))
+    /// A CPU-readable image, so tests can fill and read it back.
+    private func image(_ allocator: GPUAllocator) throws -> FabricImage {
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba8Unorm, width: 4, height: 4, mipmapped: false)
+        descriptor.usage = [.shaderRead, .shaderWrite, .renderTarget]
+        descriptor.storageMode = .shared
+        return FabricImage.unmanaged(texture: try allocator.makeTexture(descriptor))
     }
 
     private func fill(_ texture: MTLTexture, byte: UInt8) {
@@ -41,7 +47,7 @@ struct HeapImageLifetimeTests {
 
     @Test("A retained texture cannot be reissued when its image wrapper disappears")
     func retainedTextureCannotBeOverwritten() throws {
-        let allocator = try cache()
+        let allocator = try makeAllocator()
         var original: FabricImage? = try image(allocator)
         let texture = try #require(original).texture
         fill(texture, byte: 17)
@@ -54,7 +60,7 @@ struct HeapImageLifetimeTests {
 
     @Test("Heap allocation is reusable after every texture owner releases it")
     func lastOwnerReleasesHeapAllocation() throws {
-        let allocator = try cache()
+        let allocator = try makeAllocator()
         var observedHeap: MTLHeap?
         try autoreleasepool {
             let original = try image(allocator)
@@ -65,7 +71,7 @@ struct HeapImageLifetimeTests {
     }
     @Test("An input port keeps its image storage alive without renderer bookkeeping")
     func inputPortOwnsImage() throws {
-        let allocator = try cache()
+        let allocator = try makeAllocator()
         let input = NodePort<FabricImage>(name: "Image", kind: .Inlet)
         var heap: MTLHeap?
         weak var witness: FabricImage?
@@ -84,7 +90,7 @@ struct HeapImageLifetimeTests {
 
     @Test("Nested virtual collections own their images without discovery or registration")
     func nestedCollectionOwnsImage() throws {
-        let allocator = try cache()
+        let allocator = try makeAllocator()
         let port = NodePort<PortValue>(name: "Images", kind: .Outlet)
         var heap: MTLHeap?
         try autoreleasepool {
@@ -99,7 +105,7 @@ struct HeapImageLifetimeTests {
 
     @Test("A material owns texture storage independently of its image wrapper")
     func materialOwnsTexture() throws {
-        let allocator = try cache()
+        let allocator = try makeAllocator()
         let device = try #require(MTLCreateSystemDefaultDevice())
         let material = BasicTextureMaterial(context: Context(device: device, sampleCount: 1, colorPixelFormat: .bgra8Unorm))
         var heap: MTLHeap?
@@ -120,22 +126,23 @@ struct HeapImageLifetimeTests {
         #expect(try #require(heap).usedSize == other.texture.allocatedSize)
     }
 
-    @Test("Resetting a cache does not invalidate texture owners")
-    func resetPreservesLiveTexture() throws {
-        let allocator = try cache()
+    @Test("Trimming the allocator does not invalidate texture owners")
+    func trimPreservesLiveTexture() throws {
+        let allocator = try makeAllocator()
         let original = try image(allocator)
         fill(original.texture, byte: 17)
         let heap = try #require(original.texture.heap)
-        allocator.reset()
+        allocator.trim()
         let other = try image(allocator)
         fill(other.texture, byte: 233)
-        #expect(other.texture.heap !== heap)
+        #expect(original.texture.heap === heap)
+        #expect(other.texture !== original.texture)
         #expect(pixels(original.texture).allSatisfy { $0 == 17 })
     }
 
     @Test("A pending raw or graph command buffer keeps a released image's texture readable", arguments: [false, true])
     func GPUOwnsTexture(wrapped: Bool) throws {
-        let allocator = try cache()
+        let allocator = try makeAllocator()
         let device = try #require(MTLCreateSystemDefaultDevice())
         let queue = try #require(device.makeCommandQueue())
         let raw = try #require(queue.makeCommandBuffer())
@@ -168,7 +175,7 @@ struct HeapImageLifetimeTests {
 
     @Test("An abandoned continuation cannot invalidate an earlier submitted texture use")
     func abandonedContinuationPreservesSubmittedTexture() throws {
-        let allocator = try cache()
+        let allocator = try makeAllocator()
         let device = try #require(MTLCreateSystemDefaultDevice())
         let queue = try #require(device.makeCommandQueue())
         let submitted = try #require(queue.makeCommandBuffer())
@@ -218,8 +225,7 @@ struct HeapImageLifetimeTests {
     func importedImageSurvivesGPUUse(wrapped: Bool) throws {
         let harness = try #require(GraphExecutionTestHarness(renderWidth: 4, renderHeight: 4))
         let producer = harness.renderer
-        let cache = producer.sharedTextureCache
-        var original = try #require(cache.newManagedImage(width: 4, height: 4, pixelFormat: .rgba8Unorm)) as FabricImage?
+        var original: FabricImage? = try producer.makeImage(width: 4, height: 4, pixelFormat: .rgba8Unorm, storageMode: .shared)
         weak var imageWitness = original
         let pixel: [UInt8] = [25, 50, 75, 255]
         let expected = Array(repeating: pixel, count: 16).flatMap { $0 }
@@ -253,7 +259,7 @@ struct HeapImageLifetimeTests {
                              renderPassDescriptor: MTLRenderPassDescriptor(), commandBuffer: commands)
         #expect(node.source == nil)
         #expect(imageWitness == nil)
-        let other = try #require(cache.newManagedImage(width: 4, height: 4, pixelFormat: .rgba8Unorm))
+        let other = try producer.makeImage(width: 4, height: 4, pixelFormat: .rgba8Unorm, storageMode: .shared)
         fill(other.texture, byte: 233)
         #expect(ObjectIdentifier(other.texture) != sourceIdentity,
                 "The producer cannot reuse storage still read by the consumer")
@@ -271,7 +277,7 @@ struct HeapImageLifetimeTests {
         #expect(actual.elementsEqual(expected))
     }
 
-    @Test("An unrelated pending renderer cannot hold this cache's released storage")
+    @Test("An unrelated pending renderer cannot hold this allocator's released storage")
     func unrelatedRendererDoesNotHoldStorage() throws {
         let harness = try #require(GraphExecutionTestHarness(renderWidth: 4, renderHeight: 4))
         let renderer = harness.renderer
@@ -286,7 +292,7 @@ struct HeapImageLifetimeTests {
         try renderer.executeAndDraw(executionInfo: harness.makeExecutionInfo(), renderPassDescriptor: pass,
                                     commandBuffer: commands)
         commands.commit()
-        let allocator = try cache()
+        let allocator = try makeAllocator()
         var heap: MTLHeap?
         try autoreleasepool {
             let unused = try image(allocator)

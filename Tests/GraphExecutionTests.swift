@@ -990,6 +990,8 @@ struct GraphExecutionTests {
 
         graph.addNode(deferred)
 
+        // Render to Image only produces secondary outputs something uses.
+        deferred.outputDepthTexture.published = true
         let context = harness.makeExecutionContext(time: 500, deltaTime: 0, frameNumber: 0)
 
         try harness.graphRenderer(for: graph).startExecution()
@@ -1057,6 +1059,8 @@ struct GraphExecutionTests {
 
         graph.addNode(deferred)
 
+        // Render to Image only produces secondary outputs something uses.
+        for name in ["Albedo Texture", "Normals Texture", "PBR Texture", "Velocity Texture", "Emissive Texture"] { try imagePort(named: name, kind: .Outlet, on: deferred).published = true }
         let context = harness.makeExecutionContext(time: 550, deltaTime: 0, frameNumber: 0)
 
         try harness.graphRenderer(for: graph).startExecution()
@@ -1296,6 +1300,7 @@ struct GraphExecutionTests {
         #expect(decodedDeferred.inputHeight.value == 24)
         #expect(decodedDeferred.subGraph.nodes.compactMap { $0 as? MeshNode }.count == 1)
 
+        decodedDeferred.outputDepthTexture.published = true
         let context = harness.makeExecutionContext(time: 800, deltaTime: 0, frameNumber: 0)
 
         try harness.graphRenderer(for: decodedGraph).startExecution()
@@ -1347,6 +1352,7 @@ struct GraphExecutionTests {
         _ = try imagePort(named: "Velocity Texture", kind: .Outlet, on: decodedDeferred)
         _ = try imagePort(named: "Emissive Texture", kind: .Outlet, on: decodedDeferred)
 
+        for name in ["Albedo Texture", "Normals Texture", "PBR Texture", "Velocity Texture", "Emissive Texture"] { try imagePort(named: name, kind: .Outlet, on: decodedDeferred).published = true }
         let context = harness.makeExecutionContext(time: 850, deltaTime: 0, frameNumber: 0)
 
         try harness.graphRenderer(for: decodedGraph).startExecution()

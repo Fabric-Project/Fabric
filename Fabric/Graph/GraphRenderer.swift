@@ -66,10 +66,6 @@ public class GraphRenderer : ViewRenderer
     // the lifecycle it has actually reached through its own executionState.
     public private(set) var executionState: ExecutionState = .disabled
 
-    // Texture caches — private is GPU-private, shared allows CPU updates
-    let privateTextureCache: GraphRendererTextureCache
-    let sharedTextureCache: GraphRendererTextureCache
-
     public init(context: Context, graph: Graph)
     {
         self.graph = graph
@@ -87,12 +83,6 @@ public class GraphRenderer : ViewRenderer
         // The camera a graph gets for free is the camera node's, at its
         // defaults, so adding that node to a graph reframes nothing.
         self.defaultCamera = PerspectiveCameraNode.makeDefaultCamera(context: context)
-
-        self.privateTextureCache = GraphRendererTextureCache(device: context.device)
-
-        var sharedConfig = GraphRendererTextureCache.Configuration()
-        sharedConfig.storageMode = .shared
-        self.sharedTextureCache = GraphRendererTextureCache(device: context.device, config: sharedConfig)
 
         super.init(context: context)
     }
@@ -188,6 +178,9 @@ public class GraphRenderer : ViewRenderer
         teardown()
         do { try super.cleanup() }
         catch { if capturedError == nil { capturedError = error } }
+        // Torn-down nodes no longer hold their images: give the now-empty heaps back. Heaps still
+        // used by in-flight GPU work or other renderers sharing the allocator are kept.
+        context.gpuAllocator.trim(retainingEmptyHeaps: 0)
 
         if let capturedError
         {
@@ -895,11 +888,8 @@ public class GraphRenderer : ViewRenderer
     /// is encoded here, before a later invocation can overwrite the source target.
     public func newImage(copying texture: MTLTexture, commandBuffer: MTLCommandBuffer) throws -> FabricImage {
         guard texture.textureType == .type2D, texture.sampleCount == 1,
-              let image = privateTextureCache.newManagedImage(width: texture.width,
-                                                               height: texture.height,
-                                                               pixelFormat: texture.pixelFormat,
-                                                               usage: [.shaderRead, .renderTarget],
-                                                               mipmapped: texture.mipmapLevelCount > 1),
+              let image = try? makeImage(width: texture.width, height: texture.height, pixelFormat: texture.pixelFormat,
+                                         usage: [.shaderRead, .renderTarget], mipmapped: texture.mipmapLevelCount > 1),
               let blit = commandBuffer.makeBlitCommandEncoder() else {
             throw FabricError(.execution(.failed), severity: .recoverable,
                               message: "Could not copy resolved render target into a new image")
@@ -923,15 +913,12 @@ public class GraphRenderer : ViewRenderer
 
     public func newImage(withWidth width: Int, height: Int, format: MTLPixelFormat) throws -> FabricImage
     {
-        if let image = self.privateTextureCache.newManagedImage(width: width, height: height, pixelFormat: format)
-            ?? self.newImageDirect(withWidth: width, height: height, format: format)
-        {
-            return image
+        guard let image = try? self.makeImage(width: width, height: height, pixelFormat: format) else {
+            throw FabricError(.execution(.outOfMemory),
+                              severity: .recoverable,
+                              message: "Could not allocate image: \(width)x\(height), \(format)")
         }
-
-        throw FabricError(.execution(.outOfMemory),
-                          severity: .recoverable,
-                          message: "Could not allocate image: \(width)x\(height), \(format)")
+        return image
     }
 
     public func newImage(withWidth width: Int,
@@ -943,18 +930,12 @@ public class GraphRenderer : ViewRenderer
             return try newImage(withWidth: width, height: height, format: format)
         }
 
-        if let image = privateTextureCache.newManagedImage(width: width,
-                                                           height: height,
-                                                           pixelFormat: format,
-                                                           mipmapped: true)
-            ?? newImageDirect(withWidth: width, height: height, format: format, mipmapped: true)
-        {
-            return image
+        guard let image = try? makeImage(width: width, height: height, pixelFormat: format, mipmapped: true) else {
+            throw FabricError(.execution(.outOfMemory),
+                              severity: .recoverable,
+                              message: "Could not allocate mipmapped image: \(width)x\(height), \(format)")
         }
-
-        throw FabricError(.execution(.outOfMemory),
-                          severity: .recoverable,
-                          message: "Could not allocate mipmapped image: \(width)x\(height), \(format)")
+        return image
     }
 
     public func newImage(fromPixelBuffer pixelBuffer: CVPixelBuffer) throws -> FabricImage
@@ -989,7 +970,7 @@ public class GraphRenderer : ViewRenderer
         let width = CVPixelBufferGetWidth(pixelBuffer)
         let height = CVPixelBufferGetHeight(pixelBuffer)
 
-        guard let image = self.sharedTextureCache.newManagedImage(width: width, height: height, pixelFormat: format)
+        guard let image = try? self.makeImage(width: width, height: height, pixelFormat: format, storageMode: .shared)
         else {
             throw FabricError(.execution(.outOfMemory),
                               severity: .recoverable,
@@ -1085,27 +1066,23 @@ public class GraphRenderer : ViewRenderer
         return desc
     }
 
-    private func newImageDirect(withWidth width: Int, height: Int, format: MTLPixelFormat) -> FabricImage?
+    /// Every image version is a new texture from the context's allocator, shared by every renderer
+    /// handed that context. Its memory returns to the heap when the image's last owner (a port,
+    /// material, recording or command buffer) lets go; textures are never reissued.
+    internal func makeImage(width: Int,
+                            height: Int,
+                            pixelFormat: MTLPixelFormat,
+                            storageMode: MTLStorageMode = .private,
+                            usage: MTLTextureUsage = [.shaderRead, .shaderWrite, .renderTarget],
+                            mipmapped: Bool = false,
+                            label: String? = nil) throws -> FabricImage
     {
-        let desc = self.textureDescriptor(width: width, height: height, format: format)
-        if let texture = self.device.makeTexture(descriptor: desc) {
-            return FabricImage.unmanaged(texture: texture)
-        }
-        return nil
-    }
-
-    private func newImageDirect(withWidth width: Int,
-                                height: Int,
-                                format: MTLPixelFormat,
-                                mipmapped: Bool) -> FabricImage?
-    {
-        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format,
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: pixelFormat,
                                                                   width: width,
                                                                   height: height,
                                                                   mipmapped: mipmapped)
-        descriptor.usage = [.shaderRead, .shaderWrite, .renderTarget]
-
-        guard let texture = device.makeTexture(descriptor: descriptor) else { return nil }
-        return FabricImage.unmanaged(texture: texture)
+        descriptor.usage = usage
+        descriptor.storageMode = storageMode
+        return FabricImage.unmanaged(texture: try context.gpuAllocator.makeTexture(descriptor, label: label))
     }
 }
