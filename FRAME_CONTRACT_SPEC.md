@@ -1,6 +1,6 @@
 # Fabric / Satin frame contract (draft 4, async-delivery clarification 2026-10-23)
 
-Single-threaded. Principle 1 (threading) is deferred, not dropped: every piece of state still has one owner, so threading can be added later.
+Single-threaded. Principle 1 (host and rendering never block each other) is deferred, not dropped: every piece of state still has one owner, so threading can be added later.
 
 ## The invariant everything rests on
 
@@ -46,12 +46,12 @@ The rule that delivers it, for every node output (images, geometry, buffers):
 Use case: a node computes on the GPU and outputs a CPU value (MPS face detection outputting keypoints).
 
 - **Deferred (non-blocking, also called next-frame delivery):** the node encodes without waiting for its result. GPU completion marks a request ready. The execution owner subsequently processes its completion closure and stages its output values; those values become visible at the next CPU execution of the matching node and iteration context after processing. Frame N's analysis is not guaranteed to appear in frame N+1: completion and matching execution may occur later. Delivery never injects values into an execution already in progress.
-- **Same frame (synchronous):** the node commits the GPU work encoded so far (including its inputs' work) and waits for it, then outputs the result in frame N. Nodes downstream see it in the same frame. The wait is coordinated by the rendering owner. With Principle 1 implemented that owner is off main; this document currently defers that threading separation rather than claiming a main-owned execution cannot block main.
+- **Same frame (synchronous):** the node commits the GPU work encoded so far (including its inputs' work) and waits for it, then outputs the result in frame N. Nodes downstream see it in the same frame. The wait is coordinated by the rendering owner. With Principle 1 implemented that owner is separate from the host; this document currently defers that separation rather than claiming an execution owned by the host cannot block the host.
 - The frame's command buffer is an `MPSCommandBuffer` (required: Sight's MPS and MPSGraph work needs it). `commitAndContinue()` commits the work so far and keeps the same object, which can carry the synchronous mode without changing node signatures. PR #414 introduces the `MPSCommandBuffer`; its other details are not the spec.
 - **Synchronous readback boundary:** finish active command encoders, capture the current `rootCommandBuffer`, call `commitAndContinue()`, then wait for the captured buffer and check its completion status/error before reading the result. Perform any synchronization required by the resource's storage mode before reading. Waiting on the `MPSCommandBuffer` wrapper after `commitAndContinue()` would target its new, uncommitted buffer instead. Continue encoding through the same wrapper after a successful readback.
 - The rendering owner coordinates this boundary, resource lifetimes and errors. Completion handlers attached before `commitAndContinue()` belong to the submitted segment; resources used by subsequent segments must remain retained through those uses. Only the final segment presents the frame.
 - Consistent with §4: Render to Image encodes when it executes, so a same-frame analyzer reading a Render to Image's output sees it. The root scene pass is encoded last, so analysing the frame's own final image is necessarily next-frame.
-- The choice can be the user's and can change while running (principle 5). Deferred request storage and published results obey the same immutability rule; a fixed two-buffer ring alone does not establish safe reuse.
+- The choice can be the user's and can change while running (principle 6). Deferred request storage and published results obey the same immutability rule; a fixed two-buffer ring alone does not establish safe reuse.
 
 ### 5.1 Deferred completion API and ownership
 
