@@ -248,7 +248,7 @@ public class OSCReceiveNode: Node
         didSet
         {
             updateServer()
-            MainActor.assumeIsolated { _settingsModelStorage?.listenPort = listenPort }
+            performOnMainSync { _settingsModelStorage?.listenPort = listenPort }
         }
     }
 
@@ -257,7 +257,7 @@ public class OSCReceiveNode: Node
         didSet
         {
             self.rebuildPorts()
-            MainActor.assumeIsolated { _settingsModelStorage?.addressBindings = addressBindings }
+            performOnMainSync { _settingsModelStorage?.addressBindings = addressBindings }
         }
     }
 
@@ -273,7 +273,7 @@ public class OSCReceiveNode: Node
         didSet
         {
             guard serverStatus != oldValue else { return }
-            MainActor.assumeIsolated { _settingsModelStorage?.serverStatus = serverStatus }
+            performOnMainSync { _settingsModelStorage?.serverStatus = serverStatus }
             self.subtitleSubject.send()
         }
     }
@@ -289,7 +289,7 @@ public class OSCReceiveNode: Node
 
     override public func settingsView() -> AnyView
     {
-        MainActor.assumeIsolated
+        performOnMainSync
         {
             if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
             return AnyView(OSCReceiveNodeView(model: _settingsModelStorage!))
@@ -342,13 +342,14 @@ public class OSCReceiveNode: Node
 
     // The node listens while started. The server is main-thread state, as the
     // settings view changes the port, so lifecycle calls, which can run on the
-    // render thread, hand over to main; the main queue keeps them in order.
+    // render thread, hand over to main with performOnMainAsync, which keeps
+    // them in order.
     public override func startExecution(renderer: GraphRenderer)
     throws
     {
-        DispatchQueue.main.async { [weak self] in
-            self?.isRunning = true
-            self?.updateServer()
+        performOnMainAsync {
+            self.isRunning = true
+            self.updateServer()
         }
         try super.startExecution(renderer: renderer)
     }
@@ -356,9 +357,8 @@ public class OSCReceiveNode: Node
     public override func stopExecution(renderer: GraphRenderer)
     throws
     {
-        // Holds the node: a deleted node can be freed before this runs, and its
-        // server must still stop.
-        DispatchQueue.main.async {
+        // The closure holds the node: a deleted node's server must still stop.
+        performOnMainAsync {
             self.isRunning = false
             self.updateServer()
         }

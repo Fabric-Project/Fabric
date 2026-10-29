@@ -15,6 +15,7 @@ import CoreMedia
 import ScreenCaptureKit
 import SwiftUI
 import os
+import Synchronization
 
 public class ScreenCaptureProviderNode: Node
 {
@@ -95,12 +96,12 @@ public class ScreenCaptureProviderNode: Node
     private var stream: SCStream? = nil
     private var optionsToTargets: [String: CaptureTarget] = [:]
     private var latestShareableContent: SCShareableContent? = nil
-    // Capture changes run one at a time on the main actor, each after the one
-    // before it, so a stop is never overtaken by a start still in flight.
-    private var captureChangeTask: Task<Void, Never>? = nil
-    /// Whether the node is started, as the capture changes see it: start and stop
-    /// set it in their own changes, so it is in step with the changes around it.
-    private var isCaptureRequested = false
+    /// Set by start and Retry, which can run outside execution; execute restarts
+    /// the capture.
+    private let captureRestartRequested = Atomic<Bool>(false)
+    /// Whether a source listing is in flight. One at a time: each holds a frame
+    /// batch until ScreenCaptureKit answers.
+    private var isListingTargets = false
 
     // MARK: - Capture Status
 
@@ -120,7 +121,7 @@ public class ScreenCaptureProviderNode: Node
         didSet
         {
             guard captureFailure != oldValue else { return }
-            MainActor.assumeIsolated
+            performOnMainSync
             {
                 _settingsModelStorage?.captureStatus = captureFailure?.status
                 _settingsModelStorage?.canRetry = captureFailure?.canRetry ?? false
@@ -131,7 +132,6 @@ public class ScreenCaptureProviderNode: Node
 
     override public func deriveStatuses() -> [NodeStatus] { captureFailure.map { [$0.status] } ?? [] }
 
-    @MainActor
     private func reportCaptureFailure(_ message: String?, canRetry: Bool = true)
     {
         if let message
@@ -143,7 +143,7 @@ public class ScreenCaptureProviderNode: Node
 
     fileprivate func retryCapture()
     {
-        self.enqueueCaptureRestart()
+        self.captureRestartRequested.store(true, ordering: .relaxed)
     }
 
     // MARK: - Settings View
@@ -172,7 +172,7 @@ public class ScreenCaptureProviderNode: Node
 
     override public func settingsView() -> AnyView
     {
-        MainActor.assumeIsolated
+        performOnMainSync
         {
             if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
             return AnyView(ScreenCaptureProviderNodeSettingsView(model: _settingsModelStorage!))
@@ -184,20 +184,19 @@ public class ScreenCaptureProviderNode: Node
     public required init(context: Context)
     {
         super.init(context: context)
-        self.enqueueCaptureChange { await $0.refreshTargets() }
+        self.listTargetsForSettings()
     }
 
     public required init(from decoder: any Decoder) throws
     {
         try super.init(from: decoder)
-        self.enqueueCaptureChange { await $0.refreshTargets() }
+        self.listTargetsForSettings()
     }
 
     override public func startExecution(renderer: GraphRenderer)
     throws
     {
-        self.enqueueCaptureChange { $0.isCaptureRequested = true }
-        self.enqueueCaptureRestart()
+        self.captureRestartRequested.store(true, ordering: .relaxed)
         try super.startExecution(renderer: renderer)
     }
 
@@ -220,9 +219,18 @@ public class ScreenCaptureProviderNode: Node
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if self.inputCaptureType.valueDidChange || self.inputCaptureSource.valueDidChange
+        let sourceChanged = self.inputCaptureType.valueDidChange || self.inputCaptureSource.valueDidChange
+        if self.captureRestartRequested.exchange(false, ordering: .relaxed) || sourceChanged
         {
-            self.enqueueCaptureRestart()
+            if self.isListingTargets
+            {
+                // Restarts once the listing in flight arrives.
+                self.captureRestartRequested.store(true, ordering: .relaxed)
+            }
+            else
+            {
+                try self.restartCapture(commandBuffer: commandBuffer)
+            }
         }
 
         if let pixelBuffer = streamOutputHandler.consumeLatestPixelBuffer()
@@ -233,62 +241,56 @@ public class ScreenCaptureProviderNode: Node
         }
     }
 
-    /// A change that is superseded is cancelled, and still finishes before the next one runs.
-    private func enqueueCaptureChange(_ change: @escaping @MainActor (ScreenCaptureProviderNode) async -> Void)
-    {
-        let previousChange = self.captureChangeTask
-        previousChange?.cancel()
-        self.captureChangeTask = Task { @MainActor [weak self] in
-            await previousChange?.value
-            guard let self else { return }
-            await change(self)
-        }
-    }
+    // MARK: - Capture
 
-    private func enqueueCaptureRestart()
+    /// Stops the stream and lists the sources off the execution owner. The listing
+    /// arrives at a later execution, which starts the stream. A stop drops a
+    /// listing still in flight, so a stopped node never starts a stream.
+    private func restartCapture(commandBuffer: MTLCommandBuffer) throws
     {
-        self.enqueueCaptureChange { node in
-            // Retry, or a source change, can queue a restart after a stop.
-            guard node.isCaptureRequested else { return }
-            if let listingError = await node.refreshTargets()
+        self.stopStream()
+        self.isListingTargets = true
+        try commandBuffer.addCompletion(operation: {
+            do { return Result<SCShareableContent, any Error>.success(try await SCShareableContent.current) }
+            catch { return .failure(error) }
+        }, receive: { listing in
+            self.isListingTargets = false
+            switch listing
             {
-                await node.stopStream()
-                node.outputTexturePort.send(nil)
-                node.reportCaptureFailure("Cannot list screens and windows: \(listingError.localizedDescription). If Screen Recording is not allowed, allow it in System Settings › Privacy & Security, then relaunch.",
+            case .success(let shareableContent):
+                self.applyTargets(shareableContent)
+                self.startStream()
+
+            case .failure(let error):
+                Self.log.error("Could not list capture sources: \(error, privacy: .public)")
+                self.outputTexturePort.send(nil)
+                self.reportCaptureFailure("Cannot list screens and windows: \(error.localizedDescription). If Screen Recording is not allowed, allow it in System Settings › Privacy & Security, then relaunch.",
                                           canRetry: false)
-                return
             }
-            guard !Task.isCancelled else { return }
-            await node.restartStream()
-        }
+        })
     }
 
     private func stopCapture()
     {
+        self.captureRestartRequested.store(false, ordering: .relaxed)
+        self.isListingTargets = false
+        self.stopStream()
         self.outputTexturePort.send(nil)
-        self.enqueueCaptureChange { node in
-            node.isCaptureRequested = false
-            await node.stopStream()
-            node.reportCaptureFailure(nil)
+        self.reportCaptureFailure(nil)
+    }
+
+    /// Fills the source dropdown before the node first starts.
+    private func listTargetsForSettings()
+    {
+        Task { [weak self] in
+            guard let shareableContent = try? await SCShareableContent.current, let self else { return }
+            self.performOnMainAsync { self.applyTargets(shareableContent) }
         }
     }
 
-    /// Lists the sources for the dropdown; returns the error if they cannot be listed.
-    @MainActor
-    @discardableResult
-    private func refreshTargets() async -> (any Error)?
+    /// Fills the source dropdown, and selects the first source when the selection is gone.
+    private func applyTargets(_ shareableContent: SCShareableContent)
     {
-        let shareableContent: SCShareableContent
-        do
-        {
-            shareableContent = try await SCShareableContent.current
-        }
-        catch
-        {
-            Self.log.error("Could not list capture sources: \(error, privacy: .public)")
-            return error
-        }
-
         let captureKind = self.currentCaptureKind()
         self.latestShareableContent = shareableContent
 
@@ -305,14 +307,10 @@ public class ScreenCaptureProviderNode: Node
         {
             self.inputCaptureSource.value = options.first ?? ""
         }
-        return nil
     }
 
-    @MainActor
-    private func restartStream() async
+    private func startStream()
     {
-        await self.stopStream()
-
         let selection = self.inputCaptureSource.value ?? ""
         guard let target = self.optionsToTargets[selection] else
         {
@@ -321,12 +319,6 @@ public class ScreenCaptureProviderNode: Node
             return
         }
 
-        await self.startStream(target: target)
-    }
-
-    @MainActor
-    private func startStream(target: CaptureTarget) async
-    {
         guard let filter = self.contentFilter(for: target) else
         {
             self.reportCaptureFailure("No display to capture the application on.")
@@ -352,41 +344,40 @@ public class ScreenCaptureProviderNode: Node
         do
         {
             try stream.addStreamOutput(streamOutputHandler, type: .screen, sampleHandlerQueue: sampleHandlerQueue)
-            try await stream.startCapture()
-            self.stream = stream
-            self.reportCaptureFailure(nil)
         }
         catch
         {
             self.reportCaptureFailure("Cannot start capture: \(error.localizedDescription)")
-            self.stream = nil
             self.outputTexturePort.send(nil)
-        }
-    }
-
-    @MainActor
-    private func stopStream() async
-    {
-        guard let stream else
-        {
-            self.streamOutputHandler.clear()
             return
         }
 
-        do
-        {
-            try await stream.stopCapture()
+        self.stream = stream
+        self.reportCaptureFailure(nil)
+        stream.startCapture { [weak self] error in
+            guard let error, let self else { return }
+            self.performOnMainAsync {
+                // A failure of a stream since stopped or replaced is no longer the node's state.
+                guard self.stream === stream else { return }
+                self.reportCaptureFailure("Cannot start capture: \(error.localizedDescription)")
+            }
         }
-        catch
+    }
+
+    private func stopStream()
+    {
+        if let stream
         {
-            // Swallow stop errors and ensure local teardown.
+            // Removing the output stops frames at once; stopping finishes later,
+            // and the task holds the stream until it has.
+            try? stream.removeStreamOutput(self.streamOutputHandler, type: .screen)
+            Task { try? await stream.stopCapture() }
         }
 
         self.stream = nil
         self.streamOutputHandler.clear()
     }
 
-    @MainActor
     private func contentFilter(for target: CaptureTarget) -> SCContentFilter?
     {
         switch target

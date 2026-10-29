@@ -611,8 +611,8 @@ public class HIDNode: Node
 
     // The manager and monitoring are main-thread state: the manager's callbacks
     // run on the main run loop, and the settings view selects the device.
-    // Lifecycle calls, which can run on the render thread, hand over to main;
-    // the main queue keeps them in order.
+    // Lifecycle calls, which can run on the render thread, hand over to main
+    // with performOnMainAsync, which keeps them in order.
     private var hidManager: HIDManager?
     private var savedDeviceInfo: HIDDeviceInfo?
     /// Whether the node is started. It monitors its device only while started.
@@ -654,7 +654,7 @@ public class HIDNode: Node
         updateMonitoring()
         updateDeviceStatus()
 
-        MainActor.assumeIsolated
+        performOnMainSync
         {
             _settingsModelStorage?.selectedDeviceID = selectedDeviceID
             _settingsModelStorage?.deviceElements = deviceElements
@@ -675,7 +675,7 @@ public class HIDNode: Node
             {
                 Self.log.error("\(deviceStatus.message, privacy: .public)")
             }
-            MainActor.assumeIsolated { _settingsModelStorage?.deviceStatus = deviceStatus }
+            performOnMainSync { _settingsModelStorage?.deviceStatus = deviceStatus }
             self.subtitleSubject.send()
         }
     }
@@ -720,7 +720,7 @@ public class HIDNode: Node
 
     override public func settingsView() -> AnyView
     {
-        MainActor.assumeIsolated
+        performOnMainSync
         {
             if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
             return AnyView(HIDNodeView(model: _settingsModelStorage!))
@@ -770,17 +770,17 @@ public class HIDNode: Node
     public override func enableExecution(renderer:GraphRenderer)
     throws
     {
-        DispatchQueue.main.async { [weak self] in self?.setupHIDManager() }
+        performOnMainAsync { self.setupHIDManager() }
         try super.enableExecution(renderer: renderer)
     }
 
     public override func startExecution(renderer:GraphRenderer)
     throws
     {
-        DispatchQueue.main.async { [weak self] in
-            self?.isRunning = true
-            self?.updateMonitoring()
-            self?.updateDeviceStatus()
+        performOnMainAsync {
+            self.isRunning = true
+            self.updateMonitoring()
+            self.updateDeviceStatus()
         }
         try super.startExecution(renderer: renderer)
     }
@@ -788,8 +788,7 @@ public class HIDNode: Node
     public override func stopExecution(renderer:GraphRenderer)
     throws
     {
-        // Holds the node, as disable does.
-        DispatchQueue.main.async {
+        performOnMainAsync {
             self.isRunning = false
             self.updateMonitoring()
             self.updateDeviceStatus()
@@ -801,9 +800,9 @@ public class HIDNode: Node
     throws
     {
         // Freed on main, never mid-callback; its deinit unregisters the callbacks.
-        // Holds the node: a deleted node can be freed before this runs, which
-        // would free the manager with it, on this thread.
-        DispatchQueue.main.async {
+        // The closure holds the node: freeing a deleted node here would free the
+        // manager with it, on this thread.
+        performOnMainAsync {
             self.hidManager = nil
             self.monitoredDeviceID = nil
         }
@@ -829,10 +828,8 @@ public class HIDNode: Node
         hidManager = HIDManager()
 
         hidManager?.onDevicesChanged = { [weak self] in
-            DispatchQueue.main.async
-            {
-                self?.refreshDevices()
-            }
+            guard let self else { return }
+            self.performOnMainAsync { self.refreshDevices() }
         }
 
         hidManager?.onValueChanged = { [weak self] deviceID, element, value in
@@ -857,7 +854,7 @@ public class HIDNode: Node
     fileprivate func refreshDevices()
     {
         availableDevices = hidManager?.getAvailableDevices() ?? []
-        MainActor.assumeIsolated { _settingsModelStorage?.availableDevices = availableDevices }
+        performOnMainSync { _settingsModelStorage?.availableDevices = availableDevices }
 
         if liveDeviceInfo() == nil
         {

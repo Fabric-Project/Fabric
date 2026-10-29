@@ -176,8 +176,8 @@ public class GameControllerNode: Node
     private var savedControllerInfo: GameControllerInfo?
     // Controller state is main-thread state: the controller's handler, the
     // notifications and the settings view all use main. Lifecycle calls, which
-    // can run on the render thread, hand over to main; the main queue keeps
-    // them in order.
+    // can run on the render thread, hand over to main with performOnMainAsync,
+    // which keeps them in order.
     private var currentController: GCController?
     private var controllerObservers: [any NSObjectProtocol] = []
     /// Whether the node is started. It receives from its controller only while started.
@@ -189,7 +189,7 @@ public class GameControllerNode: Node
         didSet
         {
             setupController()
-            MainActor.assumeIsolated
+            performOnMainSync
             {
                 _settingsModelStorage?.selectedControllerID = selectedControllerID
                 _settingsModelStorage?.outputPortCount = outputPorts().count
@@ -223,7 +223,7 @@ public class GameControllerNode: Node
 
     override public func settingsView() -> AnyView
     {
-        MainActor.assumeIsolated
+        performOnMainSync
         {
             if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
             return AnyView(GameControllerNodeView(model: _settingsModelStorage!))
@@ -273,8 +273,7 @@ public class GameControllerNode: Node
     public override func enableExecution(renderer:GraphRenderer)
     throws
     {
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
+        performOnMainAsync {
             self.setupNotifications()
             self.refreshControllers()
 
@@ -295,10 +294,10 @@ public class GameControllerNode: Node
     public override func startExecution(renderer:GraphRenderer)
     throws
     {
-        DispatchQueue.main.async { [weak self] in
-            self?.isRunning = true
-            self?.updateSubscription()
-            self?.updateControllerStatus()
+        performOnMainAsync {
+            self.isRunning = true
+            self.updateSubscription()
+            self.updateControllerStatus()
         }
         try super.startExecution(renderer: renderer)
     }
@@ -306,9 +305,8 @@ public class GameControllerNode: Node
     public override func stopExecution(renderer:GraphRenderer)
     throws
     {
-        // Holds the node: a deleted node can be freed before this runs, and its
-        // subscription must still go.
-        DispatchQueue.main.async {
+        // The closure holds the node: a deleted node's subscription must still go.
+        performOnMainAsync {
             self.isRunning = false
             self.updateSubscription()
             self.updateControllerStatus()
@@ -321,7 +319,7 @@ public class GameControllerNode: Node
     {
         // Disabled, the node hears no disconnect, so it lets the controller go
         // and enable matches the saved one afresh.
-        DispatchQueue.main.async {
+        performOnMainAsync {
             self.removeNotifications()
             self.currentController = nil
             self.updateSubscription()
@@ -376,7 +374,7 @@ public class GameControllerNode: Node
             )
         }
 
-        MainActor.assumeIsolated { _settingsModelStorage?.availableControllers = availableControllers }
+        performOnMainSync { _settingsModelStorage?.availableControllers = availableControllers }
         // `subtitle` resolves against the controller list; notify so the title refreshes.
         self.subtitleSubject.send()
 
@@ -422,7 +420,7 @@ public class GameControllerNode: Node
                 savedControllerInfo = nil
             }
             self.synchronizePorts(to: [])
-            MainActor.assumeIsolated { _settingsModelStorage?.outputPortCount = outputPorts().count }
+            performOnMainSync { _settingsModelStorage?.outputPortCount = outputPorts().count }
             updateSubscription()
             updateControllerStatus()
             return
@@ -448,7 +446,7 @@ public class GameControllerNode: Node
         }
 
         self.synchronizePorts(to: descriptors)
-        MainActor.assumeIsolated { _settingsModelStorage?.outputPortCount = outputPorts().count }
+        performOnMainSync { _settingsModelStorage?.outputPortCount = outputPorts().count }
         updateSubscription()
         updateControllerStatus()
     }
@@ -484,7 +482,7 @@ public class GameControllerNode: Node
             {
                 Self.log.error("\(controllerStatus.message, privacy: .public)")
             }
-            MainActor.assumeIsolated { _settingsModelStorage?.controllerStatus = controllerStatus }
+            performOnMainSync { _settingsModelStorage?.controllerStatus = controllerStatus }
             self.subtitleSubject.send()
         }
     }

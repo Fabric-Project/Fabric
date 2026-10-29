@@ -427,8 +427,8 @@ public class AudioSpectrumNode : Node
 
         // Enable can run on the render thread; options are main-thread state (see DeviceList).
         let names = [Self.defaultDeviceName] + fresh.map(\.localizedName)
-        DispatchQueue.main.async { [weak self] in
-            (self?.inputAudioDevice.parameter as? StringParameter)?.options = names
+        performOnMainAsync {
+            (self.inputAudioDevice.parameter as? StringParameter)?.options = names
         }
     }
 
@@ -457,7 +457,7 @@ public class AudioSpectrumNode : Node
 
     // Without microphone access the node still starts, and outputs nothing.
     override public func startExecution(renderer:GraphRenderer) throws {
-        DispatchQueue.main.async { [weak self] in self?.isRunning = true }
+        performOnMainAsync { self.isRunning = true }
         self.requestCapture()
         try super.startExecution(renderer: renderer)
     }
@@ -488,8 +488,8 @@ public class AudioSpectrumNode : Node
 
     // The status is main-thread state, read by the title and settings views.
     // Start, stop and execute can run on the render thread, and the permission
-    // callback on any thread, so each hands over to main; the main queue keeps
-    // them in order.
+    // callback on any thread, so each hands over to main with performOnMainAsync,
+    // which keeps them in order.
     private var isRunning = false
 
     /// Main-thread state, set while the node is started but not capturing. Each
@@ -500,7 +500,7 @@ public class AudioSpectrumNode : Node
         didSet
         {
             guard captureStatus != oldValue else { return }
-            MainActor.assumeIsolated
+            performOnMainSync
             {
                 _settingsModel.captureStatus = captureStatus
                 // Retry is for failures; a warning says what the node is doing instead.
@@ -518,9 +518,9 @@ public class AudioSpectrumNode : Node
         {
             Self.log.error("\(status.message, privacy: .public)")
         }
-        DispatchQueue.main.async { [weak self] in
+        performOnMainAsync {
             // A failure reported after a stop is no longer the node's state.
-            guard let self, self.isRunning else { return }
+            guard self.isRunning else { return }
             self.captureStatus = status
         }
     }
@@ -532,9 +532,9 @@ public class AudioSpectrumNode : Node
 
     override public func stopExecution(renderer:GraphRenderer) throws
     {
-        DispatchQueue.main.async { [weak self] in
-            self?.isRunning = false
-            self?.captureStatus = nil
+        performOnMainAsync {
+            self.isRunning = false
+            self.captureStatus = nil
         }
         self.captureSessionNeedsSetup.store(false, ordering: .relaxed)
         if self.captureSession.isRunning
@@ -776,11 +776,11 @@ public class AudioSpectrumNode : Node
         func retryCapture() { node?.retryCapture() }
     }
 
-    private lazy var _settingsModel = MainActor.assumeIsolated { SettingsModel(node: self) }
+    private lazy var _settingsModel = self.performOnMainSync { SettingsModel(node: self) }
 
     override public func settingsView() -> AnyView
     {
-        MainActor.assumeIsolated { AnyView(AudioSpectrumNodeSettingsView(model: _settingsModel)) }
+        performOnMainSync { AnyView(AudioSpectrumNodeSettingsView(model: _settingsModel)) }
     }
 
     override public var settingsSize: SettingsViewSize { .Custom(size: CGSize(width: 460, height: 180)) }

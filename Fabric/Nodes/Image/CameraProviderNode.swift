@@ -55,8 +55,8 @@ public class CameraProviderNode : Node
 
     class CaptureDelegate : NSObject, AVCaptureVideoDataOutputSampleBufferDelegate
     {
-        var pixelBuffer:CVPixelBuffer? = nil
-        var gotNewPixelBuffer:Bool = false
+        // Written on the capture queue, taken by execute on the render thread.
+        private let latestPixelBuffer = Mutex<CVPixelBuffer?>(nil)
 
         var captureQueue = DispatchQueue(label: "fabric.CameraTextureNode.capture_queue")
 
@@ -70,12 +70,17 @@ public class CameraProviderNode : Node
                 return
             }
 
-            DispatchQueue.main.async {
-
-                self.pixelBuffer = pixelBuffer
-                self.gotNewPixelBuffer = true
-            }
+            self.latestPixelBuffer.withLock { $0 = pixelBuffer }
        }
+
+        /// The newest frame since the last call, or nil when none has arrived.
+        func takeLatestPixelBuffer() -> CVPixelBuffer?
+        {
+            self.latestPixelBuffer.withLock { latest in
+                defer { latest = nil }
+                return latest
+            }
+        }
     }
     
     
@@ -182,15 +187,15 @@ public class CameraProviderNode : Node
 
         // Enable can run on the render thread; parameter options are observable, main-thread state.
         let names = fresh.map(\.localizedName)
-        DispatchQueue.main.async { [weak self] in
-            (self?.inputCamera.parameter as? StringParameter)?.options = names
+        performOnMainAsync {
+            (self.inputCamera.parameter as? StringParameter)?.options = names
         }
     }
     
     // Without camera access the node still starts, and outputs nothing.
     override public func startExecution(renderer:GraphRenderer) throws
     {
-        DispatchQueue.main.async { [weak self] in self?.isRunning = true }
+        performOnMainAsync { self.isRunning = true }
         self.requestCapture()
         // Stop cleared the status, so a session that could not be built is built
         // again, and reports again. Execute builds only with access.
@@ -235,8 +240,8 @@ public class CameraProviderNode : Node
 
     // The status is main-thread state, read by the title and settings views.
     // Start, stop and execute can run on the render thread, and the permission
-    // callback on any thread, so each hands over to main; the main queue keeps
-    // them in order.
+    // callback on any thread, so each hands over to main with performOnMainAsync,
+    // which keeps them in order.
     private var isRunning = false
 
     /// Main-thread state, set while the node is started but not capturing. Each
@@ -247,7 +252,7 @@ public class CameraProviderNode : Node
         didSet
         {
             guard captureStatus != oldValue else { return }
-            MainActor.assumeIsolated
+            performOnMainSync
             {
                 _settingsModelStorage?.captureStatus = captureStatus
                 // Retry is for failures; a warning, such as no camera selected, has nothing to retry.
@@ -265,9 +270,9 @@ public class CameraProviderNode : Node
         {
             Self.log.error("\(status.message, privacy: .public)")
         }
-        DispatchQueue.main.async { [weak self] in
+        performOnMainAsync {
             // A failure reported after a stop is no longer the node's state.
-            guard let self, self.isRunning else { return }
+            guard self.isRunning else { return }
             self.captureStatus = status
         }
     }
@@ -298,7 +303,7 @@ public class CameraProviderNode : Node
 
     override public func settingsView() -> AnyView
     {
-        MainActor.assumeIsolated
+        performOnMainSync
         {
             if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
             return AnyView(CameraProviderNodeSettingsView(model: _settingsModelStorage!))
@@ -309,9 +314,9 @@ public class CameraProviderNode : Node
 
     override public func stopExecution(renderer:GraphRenderer) throws
     {
-        DispatchQueue.main.async { [weak self] in
-            self?.isRunning = false
-            self?.captureStatus = nil
+        performOnMainAsync {
+            self.isRunning = false
+            self.captureStatus = nil
         }
         if self.captureSession.isRunning
         {
@@ -342,13 +347,11 @@ public class CameraProviderNode : Node
             }
         }
         
-        if self.captureDelegate.gotNewPixelBuffer,
-           let pixelBuffer = self.captureDelegate.pixelBuffer
+        if let pixelBuffer = self.captureDelegate.takeLatestPixelBuffer()
         {
             let image = try renderer.newImage(fromPixelBuffer: pixelBuffer)
 
             self.outputTexturePort.send( image )
-            self.captureDelegate.gotNewPixelBuffer = false
         }
         
      }

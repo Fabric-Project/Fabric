@@ -395,7 +395,7 @@ public class MIDIInputNode: Node
 
     // Connection state is main-thread state, with learn mode and the settings
     // it serves. Lifecycle calls, which can run on the render thread, hand over
-    // to main; the main queue keeps them in order.
+    // to main with performOnMainAsync, which keeps them in order.
 
     /// The shared manager while this node is enabled, nil otherwise.
     private var midiManager: MIDIManager?
@@ -432,7 +432,7 @@ public class MIDIInputNode: Node
             // Choosing none forgets the input, so an input appearing does not bring it back.
             savedInputInfo = selectedInputID == nil ? nil : liveInputInfo() ?? savedInputInfo
             updateMIDIConnection()
-            MainActor.assumeIsolated { _settingsModelStorage?.selectedInputID = selectedInputID }
+            performOnMainSync { _settingsModelStorage?.selectedInputID = selectedInputID }
             // `subtitle` is derived from the selected input; notify so the title refreshes.
             self.subtitleSubject.send()
         }
@@ -443,7 +443,7 @@ public class MIDIInputNode: Node
     fileprivate var isListening: Bool = false
     fileprivate var detectedInputs: Set<DetectedMIDIInput> = []
     {
-        didSet { MainActor.assumeIsolated { _settingsModelStorage?.detectedInputs = detectedInputs } }
+        didSet { performOnMainSync { _settingsModelStorage?.detectedInputs = detectedInputs } }
     }
 
     fileprivate var configuredInputs: [DetectedMIDIInput] = []
@@ -451,7 +451,7 @@ public class MIDIInputNode: Node
         didSet
         {
             rebuildPorts()
-            MainActor.assumeIsolated { _settingsModelStorage?.configuredInputs = configuredInputs }
+            performOnMainSync { _settingsModelStorage?.configuredInputs = configuredInputs }
         }
     }
 
@@ -469,7 +469,7 @@ public class MIDIInputNode: Node
 
     override public func settingsView() -> AnyView
     {
-        MainActor.assumeIsolated
+        performOnMainSync
         {
             if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
             return AnyView(MIDIInputNodeView(model: _settingsModelStorage!))
@@ -529,9 +529,7 @@ public class MIDIInputNode: Node
     public override func enableExecution(renderer: GraphRenderer)
     throws
     {
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-
+        performOnMainAsync {
             // Started here, on main, never by blocking on main: a host whose main
             // thread waits on rendering would deadlock. Every start then runs on
             // main, one at a time, which MIDIKit's start() needs, as it checks
@@ -570,9 +568,9 @@ public class MIDIInputNode: Node
     public override func startExecution(renderer: GraphRenderer)
     throws
     {
-        DispatchQueue.main.async { [weak self] in
-            self?.isRunning = true
-            self?.updateMIDIConnection()
+        performOnMainAsync {
+            self.isRunning = true
+            self.updateMIDIConnection()
         }
         try super.startExecution(renderer: renderer)
     }
@@ -580,8 +578,7 @@ public class MIDIInputNode: Node
     public override func stopExecution(renderer: GraphRenderer)
     throws
     {
-        // Holds the node, as disable does.
-        DispatchQueue.main.async {
+        performOnMainAsync {
             self.isRunning = false
             self.updateMIDIConnection()
         }
@@ -591,9 +588,9 @@ public class MIDIInputNode: Node
     public override func disableExecution(renderer: GraphRenderer)
     throws
     {
-        // Holds the node: a deleted node can be freed before this runs, and its
-        // connection on the shared manager must still go.
-        DispatchQueue.main.async {
+        // The closure holds the node: a deleted node's connection on the shared
+        // manager must still go.
+        performOnMainAsync {
             self.midiManager?.remove(.inputConnection, .withTag(self.connectionTag))
             self.midiManager = nil
             self.connectedInputID = nil
@@ -615,7 +612,7 @@ public class MIDIInputNode: Node
             )
         }
 
-        MainActor.assumeIsolated { _settingsModelStorage?.availableInputs = availableInputs }
+        performOnMainSync { _settingsModelStorage?.availableInputs = availableInputs }
         // `subtitle` resolves against the input list; notify so the title refreshes.
         self.subtitleSubject.send()
 
@@ -655,7 +652,8 @@ public class MIDIInputNode: Node
                 tag: connectionTag,
                 receiver: .events { [weak self] events, _, _ in
                     // Handling reads and writes learn-mode and configuration state the settings view owns.
-                    DispatchQueue.main.async { self?.handleMIDIEvents(events) }
+                    guard let self else { return }
+                    self.performOnMainAsync { self.handleMIDIEvents(events) }
                 }
             )
 
@@ -739,7 +737,7 @@ public class MIDIInputNode: Node
             {
                 Self.log.error("\(inputStatus.message, privacy: .public)")
             }
-            MainActor.assumeIsolated { _settingsModelStorage?.inputStatus = inputStatus }
+            performOnMainSync { _settingsModelStorage?.inputStatus = inputStatus }
             self.subtitleSubject.send()
         }
     }
@@ -786,7 +784,7 @@ public class MIDIInputNode: Node
         print("[MIDI] Learn mode starting... isListening was \(isListening)")
         isListening = true
         detectedInputs.removeAll()
-        MainActor.assumeIsolated { _settingsModelStorage?.isListening = true }
+        performOnMainSync { _settingsModelStorage?.isListening = true }
         updateMIDIConnection()
         print("[MIDI] Learn mode started. isListening is now \(isListening)")
     }
@@ -811,7 +809,7 @@ public class MIDIInputNode: Node
         }
 
         detectedInputs.removeAll()
-        MainActor.assumeIsolated { _settingsModelStorage?.isListening = false }
+        performOnMainSync { _settingsModelStorage?.isListening = false }
         updateMIDIConnection()
         print("[MIDI] Learn mode stopped. Total configured: \(configuredInputs.count) inputs. isListening is now \(isListening)")
     }
