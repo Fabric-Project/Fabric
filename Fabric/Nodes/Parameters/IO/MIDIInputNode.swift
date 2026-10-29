@@ -653,7 +653,12 @@ public class MIDIInputNode: Node
                 receiver: .events { [weak self] events, _, _ in
                     // Handling reads and writes learn-mode and configuration state the settings view owns.
                     guard let self else { return }
-                    self.performOnMainAsync { self.handleMIDIEvents(events) }
+                    self.performOnMainAsync {
+                        // Events queued before this connection ended would press inputs
+                        // its end released.
+                        guard self.connectedInputID == inputID else { return }
+                        self.handleMIDIEvents(events)
+                    }
                 }
             )
 

@@ -113,6 +113,8 @@ public class CameraProviderNode : Node
     
     // Written on the main queue and at enable, read by execute on the render thread.
     private let devices = Mutex<[AVCaptureDevice]>([])
+    /// The camera the session captures from, read by the disconnect observer.
+    private let capturingDeviceID = Mutex<String?>(nil)
 
     // Asks execute to build the session: after enable, since disable releases
     // it, and once camera access or a device arrives. Set from the permission
@@ -159,8 +161,17 @@ public class CameraProviderNode : Node
         }
 
         self.wasDisconnectedObserver = NotificationCenter.default.addObserver(forName: AVCaptureDevice.wasDisconnectedNotification, object: nil, queue: .main)
-        { [weak self] _ in
-            self?.refreshDevices()
+        { [weak self] notification in
+            guard let self else { return }
+            self.refreshDevices()
+
+            // The camera capturing has gone: rebuild, which reports it missing
+            // until it returns. Only started nodes execute the rebuild.
+            if let device = notification.object as? AVCaptureDevice,
+               device.uniqueID == self.capturingDeviceID.withLock({ $0 })
+            {
+                self.captureSessionNeedsSetup.store(true, ordering: .relaxed)
+            }
         }
 
         self.refreshDevices()
@@ -197,10 +208,14 @@ public class CameraProviderNode : Node
     {
         performOnMainAsync { self.isRunning = true }
         self.requestCapture()
-        // Stop cleared the status, so a session that could not be built is built
-        // again, and reports again. Execute builds only with access.
-        self.captureSessionNeedsSetup.store(true, ordering: .relaxed)
-        if self.captureSession.isRunning == false
+        // Start and stop run and pause a built session, so a stopped node delivers
+        // no frames. One not built, after enable or a failed build, is built by
+        // execute, which reports again what stop cleared. Execute builds only with access.
+        if self.captureSession.inputs.isEmpty || self.captureSession.outputs.isEmpty
+        {
+            self.captureSessionNeedsSetup.store(true, ordering: .relaxed)
+        }
+        else if self.captureSession.isRunning == false
         {
             self.captureSession.startRunning()
         }
@@ -418,14 +433,15 @@ public class CameraProviderNode : Node
         if self.captureSession.isRunning
         {
             self.captureSession.stopRunning()
-            
-            self.captureSession.inputs.forEach { input in
-                self.captureSession.removeInput(input)
-            }
-            
-            self.captureSession.outputs.forEach { output in
-                self.captureSession.removeOutput(output)
-            }
+        }
+
+        // A stopped session keeps its input and output; a stop then start rebuilds here.
+        self.captureSession.inputs.forEach { input in
+            self.captureSession.removeInput(input)
+        }
+
+        self.captureSession.outputs.forEach { output in
+            self.captureSession.removeOutput(output)
         }
 
         let videoDeviceInput: AVCaptureDeviceInput
@@ -472,6 +488,7 @@ public class CameraProviderNode : Node
         self.captureSession.commitConfiguration()
         
         self.captureSession.startRunning()
+        self.capturingDeviceID.withLock { $0 = videoDevice.uniqueID }
         self.reportCaptureStatus(nil)
     }
     

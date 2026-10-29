@@ -345,11 +345,23 @@ public class ScreenCaptureProviderNode: Node
         self.stream = stream
         self.reportCaptureFailure(nil)
         stream.startCapture { [weak self] error in
-            guard let error, let self else { return }
+            guard let self else
+            {
+                if error == nil { stream.stopCapture() }
+                return
+            }
             self.performOnMainAsync {
-                // A failure of a stream since stopped or replaced is no longer the node's state.
-                guard self.stream === stream else { return }
-                self.reportCaptureFailure("Cannot start capture: \(error.localizedDescription)")
+                // A stop or restart while the stream was starting could not stop it,
+                // so it stops here; its failure is no longer the node's state.
+                guard self.stream === stream else
+                {
+                    if error == nil { stream.stopCapture() }
+                    return
+                }
+                if let error
+                {
+                    self.reportCaptureFailure("Cannot start capture: \(error.localizedDescription)")
+                }
             }
         }
     }
