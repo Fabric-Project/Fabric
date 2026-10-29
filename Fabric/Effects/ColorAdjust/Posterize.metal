@@ -9,7 +9,7 @@
 #define SAMPLER_TYPE texture2d<half>
 
 #include "../../lygia/sampler.msl"
-#include "../../Shaders/FabricImageTextureTransform.metal"
+#include "../../Shaders/fabric/FabricImageTextureTransform.metal"
 
 typedef struct {
     float levels; // slider, 2, 256, 8, Levels Per Channel

@@ -9,7 +9,7 @@
 #define SAMPLER_TYPE texture2d<half>
 
 #include "../lygia/sampler.msl"
-#include "FabricImageTextureTransform.metal"
+#include "fabric/FabricImageTextureTransform.metal"
 
 typedef struct {
     float amount; // slider, 0.0, 2.0, 1.0, Amount

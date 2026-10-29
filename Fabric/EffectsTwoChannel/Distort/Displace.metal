@@ -12,7 +12,7 @@
 
 #include "../../lygia/sample/clamp2edge.msl"
 #include "../../lygia/sampler.msl"
-#include "../../Shaders/FabricImageTextureTransform.metal"
+#include "../../Shaders/fabric/FabricImageTextureTransform.metal"
 
 typedef struct {
     float amount; // slider, 0.0, 1.0, 0.0, Displacement Amount

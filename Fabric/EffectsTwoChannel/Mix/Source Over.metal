@@ -14,7 +14,7 @@
 #include "../../lygia/color/composite/sourceOver.msl"
 #include "../../lygia/color/space/gamma2linear.msl"
 #include "../../lygia/color/space/linear2gamma.msl"
-#include "../../Shaders/FabricImageTextureTransform.metal"
+#include "../../Shaders/fabric/FabricImageTextureTransform.metal"
 
 typedef struct {
     float amount; // slider, 0.0, 1.0, 0.0, Amount

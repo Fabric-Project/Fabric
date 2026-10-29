@@ -1,7 +1,7 @@
 using namespace metal;
 
 #include <metal_stdlib>
-#include "FabricImageTextureTransform.metal"
+#include "fabric/FabricImageTextureTransform.metal"
 
 typedef struct {
     float redAmount; // slider, 0.0, 50.0, 0.0, Red Amount

@@ -7,7 +7,7 @@ using namespace metal;
 #define SAMPLER_TYPE texture2d<half>
 
 #include "../../lygia/sampler.msl"
-#include "../../Shaders/FabricImageTextureTransform.metal"
+#include "../../Shaders/fabric/FabricImageTextureTransform.metal"
 
 static inline float luma(float3 rgb) {
     return dot(rgb, float3(0.299f, 0.587f, 0.114f));

@@ -11,7 +11,7 @@
 
 #include "../../lygia/sampler.msl"
 #include "../../lygia/color/vibrance.msl"
-#include "../../Shaders/FabricImageTextureTransform.metal"
+#include "../../Shaders/fabric/FabricImageTextureTransform.metal"
 
 
 typedef struct {

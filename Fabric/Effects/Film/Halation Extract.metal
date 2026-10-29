@@ -8,7 +8,7 @@
 #define SAMPLER_TYPE texture2d<half>
 
 #include "../../lygia/sampler.msl"
-#include "../../Shaders/FabricImageTextureTransform.metal"
+#include "../../Shaders/fabric/FabricImageTextureTransform.metal"
 
 typedef struct {
     float threshold; // slider, 0.0, 2.0, 0.75, Threshold

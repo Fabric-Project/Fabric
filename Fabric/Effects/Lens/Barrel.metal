@@ -16,7 +16,7 @@
 #include "../../lygia/sampler.msl"
 #include "../../lygia/distort/barrel.msl"
 #include "../../lygia/distort/pincushion.msl"
-#include "../../Shaders/FabricImageTextureTransform.metal"
+#include "../../Shaders/fabric/FabricImageTextureTransform.metal"
 
 
 typedef struct {

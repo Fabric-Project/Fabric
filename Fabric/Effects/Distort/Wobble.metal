@@ -8,7 +8,7 @@ using namespace metal;
 #define SAMPLER sampler( min_filter::linear, mag_filter::linear, address::mirrored_repeat )
 
 #include "../../lygia/sampler.msl"
-#include "../../Shaders/FabricImageTextureTransform.metal"
+#include "../../Shaders/fabric/FabricImageTextureTransform.metal"
 
 // Derived from Metal's built-in constants
 constant float C_PI    = M_PI_F;

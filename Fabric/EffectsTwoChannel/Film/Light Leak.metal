@@ -16,7 +16,7 @@ using namespace metal;
 #include "../../lygia/sampler.msl"
 #include "../../lygia/math/radians.msl"
 #include "../../lygia/math/rotate2d.msl"
-#include "../../Shaders/FabricImageTextureTransform.metal"
+#include "../../Shaders/fabric/FabricImageTextureTransform.metal"
 
 // Uniforms → Fabric UI sliders
 typedef struct {
