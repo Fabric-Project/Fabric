@@ -52,6 +52,9 @@ extension PortType
         case .Color, .Vector4:
             return other == .Color || other == .Vector4
 
+        case .Array, .Dictionary:
+            return self.colorArrayAsVector4Array == other.colorArrayAsVector4Array
+
         default:
             switch other
             {
@@ -59,7 +62,7 @@ extension PortType
                 guard case .Array = self else { return false }
                 return true
             default:
-                return self.colorAsVector4 == other.colorAsVector4
+                return self == other
             }
         }
     }
@@ -67,16 +70,16 @@ extension PortType
     // Color and Vector4 share the same Swift type (simd_float4), so collections
     // of them share theirs too. Other scalar conversions don't carry over:
     // nothing converts a collection of Bool to a collection of Float.
-    private var colorAsVector4: PortType
+    private var colorArrayAsVector4Array: PortType
     {
         switch self
         {
         case .Color:
             return .Vector4
         case .Array(portType: let elementType):
-            return .Array(portType: elementType.colorAsVector4)
+            return .Array(portType: elementType.colorArrayAsVector4Array)
         case .Dictionary(valueType: let valueType):
-            return .Dictionary(valueType: valueType.colorAsVector4)
+            return .Dictionary(valueType: valueType.colorArrayAsVector4Array)
         default:
             return self
         }
