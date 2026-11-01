@@ -225,7 +225,8 @@ public class SyphonClientNode : Node
         else { return AnyView(EmptyView()) }
 
         return AnyView(SyphonClientNodeView(serverNameParameter: serverNameParameter,
-                                            appNameParameter: appNameParameter))
+                                            appNameParameter: appNameParameter,
+                                            graph: self.graph))
     }
 
     override public var settingsSize: SettingsViewSize { .Mini }
@@ -242,17 +243,21 @@ struct SyphonClientNodeView: View
     private let serverName: ParameterObservableModel<String>
     private let appName: ParameterObservableModel<String>
 
-    init(serverNameParameter: GenericParameter<String>, appNameParameter: GenericParameter<String>)
+    init(serverNameParameter: GenericParameter<String>, appNameParameter: GenericParameter<String>, graph: Graph?)
     {
         self.serverName = ParameterObservableModel(label: serverNameParameter.label,
                                                    get: { serverNameParameter.value },
                                                    set: { serverNameParameter.value = $0 },
-                                                   publisher: serverNameParameter.valuePublisher)
+                                                   publisher: serverNameParameter.valuePublisher,
+                                                   graph: graph,
+                                                   undoParameter: serverNameParameter)
 
         self.appName = ParameterObservableModel(label: appNameParameter.label,
                                                 get: { appNameParameter.value },
                                                 set: { appNameParameter.value = $0 },
-                                                publisher: appNameParameter.valuePublisher)
+                                                publisher: appNameParameter.valuePublisher,
+                                                graph: graph,
+                                                undoParameter: appNameParameter)
     }
 
     /// A server to pick, identified by the pair the node matches on rather than

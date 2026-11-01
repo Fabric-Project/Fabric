@@ -19,24 +19,28 @@ extension Graph {
 
     /// Lay out all nodes in left-to-right columns based on graph topology.
     /// Consumer nodes (sinks) are placed at the right; their inputs fan
-    /// out to the left. Wraps all moves in a single undo group.
+    /// out to the left. Wraps all moves in a single undo group; a layout
+    /// that moves nothing is not an edit.
     public func autoLayout() {
-        let layout = GraphAutoLayout.compute(graph: self)
+        let layout = GraphAutoLayout.compute(graph: self).filter { node, offset in node.offset != offset }
+        guard !layout.isEmpty else { return }
 
-        undoManager?.beginUndoGrouping()
-
-        for (node, newOffset) in layout {
-            let oldOffset = node.offset
-            undoManager?.registerUndo(withTarget: node) { n in
-                let redoOffset = n.offset
-                self.undoManager?.registerUndo(withTarget: n) { $0.offset = redoOffset }
-                n.offset = oldOffset
+        self.performEdit(named: "Auto Layout") {
+            for (node, newOffset) in layout {
+                self.registerOffsetChange(of: node, from: node.offset)
+                node.offset = newOffset
             }
-            node.offset = newOffset
         }
+    }
 
-        undoManager?.endUndoGrouping()
-        undoManager?.setActionName("Auto Layout")
+    /// Records a move of `node`, a node in this graph, from `offset`, made
+    /// or about to be made, as an undo step that moves it back.
+    public func registerOffsetChange(of node: Node, from offset: CGSize)
+    {
+        self.registerUndo(on: node) { node in
+            node.graph?.registerOffsetChange(of: node, from: node.offset)
+            node.offset = offset
+        }
     }
 }
 

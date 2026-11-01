@@ -93,6 +93,12 @@ extension UTType
 
     public var publishedName: String? = nil
 
+    internal func setPublishing(_ published: Bool, name: String?)
+    {
+        self.published = published
+        self.publishedName = name
+    }
+
     // Kind of lame, but necessary to avoid some type based bullshit.
     // TODO: Figure out a way to hide setting this (seems not good)
     // unless its a ParameterPort? 

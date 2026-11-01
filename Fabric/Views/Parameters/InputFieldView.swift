@@ -55,6 +55,11 @@ struct InputFieldComponentView : View
 {
     let binding:Binding<String>
     let label:String
+    /// True while the field has focus, false as it loses it: the typing in
+    /// between is one edit. Submitting ends one edit and starts the next.
+    var onEditingChanged: (Bool) -> Void = { _ in }
+
+    @FocusState private var focused: Bool
     
     var body: some View {
         TextField(label, text: binding)
@@ -62,6 +67,13 @@ struct InputFieldComponentView : View
             .frame(width: ParameterConfig.paramWidth, alignment: .leading)
             .font(.system(size: 10))
             .textFieldStyle(.roundedBorder)
+            .focused($focused)
+            .onChange(of: focused) { onEditingChanged(focused) }
+            .onSubmit {
+                onEditingChanged(false)
+                onEditingChanged(focused)
+            }
+            .onDisappear { onEditingChanged(false) }
     }
 }
 
@@ -72,7 +84,7 @@ struct InputFieldView: View
 
     @Bindable var vm: ParameterObservableModel<String>
 
-    init(param:StringParameter)
+    init(param:StringParameter, graph: Graph? = nil)
     {
         // The whole value, however much of it the field can show. This read is
         // what an edit is compared and written back against, so shortening it
@@ -80,7 +92,9 @@ struct InputFieldView: View
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
-                                           publisher:param.valuePublisher)
+                                           publisher:param.valuePublisher,
+                                           graph: graph,
+                                           undoParameter: param)
     }
     
     var body: some View
@@ -89,7 +103,7 @@ struct InputFieldView: View
         {
             InputFieldLabelView(label: self.vm.label)
             
-            InputFieldComponentView(binding: self.$vm.uiValue, label: self.vm.label )
+            InputFieldComponentView(binding: self.$vm.uiValue, label: self.vm.label, onEditingChanged: self.vm.setEditing)
         }
     }
 }
@@ -129,18 +143,20 @@ struct FloatInputFieldView: View
     @Bindable var vm: ParameterObservableModel<Float>
     let step: Float
 
-    init(param:GenericParameter<Float>)
+    init(param:GenericParameter<Float>, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
-                                           publisher:param.valuePublisher )
+                                           publisher:param.valuePublisher,
+                                           graph: graph,
+                                           undoParameter: param)
         self.step = ParameterFieldStep.step(for: param, fractionDigits: floatFractionDigits)
     }
     
     var body: some View
     {
-        NumericField(vm.label, value: $vm.uiValue, step: step, fractionDigits: floatFractionDigits)
+        NumericField(vm.label, value: $vm.uiValue, step: step, fractionDigits: floatFractionDigits, onEditingChanged: vm.setEditing)
             .font(controlFont)
             .labeledContentStyle(InputFieldRowStyle())
     }
@@ -151,12 +167,14 @@ struct Float2InputFieldView: View
     @Bindable var vm: ParameterObservableModel<simd_float2>
     let steps: [Float]
 
-    init(param:GenericParameter<simd_float2>)
+    init(param:GenericParameter<simd_float2>, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
-                                           publisher:param.valuePublisher )
+                                           publisher:param.valuePublisher,
+                                           graph: graph,
+                                           undoParameter: param)
         self.steps = ParameterFieldStep.steps(for: param, fractionDigits: floatFractionDigits)
     }
     
@@ -164,8 +182,8 @@ struct Float2InputFieldView: View
     {
         ComponentFieldsView(label: vm.label)
         {
-            NumericField("X", value: $vm.uiValue.x, step: steps[0], fractionDigits: floatFractionDigits)
-            NumericField("Y", value: $vm.uiValue.y, step: steps[1], fractionDigits: floatFractionDigits)
+            NumericField("X", value: $vm.uiValue.x, step: steps[0], fractionDigits: floatFractionDigits, onEditingChanged: vm.setEditing)
+            NumericField("Y", value: $vm.uiValue.y, step: steps[1], fractionDigits: floatFractionDigits, onEditingChanged: vm.setEditing)
         }
     }
 }
@@ -175,12 +193,14 @@ struct Float3InputFieldView: View
     @Bindable var vm: ParameterObservableModel<simd_float3>
     let steps: [Float]
 
-    init(param:GenericParameter<simd_float3>)
+    init(param:GenericParameter<simd_float3>, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
-                                           publisher:param.valuePublisher )
+                                           publisher:param.valuePublisher,
+                                           graph: graph,
+                                           undoParameter: param)
         self.steps = ParameterFieldStep.steps(for: param, fractionDigits: floatFractionDigits)
     }
     
@@ -188,9 +208,9 @@ struct Float3InputFieldView: View
     {
         ComponentFieldsView(label: vm.label)
         {
-            NumericField("X", value: $vm.uiValue.x, step: steps[0], fractionDigits: floatFractionDigits)
-            NumericField("Y", value: $vm.uiValue.y, step: steps[1], fractionDigits: floatFractionDigits)
-            NumericField("Z", value: $vm.uiValue.z, step: steps[2], fractionDigits: floatFractionDigits)
+            NumericField("X", value: $vm.uiValue.x, step: steps[0], fractionDigits: floatFractionDigits, onEditingChanged: vm.setEditing)
+            NumericField("Y", value: $vm.uiValue.y, step: steps[1], fractionDigits: floatFractionDigits, onEditingChanged: vm.setEditing)
+            NumericField("Z", value: $vm.uiValue.z, step: steps[2], fractionDigits: floatFractionDigits, onEditingChanged: vm.setEditing)
         }
     }
 }
@@ -200,12 +220,14 @@ struct Float4InputFieldView: View
     @Bindable var vm: ParameterObservableModel<simd_float4>
     let steps: [Float]
 
-    init(param:GenericParameter<simd_float4>)
+    init(param:GenericParameter<simd_float4>, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
-                                           publisher:param.valuePublisher )
+                                           publisher:param.valuePublisher,
+                                           graph: graph,
+                                           undoParameter: param)
         self.steps = ParameterFieldStep.steps(for: param, fractionDigits: floatFractionDigits)
     }
     
@@ -213,10 +235,10 @@ struct Float4InputFieldView: View
     {
         ComponentFieldsView(label: vm.label)
         {
-            NumericField("X", value: $vm.uiValue.x, step: steps[0], fractionDigits: floatFractionDigits)
-            NumericField("Y", value: $vm.uiValue.y, step: steps[1], fractionDigits: floatFractionDigits)
-            NumericField("Z", value: $vm.uiValue.z, step: steps[2], fractionDigits: floatFractionDigits)
-            NumericField("W", value: $vm.uiValue.w, step: steps[3], fractionDigits: floatFractionDigits)
+            NumericField("X", value: $vm.uiValue.x, step: steps[0], fractionDigits: floatFractionDigits, onEditingChanged: vm.setEditing)
+            NumericField("Y", value: $vm.uiValue.y, step: steps[1], fractionDigits: floatFractionDigits, onEditingChanged: vm.setEditing)
+            NumericField("Z", value: $vm.uiValue.z, step: steps[2], fractionDigits: floatFractionDigits, onEditingChanged: vm.setEditing)
+            NumericField("W", value: $vm.uiValue.w, step: steps[3], fractionDigits: floatFractionDigits, onEditingChanged: vm.setEditing)
         }
     }
 }
@@ -226,18 +248,20 @@ struct IntInputFieldView: View
     @Bindable var vm: ParameterObservableModel<Int>
     let step: Int
 
-    init(param:GenericParameter<Int>)
+    init(param:GenericParameter<Int>, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
-                                           publisher:param.valuePublisher )
+                                           publisher:param.valuePublisher,
+                                           graph: graph,
+                                           undoParameter: param)
         self.step = ParameterFieldStep.step(for: param)
     }
     
     var body: some View
     {
-        IntegerField(vm.label, value: $vm.uiValue, step: step)
+        IntegerField(vm.label, value: $vm.uiValue, step: step, onEditingChanged: vm.setEditing)
             .font(controlFont)
             .labeledContentStyle(InputFieldRowStyle())
     }
@@ -248,12 +272,14 @@ struct Int2InputFieldView: View
     @Bindable var vm: ParameterObservableModel<simd_int2>
     let steps: [Int32]
 
-    init(param:GenericParameter<simd_int2>)
+    init(param:GenericParameter<simd_int2>, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
-                                           publisher:param.valuePublisher )
+                                           publisher:param.valuePublisher,
+                                           graph: graph,
+                                           undoParameter: param)
         self.steps = ParameterFieldStep.steps(for: param)
     }
     
@@ -261,8 +287,8 @@ struct Int2InputFieldView: View
     {
         ComponentFieldsView(label: vm.label)
         {
-            IntegerField("X", value: $vm.uiValue.x, step: steps[0])
-            IntegerField("Y", value: $vm.uiValue.y, step: steps[1])
+            IntegerField("X", value: $vm.uiValue.x, step: steps[0], onEditingChanged: vm.setEditing)
+            IntegerField("Y", value: $vm.uiValue.y, step: steps[1], onEditingChanged: vm.setEditing)
         }
     }
 }
@@ -272,12 +298,14 @@ struct Int3InputFieldView: View
     @Bindable var vm: ParameterObservableModel<simd_int3>
     let steps: [Int32]
 
-    init(param:GenericParameter<simd_int3>)
+    init(param:GenericParameter<simd_int3>, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
-                                           publisher:param.valuePublisher )
+                                           publisher:param.valuePublisher,
+                                           graph: graph,
+                                           undoParameter: param)
         self.steps = ParameterFieldStep.steps(for: param)
     }
     
@@ -285,9 +313,9 @@ struct Int3InputFieldView: View
     {
         ComponentFieldsView(label: vm.label)
         {
-            IntegerField("X", value: $vm.uiValue.x, step: steps[0])
-            IntegerField("Y", value: $vm.uiValue.y, step: steps[1])
-            IntegerField("Z", value: $vm.uiValue.z, step: steps[2])
+            IntegerField("X", value: $vm.uiValue.x, step: steps[0], onEditingChanged: vm.setEditing)
+            IntegerField("Y", value: $vm.uiValue.y, step: steps[1], onEditingChanged: vm.setEditing)
+            IntegerField("Z", value: $vm.uiValue.z, step: steps[2], onEditingChanged: vm.setEditing)
         }
     }
 }
@@ -297,12 +325,14 @@ struct Int4InputFieldView: View
     @Bindable var vm: ParameterObservableModel<simd_int4>
     let steps: [Int32]
 
-    init(param:GenericParameter<simd_int4>)
+    init(param:GenericParameter<simd_int4>, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
-                                           publisher:param.valuePublisher )
+                                           publisher:param.valuePublisher,
+                                           graph: graph,
+                                           undoParameter: param)
         self.steps = ParameterFieldStep.steps(for: param)
     }
     
@@ -310,10 +340,10 @@ struct Int4InputFieldView: View
     {
         ComponentFieldsView(label: vm.label)
         {
-            IntegerField("X", value: $vm.uiValue.x, step: steps[0])
-            IntegerField("Y", value: $vm.uiValue.y, step: steps[1])
-            IntegerField("Z", value: $vm.uiValue.z, step: steps[2])
-            IntegerField("W", value: $vm.uiValue.w, step: steps[3])
+            IntegerField("X", value: $vm.uiValue.x, step: steps[0], onEditingChanged: vm.setEditing)
+            IntegerField("Y", value: $vm.uiValue.y, step: steps[1], onEditingChanged: vm.setEditing)
+            IntegerField("Z", value: $vm.uiValue.z, step: steps[2], onEditingChanged: vm.setEditing)
+            IntegerField("W", value: $vm.uiValue.w, step: steps[3], onEditingChanged: vm.setEditing)
         }
     }
 }
