@@ -41,6 +41,7 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Cyclorama
 - [x] Tesselated Text (2D)
 - [x] Extruded Text (3D)
+- [x] Stroke Geometry
 - [x] Super Shape (3D Supershape formula)
 - [x] Geometry Compose (Pixel Array → Geometry)
 - [x] Parametric Expression Geometry
