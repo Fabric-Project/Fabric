@@ -21,11 +21,13 @@ final class ParameterObservableModel<Value: Codable & Equatable>
             guard !applyingEngine else { return }
             if getValue() != uiValue
             {
-                if editStart == nil { editStart = oldValue }
+                // The parameter's value, not the mirror's: the mirror follows
+                // it a frame behind.
+                if editStart == nil { editStart = getValue() }
                 applyingUI = true
                 setValue(uiValue)
                 applyingUI = false
-                self.commitUnlessEditing()
+                self.holdOrCommit()
             }
         }
     }
@@ -101,21 +103,43 @@ final class ParameterObservableModel<Value: Codable & Equatable>
     func setEditing(_ editing: Bool)
     {
         isEditing = editing
-        if !editing { self.commitEdit() }
+        if editing
+        {
+            // A change held for its pause is the edit's now.
+            if editStart != nil { self.holdOrCommit() }
+        }
+        else
+        {
+            self.commitEdit()
+        }
     }
 
-    private func commitUnlessEditing()
+    /// Holds the change since the edit started for Graph.undo() to commit
+    /// while the control is editing, so an undo takes it back rather than
+    /// passing over it, or commits it as the control's policy says. A change
+    /// returned to where the edit started is not an edit.
+    private func holdOrCommit()
     {
-        guard !isEditing else { return }
+        guard let start = editStart, start != getValue(), undoParameter != nil else
+        {
+            editStart = nil
+            pendingCommit.cancel()
+            return
+        }
+        let undoManager = graph?.effectiveUndoManager
+        let commitEdit: () -> Void = { [weak self] in self?.commitEdit() }
+        if isEditing
+        {
+            pendingCommit.hold(on: undoManager, commitEdit)
+            return
+        }
         switch commit
         {
         case .eachChange:
             self.commitEdit()
 
         case .afterPause:
-            pendingCommit.schedule(after: .milliseconds(500), undoManager: graph?.effectiveUndoManager) { [weak self] in
-                self?.commitEdit()
-            }
+            pendingCommit.schedule(after: .milliseconds(500), undoManager: undoManager, commitEdit)
         }
     }
 

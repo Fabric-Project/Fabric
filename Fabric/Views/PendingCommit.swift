@@ -5,27 +5,35 @@
 
 import Foundation
 
-/// An edit a control holds back until it pauses, as typing does. Graph.undo()
-/// and redo() commit every one held for the undo manager they drive before
-/// they run, so an undo never passes over a change the user has made. Used on
-/// the main thread.
+/// An edit a control holds back until it pauses, as typing does, or until the
+/// control's edit ends. Graph.undo() and redo() commit every one held for the
+/// undo manager they drive before they run, so an undo never passes over a
+/// change the user has made, and Graph.canUndo counts them. Used on the main
+/// thread.
 final class PendingCommit
 {
     private var commit: (() -> Void)?
     private var timer: Task<Void, Never>?
 
-    /// Holds `commit` for `delay`, replacing any commit held. `undoManager` is
-    /// the one the commit records on.
-    func schedule(after delay: Duration, undoManager: UndoManager?, _ commit: @escaping () -> Void)
+    /// Holds `commit` until the control commits it or Graph.undo() does,
+    /// replacing any commit held. `undoManager` is the one the commit
+    /// records on.
+    func hold(on undoManager: UndoManager?, _ commit: @escaping () -> Void)
     {
         self.cancel()
         self.commit = commit
+        if let undoManager { Self.register(self, on: undoManager) }
+    }
+
+    /// Holds `commit` for `delay`, replacing any commit held; see hold(on:_:).
+    func schedule(after delay: Duration, undoManager: UndoManager?, _ commit: @escaping () -> Void)
+    {
+        self.hold(on: undoManager, commit)
         self.timer = Task { @MainActor [weak self] in
             try? await Task.sleep(for: delay)
             guard !Task.isCancelled else { return }
             self?.flush()
         }
-        if let undoManager { Self.register(self, on: undoManager) }
     }
 
     private func flush()
@@ -62,6 +70,12 @@ final class PendingCommit
         var entries = self.registry[key, default: []].filter { $0.pendingCommit?.commit != nil && $0.pendingCommit !== pendingCommit }
         entries.append(Entry(pendingCommit: pendingCommit))
         self.registry[key] = entries
+    }
+
+    /// Whether a commit is held for `undoManager`.
+    static func hasCommits(on undoManager: UndoManager) -> Bool
+    {
+        self.registry[ObjectIdentifier(undoManager), default: []].contains { $0.pendingCommit?.commit != nil }
     }
 
     /// Commits now every commit held for `undoManager`.

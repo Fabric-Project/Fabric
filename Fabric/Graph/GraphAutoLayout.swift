@@ -19,9 +19,11 @@ extension Graph {
 
     /// Lay out all nodes in left-to-right columns based on graph topology.
     /// Consumer nodes (sinks) are placed at the right; their inputs fan
-    /// out to the left. Wraps all moves in a single undo group.
+    /// out to the left. Wraps all moves in a single undo group; a layout
+    /// that moves nothing is not an edit.
     public func autoLayout() {
-        let layout = GraphAutoLayout.compute(graph: self)
+        let layout = GraphAutoLayout.compute(graph: self).filter { node, offset in node.offset != offset }
+        guard !layout.isEmpty else { return }
 
         self.performEdit(named: "Auto Layout") {
             for (node, newOffset) in layout {

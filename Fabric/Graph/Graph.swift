@@ -520,7 +520,13 @@ internal import AnyCodable
         undoManager.redo()
     }
 
-    public var canUndo: Bool { self.effectiveUndoManager?.canUndo ?? false }
+    /// True with a step to undo, or a change a control holds that undo()
+    /// would commit first.
+    public var canUndo: Bool
+    {
+        guard let undoManager = self.effectiveUndoManager else { return false }
+        return undoManager.canUndo || PendingCommit.hasCommits(on: undoManager)
+    }
 
     /// Reading this posts the undo manager's checkpoint notification, so a
     /// menu that validates on it should read it as the manager's
