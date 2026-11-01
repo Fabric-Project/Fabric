@@ -263,4 +263,181 @@ struct EditUndoTests
         undoManager.undo()
         #expect(parameter.value)
     }
+
+    // MARK: - Changes a control holds
+
+    private struct ParameterFixture
+    {
+        let graph: Graph
+        let parameter: FloatParameter
+        let undoManager: UndoManager
+    }
+
+    /// A number node's inlet, "Amount", at 1, in a graph with its own undo manager.
+    private func makeParameterFixture(context: Context) throws -> ParameterFixture
+    {
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        let graph = Graph(context: context)
+        let node = NumberBinaryOperator(context: context)
+        graph.addNode(node)
+        graph.undoManager = undoManager
+        let parameter = try #require(node.inputNumber1.parameter as? FloatParameter)
+        parameter.label = "Amount"
+        parameter.value = 1
+        return ParameterFixture(graph: graph, parameter: parameter, undoManager: undoManager)
+    }
+
+    /// A control's model for the fixture's parameter.
+    @MainActor
+    private func makeModel(_ fixture: ParameterFixture, commit: EditCommit = .eachChange) -> ParameterObservableModel<Float>
+    {
+        ParameterObservableModel(label: fixture.parameter.label,
+                                 get: { fixture.parameter.value },
+                                 set: { fixture.parameter.value = $0 },
+                                 publisher: fixture.parameter.valuePublisher,
+                                 graph: fixture.graph,
+                                 undoParameter: fixture.parameter,
+                                 commit: commit)
+    }
+
+    @Test("A change made through a control is undone to the parameter's value before it, which the control's mirror can lag")
+    @MainActor
+    func parameterEditUndoesToTheParametersValue() throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = try makeParameterFixture(context: context)
+        let model = makeModel(fixture)
+
+        // The mirror follows the parameter on the main queue, so the control still shows 1.
+        fixture.parameter.value = 2
+        #expect(model.uiValue == 1)
+
+        step(fixture.undoManager) {
+            model.setEditing(true)
+            model.uiValue = 3
+            model.uiValue = 4
+            model.setEditing(false)
+        }
+        fixture.graph.undo()
+        #expect(fixture.parameter.value == 2)
+        fixture.graph.redo()
+        #expect(fixture.parameter.value == 4)
+    }
+
+    @Test("A change held while its control has focus is committed by undo, which takes it back rather than the step before, and the control carries on")
+    @MainActor
+    func heldEditIsCommittedByUndo() throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = try makeParameterFixture(context: context)
+        let note = Note(note: "Earlier", rect: .zero)
+        step(fixture.undoManager) { fixture.graph.addNote(note) }
+        let model = makeModel(fixture)
+
+        model.setEditing(true)
+        model.uiValue = 2
+        fixture.graph.undo()
+        #expect(fixture.parameter.value == 1)
+        #expect(fixture.graph.notes.map(\.id) == [note.id])
+        fixture.graph.redo()
+        #expect(fixture.parameter.value == 2)
+
+        // Still focused: the next change is a new edit.
+        model.uiValue = 3
+        fixture.graph.undo()
+        #expect(fixture.parameter.value == 2)
+        fixture.graph.redo()
+        #expect(fixture.parameter.value == 3)
+
+        // Losing focus with nothing held adds no step.
+        model.setEditing(false)
+        fixture.graph.undo()
+        #expect(fixture.parameter.value == 2)
+        fixture.graph.undo()
+        #expect(fixture.parameter.value == 1)
+        fixture.graph.undo()
+        #expect(fixture.graph.notes.isEmpty)
+    }
+
+    @Test("Undo is available while a control holds a change, and not once the change is returned to its start")
+    @MainActor
+    func heldEditMakesUndoAvailable() throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = try makeParameterFixture(context: context)
+        let model = makeModel(fixture)
+        #expect(!fixture.graph.canUndo)
+
+        model.setEditing(true)
+        model.uiValue = 2
+        #expect(!fixture.undoManager.canUndo)
+        #expect(fixture.graph.canUndo)
+        model.uiValue = 1
+        #expect(!fixture.graph.canUndo)
+        model.setEditing(false)
+        #expect(!fixture.undoManager.canUndo)
+    }
+
+    @Test("A change held for its pause is committed by its graph's undo, and left held by another graph's")
+    @MainActor
+    func pausedEditIsCommittedByItsGraphsUndo() throws
+    {
+        guard let context = makeContext() else { return }
+        let first = try makeParameterFixture(context: context)
+        let second = try makeParameterFixture(context: context)
+        let firstModel = makeModel(first, commit: .afterPause)
+        let secondModel = makeModel(second, commit: .afterPause)
+
+        firstModel.uiValue = 2
+        secondModel.uiValue = 2
+        first.graph.undo()
+        #expect(first.parameter.value == 1)
+        #expect(second.parameter.value == 2)
+        #expect(second.graph.canUndo)
+        second.graph.undo()
+        #expect(second.parameter.value == 1)
+        first.graph.redo()
+        #expect(first.parameter.value == 2)
+    }
+
+    // MARK: - Auto Layout
+
+    @Test("Auto Layout is a step where it moves a node, and otherwise not one, leaving a redo standing")
+    @MainActor
+    func autoLayoutIsAStepOnlyWhereItMovesANode() throws
+    {
+        guard let context = makeContext() else { return }
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        let graph = Graph(context: context)
+        let node = NumberBinaryOperator(context: context)
+        graph.addNode(node)
+        graph.autoLayout()
+        let laidOut = node.offset
+        graph.undoManager = undoManager
+
+        let note = Note(note: "Earlier", rect: .zero)
+        step(undoManager) { graph.addNote(note) }
+        graph.undo()
+        #expect(undoManager.canRedo)
+
+        graph.autoLayout()
+        #expect(node.offset == laidOut)
+        #expect(!undoManager.canUndo)
+        #expect(undoManager.canRedo)
+        graph.redo()
+        #expect(graph.notes.map(\.id) == [note.id])
+
+        let moved = CGSize(width: 333, height: 222)
+        node.offset = moved
+        graph.autoLayout()
+        #expect(node.offset == laidOut)
+        #expect(undoManager.undoActionName == "Auto Layout")
+        graph.undo()
+        #expect(node.offset == moved)
+        #expect(undoManager.redoActionName == "Auto Layout")
+        graph.redo()
+        #expect(node.offset == laidOut)
+    }
 }
