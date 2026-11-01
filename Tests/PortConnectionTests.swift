@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 import Metal
+import simd
 @testable import Fabric
 import Satin
 
@@ -321,6 +322,89 @@ struct PortConnectionTests {
         #expect(!genericArray.canConnect(to: .Virtual))
     }
 
+    @Test("Color and Vector4 collections connect")
+    func colorAndVector4CollectionsConnect() {
+        let colorArray = PortType.Array(portType: .Color)
+        let vector4Array = PortType.Array(portType: .Vector4)
+        let colorDictionary = PortType.Dictionary(valueType: .Color)
+        let vector4Dictionary = PortType.Dictionary(valueType: .Vector4)
+
+        #expect(colorArray.canConnect(to: vector4Array))
+        #expect(vector4Array.canConnect(to: colorArray))
+        #expect(colorDictionary.canConnect(to: vector4Dictionary))
+        #expect(vector4Dictionary.canConnect(to: colorDictionary))
+        #expect(PortType.Array(portType: colorArray).canConnect(to: .Array(portType: vector4Array)))
+
+        #expect(!colorArray.canConnect(to: .Vector4))
+        #expect(!colorArray.canConnect(to: .Array(portType: .Vector3)))
+        #expect(!colorArray.canConnect(to: vector4Dictionary))
+    }
+
+    @Test("Other scalar conversions do not extend to collections")
+    func otherScalarConversionsDoNotExtendToCollections() {
+        #expect(!PortType.Array(portType: .Bool).canConnect(to: .Array(portType: .Float)))
+        #expect(!PortType.Dictionary(valueType: .Int).canConnect(to: .Dictionary(valueType: .String)))
+    }
+
+    @Test("Color array outlet connects to a plain float4 array inlet")
+    func colorArrayOutletConnectsToPlainFloat4ArrayInlet() {
+        let colorOutlet = ColorArrayNodePort(name: "Array", kind: .Outlet)
+        let colorsInlet = NodePort<ContiguousArray<simd_float4>>(name: "Colors", kind: .Inlet)
+
+        #expect(colorOutlet.canConnect(to: colorsInlet))
+        #expect(colorsInlet.canConnect(to: colorOutlet))
+    }
+
+    @Test("Color array values reach a float4 array inlet unchanged")
+    func colorArrayValuesReachFloat4ArrayInlet() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let source = NumberBinaryOperator(context: context)
+        let sink = NumberBinaryOperator(context: context)
+        graph.addNode(source)
+        graph.addNode(sink)
+
+        let colorOutlet = ColorArrayNodePort(name: "Colors", kind: .Outlet)
+        let float4Inlet = NodePort<ContiguousArray<simd_float4>>(name: "Values", kind: .Inlet)
+        source.addDynamicPort(colorOutlet, name: "colors")
+        sink.addDynamicPort(float4Inlet, name: "values")
+
+        try #require(graph.connect(colorOutlet, to: float4Inlet) != nil)
+
+        let colors: ContiguousArray<simd_float4> = [simd_float4(1, 0, 0, 1), simd_float4(0, 1, 0, 0.5)]
+        colorOutlet.send(colors)
+
+        #expect(float4Inlet.value == colors)
+    }
+
+    @Test("Color dictionary values reach a float4 dictionary inlet unchanged")
+    func colorDictionaryValuesReachFloat4DictionaryInlet() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let source = NumberBinaryOperator(context: context)
+        let sink = NumberBinaryOperator(context: context)
+        graph.addNode(source)
+        graph.addNode(sink)
+
+        let colorOutlet = DeclaredNodePort<Dictionary<String, simd_float4>>(
+            declaredPortType: .Dictionary(valueType: .Color),
+            name: "Colors",
+            kind: .Outlet
+        )
+        let float4Inlet = NodePort<Dictionary<String, simd_float4>>(name: "Values", kind: .Inlet)
+        source.addDynamicPort(colorOutlet, name: "colors")
+        sink.addDynamicPort(float4Inlet, name: "values")
+
+        try #require(graph.connect(colorOutlet, to: float4Inlet) != nil)
+
+        let colors: Dictionary<String, simd_float4> = ["red": simd_float4(1, 0, 0, 1), "green": simd_float4(0, 1, 0, 0.5)]
+        colorOutlet.send(colors)
+
+        #expect(float4Inlet.value == colors)
+    }
+
     @Test("Generic array virtual inlets reject scalar outlets")
     func genericArrayVirtualInletsRejectScalarOutlets() {
         let arrayInlet = PortType.Array(portType: .Virtual).makeFreshPort(name: "Array", kind: .Inlet)
@@ -373,14 +457,17 @@ struct PortConnectionTests {
         #expect(stringInlet.canConnect(to: virtualOutlet))
     }
 
-    /// Every port type the canvas can present, including the two virtual types
-    /// and a representative concrete and generic array.
+    /// Every port type the canvas can present, including the two virtual types,
+    /// a representative concrete and generic array, and the Color and Vector4
+    /// collections that connect to each other.
     private static let allConnectablePortTypes: [PortType] = [
         .Virtual, .NumericVirtual,
         .Bool, .Int, .Float, .String,
         .Vector2, .Vector3, .Vector4, .Color, .Quaternion, .Transform,
         .Geometry, .Material, .Image,
         .Array(portType: .Virtual), .Array(portType: .Float),
+        .Array(portType: .Color), .Array(portType: .Vector4),
+        .Dictionary(valueType: .Color), .Dictionary(valueType: .Vector4),
     ]
 
     @Test("Compatibility is direction independent for every port type pair")
