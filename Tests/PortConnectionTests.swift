@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 import Metal
+import simd
 @testable import Fabric
 import Satin
 
@@ -319,6 +320,39 @@ struct PortConnectionTests {
         #expect(!genericArray.canConnect(to: .Float))
         #expect(!genericArray.canConnect(to: .String))
         #expect(!genericArray.canConnect(to: .Virtual))
+    }
+
+    @Test("Color and Vector4 collections connect")
+    func colorAndVector4CollectionsConnect() {
+        let colorArray = PortType.Array(portType: .Color)
+        let vector4Array = PortType.Array(portType: .Vector4)
+        let colorDictionary = PortType.Dictionary(valueType: .Color)
+        let vector4Dictionary = PortType.Dictionary(valueType: .Vector4)
+
+        #expect(colorArray.canConnect(to: vector4Array))
+        #expect(vector4Array.canConnect(to: colorArray))
+        #expect(colorDictionary.canConnect(to: vector4Dictionary))
+        #expect(vector4Dictionary.canConnect(to: colorDictionary))
+        #expect(PortType.Array(portType: colorArray).canConnect(to: .Array(portType: vector4Array)))
+
+        #expect(!colorArray.canConnect(to: .Vector4))
+        #expect(!colorArray.canConnect(to: .Array(portType: .Vector3)))
+        #expect(!colorArray.canConnect(to: vector4Dictionary))
+    }
+
+    @Test("Other scalar conversions do not extend to collections")
+    func otherScalarConversionsDoNotExtendToCollections() {
+        #expect(!PortType.Array(portType: .Bool).canConnect(to: .Array(portType: .Float)))
+        #expect(!PortType.Dictionary(valueType: .Int).canConnect(to: .Dictionary(valueType: .String)))
+    }
+
+    @Test("Color array outlet connects to a plain float4 array inlet")
+    func colorArrayOutletConnectsToPlainFloat4ArrayInlet() {
+        let colorOutlet = ColorArrayNodePort(name: "Array", kind: .Outlet)
+        let colorsInlet = NodePort<ContiguousArray<simd_float4>>(name: "Colors", kind: .Inlet)
+
+        #expect(colorOutlet.canConnect(to: colorsInlet))
+        #expect(colorsInlet.canConnect(to: colorOutlet))
     }
 
     @Test("Generic array virtual inlets reject scalar outlets")
