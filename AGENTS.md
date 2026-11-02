@@ -102,6 +102,7 @@ For all development:
   - Nodes may opt into a QC like ’Settings View’
   - Any Node whose execution logic would change the  type, or number of ports should have only have that logic fire via changing a Setting, NOT at runtime
   - Settings should have a custom Init override, and be exposed as a enum or struct that can be set via the procedural Node / Graph API. This avoids UI only configuration.
+  - A node with settings exposes them as one `NodeSettings` value through `settings` and `apply(_:)`, and offers `init(context:settings:)`. `apply` brings the node, its ports included, to the value; a port whose registry key survives keeps its identity. A subclass takes its own type out of the existential and calls super; a base class reads its part through a protocol on the value, as `StrategySettings` carries the strategy. `Node.encode(to:)` writes the value flattened into the node's own container, under keys that are not `Node.CodingKeys`; `init(from:)` decodes it, before `super.init` where the ports depend on it. State the settings view does not edit, such as a device's reconnect record, stays in `encode(to:)`. A stored property's observer owns its side effects, the port rebuild, `subtitleSubject` and `settingsSubject`, so apply, a setter and a view model's own write all reach them; the model follows the node through `settingsSubject`. The thread contract is on `Node.apply(_:)`.
 
 - Important Node subclasses
   - StrategyNode / TypeAgnosticNode - useful for Nodes that can change their port type on demand
@@ -211,7 +212,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 - [ ] Serialization via registry + UUID
 - [ ] If Node dynamically changes port count or type, we should only trigger via Setting in Settings View, not within the graph
 - [ ] If we have a Settings View, we should have a custom initializer so procedural graph creation has an entry to settings.
-- [ ] If we have a Settings View and a custom initializer, use a custom struct or enum for the settings
+- [ ] A node with settings exposes them as one `NodeSettings` value through `settings` and `apply(_:)`, and offers `init(context:settings:)` (`NodeSettingsTests` checks that every core node applies and gives back its own value with its ports, and saves and opens it unchanged)
 - [ ] If the Node overrides `deriveSubtitle()`, every mutation of the state it derives from fires `subtitleSubject.send()` (StrategyNode’s `strategy` already does)
 - [ ] New Nodes should live in an appropriate spot in the NodeRegistry
 
