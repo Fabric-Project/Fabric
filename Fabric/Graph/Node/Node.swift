@@ -205,6 +205,11 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     /// NodeViewModel subscribes and refreshes its observable title row mirrors.
     internal let subtitleSubject = PassthroughSubject<Void, Never>()
 
+    /// Fires whenever a setting changes, from the observer of the stored
+    /// setting, so apply, a setter and a view model's own write all fire it.
+    /// A settings view's model subscribes on main and reads the node then.
+    internal let settingsSubject = PassthroughSubject<Void, Never>()
+
     // Dirty Handling
     private var inputsAreDirty = true
     /// Nested execution defers cleanup until its enclosing graph finishes. Only nodes that
@@ -289,6 +294,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         try container.encode(self.offset, forKey: .nodeOffset)
         try container.encode(self.registry.encode(), forKey: .ports)
         try container.encodeIfPresent(self.userName, forKey: .userName)
+        try self.settings?.encode(to: encoder)
     }
 
     public required init(context:Context)
@@ -704,6 +710,37 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     }
 
     open var settingsSize:SettingsViewSize { .Small }
+
+    /// The node's settings, nil for a node without. See NodeSettings.
+    open var settings: (any NodeSettings)? { nil }
+
+    /// Brings the node, its ports included, to `settings`. Called by
+    /// init(context:settings:) and setSettings(_:). A port whose registry key
+    /// survives the change keeps its identity. A subclass takes its own type
+    /// out of the existential, treats a value of any other type as no change,
+    /// and calls super with the same value.
+    ///
+    /// Threads: called from main, or from the render thread as a connection
+    /// specialises a strategy node. A node whose settings reach main-thread
+    /// state waits for main, so it is applied only from main. A change fires
+    /// `settingsSubject`, and a settings view's model follows the node through it.
+    open func apply(_ settings: any NodeSettings)
+    {
+    }
+
+    /// Brings the node to `settings` unless it holds them already. A settings
+    /// view and the procedural API call this. A value of another node's
+    /// settings type is no change. A subclass that records the change for undo
+    /// overrides this, not apply(_:), so that an undo registers its redo
+    /// through the same record.
+    open func setSettings(_ settings: any NodeSettings)
+    {
+        guard let current = self.settings,
+              type(of: current) == type(of: settings),
+              !current.isEqual(to: settings)
+        else { return }
+        self.apply(settings)
+    }
 
     // MARK: - Helpers
 
