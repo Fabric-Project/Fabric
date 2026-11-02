@@ -426,6 +426,15 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
         self.graph?.markConnectionsChanged()
         self.portsChangedSubject.send()
+        if p.published { self.publishingGraph?.portDidPublish(p) }
+    }
+
+    /// The graph this node is in, which the node's port edits tell of
+    /// publishing changes. Nil for a decoded node whose graph is named but
+    /// has not added it yet: addNode raises the events for its ports then.
+    internal var publishingGraph: Graph?
+    {
+        self.graph.flatMap { $0.hasMember(self) ? $0 : nil }
     }
 
     /// The key the port is registered under: the declared or dynamic name, where
@@ -437,6 +446,15 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     public func removePort(_ p: Port)
     {
+        self.remove(p, raisingEvents: true)
+    }
+
+    /// Removes `p` from this node. With `raisingEvents` false the caller tells
+    /// the graph itself, as replacePort does through port(_:wasReplacedBy:).
+    private func remove(_ p: Port, raisingEvents: Bool)
+    {
+        let publishingGraph = raisingEvents && p.published ? self.publishingGraph : nil
+        publishingGraph?.portWillUnpublish(p)
         self.portHydrationSession?.relinquish(p)
 
         self.registry.remove(p)
@@ -449,6 +467,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
         self.graph?.markConnectionsChanged()
         self.portsChangedSubject.send()
+        publishingGraph?.rebuildPublishedParameterGroup()
     }
 
     /// Puts `replacement` where `existing` was, under the same registry key,
@@ -459,20 +478,25 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     public func replacePort(_ existing: Port, with replacement: Port)
     {
         let registryName = self.registryKey(of: existing) ?? existing.name
-        let oldConnections = existing.connectedPorts
-        replacement.published = existing.published
-        replacement.publishedName = existing.publishedName
+        let (published, publishedName) = (existing.published, existing.publishedName)
+        replacement.node = self
+        self.graph?.rebindWires(from: existing, to: replacement)
 
-        self.removePort(existing)
+        // port(_:wasReplacedBy:) below moves the proxy, so neither edit here
+        // raises an event: `existing` is removed silently, and `replacement`
+        // registers unpublished whatever it was built with.
+        self.remove(existing, raisingEvents: false)
+        replacement.setPublishing(false, name: publishedName)
         self.addDynamicPort(replacement, name: registryName)
+        // The wires were rebound while `existing` was still the registered port.
+        self.recalculateConnectedNodes()
+        self.updateConnectionTopology()
 
-        for connected in oldConnections where replacement.canConnect(to: connected)
+        // The published name is kept whether or not the port is published.
+        replacement.setPublishing(published, name: publishedName)
+        if published
         {
-            if replacement.kind == .Outlet {
-                self.graph?.connect(replacement, to: connected)
-            } else {
-                self.graph?.connect(connected, to: replacement)
-            }
+            self.publishingGraph?.port(existing, wasReplacedBy: replacement)
         }
     }
 
@@ -546,11 +570,15 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     internal func didConnectToNode(_ node: Node)
     {
-        self.inputNodes = calcInputNodes()
-        self.outputNodes = calcOutputNodes()
+        self.recalculateConnectedNodes()
     }
 
     internal func didDisconnectFromNode(_ node: Node)
+    {
+        self.recalculateConnectedNodes()
+    }
+
+    internal func recalculateConnectedNodes()
     {
         self.inputNodes = calcInputNodes()
         self.outputNodes = calcOutputNodes()

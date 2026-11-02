@@ -242,7 +242,7 @@ import MathExpressionEngine
         let node = MathExpressionNode(context: context, expression: "x + 1")
         let x = try #require(node.findPort(named: "x", as: Fabric.Port.self))
         #expect(x.portType == .Float)
-        x.published = true
+        x.setPublishing(true, name: nil)
 
         node.stringExpression = "in x: vec3; out o = x + vec3(1)"
         let retyped = try #require(node.findPort(named: "x", as: Fabric.Port.self))

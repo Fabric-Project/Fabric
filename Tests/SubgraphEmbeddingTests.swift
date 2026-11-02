@@ -74,9 +74,7 @@ struct SubgraphEmbeddingTests
         #expect(graph.setConnection(internalConnection, active: false))
 
         let originalIncomingPublishedName = "Original Boundary Name"
-        firstMovedNode.inputNumber1.published = false
-        firstMovedNode.inputNumber1.publishedName = originalIncomingPublishedName
-        secondMovedNode.outputNumber.published = false
+        graph.setPublishedName(originalIncomingPublishedName, on: firstMovedNode.inputNumber1)
 
         return Fixture(graph: graph,
                        upstream: upstream,
@@ -105,6 +103,11 @@ struct SubgraphEmbeddingTests
         #expect(deferred.ports.contains { $0 === deferred.inputHeight }, sourceLocation: sourceLocation)
         #expect(deferred.ports.contains { $0 === deferred.outputColorTexture }, sourceLocation: sourceLocation)
         #expect(deferred.ports.contains { $0 === deferred.outputDepthTexture }, sourceLocation: sourceLocation)
+    }
+
+    private func connection(in graph: Graph, from outletID: UUID, to inletID: UUID) -> Connection?
+    {
+        graph.connections.first { $0.outletPortID == outletID && $0.inletPortID == inletID }
     }
 
     private func expectEmbeddedTopology(_ fixture: Fixture,
@@ -285,6 +288,205 @@ struct SubgraphEmbeddingTests
             try expectDeferredPortsRemainIntact(on: decodedContainer)
 
             encodedGraph = try JSONEncoder().encode(decodedGraph)
+        }
+    }
+
+    @Test("A port unpublished and published again by undo has its new proxy take the parent's wire back", arguments: ContainerKind.allCases)
+    func republishedPortTakesParentWireBack(kind: ContainerKind) throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = try makeFixture(context: context)
+        let container = try embed(fixture, as: kind)
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        fixture.graph.undoManager = undoManager
+        container.subGraph.undoManager = undoManager
+
+        let innerPort = fixture.firstMovedNode.inputNumber1
+        // Held across the republish, which keeps the dropped proxy alive: the
+        // wire must come back on the new proxy, not on this live object that
+        // no longer belongs to the node.
+        let originalProxy = try #require(container.ports.first { $0.id == innerPort.id })
+        let incomingConnection = try #require(
+            connection(in: fixture.graph, from: fixture.upstream.outputNumber.id, to: innerPort.id)
+        )
+        #expect(incomingConnection.inletPort === originalProxy)
+
+        undoManager.beginUndoGrouping()
+        container.subGraph.setPublished(false, on: innerPort)
+        undoManager.endUndoGrouping()
+        #expect(!container.ports.contains { $0.id == innerPort.id })
+
+        undoManager.undo()
+
+        let rebuiltProxy = try #require(container.ports.first { $0.id == innerPort.id })
+        #expect(rebuiltProxy !== originalProxy)
+        let wire = try #require(fixture.graph.connections.first { $0.id == incomingConnection.id })
+        #expect(wire.inletPort === rebuiltProxy)
+        #expect(rebuiltProxy.connections.map(\.id) == [wire.id])
+        #expect(originalProxy.connections.isEmpty)
+        #expect(fixture.graph.connections.filter { $0.id == wire.id }.count == 1)
+        undoManager.beginUndoGrouping()
+        #expect(fixture.graph.disconnect(wire))
+        undoManager.endUndoGrouping()
+    }
+
+    @Test("Unpublishing a port takes the parent's wires onto its proxy with it", arguments: ContainerKind.allCases)
+    func unpublishingTakesTheParentWires(kind: ContainerKind) throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = try makeFixture(context: context)
+        let container = try embed(fixture, as: kind)
+
+        let innerPort = fixture.firstMovedNode.inputNumber1
+        let proxy = try #require(container.ports.first { $0.id == innerPort.id })
+        let incomingConnection = try #require(
+            connection(in: fixture.graph, from: fixture.upstream.outputNumber.id, to: innerPort.id)
+        )
+        #expect(incomingConnection.inletPort === proxy)
+
+        container.subGraph.setPublished(false, on: innerPort)
+
+        // The proxy has gone, and so has the wire that named it: not left in
+        // the graph, not left on the port at the other end.
+        #expect(!container.ports.contains { $0.id == innerPort.id })
+        #expect(!fixture.graph.connections.contains { $0.id == incomingConnection.id })
+        #expect(fixture.upstream.outputNumber.connections.isEmpty)
+        #expect(innerPort.published == false)
+        #expect(innerPort.publishedName == nil)
+
+        // Publishing again brings a proxy back, with nothing wired to it.
+        container.subGraph.setPublished(true, on: innerPort)
+        let rebuilt = try #require(container.ports.first { $0.id == innerPort.id })
+        #expect(rebuilt.connections.isEmpty)
+    }
+
+    // MARK: - Inside a sub graph
+
+    /// `movedNode` and `neighbour` in the sub graph of `owner`, in `graph`,
+    /// with an undo manager for a test to give both levels once its fixture
+    /// is built, as the canvas gives each graph it shows.
+    private struct NestedFixture
+    {
+        let graph: Graph
+        let owner: SubgraphNode
+        let neighbour: NumberBinaryOperator
+        let movedNode: NumberBinaryOperator
+        let undoManager: UndoManager
+
+        var innerGraph: Graph { owner.subGraph }
+
+        func recordEdits()
+        {
+            graph.undoManager = undoManager
+            innerGraph.undoManager = undoManager
+        }
+
+        func embed(as kind: ContainerKind) throws -> SubgraphNode
+        {
+            undoManager.beginUndoGrouping()
+            defer { undoManager.endUndoGrouping() }
+            return try innerGraph.createSubgraph(from: [movedNode],
+                                                 centeredOn: movedNode,
+                                                 usingClass: kind.nodeClass)
+        }
+    }
+
+    private func makeNestedFixture(context: Context) -> NestedFixture
+    {
+        let graph = Graph(context: context)
+        let owner = SubgraphNode(context: context)
+        let neighbour = NumberBinaryOperator(context: context)
+        let movedNode = NumberBinaryOperator(context: context)
+        graph.addNode(owner)
+        owner.subGraph.addNode(neighbour)
+        owner.subGraph.addNode(movedNode)
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        return NestedFixture(graph: graph,
+                             owner: owner,
+                             neighbour: neighbour,
+                             movedNode: movedNode,
+                             undoManager: undoManager)
+    }
+
+    @Test("Undoing Create Subgraph inside a sub graph leaves an unpublished boundary port unpublished, with no proxy above", arguments: ContainerKind.allCases)
+    func nestedUndoLeavesBoundaryPortUnpublished(kind: ContainerKind) throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = makeNestedFixture(context: context)
+        let boundaryPort = fixture.movedNode.inputNumber1
+        _ = try #require(fixture.innerGraph.connect(fixture.neighbour.outputNumber, to: boundaryPort))
+        fixture.recordEdits()
+
+        let container = try fixture.embed(as: kind)
+        #expect(boundaryPort.published)
+        #expect(boundaryPort.node?.graph === container.subGraph)
+        #expect(!fixture.owner.ports.contains { $0.id == boundaryPort.id })
+
+        fixture.undoManager.undo()
+        #expect(fixture.movedNode.graph === fixture.innerGraph)
+        #expect(!boundaryPort.published)
+        #expect(fixture.innerGraph.getPublishedPorts().isEmpty)
+        #expect(fixture.innerGraph.publishedParameterGroup.params.isEmpty)
+        #expect(!fixture.owner.ports.contains { $0.id == boundaryPort.id })
+        #expect(boundaryPort.connectedPorts.map(\.id) == [fixture.neighbour.outputNumber.id])
+
+        fixture.undoManager.redo()
+        #expect(boundaryPort.published)
+        #expect(boundaryPort.node?.graph === container.subGraph)
+        #expect(!fixture.owner.ports.contains { $0.id == boundaryPort.id })
+
+        fixture.undoManager.undo()
+        withKnownIssue("Redoing Create Subgraph records no inverse, so it cannot be undone again; needs the edit context to record the embedding's inverse", isIntermittent: false)
+        {
+            #expect(fixture.movedNode.graph === fixture.innerGraph)
+            #expect(!boundaryPort.published)
+            #expect(boundaryPort.connectedPorts.map(\.id) == [fixture.neighbour.outputNumber.id])
+        }
+        #expect(!fixture.owner.ports.contains { $0.id == boundaryPort.id })
+    }
+
+    @Test("Undoing Create Subgraph inside a sub graph puts back the wire and publishing on a moved port's proxy above", arguments: ContainerKind.allCases)
+    func nestedUndoRestoresTheProxyAbove(kind: ContainerKind) throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = makeNestedFixture(context: context)
+        let port = fixture.movedNode.outputNumber
+        fixture.innerGraph.setPublished(true, on: port)
+        let proxy = try #require(fixture.owner.ports.first { $0.id == port.id })
+        let downstream = NumberBinaryOperator(context: context)
+        fixture.graph.addNode(downstream)
+        let wire = try #require(fixture.graph.connect(proxy, to: downstream.inputNumber1))
+        fixture.graph.setPublished(true, on: proxy)
+        fixture.graph.setPublishedName("Result", on: proxy)
+        fixture.recordEdits()
+
+        _ = try fixture.embed(as: kind)
+        #expect(!fixture.owner.ports.contains { $0.id == port.id })
+        #expect(fixture.graph.connections.isEmpty)
+        #expect(fixture.graph.getPublishedPorts().isEmpty)
+
+        fixture.undoManager.undo()
+        let restored = try #require(fixture.owner.ports.first { $0.id == port.id })
+        #expect((restored as? any ProxyPortProtocol)?.wraps(port) == true)
+        withKnownIssue("Create Subgraph tears down the proxy above with undo registration off; needs the edit context's transaction to restore it", isIntermittent: false)
+        {
+            #expect(fixture.graph.connections.map(\.id) == [wire.id])
+            #expect(downstream.inputNumber1.connections.first?.outletPort === restored)
+            #expect(restored.published)
+            #expect(restored.publishedName == "Result")
+        }
+
+        fixture.undoManager.redo()
+        #expect(!fixture.owner.ports.contains { $0.id == port.id })
+        #expect(fixture.graph.connections.isEmpty)
+        #expect(fixture.graph.getPublishedPorts().isEmpty)
+
+        fixture.undoManager.undo()
+        withKnownIssue("Redoing Create Subgraph records no inverse, so it cannot be undone again; needs the edit context to record the embedding's inverse", isIntermittent: false)
+        {
+            #expect(fixture.owner.ports.contains { $0.id == port.id })
         }
     }
 }

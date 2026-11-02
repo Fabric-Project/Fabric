@@ -298,9 +298,8 @@ extension DeferredGPUResultTests {
         let harness = try #require(GraphExecutionTestHarness())
         let graph = Graph(context: harness.context)
         let probe = DeferredProcessorProbe(context: harness.context)
-        probe.output.published = true
         graph.addNode(probe)
-        graph.rebuildPublishedParameterGroup()
+        graph.setPublished(true, on: probe.output)
         let renderer = harness.graphRenderer(for: graph)
         try renderer.startExecution()
         try execute(renderer, graph: graph, harness: harness, frame: 0)
@@ -561,9 +560,8 @@ extension DeferredGPUResultTests {
     private func publishedSynchronousProbe(_ harness: GraphExecutionTestHarness) -> (Graph, DeferredSynchronousProbe) {
         let graph = Graph(context: harness.context)
         let probe = DeferredSynchronousProbe(context: harness.context)
-        probe.output.published = true
         graph.addNode(probe)
-        graph.rebuildPublishedParameterGroup()
+        graph.setPublished(true, on: probe.output)
         return (graph, probe)
     }
 

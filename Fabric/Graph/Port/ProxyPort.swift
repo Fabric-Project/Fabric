@@ -13,6 +13,14 @@ import Satin
 protocol ProxyPortProtocol
 {
     var innerPortID: UUID { get }
+    /// Whether `port` is the port this proxy forwards to. A port that
+    /// replaced it under the same id is not.
+    func wraps(_ port: Port) -> Bool
+    /// Makes this proxy forward to `port`, which replaced its inner port,
+    /// taking `port`'s type, description, parameter and value. Returns false,
+    /// leaving the proxy as it was, if `port` is of another value type or
+    /// kind, or has another name.
+    func retarget(to port: Port) -> Bool
     func forwardFromInner(force:Bool)
 }
 
@@ -32,12 +40,35 @@ protocol ProxyPortProtocol
 ///   to the proxy's parent graph connections.
 public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPortProtocol
 {
-    private let innerPort: NodePort<Value>
-    private let declaredPortType: PortType?
+    private var innerPort: NodePort<Value>
+    private var declaredPortType: PortType?
     /// Set while this proxy and its inner port copy a value across, so neither echoes it back.
     private var isSyncingWithInnerPort = false
 
     public var innerPortID: UUID { innerPort.id }
+
+    func wraps(_ port: Port) -> Bool { port === innerPort }
+
+    func retarget(to port: Port) -> Bool
+    {
+        // Port.name is set at init, so a proxy over a port of another name is
+        // remade instead; see SubgraphNode.innerPort(_:wasReplacedBy:).
+        guard let typed = port as? NodePort<Value>,
+              typed.kind == self.kind,
+              typed.name == self.name
+        else { return false }
+        if self.innerPort.publishingProxyIdentifier == ObjectIdentifier(self)
+        {
+            self.innerPort.publishingProxy = nil
+        }
+        self.innerPort = typed
+        self.declaredPortType = typed.portType
+        self.portDescription = typed.portDescription
+        self.parameter = typed.parameter
+        typed.publishingProxy = self
+        self.mirrorInnerValue(typed.value)
+        return true
+    }
 
     @ObservationIgnored override public var portType: PortType { declaredPortType ?? super.portType }
 
@@ -67,8 +98,7 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
         self.parameter = innerPort.parameter
         self.value = innerPort.value
         innerPort.publishingProxy = self
-        self.published = published
-        self.publishedName = publishedName
+        self.setPublishing(published, name: publishedName)
     }
 
     required public init(from decoder: any Decoder) throws

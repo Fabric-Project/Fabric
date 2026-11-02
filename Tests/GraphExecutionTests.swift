@@ -6,8 +6,7 @@ import CoreImage
 import Satin
 
 private func publish(_ port: Fabric.Port, in graph: Graph) {
-    port.published = true
-    graph.rebuildPublishedParameterGroup()
+    graph.setPublished(true, on: port)
 }
 
 private func floatPort(named name: String, kind: PortKind, on node: Node) throws -> NodePort<Float> {
@@ -894,9 +893,8 @@ struct GraphExecutionTests {
         graph.addNode(subgraphNode)
 
         subgraphNode.subGraph.addNode(innerAdd)
-        innerAdd.inputNumber1.published = true
-        innerAdd.outputNumber.published = true
-        subgraphNode.subGraph.rebuildPublishedParameterGroup()
+        subgraphNode.subGraph.setPublished(true, on: innerAdd.inputNumber1)
+        subgraphNode.subGraph.setPublished(true, on: innerAdd.outputNumber)
 
         let proxyInput = try floatPort(named: "Number A", kind: .Inlet, on: subgraphNode)
         let proxyOutput = try floatPort(named: "Number", kind: .Outlet, on: subgraphNode)
@@ -922,8 +920,7 @@ struct GraphExecutionTests {
         let innerNode = RecursiveArrayDictionaryPortNode(context: harness.context)
 
         subgraphNode.subGraph.addNode(innerNode)
-        innerNode.port(named: "output").published = true
-        subgraphNode.subGraph.rebuildPublishedParameterGroup()
+        subgraphNode.subGraph.setPublished(true, on: innerNode.port(named: "output"))
 
         guard let proxyPort = subgraphNode.ports.first(where: { $0.name == "Recursive" && $0.kind == .Outlet }) else {
             throw GraphExecutionTestFailure("Missing recursive collection proxy port")
@@ -945,10 +942,9 @@ struct GraphExecutionTests {
 
         iterator.inputIteratonCount.value = 4
 
-        iteratorInfo.outputIndex.published = true
-        iteratorInfo.outputIterationCount.published = true
-        iteratorInfo.outputProgress.published = true
-        iterator.subGraph.rebuildPublishedParameterGroup()
+        iterator.subGraph.setPublished(true, on: iteratorInfo.outputIndex)
+        iterator.subGraph.setPublished(true, on: iteratorInfo.outputIterationCount)
+        iterator.subGraph.setPublished(true, on: iteratorInfo.outputProgress)
 
         let indexProxy = try intPort(named: "Current Iteration", kind: .Outlet, on: iterator)
         let countProxy = try intPort(named: "Number of Iterations", kind: .Outlet, on: iterator)
@@ -991,7 +987,7 @@ struct GraphExecutionTests {
         graph.addNode(deferred)
 
         // Render to Image only produces secondary outputs something uses.
-        deferred.outputDepthTexture.published = true
+        graph.setPublished(true, on: deferred.outputDepthTexture)
         let context = harness.makeExecutionContext(time: 500, deltaTime: 0, frameNumber: 0)
 
         try harness.graphRenderer(for: graph).startExecution()
@@ -1060,7 +1056,7 @@ struct GraphExecutionTests {
         graph.addNode(deferred)
 
         // Render to Image only produces secondary outputs something uses.
-        for name in ["Albedo Texture", "Normals Texture", "PBR Texture", "Velocity Texture", "Emissive Texture"] { try imagePort(named: name, kind: .Outlet, on: deferred).published = true }
+        for name in ["Albedo Texture", "Normals Texture", "PBR Texture", "Velocity Texture", "Emissive Texture"] { graph.setPublished(true, on: try imagePort(named: name, kind: .Outlet, on: deferred)) }
         let context = harness.makeExecutionContext(time: 550, deltaTime: 0, frameNumber: 0)
 
         try harness.graphRenderer(for: graph).startExecution()
@@ -1168,9 +1164,8 @@ struct GraphExecutionTests {
         graph.addNode(subgraphNode)
 
         subgraphNode.subGraph.addNode(innerAdd)
-        innerAdd.inputNumber1.published = true
-        innerAdd.outputNumber.published = true
-        subgraphNode.subGraph.rebuildPublishedParameterGroup()
+        subgraphNode.subGraph.setPublished(true, on: innerAdd.inputNumber1)
+        subgraphNode.subGraph.setPublished(true, on: innerAdd.outputNumber)
 
         let proxyInput = try floatPort(named: "Number A", kind: .Inlet, on: subgraphNode)
         let proxyOutput = try floatPort(named: "Number", kind: .Outlet, on: subgraphNode)
@@ -1218,17 +1213,15 @@ struct GraphExecutionTests {
         graph.addNode(outerSubgraph)
 
         innerSubgraph.subGraph.addNode(innerAdd)
-        innerAdd.inputNumber1.published = true
-        innerAdd.outputNumber.published = true
-        innerSubgraph.subGraph.rebuildPublishedParameterGroup()
+        innerSubgraph.subGraph.setPublished(true, on: innerAdd.inputNumber1)
+        innerSubgraph.subGraph.setPublished(true, on: innerAdd.outputNumber)
 
         let innerProxyInput = try floatPort(named: "Number A", kind: .Inlet, on: innerSubgraph)
         let innerProxyOutput = try floatPort(named: "Number", kind: .Outlet, on: innerSubgraph)
-        innerProxyInput.published = true
-        innerProxyOutput.published = true
 
         outerSubgraph.subGraph.addNode(innerSubgraph)
-        outerSubgraph.subGraph.rebuildPublishedParameterGroup()
+        outerSubgraph.subGraph.setPublished(true, on: innerProxyInput)
+        outerSubgraph.subGraph.setPublished(true, on: innerProxyOutput)
 
         let outerProxyInput = try floatPort(named: "Number A", kind: .Inlet, on: outerSubgraph)
         let outerProxyOutput = try floatPort(named: "Number", kind: .Outlet, on: outerSubgraph)
@@ -1300,7 +1293,7 @@ struct GraphExecutionTests {
         #expect(decodedDeferred.inputHeight.value == 24)
         #expect(decodedDeferred.subGraph.nodes.compactMap { $0 as? MeshNode }.count == 1)
 
-        decodedDeferred.outputDepthTexture.published = true
+        decodedGraph.setPublished(true, on: decodedDeferred.outputDepthTexture)
         let context = harness.makeExecutionContext(time: 800, deltaTime: 0, frameNumber: 0)
 
         try harness.graphRenderer(for: decodedGraph).startExecution()
@@ -1352,7 +1345,7 @@ struct GraphExecutionTests {
         _ = try imagePort(named: "Velocity Texture", kind: .Outlet, on: decodedDeferred)
         _ = try imagePort(named: "Emissive Texture", kind: .Outlet, on: decodedDeferred)
 
-        for name in ["Albedo Texture", "Normals Texture", "PBR Texture", "Velocity Texture", "Emissive Texture"] { try imagePort(named: name, kind: .Outlet, on: decodedDeferred).published = true }
+        for name in ["Albedo Texture", "Normals Texture", "PBR Texture", "Velocity Texture", "Emissive Texture"] { decodedGraph.setPublished(true, on: try imagePort(named: name, kind: .Outlet, on: decodedDeferred)) }
         let context = harness.makeExecutionContext(time: 850, deltaTime: 0, frameNumber: 0)
 
         try harness.graphRenderer(for: decodedGraph).startExecution()

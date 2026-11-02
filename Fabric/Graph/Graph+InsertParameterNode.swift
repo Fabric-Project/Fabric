@@ -5,10 +5,11 @@
 
 import Foundation
 
-extension Graph {
-
+extension Graph
+{
     /// Insert a parameter node adjacent to the given port, connect it,
-    /// and transfer any published state.
+    /// and move the port's publishing to the parameter node's port; see
+    /// transferPublishing(from:to:).
     ///
     /// For an **inlet**: the parameter node is placed to the left.
     /// Existing upstream connections move to the parameter node's input;
@@ -48,18 +49,8 @@ extension Graph {
 
             let existingConnections = port.connectedPorts
 
-            // Transfer published state to the parameter node's input (or outlet if no input)
-            if port.published
-            {
-                port.published = false
-                let savedName = port.publishedName
-                port.publishedName = nil
-
-                paramInlet.published = true
-                paramInlet.publishedName = savedName
-            }
-
             self.addNode(paramNode)
+            self.transferPublishing(from: port, to: paramInlet)
             paramInlet.restoreValue(from: port.snapshotValue())
 
             // Connecting the parameter outlet replaces the original inlet
@@ -77,18 +68,8 @@ extension Graph {
 
             let existingConnections = port.connectedPorts
 
-            // Transfer published state to the parameter node's outlet (or input if no outlet)
-            if port.published
-            {
-                port.published = false
-                let savedName = port.publishedName
-                port.publishedName = nil
-
-                paramOutlet.published = true
-                paramOutlet.publishedName = savedName
-            }
-
             self.addNode(paramNode)
+            self.transferPublishing(from: port, to: paramOutlet)
             paramInlet.restoreValue(from: port.snapshotValue())
 
             // Preserve the original outlet first, then replace each downstream
@@ -99,7 +80,27 @@ extension Graph {
             }
 
         }
+    }
 
-        self.rebuildPublishedParameterGroup()
+    /// Moves `port`'s publishing to `replacement`, a port of the same kind and
+    /// type. `replacement` may be published already; it keeps its own published
+    /// name and wires, and takes `port`'s published name only if it has none.
+    /// The sub graph node around this graph moves the wires on `port`'s proxy
+    /// to `replacement`'s proxy where they displace nothing (see
+    /// transferWires(from:to:)), then moves the proxy's publishing the same
+    /// way, so the hand-over repeats at each level. Each level registers undo
+    /// on its own graph's undo manager, so the chain is one undo action only
+    /// where the levels share one.
+    internal func transferPublishing(from port: Port, to replacement: Port)
+    {
+        guard port.published else { return }
+        let replacementHasName = replacement.publishedName != nil
+        self.setPublished(true, on: replacement)
+        if !replacementHasName, let name = port.publishedName
+        {
+            self.setPublishedName(name, on: replacement)
+        }
+        self.ownerNode?.innerPort(port, handsOverTo: replacement)
+        self.setPublished(false, on: port)
     }
 }

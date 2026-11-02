@@ -89,9 +89,22 @@ extension UTType
 
     public var portDescription: String = ""
 
-    public var published: Bool = false
+    /// Changed through Graph.setPublished and setPublishedName, which tell
+    /// the sub graph node around the graph; see setPublishing(_:name:).
+    public private(set) var published: Bool = false
 
-    public var publishedName: String? = nil
+    public private(set) var publishedName: String? = nil
+
+    /// Writes the flag and name without an event. Free on a port no graph has
+    /// to hear of: one being built, decoded or hydrated before it registers,
+    /// or a proxy its sub graph node makes. On a port of a node in a graph,
+    /// only inside Graph's own publishing paths, or where the same operation
+    /// tells the graph through port(_:wasReplacedBy:) or portsWillUnpublish.
+    internal func setPublishing(_ published: Bool, name: String?)
+    {
+        self.published = published
+        self.publishedName = name
+    }
 
     // Kind of lame, but necessary to avoid some type based bullshit.
     // TODO: Figure out a way to hide setting this (seems not good)
