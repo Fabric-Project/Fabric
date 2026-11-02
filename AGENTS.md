@@ -123,10 +123,12 @@ For all development:
 - Maintain bi-directional sync: parameter ↔ port.
 - Parameter changes mark dirty only; heavy work deferred to `execute`.
 - Published parameter surface mirrors published ports; inlets auto-unpublish on connect.
+- A port's publishing changes through `Graph.setPublished` and `setPublishedName` only. `Port.published` and `publishedName` are read-only outside Fabric. Inside it, `setPublishing(_:name:)` writes the flag and name without an event. That is free on a port no graph has to hear of: one being built, decoded or hydrated, or a proxy its subgraph node makes. On a port of a node in a graph it is allowed only inside `Graph`'s own publishing paths, or where the same operation tells the graph through `port(_:wasReplacedBy:)` or `portsWillUnpublish`.
 
 ### 2.4  Graph, Subgraphs & Rendering
 - Graph owns nodes, connections (by port UUID), and published params.
 - **Subgraphs** inherit `BaseObjectNode`, expose an Satin object.
+- A `SubgraphNode` owns the proxies standing for its sub graph's published ports, and the sub graph tells it of each change through events: `portDidPublish` and `portWillUnpublish`, the batched `portsDidPublish` and `portsWillUnpublish` that `addNode` and `delete(node:)` raise for a node's published ports, `port(_:wasReplacedBy:)` from `Node.replacePort`, and `portDidRename`. The events keep the proxies true to the published set: they are synchronous, and raised whether or not undo registration is on. They are not an undo record; what a reaction does through the graph's API registers undo as that API does. A hand-over, `innerPort(_:handsOverTo:)`, moves one proxy's wires and publishing to another through the graph's own connect, disconnect and publish methods. A proxy published further up is an ordinary published port of the graph it is in, so each level follows through the same events.
 - `GraphRenderer` handles traversal, caching, single-execute per frame, resize propagation. 
 - `GraphRenderer` handles discovery of cameras (only one supported now), and if none are found, leverages its own cached camera.
 - `GraphRenderer`’s default camera is set up for the default QC coordinate system.
