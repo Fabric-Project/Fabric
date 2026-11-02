@@ -10,6 +10,25 @@ import SwiftUI
 let routingNodeMinimumRouteCount = 2
 let routingNodeMaximumRouteCount = 16
 
+/// The settings of a routing node: the value type its routes carry, as the
+/// strategy, and how many routes it has.
+public struct RoutingSettings: StrategySettings
+{
+    public var strategy: String
+    public var routeCount: Int
+
+    public init(strategy: String, routeCount: Int)
+    {
+        self.strategy = strategy
+        self.routeCount = routeCount
+    }
+
+    public init(portType: PortType, routeCount: Int)
+    {
+        self.init(strategy: portType.rawValue, routeCount: routeCount)
+    }
+}
+
 /// Shared base for the routing / switching node family (Switch, Gate, Matrix
 /// Switch). Owns the route count, the value-type strategy (the Type picker), the
 /// settings pane, and the dynamic-port helpers. It deliberately holds no notion of
@@ -17,11 +36,17 @@ let routingNodeMaximumRouteCount = 16
 /// Switch/Gate ([[RoutingNode]]), an index map for Matrix Switch.
 public class RoutingNodeBase: TypeAgnosticNode
 {
-    /// Mutable only through setRouteCount(_:), which clamps, guards against
-    /// no-op assignments, and rebuilds the dynamic ports. Init/decode paths
-    /// assign the stored value directly because their port rebuild happens in
-    /// StrategyNode's initializer.
+    /// Changed by apply(_:), through setRouteCount(_:) or setSettings(_:).
+    /// Init/decode paths assign the stored value directly because their port
+    /// rebuild happens in StrategyNode's initializer.
     public private(set) var routeCount: Int = routingNodeMinimumRouteCount
+    {
+        didSet
+        {
+            guard oldValue != routeCount else { return }
+            settingsSubject.send()
+        }
+    }
 
     private enum RoutingCodingKeys: String, CodingKey
     {
@@ -33,10 +58,22 @@ public class RoutingNodeBase: TypeAgnosticNode
         super.init(context: context)
     }
 
-    public init(context: Context, routeCount: Int, portType: PortType)
+    /// Takes any strategy string, as apply(_:) does, so a node built from a
+    /// settings value matches a fresh node the value is applied to.
+    public init(context: Context, routeCount: Int, initialStrategy: String)
     {
         self.routeCount = Self.clampedRouteCount(routeCount)
-        super.init(context: context, initialStrategy: portType.rawValue)
+        super.init(context: context, initialStrategy: initialStrategy)
+    }
+
+    public convenience init(context: Context, routeCount: Int, portType: PortType)
+    {
+        self.init(context: context, routeCount: routeCount, initialStrategy: portType.rawValue)
+    }
+
+    public convenience init(context: Context, settings: RoutingSettings)
+    {
+        self.init(context: context, routeCount: settings.routeCount, initialStrategy: settings.strategy)
     }
 
     public required init(from decoder: any Decoder) throws
@@ -54,27 +91,25 @@ public class RoutingNodeBase: TypeAgnosticNode
         try super.init(from: decoder)
     }
 
-    public override func encode(to encoder: Encoder) throws
-    {
-        try super.encode(to: encoder)
+    override public var settings: (any NodeSettings)? { RoutingSettings(strategy: strategy, routeCount: routeCount) }
 
-        var container = encoder.container(keyedBy: RoutingCodingKeys.self)
-        try container.encode(routeCount, forKey: .routeCount)
+    override public func apply(_ settings: any NodeSettings)
+    {
+        guard let settings = settings as? RoutingSettings else { return }
+        routeCount = Self.clampedRouteCount(settings.routeCount)
+        super.apply(settings)
     }
 
+    /// Changes the route count and keeps the type.
     public func setRouteCount(_ count: Int)
     {
-        let clamped = Self.clampedRouteCount(count)
-        guard clamped != routeCount else { return }
-        routeCount = clamped
-        rebuildPorts(forStrategy: strategy)
+        setSettings(RoutingSettings(strategy: strategy, routeCount: Self.clampedRouteCount(count)))
     }
 
+    /// Changes the type and keeps the route count.
     public func setPortType(_ portType: PortType)
     {
-        let rawValue = portType.rawValue
-        guard rawValue != strategy else { return }
-        strategy = rawValue
+        setStrategy(portType.rawValue)
     }
 
     override public var settingsSize: SettingsViewSize { .Small }
@@ -133,9 +168,9 @@ public class RoutingNode: RoutingNodeBase
         updateIndexRange()
     }
 
-    public override init(context: Context, routeCount: Int, portType: PortType)
+    public override init(context: Context, routeCount: Int, initialStrategy: String)
     {
-        super.init(context: context, routeCount: routeCount, portType: portType)
+        super.init(context: context, routeCount: routeCount, initialStrategy: initialStrategy)
         updateIndexRange()
     }
 

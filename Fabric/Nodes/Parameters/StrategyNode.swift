@@ -16,6 +16,7 @@ import Foundation
 import Satin
 import Metal
 import SwiftUI
+import Combine
 
 // MARK: - NodeStrategyOption
 
@@ -90,6 +91,32 @@ public enum VectorType: NodeStrategyOption, CaseIterable {
     }
 }
 
+// MARK: - Settings
+
+/// The settings of a StrategyNode and of every subclass, which carry the
+/// strategy whatever else they hold: the base class reads and writes its part
+/// without knowing the leaf's type.
+public protocol StrategySettings: NodeSettings
+{
+    var strategy: String { get set }
+}
+
+/// The settings of a StrategyNode with nothing to set but its strategy.
+public struct StrategyNodeSettings: StrategySettings
+{
+    public var strategy: String
+
+    public init(strategy: String)
+    {
+        self.strategy = strategy
+    }
+
+    public init(strategy: some NodeStrategyOption)
+    {
+        self.strategy = strategy.rawValue
+    }
+}
+
 // MARK: - StrategyNode
 
 /// Open so plugins can define strategy nodes: subclass, override `strategyOptions`, and
@@ -144,32 +171,8 @@ open class StrategyNode: Node
     private var resolvedStrategyRawValue: String?
     private var resolvedStrategyOption: (any NodeStrategyOption)?
 
-    var strategy: String
-    {
-        didSet
-        {
-            guard oldValue != strategy else { return }
-            let previousStrategy = oldValue
-
-            if let graph
-            {
-                graph.withoutUndoRegistration {
-                    self.rebuildPorts(forStrategy: strategy)
-                }
-                graph.undoManager?.registerUndo(withTarget: self) { node in
-                    node.strategy = previousStrategy
-                }
-                graph.undoManager?.setActionName("Change Node Strategy")
-            }
-            else
-            {
-                self.rebuildPorts(forStrategy: strategy)
-            }
-
-            // `subtitle` is derived from `strategy`; notify so the title refreshes.
-            self.subtitleSubject.send()
-        }
-    }
+    /// Changed by apply(_:), through setStrategy(_:) or setSettings(_:).
+    private(set) var strategy: String
 
     private enum StrategyCodingKeys: String, CodingKey
     {
@@ -181,8 +184,6 @@ open class StrategyNode: Node
         let container = try decoder.container(keyedBy: StrategyCodingKeys.self)
         let decoded = try container.decodeIfPresent(String.self, forKey: .strategy)
 
-        // Initializing assignment — didSet does not fire here, matching the
-        // plain-creation path (ports are (re)built by rebuildPorts below).
         self.strategy = decoded ?? Self.defaultStrategy
 
         try super.init(from: decoder)
@@ -192,12 +193,72 @@ open class StrategyNode: Node
         self.rebuildPorts(forStrategy: self.strategy)
     }
 
-    open override func encode(to encoder: Encoder) throws
-    {
-        try super.encode(to: encoder)
+    override open var settings: (any NodeSettings)? { StrategyNodeSettings(strategy: self.strategy) }
 
-        var container = encoder.container(keyedBy: StrategyCodingKeys.self)
-        try container.encode(self.strategy, forKey: .strategy)
+    override open func apply(_ settings: any NodeSettings)
+    {
+        guard let settings = settings as? any StrategySettings,
+              let current = self.settings,
+              type(of: current) == type(of: settings)
+        else { return }
+        let changed = settings.strategy != self.strategy
+        self.strategy = settings.strategy
+        if changed, let graph
+        {
+            // A replaced port remakes its connections, so the rebuild registers
+            // nothing of its own; setSettings records the strategy step.
+            graph.withoutUndoRegistration {
+                self.rebuildPorts(forStrategy: self.strategy)
+            }
+        }
+        else
+        {
+            self.rebuildPorts(forStrategy: self.strategy)
+        }
+        super.apply(settings)
+        guard changed else { return }
+        // `subtitle` is derived from `strategy`; notify so the title refreshes.
+        self.subtitleSubject.send()
+        self.settingsSubject.send()
+    }
+
+    /// A change of strategy in a graph is an undo step that puts back the
+    /// strategy and nothing else in the settings.
+    override open func setSettings(_ settings: any NodeSettings)
+    {
+        guard let graph,
+              let current = self.settings as? any StrategySettings,
+              type(of: current) == type(of: settings),
+              let after = settings as? any StrategySettings,
+              current.strategy != after.strategy
+        else
+        {
+            super.setSettings(settings)
+            return
+        }
+
+        let previousStrategy = current.strategy
+        super.setSettings(settings)
+        graph.undoManager?.registerUndo(withTarget: self) { node in
+            node.setStrategy(previousStrategy)
+        }
+        graph.undoManager?.setActionName("Change Node Strategy")
+    }
+
+    /// Changes the strategy and keeps the rest of the node's settings. The
+    /// strategy picker writes through this, as does a connection specialising
+    /// the node.
+    public func setStrategy(_ strategy: String)
+    {
+        guard var settings = self.settings as? any StrategySettings else { return }
+        guard settings.strategy != strategy else { return }
+        settings.strategy = strategy
+        self.setSettings(settings)
+    }
+
+    public func setStrategy(_ strategy: some NodeStrategyOption)
+    {
+        self.setStrategy(strategy.rawValue)
     }
 
     public required init(context: Context)
@@ -208,7 +269,6 @@ open class StrategyNode: Node
     }
 
     /// Designated init for programmatic construction with a specific initial strategy.
-    /// Sets strategy before super.init so didSet never fires, then calls rebuildPorts exactly once.
     public init(context: Context, initialStrategy: String)
     {
         self.strategy = initialStrategy
@@ -222,6 +282,11 @@ open class StrategyNode: Node
         self.init(context: context, initialStrategy: strategy.rawValue)
     }
 
+    public convenience init(context: Context, settings: StrategyNodeSettings)
+    {
+        self.init(context: context, initialStrategy: settings.strategy)
+    }
+
     override open func providesSettingsView() -> Bool { true }
 
     override open var settingsSize: SettingsViewSize { .Mini }
@@ -233,7 +298,13 @@ open class StrategyNode: Node
 
     /// Shared settings model behind the strategy picker; composite settings
     /// views (e.g. the routing nodes') reuse it to embed StrategyPickerView.
-    public var strategySettingsModel: SettingsModel { _settingsModel }
+    public var strategySettingsModel: SettingsModel
+    {
+        if let model = _settingsModelStorage { return model }
+        let model = SettingsModel(node: self)
+        _settingsModelStorage = model
+        return model
+    }
 
     /// Subclasses: diff current dynamic ports against the wanted set for
     /// `strategy` (removePort for anything dynamic no longer wanted,
@@ -284,10 +355,11 @@ open class StrategyNode: Node
             didSet
             {
                 guard strategy != node?.strategy else { return }
-                node?.strategy = strategy
+                node?.setStrategy(strategy)
             }
         }
         private weak var node: StrategyNode?
+        @ObservationIgnored private var subscription: AnyCancellable?
 
         init(node: StrategyNode)
         {
@@ -295,10 +367,20 @@ open class StrategyNode: Node
             self.strategies = type(of: node).strategies
             self.separatorAfterFirst = type(of: node).separatorAfterFirstStrategy
             self.strategy = node.strategy
+            self.subscription = node.settingsSubject
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] in self?.followNode() }
+        }
+
+        private func followNode()
+        {
+            guard let node, strategy != node.strategy else { return }
+            strategy = node.strategy
         }
     }
 
-    private lazy var _settingsModel = SettingsModel(node: self)
+    /// Nil until a settings view asks for it.
+    private var _settingsModelStorage: SettingsModel?
 }
 
 public struct StrategyPickerView: View
