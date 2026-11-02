@@ -11,6 +11,7 @@ import SwiftUI
 import Satin
 import simd
 import Metal
+import Combine
 
 extension KeyEquivalent
 {
@@ -56,7 +57,7 @@ extension EventModifiers
 // MARK: - Codable Key Binding
 
 /// A Codable representation of a key binding since KeyPress is not Codable
-public struct KeyBinding: Codable, Equatable
+public struct KeyBinding: Codable, Equatable, Sendable
 {
     public let characters: String
     public let keyDescription: String
@@ -147,6 +148,18 @@ struct KeyboardNodeView : View
     }
 }
 
+/// The settings of a Keyboard node: its key bindings, one output each. A
+/// slot not yet bound is nil.
+public struct KeyboardSettings: NodeSettings
+{
+    public var keyBindings: [KeyBinding?]
+
+    public init(keyBindings: [KeyBinding?])
+    {
+        self.keyBindings = keyBindings
+    }
+}
+
 public class KeyboardNode : Node
 {
     override public class var name: String { "Keyboard" }
@@ -173,12 +186,13 @@ public class KeyboardNode : Node
         self.rebuildPorts()
     }
 
-    public override func encode(to encoder: Encoder) throws
-    {
-        try super.encode(to: encoder)
+    override public var settings: (any NodeSettings)? { KeyboardSettings(keyBindings: keyBindings) }
 
-        var container = encoder.container(keyedBy: KeyboardCodingKeys.self)
-        try container.encode(self.keyBindings, forKey: .keyBindings)
+    override public func apply(_ settings: any NodeSettings)
+    {
+        guard let settings = settings as? KeyboardSettings else { return }
+        if settings.keyBindings != keyBindings { keyBindings = settings.keyBindings }
+        super.apply(settings)
     }
 
     public required init(context: Context)
@@ -188,9 +202,13 @@ public class KeyboardNode : Node
 
     public convenience init(context: Context, keyBindings: [KeyBinding])
     {
+        self.init(context: context, settings: KeyboardSettings(keyBindings: keyBindings.map { Optional($0) }))
+    }
+
+    public convenience init(context: Context, settings: KeyboardSettings)
+    {
         self.init(context: context)
-        self.keyBindings = keyBindings.map { Optional($0) }
-        self.rebuildPorts()
+        self.apply(settings)
     }
 
     // MARK: - Execution
@@ -228,6 +246,7 @@ public class KeyboardNode : Node
         didSet
         {
             self.rebuildPorts()
+            self.settingsSubject.send()
         }
     }
 
@@ -237,7 +256,7 @@ public class KeyboardNode : Node
 
     override public func settingsView() -> AnyView
     {
-        AnyView(KeyboardNodeView(model: _settingsModel))
+        AnyView(KeyboardNodeView(model: settingsModel))
     }
 
     // MARK: - Settings Model
@@ -253,15 +272,34 @@ public class KeyboardNode : Node
             }
         }
         private weak var node: KeyboardNode?
+        @ObservationIgnored private var subscription: AnyCancellable?
 
         init(node: KeyboardNode)
         {
             self.node = node
             self.keyBindings = node.keyBindings
+            self.subscription = node.settingsSubject
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] in self?.followNode() }
+        }
+
+        private func followNode()
+        {
+            guard let node, keyBindings != node.keyBindings else { return }
+            keyBindings = node.keyBindings
         }
     }
 
-    private lazy var _settingsModel = SettingsModel(node: self)
+    private var settingsModel: SettingsModel
+    {
+        if let model = _settingsModelStorage { return model }
+        let model = SettingsModel(node: self)
+        _settingsModelStorage = model
+        return model
+    }
+
+    /// Nil until a settings view asks for it.
+    private var _settingsModelStorage: SettingsModel?
 
     // MARK: - Internal
 
