@@ -36,7 +36,7 @@ struct LocalVLMNodeSettingsView: View {
     }
 }
 
-@Observable public class LocalVLMNode: Node {
+@Observable public class LocalVLMNode: Node, LocalModelSettingsMirroring {
     override public static var name: String { "Local VLM Node" }
     override public static var nodeType: Node.NodeType { .Parameter(parameterType: .String) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
@@ -169,16 +169,19 @@ struct LocalVLMNodeSettingsView: View {
         self.modelStateObservationTask?.cancel()
     }
 
-    public override func encode(to encoder: Encoder) throws {
-        try super.encode(to: encoder)
+    override public var settings: (any NodeSettings)? { self.localModelSettings }
 
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.selectedModelID, forKey: .selectedModelID)
-        try container.encode(self.temperature, forKey: .temperature)
-        try container.encode(self.updateIntervalSeconds, forKey: .updateIntervalSeconds)
-        try container.encode(self.systemPromptOverride, forKey: .systemPromptOverride)
-        try container.encode(self.chatModeEnabled, forKey: .chatModeEnabled)
-        try container.encode(self.desiredMaxContextTokens, forKey: .desiredMaxContextTokens)
+    override public func apply(_ settings: any NodeSettings) {
+        guard let settings = settings as? LocalModelSettings else { return }
+        self.suppressSettingSideEffects = true
+        let change = self.setLocalModelSettings(settings)
+        self.suppressSettingSideEffects = false
+
+        if change.modelChanged { self.vlmEvaluator.resetSessionState() }
+        if change.modelChanged || change.inferenceChanged { self.applyEvaluatorConfiguration() }
+        if change.inferenceChanged { self.vlmEvaluator.clearConversation() }
+        if change.modelChanged { self.observeSelectedModelState() }
+        super.apply(settings)
     }
 
     override public func providesSettingsView() -> Bool { true }
