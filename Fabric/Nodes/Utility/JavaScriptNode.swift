@@ -484,6 +484,44 @@ private final class JavaScriptNodeRuntime
     }
 }
 
+/// The settings of a JavaScript node: its script and its time mode, which the
+/// script's signature does not declare.
+public struct JavaScriptSettings: NodeSettings
+{
+    public var scriptSource: String
+    public var selectedTimeMode: Node.TimeMode
+
+    public init(scriptSource: String, selectedTimeMode: Node.TimeMode = .None)
+    {
+        self.scriptSource = scriptSource
+        self.selectedTimeMode = selectedTimeMode
+    }
+
+    private enum CodingKeys: String, CodingKey
+    {
+        case scriptSource
+        case selectedTimeMode
+        case scriptSchemaVersion
+    }
+
+    private static let scriptSchemaVersion = 1
+
+    public init(from decoder: Decoder) throws
+    {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.scriptSource = try container.decode(String.self, forKey: .scriptSource)
+        self.selectedTimeMode = try container.decodeIfPresent(Node.TimeMode.self, forKey: .selectedTimeMode) ?? .None
+    }
+
+    public func encode(to encoder: Encoder) throws
+    {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(self.scriptSource, forKey: .scriptSource)
+        try container.encode(self.selectedTimeMode, forKey: .selectedTimeMode)
+        try container.encode(Self.scriptSchemaVersion, forKey: .scriptSchemaVersion)
+    }
+}
+
 public final class JavaScriptNode: Node
 {
     override public class var name: String { "JavaScript" }
@@ -496,10 +534,7 @@ public final class JavaScriptNode: Node
     {
         case scriptSource
         case selectedTimeMode
-        case scriptSchemaVersion
     }
-
-    private static let scriptSchemaVersion = 1
 
     @ObservationIgnored private(set) var scriptSource: String = JavaScriptNode.defaultScriptSource()
     @ObservationIgnored private var compiledSignature: JavaScriptNodeSignature?
@@ -569,6 +604,14 @@ public final class JavaScriptNode: Node
         self.compileAndSynchronizePorts()
     }
 
+    public init(context: Context, settings: JavaScriptSettings)
+    {
+        self.scriptSource = settings.scriptSource
+        self.selectedTimeMode = settings.selectedTimeMode
+        super.init(context: context)
+        self.compileAndSynchronizePorts()
+    }
+
     public required init(from decoder: any Decoder) throws
     {
         try super.init(from: decoder)
@@ -582,14 +625,19 @@ public final class JavaScriptNode: Node
         self.compileAndSynchronizePorts()
     }
 
-    override public func encode(to encoder: any Encoder) throws
+    override public var settings: (any NodeSettings)?
     {
-        try super.encode(to: encoder)
+        JavaScriptSettings(scriptSource: self.scriptSource, selectedTimeMode: self.selectedTimeMode)
+    }
 
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.scriptSource, forKey: .scriptSource)
-        try container.encode(self.selectedTimeMode, forKey: .selectedTimeMode)
-        try container.encode(Self.scriptSchemaVersion, forKey: .scriptSchemaVersion)
+    override public func apply(_ settings: any NodeSettings)
+    {
+        guard let settings = settings as? JavaScriptSettings else { return }
+        self.performOnMainSync {
+            if settings.scriptSource != self.scriptSource { self.updateScriptSource(settings.scriptSource) }
+            self.updateTimeMode(settings.selectedTimeMode)
+        }
+        super.apply(settings)
     }
 
     override public func providesSettingsView() -> Bool
@@ -614,8 +662,8 @@ public final class JavaScriptNode: Node
         self.compileAndSynchronizePorts()
     }
 
-    /// The execution mode has no setter: it is read off the ports. The time
-    /// dependency has one, being the half of the pair a signature cannot show.
+    /// The execution mode is read off the ports and has no setter. The time
+    /// mode is not declared by the script, so it has one.
     @MainActor
     public func updateTimeMode(_ timeMode: Node.TimeMode)
     {

@@ -8,7 +8,7 @@
 import Foundation
 extension Node
 {
-    public enum TimeMode: String, Codable
+    public enum TimeMode: String, Codable, Sendable
     {
         // No time dependency.
         // The node does not depend on time at all.
