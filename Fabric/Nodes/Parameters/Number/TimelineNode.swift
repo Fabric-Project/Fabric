@@ -10,11 +10,12 @@ import SwiftUI
 import Metal
 import Satin
 import simd
+import Combine
 
 // MARK: - Data Model
 
 /// A single keyframe on a timeline track
-public struct TimelineKeyframe: Codable, Identifiable, Equatable
+public struct TimelineKeyframe: Codable, Identifiable, Equatable, Sendable
 {
     public let id: UUID
     public var time: Float      // 0 to duration
@@ -35,7 +36,7 @@ public struct TimelineKeyframe: Codable, Identifiable, Equatable
 }
 
 /// A timeline track with keyframes
-public struct TimelineTrack: Codable, Identifiable, Equatable
+public struct TimelineTrack: Codable, Identifiable, Equatable, Sendable
 {
     public let id: UUID
     public var name: String
@@ -171,6 +172,53 @@ public struct TimelineTrack: Codable, Identifiable, Equatable
         }
 
         sortKeyframes()
+    }
+}
+
+// MARK: - Settings
+
+/// The settings of a Timeline node: its duration and tracks.
+public struct TimelineSettings: NodeSettings
+{
+    public var duration: Float
+    public var tracks: [TimelineTrack]
+
+    public init(duration: Float, tracks: [TimelineTrack])
+    {
+        self.duration = duration
+        self.tracks = tracks
+    }
+
+    /// Named by the first number past the count not in use: a removal leaves
+    /// a gap, and the ports are the tracks' names.
+    public mutating func addTrack()
+    {
+        let names = Set(tracks.map(\.name))
+        var number = tracks.count + 1
+        while names.contains("Track \(number)") { number += 1 }
+        tracks.append(TimelineTrack(name: "Track \(number)", duration: duration))
+    }
+
+    /// Removes the track, unless it is the last.
+    public mutating func removeTrack(id: UUID)
+    {
+        guard tracks.count > 1 else { return }
+        tracks.removeAll { $0.id == id }
+    }
+
+    /// Changes the duration, moving each track's last keyframe with it where
+    /// that keyframe sat at the end.
+    public mutating func setDuration(_ newDuration: Float)
+    {
+        for index in tracks.indices
+        {
+            if let lastIndex = tracks[index].keyframes.indices.last,
+               tracks[index].keyframes[lastIndex].time == duration
+            {
+                tracks[index].keyframes[lastIndex].time = newDuration
+            }
+        }
+        duration = newDuration
     }
 }
 
@@ -721,25 +769,12 @@ public class TimelineNode: Node
 
         let container = try decoder.container(keyedBy: TimelineCodingKeys.self)
         self.duration = try container.decodeIfPresent(Float.self, forKey: .duration) ?? 1.0
-        self.tracks = try container.decodeIfPresent([TimelineTrack].self, forKey: .tracks) ?? []
-
-        if tracks.isEmpty
-        {
-            tracks.append(TimelineTrack(name: "Track 1", duration: duration))
-        }
+        self.tracks = Self.tracksOrDefault(try container.decodeIfPresent([TimelineTrack].self, forKey: .tracks) ?? [],
+                                           duration: duration)
 
         // Use sync instead of rebuild to preserve ports decoded by super.init
         // This maintains connection IDs across serialization
         syncPortsToTracks()
-    }
-
-    public override func encode(to encoder: Encoder) throws
-    {
-        try super.encode(to: encoder)
-
-        var container = encoder.container(keyedBy: TimelineCodingKeys.self)
-        try container.encode(self.duration, forKey: .duration)
-        try container.encode(self.tracks, forKey: .tracks)
     }
 
     public required init(context: Context)
@@ -748,21 +783,39 @@ public class TimelineNode: Node
 
         // Add default track
         tracks.append(TimelineTrack(name: "Track 1", duration: duration))
-        rebuildPorts()
+        syncPortsToTracks()
     }
 
     public convenience init(context: Context, duration: Float, tracks: [TimelineTrack])
     {
         self.init(context: context)
-        self.duration = duration
-        self.tracks = tracks
+        self.apply(TimelineSettings(duration: duration, tracks: tracks))
+    }
 
-        if self.tracks.isEmpty
-        {
-            self.tracks.append(TimelineTrack(name: "Track 1", duration: duration))
-        }
+    public convenience init(context: Context, settings: TimelineSettings)
+    {
+        self.init(context: context, duration: settings.duration, tracks: settings.tracks)
+    }
 
-        rebuildPorts()
+    // MARK: - Settings
+
+    override public var settings: (any NodeSettings)? { TimelineSettings(duration: duration, tracks: tracks) }
+
+    override public func apply(_ settings: any NodeSettings)
+    {
+        guard let settings = settings as? TimelineSettings else { return }
+        self.duration = settings.duration
+        self.tracks = Self.tracksOrDefault(settings.tracks, duration: settings.duration)
+        self.syncPortsToTracks()
+        self.reorderPorts(self.inputPorts() + self.tracks.compactMap { self.findPort(named: $0.name) as Port? })
+        self.markDirty()
+        super.apply(settings)
+    }
+
+    /// A timeline always has a track.
+    private static func tracksOrDefault(_ tracks: [TimelineTrack], duration: Float) -> [TimelineTrack]
+    {
+        tracks.isEmpty ? [TimelineTrack(name: "Track 1", duration: duration)] : tracks
     }
 
     // MARK: - Properties
@@ -771,17 +824,8 @@ public class TimelineNode: Node
     {
         didSet
         {
-            // Update last keyframe of each track to match new duration
-            for i in 0..<tracks.count
-            {
-                if let lastIndex = tracks[i].keyframes.indices.last,
-                   tracks[i].keyframes[lastIndex].time == oldValue
-                {
-                    tracks[i].keyframes[lastIndex].time = duration
-                }
-            }
-            _settingsModelStorage?.duration = duration
-            _settingsModelStorage?.tracks = tracks
+            guard oldValue != duration else { return }
+            settingsSubject.send()
         }
     }
 
@@ -789,7 +833,8 @@ public class TimelineNode: Node
     {
         didSet
         {
-            _settingsModelStorage?.tracks = tracks
+            guard oldValue != tracks else { return }
+            settingsSubject.send()
         }
     }
 
@@ -817,7 +862,7 @@ public class TimelineNode: Node
             didSet
             {
                 guard duration != node?.duration else { return }
-                node?.duration = duration
+                node?.setDuration(duration)
             }
         }
 
@@ -833,6 +878,7 @@ public class TimelineNode: Node
         var currentTime: Float = 0
 
         private weak var node: TimelineNode?
+        @ObservationIgnored private var subscription: AnyCancellable?
 
         init(node: TimelineNode)
         {
@@ -840,6 +886,16 @@ public class TimelineNode: Node
             self.duration = node.duration
             self.tracks = node.tracks
             self.currentTime = node.currentTime
+            self.subscription = node.settingsSubject
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] in self?.followNode() }
+        }
+
+        private func followNode()
+        {
+            guard let node else { return }
+            if duration != node.duration { duration = node.duration }
+            if tracks != node.tracks { tracks = node.tracks }
         }
 
         func addTrack() { node?.addTrack() }
@@ -891,39 +947,27 @@ public class TimelineNode: Node
         }
     }
 
-    /// Force rebuild all ports (used when track names change)
-    fileprivate func rebuildPorts()
-    {
-        // Remove all existing output ports
-        let existingOutputs = outputPorts()
-        for port in existingOutputs
-        {
-            removePort(port)
-        }
-
-        // Create output port for each track
-        for track in tracks
-        {
-            let port = NodePort<Float>(name: track.name, kind: .Outlet, description: "Animated value from timeline track")
-            addDynamicPort(port)
-        }
-    }
-
     // MARK: - Track Management
 
     fileprivate func addTrack()
     {
-        let trackNum = tracks.count + 1
-        let track = TimelineTrack(name: "Track \(trackNum)", duration: duration)
-        tracks.append(track)
-        syncPortsToTracks()
+        var settings = TimelineSettings(duration: duration, tracks: tracks)
+        settings.addTrack()
+        setSettings(settings)
     }
 
     fileprivate func removeTrack(id: UUID)
     {
-        guard tracks.count > 1 else { return }
-        tracks.removeAll { $0.id == id }
-        syncPortsToTracks()
+        var settings = TimelineSettings(duration: duration, tracks: tracks)
+        settings.removeTrack(id: id)
+        setSettings(settings)
+    }
+
+    fileprivate func setDuration(_ duration: Float)
+    {
+        var settings = TimelineSettings(duration: self.duration, tracks: tracks)
+        settings.setDuration(duration)
+        setSettings(settings)
     }
 
     fileprivate func indexForTrack(id: UUID) -> Int?
@@ -937,12 +981,16 @@ public class TimelineNode: Node
         return tracks[index].name
     }
 
-    fileprivate func updateTrackName(id: UUID, name: String)
+    func updateTrackName(id: UUID, name: String)
     {
         guard let index = indexForTrack(id: id) else { return }
-        guard tracks[index].name != name else { return }
-        tracks[index].name = name
-        rebuildPorts()
+        // A port is keyed by its track's name, so two tracks cannot share one.
+        // The field commits each keystroke, so a name passed through on the way
+        // to another leaves the track as it is.
+        guard !tracks.contains(where: { $0.id != id && $0.name == name }) else { return }
+        var settings = TimelineSettings(duration: duration, tracks: tracks)
+        settings.tracks[index].name = name
+        setSettings(settings)
     }
 
     // MARK: - Execution
