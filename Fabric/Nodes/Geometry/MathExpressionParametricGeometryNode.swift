@@ -50,6 +50,22 @@ struct MathExpressionParametricView: View
     }
 }
 
+// MARK: - Settings
+
+public struct ParametricExpressionSettings: NodeSettings
+{
+    public var expressionX: String
+    public var expressionY: String
+    public var expressionZ: String
+
+    public init(expressionX: String, expressionY: String, expressionZ: String)
+    {
+        self.expressionX = expressionX
+        self.expressionY = expressionY
+        self.expressionZ = expressionZ
+    }
+}
+
 // MARK: - Node
 
 public class MathExpressionParametricGeometryNode: BaseGeometryNode
@@ -144,20 +160,40 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
         parseExpressions()
     }
 
-    public override func encode(to encoder: any Encoder) throws
+    override public var settings: (any NodeSettings)?
     {
-        try super.encode(to: encoder)
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(expressionX, forKey: .expressionX)
-        try container.encode(expressionY, forKey: .expressionY)
-        try container.encode(expressionZ, forKey: .expressionZ)
+        ParametricExpressionSettings(expressionX: expressionX, expressionY: expressionY, expressionZ: expressionZ)
     }
+
+    /// Parses once for the three axes, so a variable moving between axes keeps its port.
+    override public func apply(_ settings: any NodeSettings)
+    {
+        guard let settings = settings as? ParametricExpressionSettings else { return }
+        self.isApplyingSettings = true
+        self.expressionX = settings.expressionX
+        self.expressionY = settings.expressionY
+        self.expressionZ = settings.expressionZ
+        self.isApplyingSettings = false
+        self.parseExpressions()
+        super.apply(settings)
+    }
+
+    private var isApplyingSettings = false
 
     public required init(context: Context)
     {
         self.expressionX = Self.defaultExpressionX
         self.expressionY = Self.defaultExpressionY
         self.expressionZ = Self.defaultExpressionZ
+        super.init(context: context)
+        parseExpressions()
+    }
+
+    public init(context: Context, settings: ParametricExpressionSettings)
+    {
+        self.expressionX = settings.expressionX
+        self.expressionY = settings.expressionY
+        self.expressionZ = settings.expressionZ
         super.init(context: context)
         parseExpressions()
     }
@@ -202,7 +238,7 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
     {
         didSet
         {
-            guard oldValue != expressionX else { return }
+            guard oldValue != expressionX, !isApplyingSettings else { return }
             parseExpressions()
         }
     }
@@ -210,7 +246,7 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
     {
         didSet
         {
-            guard oldValue != expressionY else { return }
+            guard oldValue != expressionY, !isApplyingSettings else { return }
             parseExpressions()
         }
     }
@@ -218,7 +254,7 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
     {
         didSet
         {
-            guard oldValue != expressionZ else { return }
+            guard oldValue != expressionZ, !isApplyingSettings else { return }
             parseExpressions()
         }
     }

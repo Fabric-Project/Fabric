@@ -17,6 +17,7 @@
 import Foundation
 import Satin
 import SwiftUI
+import Combine
 
 // MARK: - Settings View
 
@@ -39,6 +40,15 @@ struct FormatStringSettingsView: View {
                 .font(.system(size: 10))
                 .textFieldStyle(RoundedBorderTextFieldStyle())
         }
+    }
+}
+
+/// The settings of a format-string node.
+public struct FormatStringSettings: NodeSettings {
+    public var formatString: String
+
+    public init(formatString: String) {
+        self.formatString = formatString
     }
 }
 
@@ -78,6 +88,7 @@ public class BaseFormatStringNode: Node {
         didSet {
             self.updatePorts()
             self.subtitleSubject.send()
+            self.settingsSubject.send()
         }
     }
 
@@ -86,6 +97,14 @@ public class BaseFormatStringNode: Node {
     public func setFormatString(_ formatString: String) {
         guard formatString != self.formatString else { return }
         self.formatString = formatString
+    }
+
+    override public var settings: (any NodeSettings)? { FormatStringSettings(formatString: self.formatString) }
+
+    override public func apply(_ settings: any NodeSettings) {
+        guard let settings = settings as? FormatStringSettings else { return }
+        if settings.formatString != self.formatString { self.formatString = settings.formatString }
+        super.apply(settings)
     }
 
     /// The current format string, parsed. Rebuilt only when it changes.
@@ -114,6 +133,10 @@ public class BaseFormatStringNode: Node {
         self.updatePorts()
     }
 
+    public convenience init(context: Context, settings: FormatStringSettings) {
+        self.init(context: context, formatString: settings.formatString)
+    }
+
     public required init(from decoder: any Decoder) throws {
         self.formatString = Self.defaultFormatString
 
@@ -130,19 +153,13 @@ public class BaseFormatStringNode: Node {
         self.updatePorts()
     }
 
-    public override func encode(to encoder: Encoder) throws {
-        try super.encode(to: encoder)
-
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.formatString, forKey: .formatString)
-    }
-
     // MARK: - Settings
 
     override public func providesSettingsView() -> Bool { true }
 
     override public func settingsView() -> AnyView {
-        AnyView(FormatStringSettingsView(model: _settingsModel, guidance: Self.settingsGuidance))
+        if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
+        return AnyView(FormatStringSettingsView(model: _settingsModelStorage!, guidance: Self.settingsGuidance))
     }
 
     @Observable final class SettingsModel
@@ -156,15 +173,26 @@ public class BaseFormatStringNode: Node {
             }
         }
         private weak var node: BaseFormatStringNode?
+        @ObservationIgnored private var subscription: AnyCancellable?
 
         init(node: BaseFormatStringNode)
         {
             self.node = node
             self.formatString = node.formatString
+            self.subscription = node.settingsSubject
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] in self?.followNode() }
+        }
+
+        private func followNode()
+        {
+            guard let node, formatString != node.formatString else { return }
+            formatString = node.formatString
         }
     }
 
-    private lazy var _settingsModel = SettingsModel(node: self)
+    /// Nil until a settings view asks for it.
+    private var _settingsModelStorage: SettingsModel?
 
     // MARK: - Dynamic Port Management
 

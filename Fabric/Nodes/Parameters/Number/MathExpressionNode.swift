@@ -172,6 +172,18 @@ struct MathExpressionView: View
     }
 }
 
+// MARK: - Settings
+
+public struct MathExpressionSettings: NodeSettings
+{
+    public var stringExpression: String
+
+    public init(stringExpression: String)
+    {
+        self.stringExpression = stringExpression
+    }
+}
+
 // MARK: - Node
 
 public class MathExpressionNode: Node
@@ -337,11 +349,13 @@ public class MathExpressionNode: Node
         self.compileAndSync()
     }
 
-    public override func encode(to encoder: Encoder) throws
+    override public var settings: (any NodeSettings)? { MathExpressionSettings(stringExpression: self.stringExpression) }
+
+    override public func apply(_ settings: any NodeSettings)
     {
-        try super.encode(to: encoder)
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.stringExpression, forKey: .stringExpression)
+        guard let settings = settings as? MathExpressionSettings else { return }
+        self.stringExpression = settings.stringExpression
+        super.apply(settings)
     }
 
     public required init(context: Context)
@@ -357,6 +371,11 @@ public class MathExpressionNode: Node
         // didSet does not fire for assignments inside an initializer.
         self.stringExpression = expression
         self.compileAndSync()
+    }
+
+    public convenience init(context: Context, settings: MathExpressionSettings)
+    {
+        self.init(context: context, expression: settings.stringExpression)
     }
 
     // MARK: - Settings
