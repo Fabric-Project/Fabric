@@ -51,7 +51,7 @@ public struct HIDDeviceInfo: Codable, Equatable, Identifiable, Hashable
 }
 
 /// Represents an element (input/output) on an HID device
-public struct HIDElementInfo: Codable, Equatable, Identifiable
+public struct HIDElementInfo: Codable, Equatable, Identifiable, Sendable
 {
     public let id: String
     public let cookie: Int
@@ -553,6 +553,22 @@ struct HIDNodeView: View
     }
 }
 
+// MARK: - Settings
+
+/// The settings of an HID node: the device selected and its elements, which
+/// stand for the device while it is unplugged.
+public struct HIDSettings: NodeSettings
+{
+    public var selectedDeviceID: String?
+    public var deviceElements: [HIDElementInfo]
+
+    public init(selectedDeviceID: String?, deviceElements: [HIDElementInfo])
+    {
+        self.selectedDeviceID = selectedDeviceID
+        self.deviceElements = deviceElements
+    }
+}
+
 // MARK: - HID Node
 
 public class HIDNode: Node
@@ -593,18 +609,43 @@ public class HIDNode: Node
         try super.encode(to: encoder)
 
         var container = encoder.container(keyedBy: HIDCodingKeys.self)
-        try container.encodeIfPresent(self.selectedDeviceID, forKey: .selectedDeviceID)
 
         // Save device info so we can try to reconnect later
         // Saving with the device unplugged must not forget it.
         try container.encodeIfPresent(self.liveDeviceInfo() ?? self.savedDeviceInfo, forKey: .selectedDeviceInfo)
-
-        try container.encode(self.deviceElements, forKey: .deviceElements)
     }
 
     public required init(context: Context)
     {
         super.init(context: context)
+    }
+
+    public convenience init(context: Context, settings: HIDSettings)
+    {
+        self.init(context: context)
+        self.apply(settings)
+    }
+
+    // MARK: - Settings
+
+    override public var settings: (any NodeSettings)?
+    {
+        HIDSettings(selectedDeviceID: selectedDeviceID, deviceElements: deviceElements)
+    }
+
+    override public func apply(_ settings: any NodeSettings)
+    {
+        guard let settings = settings as? HIDSettings else { return }
+        // A connected device gives its own elements, as on selection; the
+        // saved set stands in only while it is absent. `settings` then reports
+        // the live set, so a value already held is no change here.
+        let liveElements = settings.selectedDeviceID.flatMap { hidManager?.getElements(for: $0) } ?? []
+        let elements = liveElements.isEmpty ? settings.deviceElements : liveElements
+        if settings.selectedDeviceID != selectedDeviceID || elements != deviceElements
+        {
+            self.select(settings.selectedDeviceID, elements: elements)
+        }
+        super.apply(settings)
     }
 
     // MARK: - Properties
@@ -633,21 +674,19 @@ public class HIDNode: Node
         return availableDevices.first { $0.id == deviceID }
     }
 
-    fileprivate var selectedDeviceID: String?
+    fileprivate private(set) var selectedDeviceID: String?
+
+    /// Selects `deviceID` with the elements the device reports: the settings
+    /// view's choice, and a device reconnecting.
+    fileprivate func selectDevice(_ deviceID: String?)
     {
-        didSet { applySelectedDevice() }
+        select(deviceID, elements: deviceID.flatMap { hidManager?.getElements(for: $0) } ?? [])
     }
 
-    private func applySelectedDevice()
+    private func select(_ deviceID: String?, elements: [HIDElementInfo])
     {
-        if let deviceID = selectedDeviceID
-        {
-            deviceElements = hidManager?.getElements(for: deviceID) ?? []
-        }
-        else
-        {
-            deviceElements = []
-        }
+        selectedDeviceID = deviceID
+        deviceElements = elements
         // Choosing none forgets the device, so a device appearing does not bring it back.
         savedDeviceInfo = selectedDeviceID == nil ? nil : liveDeviceInfo() ?? savedDeviceInfo
         rebuildPorts()
@@ -739,7 +778,7 @@ public class HIDNode: Node
             didSet
             {
                 guard selectedDeviceID != node?.selectedDeviceID else { return }
-                node?.selectedDeviceID = selectedDeviceID
+                node?.selectDevice(selectedDeviceID)
             }
         }
         var availableDevices: [HIDDeviceInfo] = []
@@ -846,7 +885,7 @@ public class HIDNode: Node
                 $0.vendorID == savedInfo.vendorID && $0.productID == savedInfo.productID
             })
             {
-                selectedDeviceID = matchingDevice.id
+                selectDevice(matchingDevice.id)
             }
         }
     }
@@ -867,13 +906,13 @@ public class HIDNode: Node
                    $0.vendorID == savedInfo.vendorID && $0.productID == savedInfo.productID
                })
             {
-                selectedDeviceID = matchingDevice.id
+                selectDevice(matchingDevice.id)
             }
         }
         else if deviceElements.isEmpty || (isRunning && monitoredDeviceID == nil)
         {
             // Back at the same location: it was absent when selected or started.
-            applySelectedDevice()
+            selectDevice(selectedDeviceID)
         }
 
         updateDeviceStatus()

@@ -17,7 +17,7 @@ import os
 // MARK: - Detected MIDI Input
 
 /// Represents a detected MIDI input during learn mode
-public struct DetectedMIDIInput: Codable, Equatable, Identifiable, Hashable
+public struct DetectedMIDIInput: Codable, Equatable, Identifiable, Hashable, Sendable
 {
     public let id: UUID
     public var type: DetectedMIDIType
@@ -79,7 +79,7 @@ public struct DetectedMIDIInput: Codable, Equatable, Identifiable, Hashable
     }
 }
 
-public enum DetectedMIDIType: String, Codable, CaseIterable
+public enum DetectedMIDIType: String, Codable, CaseIterable, Sendable
 {
     case noteGate = "Note Gate"
     case noteVelocity = "Note Velocity"
@@ -313,6 +313,22 @@ struct DetectedInputRow: View
     }
 }
 
+// MARK: - Settings
+
+/// The settings of a MIDI Input node: the source selected and the controls
+/// learned from it, one output each.
+public struct MIDIInputSettings: NodeSettings
+{
+    public var selectedInputID: String?
+    public var configuredInputs: [DetectedMIDIInput]
+
+    public init(selectedInputID: String?, configuredInputs: [DetectedMIDIInput])
+    {
+        self.selectedInputID = selectedInputID
+        self.configuredInputs = configuredInputs
+    }
+}
+
 // MARK: - MIDI Input Node
 
 public class MIDIInputNode: Node
@@ -363,17 +379,33 @@ public class MIDIInputNode: Node
         try super.encode(to: encoder)
 
         var container = encoder.container(keyedBy: MIDICodingKeys.self)
-        try container.encodeIfPresent(self.selectedInputID, forKey: .selectedInputID)
 
         // Saving with the input unplugged must not forget it.
         try container.encodeIfPresent(self.liveInputInfo() ?? self.savedInputInfo, forKey: .savedInputInfo)
+    }
 
-        try container.encode(self.configuredInputs, forKey: .configuredInputs)
+    override public var settings: (any NodeSettings)?
+    {
+        MIDIInputSettings(selectedInputID: selectedInputID, configuredInputs: configuredInputs)
+    }
+
+    override public func apply(_ settings: any NodeSettings)
+    {
+        guard let settings = settings as? MIDIInputSettings else { return }
+        if selectedInputID != settings.selectedInputID { selectedInputID = settings.selectedInputID }
+        if configuredInputs != settings.configuredInputs { configuredInputs = settings.configuredInputs }
+        super.apply(settings)
     }
 
     public required init(context: Context)
     {
         super.init(context: context)
+    }
+
+    public convenience init(context: Context, settings: MIDIInputSettings)
+    {
+        self.init(context: context)
+        self.apply(settings)
     }
 
     // MARK: - Properties

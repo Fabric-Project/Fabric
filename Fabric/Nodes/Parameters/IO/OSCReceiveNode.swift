@@ -17,7 +17,7 @@ import os
 // MARK: - OSC Address Binding
 
 /// Represents a configured OSC address to listen for
-public struct OSCAddressBinding: Codable, Equatable, Identifiable
+public struct OSCAddressBinding: Codable, Equatable, Identifiable, Sendable
 {
     public let id: UUID
     public var address: String
@@ -38,7 +38,7 @@ public struct OSCAddressBinding: Codable, Equatable, Identifiable
     }
 }
 
-public enum OSCDataType: String, Codable, CaseIterable
+public enum OSCDataType: String, Codable, CaseIterable, Sendable
 {
     case float = "Float"
     case int = "Int"
@@ -54,6 +54,22 @@ public enum OSCDataType: String, Codable, CaseIterable
         case .string: return String.self
         case .bool: return Bool.self
         }
+    }
+}
+
+// MARK: - Settings
+
+/// The settings of an OSC Receive node: the port it listens on and the
+/// addresses it hands out, one output each.
+public struct OSCReceiveSettings: NodeSettings
+{
+    public var listenPort: UInt16
+    public var addressBindings: [OSCAddressBinding]
+
+    public init(listenPort: UInt16, addressBindings: [OSCAddressBinding])
+    {
+        self.listenPort = listenPort
+        self.addressBindings = addressBindings
     }
 }
 
@@ -219,13 +235,18 @@ public class OSCReceiveNode: Node
         self.rebuildPorts()
     }
 
-    public override func encode(to encoder: Encoder) throws
+    override public var settings: (any NodeSettings)?
     {
-        try super.encode(to: encoder)
+        OSCReceiveSettings(listenPort: listenPort, addressBindings: addressBindings)
+    }
 
-        var container = encoder.container(keyedBy: OSCReceiveCodingKeys.self)
-        try container.encode(self.listenPort, forKey: .listenPort)
-        try container.encode(self.addressBindings, forKey: .addressBindings)
+    override public func apply(_ settings: any NodeSettings)
+    {
+        guard let settings = settings as? OSCReceiveSettings else { return }
+        // Setting the port restarts a running listener.
+        if settings.listenPort != listenPort { listenPort = settings.listenPort }
+        if settings.addressBindings != addressBindings { addressBindings = settings.addressBindings }
+        super.apply(settings)
     }
 
     public required init(context: Context)
@@ -239,6 +260,11 @@ public class OSCReceiveNode: Node
         self.listenPort = listenPort
         self.addressBindings = addressBindings
         self.rebuildPorts()
+    }
+
+    public convenience init(context: Context, settings: OSCReceiveSettings)
+    {
+        self.init(context: context, listenPort: settings.listenPort, addressBindings: settings.addressBindings)
     }
 
     // MARK: - Properties
