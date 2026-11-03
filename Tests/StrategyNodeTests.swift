@@ -58,32 +58,72 @@ struct StrategyNodeTests
         #expect(column3.value == simd_float4(2, 3, 4, 1))
     }
 
+    /// A Decompose Transform node as a document that saved `savedStrategy` loads it.
+    private func decode(savedStrategy: String, harness: GraphExecutionTestHarness) throws -> DecomposeTransformNode
+    {
+        let node = DecomposeTransformNode(context: harness.context)
+        var saved = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(node)) as? [String: Any])
+        saved["strategy"] = savedStrategy
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: harness.context)
+        return try decoder.decode(DecomposeTransformNode.self, from: JSONSerialization.data(withJSONObject: saved))
+    }
+
+    private func savedStrategy(of node: StrategyNode) throws -> String?
+    {
+        let saved = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(node)) as? [String: Any])
+        return saved["strategy"] as? String
+    }
+
     @Test("A saved strategy is typed on decode, and an unknown one resolves to nothing")
     func decodedStrategies() throws
     {
         guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
 
-        func decode(savedStrategy: String) throws -> DecomposeTransformNode
-        {
-            let node = DecomposeTransformNode(context: harness.context)
-            var saved = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(node)) as? [String: Any])
-            saved["strategy"] = savedStrategy
-            let decoder = JSONDecoder()
-            decoder.context = DecoderContext(documentContext: harness.context)
-            return try decoder.decode(DecomposeTransformNode.self, from: JSONSerialization.data(withJSONObject: saved))
-        }
-
-        let columns = try decode(savedStrategy: TransformCompositionMode.columns.rawValue)
+        let columns = try decode(savedStrategy: TransformCompositionMode.columns.rawValue, harness: harness)
         #expect(columns.strategyOption(as: TransformCompositionMode.self) == .columns)
 
-        let unknown = try decode(savedStrategy: "Retired Strategy")
+        let unknown = try decode(savedStrategy: "Retired Strategy", harness: harness)
         #expect(unknown.strategy == nil)
         #expect(unknown.subtitle == nil)
         try harness.execute(unknown)
 
         // Saving keeps the unknown name, so a later build that knows it can still read it.
-        let resaved = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(unknown)) as? [String: Any])
-        #expect(resaved["strategy"] as? String == "Retired Strategy")
+        #expect(try savedStrategy(of: unknown) == "Retired Strategy")
+    }
+
+    @Test("Undo after leaving an unknown saved strategy restores its name")
+    func undoRestoresUnknownName() throws
+    {
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
+        let graph = Graph(context: harness.context)
+        let node = try decode(savedStrategy: "Retired Strategy", harness: harness)
+        graph.addNode(node)
+        let undoManager = UndoManager()
+        graph.undoManager = undoManager
+
+        node.setStrategy(TransformCompositionMode.trs)
+        #expect(try savedStrategy(of: node) == TransformCompositionMode.trs.rawValue)
+
+        undoManager.undo()
+        #expect(node.strategy == nil)
+        #expect(try savedStrategy(of: node) == "Retired Strategy")
+    }
+
+    @Test("A strategy of another type that names one of the node's options resolves to that option")
+    func strategiesResolveToTheNodesOwnOptions() throws
+    {
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
+
+        // PortType.Vector3 and VectorType.float3 share the name "Vector 3".
+        let constructed = ComposeVectorNode(context: harness.context, strategy: PortType.Vector3)
+        #expect(constructed.strategyOption(as: VectorType.self) == .float3)
+        #expect(constructed.findPort(named: "inputComponent2") as Fabric.Port? != nil)
+
+        let assigned = ComposeVectorNode(context: harness.context, vectorType: .float2)
+        assigned.setStrategy(PortType.Vector4)
+        #expect(assigned.strategyOption(as: VectorType.self) == .float4)
+        #expect(assigned.findPort(named: "inputComponent3") as Fabric.Port? != nil)
     }
 
     @Test("Numeric type-agnostic nodes read their port type from the typed strategy")
