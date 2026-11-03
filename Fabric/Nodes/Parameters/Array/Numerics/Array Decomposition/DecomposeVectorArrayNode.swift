@@ -32,9 +32,9 @@ public class DecomposeVectorArrayNode: StrategyNode
         self.init(context: context, strategy: vectorType)
     }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
-        guard let vt: VectorType = Self.strategyOption(matching: strategy) else { return }
+        guard let vt = strategy as? VectorType else { return }
 
         addOrReplaceDynamicPortPreservingIdentity(name: "inputArray", displayName: "\(vt.portType.rawValue) Array", portType: .Array(portType: vt.portType), kind: .Inlet, description: "Array of \(vt.portType.rawValue) values to decompose")
 

@@ -24,7 +24,7 @@ public final class ArrayResampleTypeAgnosticNode: NumericTypeAgnosticNode
 
     public var inputCount: ParameterPort<Int> { port(named: "inputCount") }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
         super.rebuildPorts(forStrategy: strategy)
         let portType = selectedNumericPortType

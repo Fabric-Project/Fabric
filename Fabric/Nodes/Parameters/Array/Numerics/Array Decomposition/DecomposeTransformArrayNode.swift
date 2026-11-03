@@ -24,12 +24,17 @@ public class DecomposeTransformArrayNode: StrategyNode
         "outputColumn0s", "outputColumn1s", "outputColumn2s", "outputColumn3s",
     ]
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    /// `strategy`, typed once per rebuild, so execute never compares strategy strings.
+    private var typedStrategy: TransformCompositionMode?
+
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
+        typedStrategy = strategy as? TransformCompositionMode
+
         let wanted: [(name: String, port: Port)]
-        switch strategy
+        switch typedStrategy
         {
-        case "TRS":
+        case .trs:
             wanted =
             [
                 ("inputTransforms", NodePort<ContiguousArray<simd_float4x4>>(name: "Transforms", kind: .Inlet, description: "Array of 4x4 transform matrices to decompose")),
@@ -38,7 +43,7 @@ public class DecomposeTransformArrayNode: StrategyNode
                 ("outputRotations", NodePort<ContiguousArray<simd_float4>>(name: "Rotations", kind: .Outlet, description: "Per-element rotation as quaternion vector")),
             ]
 
-        case "Columns":
+        case .columns:
             wanted =
             [
                 ("inputTransforms", NodePort<ContiguousArray<simd_float4x4>>(name: "Transforms", kind: .Inlet, description: "Array of 4x4 transform matrices to decompose")),
@@ -48,7 +53,7 @@ public class DecomposeTransformArrayNode: StrategyNode
                 ("outputColumn3s", NodePort<ContiguousArray<simd_float4>>(name: "Column 3s", kind: .Outlet, description: "Per-element fourth column of the matrix (translation, when W=1)")),
             ]
 
-        default:
+        case nil:
             wanted = []
         }
 
@@ -75,9 +80,9 @@ public class DecomposeTransformArrayNode: StrategyNode
 
         let transforms = inputTransforms.value ?? ContiguousArray<simd_float4x4>()
 
-        switch self.strategy
+        switch typedStrategy
         {
-        case "TRS":
+        case .trs:
             guard let outputTranslations: NodePort<ContiguousArray<simd_float3>> = findPort(named: "outputTranslations"),
                   let outputScales: NodePort<ContiguousArray<simd_float3>> = findPort(named: "outputScales"),
                   let outputRotations: NodePort<ContiguousArray<simd_float4>> = findPort(named: "outputRotations")
@@ -99,7 +104,7 @@ public class DecomposeTransformArrayNode: StrategyNode
             outputScales.send(scales)
             outputRotations.send(rotations)
 
-        case "Columns":
+        case .columns:
             guard let outputColumn0s: NodePort<ContiguousArray<simd_float4>> = findPort(named: "outputColumn0s"),
                   let outputColumn1s: NodePort<ContiguousArray<simd_float4>> = findPort(named: "outputColumn1s"),
                   let outputColumn2s: NodePort<ContiguousArray<simd_float4>> = findPort(named: "outputColumn2s"),
@@ -123,7 +128,7 @@ public class DecomposeTransformArrayNode: StrategyNode
             outputColumn2s.send(c2s)
             outputColumn3s.send(c3s)
 
-        default:
+        case nil:
             break
         }
     }

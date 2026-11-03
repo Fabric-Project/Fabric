@@ -22,10 +22,10 @@ public final class SwitchNode: RoutingNode
 
     public var output: Port { port(named: Self.outputPortName) }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
         super.rebuildPorts(forStrategy: strategy)
-        let portType = PortType(rawValue: strategy) ?? .Virtual
+        let portType = (strategy as? PortType) ?? .Virtual
 
         for index in 0..<routeCount
         {

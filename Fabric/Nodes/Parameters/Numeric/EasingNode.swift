@@ -26,7 +26,7 @@ public final class EasingNode: NumericTypeAgnosticNode
     public var inputProgress: ParameterPort<Float> { port(named: "inputProgress") }
     public var inputEasing: ParameterPort<String> { port(named: "inputEasing") }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
         super.rebuildPorts(forStrategy: strategy)
         let portType = selectedNumericPortType

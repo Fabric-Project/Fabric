@@ -587,7 +587,7 @@ struct PortConnectionTests {
             arrayValue.findPort(named: "outputPort", as: NodePort<String>.self)
         )
 
-        arrayValue.rebuildPorts(forStrategy: PortType.Float.rawValue)
+        arrayValue.rebuildPorts(forStrategy: PortType.Float)
 
         #expect(retiredOutput.node == nil)
         #expect(graph.connect(retiredOutput, to: stringSink.input) == nil)

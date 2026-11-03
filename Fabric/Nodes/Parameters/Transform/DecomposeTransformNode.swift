@@ -24,12 +24,17 @@ public class DecomposeTransformNode: StrategyNode
         "outputColumn0", "outputColumn1", "outputColumn2", "outputColumn3",
     ]
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    /// `strategy`, typed once per rebuild, so execute never compares strategy strings.
+    private var typedStrategy: TransformCompositionMode?
+
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
+        typedStrategy = strategy as? TransformCompositionMode
+
         let wanted: [(name: String, port: Port)]
-        switch strategy
+        switch typedStrategy
         {
-        case "TRS":
+        case .trs:
             wanted =
             [
                 ("inputTransform", PortType.Transform.makeFreshPort(name: "Transform", kind: .Inlet, description: "4x4 transform matrix to decompose")),
@@ -38,7 +43,7 @@ public class DecomposeTransformNode: StrategyNode
                 ("outputRotation", NodePort<simd_float4>(name: "Rotation", kind: .Outlet, description: "Rotation component as quaternion vector")),
             ]
 
-        case "Columns":
+        case .columns:
             wanted =
             [
                 ("inputTransform", PortType.Transform.makeFreshPort(name: "Transform", kind: .Inlet, description: "4x4 transform matrix to decompose")),
@@ -48,7 +53,7 @@ public class DecomposeTransformNode: StrategyNode
                 ("outputColumn3", NodePort<simd_float4>(name: "Column 3", kind: .Outlet, description: "Fourth column of the matrix (translation, when W=1)")),
             ]
 
-        default:
+        case nil:
             wanted = []
         }
 
@@ -74,9 +79,9 @@ public class DecomposeTransformNode: StrategyNode
               let transform = inputTransform.value
         else { return }
 
-        switch self.strategy
+        switch typedStrategy
         {
-        case "TRS":
+        case .trs:
             guard let outputTranslation: NodePort<simd_float3> = findPort(named: "outputTranslation"),
                   let outputScale: NodePort<simd_float3> = findPort(named: "outputScale"),
                   let outputRotation: NodePort<simd_float4> = findPort(named: "outputRotation")
@@ -88,7 +93,7 @@ public class DecomposeTransformNode: StrategyNode
             outputScale.send(scale)
             outputRotation.send(orientation.vector)
 
-        case "Columns":
+        case .columns:
             guard let outputColumn0: NodePort<simd_float4> = findPort(named: "outputColumn0"),
                   let outputColumn1: NodePort<simd_float4> = findPort(named: "outputColumn1"),
                   let outputColumn2: NodePort<simd_float4> = findPort(named: "outputColumn2"),
@@ -100,7 +105,7 @@ public class DecomposeTransformNode: StrategyNode
             outputColumn2.send(transform.columns.2)
             outputColumn3.send(transform.columns.3)
 
-        default:
+        case nil:
             break
         }
     }

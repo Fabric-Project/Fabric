@@ -124,9 +124,9 @@ public class StringSplitNode: StrategyNode
 
     /// The Separator inlet belongs to Custom alone; the other modes carry their
     /// separator in the mode itself.
-    override public func rebuildPorts(forStrategy strategy: String)
+    override public func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
-        let wantsSeparator = strategy == StringSplitMode.custom.rawValue
+        let wantsSeparator = (strategy as? StringSplitMode) == .custom
         let existingSeparator: ParameterPort<String>? = findPort(named: "inputSeparator")
 
         switch (wantsSeparator, existingSeparator)

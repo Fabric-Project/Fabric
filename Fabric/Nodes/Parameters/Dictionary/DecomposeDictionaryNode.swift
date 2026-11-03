@@ -12,7 +12,7 @@ public final class DecomposeDictionaryNode: DictionaryTypeAgnosticNode
     public override class var name: String { "Decompose Dictionary" }
     override public class var nodeDescription: String { "Outputs dictionary keys and values sorted by key. Choose value type in Settings." }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
         super.rebuildPorts(forStrategy: strategy)
 

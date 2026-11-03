@@ -27,10 +27,10 @@ public class ArrayShuffleNode: TypeAgnosticNode
 
     public var inputShuffle: ParameterPort<Bool> { port(named: "inputShuffle") }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
         super.rebuildPorts(forStrategy: strategy)
-        guard let elementType = PortType(rawValue: strategy) else { return }
+        guard let elementType = strategy as? PortType else { return }
 
         let arrayType: PortType = .Array(portType: elementType)
 

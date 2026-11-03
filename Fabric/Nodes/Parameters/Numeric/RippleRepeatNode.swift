@@ -33,7 +33,7 @@ public final class RippleRepeatNode: NumericTypeAgnosticNode
     public var inputCount: ParameterPort<Int> { port(named: "inputCount") }
     public var inputDelaySecs: ParameterPort<Float> { port(named: "inputDelaySecs") }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
         super.rebuildPorts(forStrategy: strategy)
         let valueType = selectedNumericPortType

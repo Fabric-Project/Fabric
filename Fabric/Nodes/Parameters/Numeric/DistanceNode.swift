@@ -26,7 +26,7 @@ public final class DistanceNode: NumericTypeAgnosticNode
     public var inputMetric: ParameterPort<String> { port(named: "inputMetric") }
     public var outputDistance: NodePort<Float> { port(named: "outputDistance") }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
         super.rebuildPorts(forStrategy: strategy)
         let portType = selectedNumericPortType

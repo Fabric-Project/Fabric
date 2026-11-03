@@ -24,12 +24,17 @@ public class ComposeTransformArrayNode: StrategyNode
         "outputTransforms",
     ]
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    /// `strategy`, typed once per rebuild, so execute never compares strategy strings.
+    private var typedStrategy: TransformCompositionMode?
+
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
+        typedStrategy = strategy as? TransformCompositionMode
+
         let wanted: [(name: String, port: Port)]
-        switch strategy
+        switch typedStrategy
         {
-        case "TRS":
+        case .trs:
             wanted =
             [
                 ("inputPositions", NodePort<ContiguousArray<simd_float3>>(name: "Positions", kind: .Inlet, description: "Per-element position (XYZ)")),
@@ -38,7 +43,7 @@ public class ComposeTransformArrayNode: StrategyNode
                 ("outputTransforms", NodePort<ContiguousArray<simd_float4x4>>(name: "Transforms", kind: .Outlet, description: "Array of per-element model matrices (T*R*S)")),
             ]
 
-        case "Columns":
+        case .columns:
             wanted =
             [
                 ("inputColumn0s", NodePort<ContiguousArray<simd_float4>>(name: "Column 0s", kind: .Inlet, description: "Per-element first column of the matrix")),
@@ -48,7 +53,7 @@ public class ComposeTransformArrayNode: StrategyNode
                 ("outputTransforms", NodePort<ContiguousArray<simd_float4x4>>(name: "Transforms", kind: .Outlet, description: "Array of per-element matrices built from their four columns")),
             ]
 
-        default:
+        case nil:
             wanted = []
         }
 
@@ -71,9 +76,9 @@ public class ComposeTransformArrayNode: StrategyNode
     {
         guard let outputTransforms: NodePort<ContiguousArray<simd_float4x4>> = findPort(named: "outputTransforms") else { return }
 
-        switch self.strategy
+        switch typedStrategy
         {
-        case "TRS":
+        case .trs:
             guard let inputPositions: NodePort<ContiguousArray<simd_float3>> = findPort(named: "inputPositions"),
                   let inputOrientations: NodePort<ContiguousArray<simd_float4>> = findPort(named: "inputOrientations"),
                   let inputScales: NodePort<ContiguousArray<simd_float3>> = findPort(named: "inputScales")
@@ -111,7 +116,7 @@ public class ComposeTransformArrayNode: StrategyNode
             }
             outputTransforms.send(output)
 
-        case "Columns":
+        case .columns:
             guard let inputColumn0s: NodePort<ContiguousArray<simd_float4>> = findPort(named: "inputColumn0s"),
                   let inputColumn1s: NodePort<ContiguousArray<simd_float4>> = findPort(named: "inputColumn1s"),
                   let inputColumn2s: NodePort<ContiguousArray<simd_float4>> = findPort(named: "inputColumn2s"),
@@ -152,7 +157,7 @@ public class ComposeTransformArrayNode: StrategyNode
             }
             outputTransforms.send(output)
 
-        default:
+        case nil:
             break
         }
     }

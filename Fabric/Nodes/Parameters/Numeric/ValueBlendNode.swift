@@ -27,7 +27,7 @@ public final class ValueBlendNode: NumericTypeAgnosticNode
 
     public var inputBlendAmount: ParameterPort<Float> { port(named: "inputBlendAmount") }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
         super.rebuildPorts(forStrategy: strategy)
         let portType = selectedNumericPortType

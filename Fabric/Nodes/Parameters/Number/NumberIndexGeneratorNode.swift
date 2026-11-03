@@ -63,7 +63,7 @@ public class NumberIndexGeneratorNode : StrategyNode
     // Title leads with the active mode (StrategyNode default), e.g. "Shuffle Index Generator".
 
     // Preserve the original default of Shuffle (strategyOptions leads with Random).
-    override public class var defaultStrategy: String { IndexGeneratorMode.shuffle.rawValue }
+    override public class var defaultStrategy: (any NodeStrategyOption)? { IndexGeneratorMode.shuffle }
 
     // Settings pane: the strategy picker plus usage guidance for the selected mode.
     override public var settingsSize: SettingsViewSize { .Small }
@@ -84,9 +84,9 @@ public class NumberIndexGeneratorNode : StrategyNode
     private var bag: [Int] = []        // remaining draws for Shuffle
     private var finished: Bool = false // finite sequence done, Loop off → hold
 
-    override public func rebuildPorts(forStrategy strategy: String)
+    override public func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
-        let mode = IndexGeneratorMode(rawValue: strategy) ?? .shuffle
+        let mode = (strategy as? IndexGeneratorMode) ?? .shuffle
 
         var wanted: [(name: String, port: Port)] =
         [

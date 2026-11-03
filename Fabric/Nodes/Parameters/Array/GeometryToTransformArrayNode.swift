@@ -50,18 +50,23 @@ public class GeometryToTransformArrayNode : StrategyNode
         "outputPositions", "outputOrientations", "outputUVs",
     ]
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    /// `strategy`, typed once per rebuild, so execute never compares strategy strings.
+    private var typedStrategy: GeometryToTransformMode?
+
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
+        typedStrategy = strategy as? GeometryToTransformMode
+
         let wanted: [(name: String, port: Port)]
-        switch strategy
+        switch typedStrategy
         {
-        case "Transform":
+        case .transform:
             wanted =
             [
                 ("outputTransforms", NodePort<ContiguousArray<simd_float4x4>>(name: "Transforms", kind: .Outlet, description: "Array of per-vertex transforms: oriented to the vertex normal, positioned at the vertex, Transform applied")),
             ]
 
-        case "Components":
+        case .components:
             wanted =
             [
                 ("outputPositions", NodePort<ContiguousArray<simd_float3>>(name: "Positions", kind: .Outlet, description: "Per-vertex position (XYZ), Transform applied")),
@@ -69,7 +74,7 @@ public class GeometryToTransformArrayNode : StrategyNode
                 ("outputUVs", NodePort<ContiguousArray<simd_float2>>(name: "UVs", kind: .Outlet, description: "Per-vertex texture coordinate (UV)")),
             ]
 
-        default:
+        case nil:
             wanted = []
         }
 
@@ -117,9 +122,9 @@ public class GeometryToTransformArrayNode : StrategyNode
         let vertexCount = vertices.count
         let inputTransform = self.inputTransform.value ?? matrix_identity_float4x4
 
-        switch self.strategy
+        switch typedStrategy
         {
-        case "Transform":
+        case .transform:
             guard let outputTransforms: NodePort<ContiguousArray<simd_float4x4>> = findPort(named: "outputTransforms") else { return }
 
             var output = ContiguousArray<simd_float4x4>()
@@ -135,7 +140,7 @@ public class GeometryToTransformArrayNode : StrategyNode
             }
             outputTransforms.send(output)
 
-        case "Components":
+        case .components:
             guard let outputPositions: NodePort<ContiguousArray<simd_float3>> = findPort(named: "outputPositions"),
                   let outputOrientations: NodePort<ContiguousArray<simd_float4>> = findPort(named: "outputOrientations"),
                   let outputUVs: NodePort<ContiguousArray<simd_float2>> = findPort(named: "outputUVs")
@@ -164,7 +169,7 @@ public class GeometryToTransformArrayNode : StrategyNode
             outputOrientations.send(orientations)
             outputUVs.send(uvs)
 
-        default:
+        case nil:
             break
         }
     }

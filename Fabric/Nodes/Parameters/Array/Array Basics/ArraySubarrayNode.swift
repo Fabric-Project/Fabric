@@ -29,10 +29,10 @@ public class ArraySubarrayNode: TypeAgnosticNode
     public var inputOffset: ParameterPort<Int> { port(named: "inputOffset") }
     public var inputCount:  ParameterPort<Int>  { port(named: "inputCount") }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
         super.rebuildPorts(forStrategy: strategy)
-        guard let elementType = PortType(rawValue: strategy) else { return }
+        guard let elementType = strategy as? PortType else { return }
 
         let arrayType: PortType = .Array(portType: elementType)
 

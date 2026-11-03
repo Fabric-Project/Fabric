@@ -29,13 +29,13 @@ public class TypeAgnosticNode: StrategyNode
 
     public override class var separatorAfterFirstStrategy: Bool { true }
 
-    /// The currently active port type, derived from the strategy string.
-    public var selectedPortType: PortType { PortType(rawValue: strategy) ?? .Virtual }
+    /// The currently active port type.
+    public var selectedPortType: PortType { strategyOption(as: PortType.self) ?? .Virtual }
 
     /// Convenience programmatic init for a specific port type.
     public convenience init(context: Context, portType: PortType)
     {
-        self.init(context: context, initialStrategy: portType.rawValue)
+        self.init(context: context, strategy: portType)
     }
 
     /// Node-generated name: the selected port type leads the title, e.g. "Float

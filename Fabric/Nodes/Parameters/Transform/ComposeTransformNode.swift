@@ -24,12 +24,17 @@ public class ComposeTransformNode: StrategyNode
         "outputTransform",
     ]
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    /// `strategy`, typed once per rebuild, so execute never compares strategy strings.
+    private var typedStrategy: TransformCompositionMode?
+
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
+        typedStrategy = strategy as? TransformCompositionMode
+
         let wanted: [(name: String, port: Port)]
-        switch strategy
+        switch typedStrategy
         {
-        case "TRS":
+        case .trs:
             wanted =
             [
                 ("inputPosition", ParameterPort(parameter: Float3Parameter("Position", simd_float3(0, 0, 0), .inputfield, "Position (XYZ)"))),
@@ -38,7 +43,7 @@ public class ComposeTransformNode: StrategyNode
                 ("outputTransform", NodePort<simd_float4x4>(name: "Transform", kind: .Outlet, description: "Model matrix (T*R*S)")),
             ]
 
-        case "Columns":
+        case .columns:
             wanted =
             [
                 ("inputColumn0", ParameterPort(parameter: Float4Parameter("Column 0", simd_float4(1, 0, 0, 0), .inputfield, "First column of the matrix"))),
@@ -48,7 +53,7 @@ public class ComposeTransformNode: StrategyNode
                 ("outputTransform", NodePort<simd_float4x4>(name: "Transform", kind: .Outlet, description: "Matrix built from its four columns")),
             ]
 
-        default:
+        case nil:
             wanted = []
         }
 
@@ -71,9 +76,9 @@ public class ComposeTransformNode: StrategyNode
     {
         guard let outputTransform: NodePort<simd_float4x4> = findPort(named: "outputTransform") else { return }
 
-        switch self.strategy
+        switch typedStrategy
         {
-        case "TRS":
+        case .trs:
             guard let inputPosition: ParameterPort<simd_float3> = findPort(named: "inputPosition"),
                   let inputOrientation: ParameterPort<simd_float4> = findPort(named: "inputOrientation"),
                   let inputScale: ParameterPort<simd_float3> = findPort(named: "inputScale")
@@ -86,7 +91,7 @@ public class ComposeTransformNode: StrategyNode
 
             outputTransform.send(simd_float4x4(translation: position, rotation: orientation, scale: scale))
 
-        case "Columns":
+        case .columns:
             guard let inputColumn0: ParameterPort<simd_float4> = findPort(named: "inputColumn0"),
                   let inputColumn1: ParameterPort<simd_float4> = findPort(named: "inputColumn1"),
                   let inputColumn2: ParameterPort<simd_float4> = findPort(named: "inputColumn2"),
@@ -104,7 +109,7 @@ public class ComposeTransformNode: StrategyNode
             )
             outputTransform.send(m)
 
-        default:
+        case nil:
             break
         }
     }

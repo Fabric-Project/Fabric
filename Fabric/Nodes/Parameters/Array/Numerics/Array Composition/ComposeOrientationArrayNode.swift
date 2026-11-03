@@ -25,19 +25,24 @@ public class ComposeOrientationArrayNode: StrategyNode
         "outputOrientations",
     ]
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    /// `strategy`, typed once per rebuild, so execute never compares strategy strings.
+    private var typedStrategy: OrientationCompositionMode?
+
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
+        typedStrategy = strategy as? OrientationCompositionMode
+
         let wanted: [(name: String, port: Port)]
-        switch strategy
+        switch typedStrategy
         {
-        case "Euler":
+        case .euler:
             wanted =
             [
                 ("inputEulerAngles", NodePort<ContiguousArray<simd_float3>>(name: "Euler Angles", kind: .Inlet, description: "Per-element Euler angles in degrees (X=pitch, Y=yaw, Z=roll)")),
                 ("outputOrientations", NodePort<ContiguousArray<simd_float4>>(name: "Orientations", kind: .Outlet, description: "Per-element quaternion orientation (X, Y, Z, W)")),
             ]
 
-        case "Axis Angle":
+        case .axisAngle:
             wanted =
             [
                 ("inputAxes", NodePort<ContiguousArray<simd_float3>>(name: "Axes", kind: .Inlet, description: "Per-element rotation axis (will be normalized)")),
@@ -45,7 +50,7 @@ public class ComposeOrientationArrayNode: StrategyNode
                 ("outputOrientations", NodePort<ContiguousArray<simd_float4>>(name: "Orientations", kind: .Outlet, description: "Per-element quaternion orientation (X, Y, Z, W)")),
             ]
 
-        case "Target":
+        case .target:
             wanted =
             [
                 ("inputPositions", NodePort<ContiguousArray<simd_float3>>(name: "Positions", kind: .Inlet, description: "Per-element viewpoint position (XYZ)")),
@@ -55,7 +60,7 @@ public class ComposeOrientationArrayNode: StrategyNode
                 ("outputOrientations", NodePort<ContiguousArray<simd_float4>>(name: "Orientations", kind: .Outlet, description: "Per-element quaternion orientation (X, Y, Z, W)")),
             ]
 
-        default:
+        case nil:
             wanted = []
         }
 
@@ -78,9 +83,9 @@ public class ComposeOrientationArrayNode: StrategyNode
     {
         guard let outputOrientations: NodePort<ContiguousArray<simd_float4>> = findPort(named: "outputOrientations") else { return }
 
-        switch self.strategy
+        switch typedStrategy
         {
-        case "Euler":
+        case .euler:
             guard let inputEulerAngles: NodePort<ContiguousArray<simd_float3>> = findPort(named: "inputEulerAngles") else { return }
             guard inputEulerAngles.valueDidChange else { return }
             guard let eulerAngles = inputEulerAngles.value else {
@@ -104,7 +109,7 @@ public class ComposeOrientationArrayNode: StrategyNode
             }
             outputOrientations.send(output)
 
-        case "Axis Angle":
+        case .axisAngle:
             guard let inputAxes: NodePort<ContiguousArray<simd_float3>> = findPort(named: "inputAxes"),
                   let inputAngles: NodePort<ContiguousArray<Float>> = findPort(named: "inputAngles")
             else { return }
@@ -136,7 +141,7 @@ public class ComposeOrientationArrayNode: StrategyNode
             }
             outputOrientations.send(output)
 
-        case "Target":
+        case .target:
             guard let inputPositions: NodePort<ContiguousArray<simd_float3>> = findPort(named: "inputPositions"),
                   let inputTargets: NodePort<ContiguousArray<simd_float3>> = findPort(named: "inputTargets"),
                   let inputUpOrientations: NodePort<ContiguousArray<simd_float4>> = findPort(named: "inputUpOrientations"),
@@ -180,7 +185,7 @@ public class ComposeOrientationArrayNode: StrategyNode
             }
             outputOrientations.send(output)
 
-        default:
+        case nil:
             break
         }
     }

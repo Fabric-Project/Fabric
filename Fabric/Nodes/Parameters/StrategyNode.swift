@@ -129,7 +129,7 @@ open class StrategyNode: Node
 
     /// Derived from strategyOptions — do not override.
     public class var strategies: [String] { strategyOptions.map(\.rawValue) }
-    open class var defaultStrategy: String { strategies.first ?? "" }
+    open class var defaultStrategy: (any NodeStrategyOption)? { strategyOptions.first }
 
     /// When true, the picker inserts a visual separator after the first strategy in the list.
     open class var separatorAfterFirstStrategy: Bool { false }
@@ -145,33 +145,34 @@ open class StrategyNode: Node
     /// type-agnostic nodes do, suppressing the token for their Virtual default.
     override open func deriveSubtitle() -> String?
     {
-        Self.strategies.contains(strategy) ? strategy : nil
+        strategy?.rawValue
     }
 
-    /// A strategy string resolved to its typed option, or nil when it matches
-    /// none (e.g. a removed or renamed case).
-    public class func strategyOption<T: NodeStrategyOption>(matching rawValue: String, as _: T.Type = T.self) -> T?
+    /// The option named `name`, or nil when none matches (e.g. a removed or renamed case).
+    /// Names are the saved and settings form of a strategy; everything else is typed.
+    public class func strategyOption(named name: String) -> (any NodeStrategyOption)?
     {
-        strategyOptions.first { $0.rawValue == rawValue } as? T
+        strategyOptions.first { $0.rawValue == name }
     }
 
-    /// The currently selected strategy resolved to its typed option.
+    /// The current strategy as `T`, or nil when it is another type or unset.
     public func strategyOption<T: NodeStrategyOption>(as _: T.Type = T.self) -> T?
     {
-        // `strategyOptions` builds its array on every call; resolve once per strategy.
-        if resolvedStrategyRawValue != strategy
-        {
-            resolvedStrategyRawValue = strategy
-            resolvedStrategyOption = Self.strategyOptions.first { $0.rawValue == strategy }
-        }
-        return resolvedStrategyOption as? T
+        strategy as? T
     }
 
-    private var resolvedStrategyRawValue: String?
-    private var resolvedStrategyOption: (any NodeStrategyOption)?
+    /// The selected strategy, always one of `strategyOptions`, resolved from `strategyName`
+    /// whenever that changes; nil when the name matches none, such as a removed case in a
+    /// saved document. Subclasses switch on this, never on the name.
+    public private(set) var strategy: (any NodeStrategyOption)?
 
+    /// The strategy's name: what settings, documents and the picker hold. A name that matches
+    /// no option is kept, so saving writes it back unchanged.
     /// Changed by apply(_:), through setStrategy(_:) or setSettings(_:).
-    private(set) var strategy: String
+    public private(set) var strategyName: String
+    {
+        didSet { strategy = Self.strategyOption(named: strategyName) }
+    }
 
     private enum StrategyCodingKeys: String, CodingKey
     {
@@ -183,7 +184,10 @@ open class StrategyNode: Node
         let container = try decoder.container(keyedBy: StrategyCodingKeys.self)
         let decoded = try container.decodeIfPresent(String.self, forKey: .strategy)
 
-        self.strategy = decoded ?? Self.defaultStrategy
+        // Stored directly: didSet does not run in an initializer, so the typed strategy is set too.
+        let name = decoded ?? Self.defaultStrategy?.rawValue ?? ""
+        self.strategyName = name
+        self.strategy = Self.strategyOption(named: name)
 
         try super.init(from: decoder)
 
@@ -192,7 +196,7 @@ open class StrategyNode: Node
         self.rebuildPorts(forStrategy: self.strategy)
     }
 
-    override open var settings: (any NodeSettings)? { StrategyNodeSettings(strategy: self.strategy) }
+    override open var settings: (any NodeSettings)? { StrategyNodeSettings(strategy: self.strategyName) }
 
     override open func apply(_ settings: any NodeSettings)
     {
@@ -200,8 +204,8 @@ open class StrategyNode: Node
               let current = self.settings,
               type(of: current) == type(of: settings)
         else { return }
-        let changed = settings.strategy != self.strategy
-        self.strategy = settings.strategy
+        let changed = settings.strategy != self.strategyName
+        self.strategyName = settings.strategy
         if changed, let graph
         {
             // A replaced port remakes its connections, so the rebuild registers
@@ -227,7 +231,7 @@ open class StrategyNode: Node
     {
         guard let graph,
               let previous = previous as? any StrategySettings,
-              previous.strategy != self.strategy
+              previous.strategy != self.strategyName
         else { return }
 
         let previousStrategy = previous.strategy
@@ -248,28 +252,33 @@ open class StrategyNode: Node
         self.setSettings(settings)
     }
 
-    public func setStrategy(_ strategy: some NodeStrategyOption)
+    /// Resolves by name, so a value of another type that names one of this node's options, such
+    /// as `PortType.Vector3` for `VectorType.float3`, selects that option.
+    public func setStrategy(_ strategy: any NodeStrategyOption)
     {
         self.setStrategy(strategy.rawValue)
     }
 
     public required init(context: Context)
     {
+        self.strategyName = Self.defaultStrategy?.rawValue ?? ""
         self.strategy = Self.defaultStrategy
         super.init(context: context)
         self.rebuildPorts(forStrategy: self.strategy)
     }
 
-    /// Designated init for programmatic construction with a specific initial strategy.
+    /// Designated init for programmatic construction with a strategy given by name, as settings hold it.
     public init(context: Context, initialStrategy: String)
     {
-        self.strategy = initialStrategy
+        self.strategyName = initialStrategy
+        self.strategy = Self.strategyOption(named: initialStrategy)
         super.init(context: context)
         self.rebuildPorts(forStrategy: self.strategy)
     }
 
-    /// Convenience init for compile-time-checked programmatic construction.
-    public convenience init(context: Context, strategy: some NodeStrategyOption)
+    /// Convenience init for compile-time-checked programmatic construction. Resolves by name, as
+    /// setStrategy(_:) does.
+    public convenience init(context: Context, strategy: any NodeStrategyOption)
     {
         self.init(context: context, initialStrategy: strategy.rawValue)
     }
@@ -307,7 +316,7 @@ open class StrategyNode: Node
     /// name-set-diff pattern MathExpressionNode.syncPorts(to:)
     /// already uses. Called on creation, on every Settings-view strategy
     /// change, and once after decode.
-    open func rebuildPorts(forStrategy strategy: String) { }
+    open func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?) { }
 
     /// The rebuild step for one port: a port of the wanted type is left alone;
     /// one of another type is replaced (see `Node.replacePort`) by a fresh port
@@ -350,7 +359,7 @@ open class StrategyNode: Node
         {
             didSet
             {
-                guard strategy != node?.strategy else { return }
+                guard strategy != node?.strategyName else { return }
                 node?.setStrategy(strategy)
             }
         }
@@ -361,13 +370,13 @@ open class StrategyNode: Node
             self.node = node
             self.strategies = type(of: node).strategies
             self.separatorAfterFirst = type(of: node).separatorAfterFirstStrategy
-            self.strategy = node.strategy
+            self.strategy = node.strategyName
         }
 
         func refreshFromNode()
         {
-            guard let node, strategy != node.strategy else { return }
-            strategy = node.strategy
+            guard let node, strategy != node.strategyName else { return }
+            strategy = node.strategyName
         }
     }
 

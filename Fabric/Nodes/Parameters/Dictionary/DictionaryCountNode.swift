@@ -12,7 +12,7 @@ public final class DictionaryCountNode: DictionaryTypeAgnosticNode
     public override class var name: String { "Dictionary Count" }
     override public class var nodeDescription: String { "Outputs the number of key-value pairs in a dictionary. Choose value type in Settings." }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
         super.rebuildPorts(forStrategy: strategy)
 

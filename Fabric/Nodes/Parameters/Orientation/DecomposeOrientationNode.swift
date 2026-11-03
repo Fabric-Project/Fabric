@@ -24,12 +24,17 @@ public class DecomposeOrientationNode: StrategyNode
         "outputAxis", "outputAngle",
     ]
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    /// `strategy`, typed once per rebuild, so execute never compares strategy strings.
+    private var typedStrategy: OrientationDecompositionMode?
+
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
+        typedStrategy = strategy as? OrientationDecompositionMode
+
         let wanted: [(name: String, port: Port)]
-        switch strategy
+        switch typedStrategy
         {
-        case "To Euler":
+        case .toEuler:
             wanted =
             [
                 ("inputOrientation", ParameterPort(parameter: Float4Parameter("Orientation", simd_float4(0, 0, 0, 1), .inputfield, "Quaternion orientation (X, Y, Z, W)"))),
@@ -38,7 +43,7 @@ public class DecomposeOrientationNode: StrategyNode
                 ("outputZ", NodePort<Float>(name: "Z (Roll)", kind: .Outlet, description: "Rotation around the Z axis in degrees")),
             ]
 
-        case "To Axis Angle":
+        case .toAxisAngle:
             wanted =
             [
                 ("inputOrientation", ParameterPort(parameter: Float4Parameter("Orientation", simd_float4(0, 0, 0, 1), .inputfield, "Quaternion orientation (X, Y, Z, W)"))),
@@ -46,7 +51,7 @@ public class DecomposeOrientationNode: StrategyNode
                 ("outputAngle", NodePort<Float>(name: "Angle", kind: .Outlet, description: "Rotation angle in degrees")),
             ]
 
-        default:
+        case nil:
             wanted = []
         }
 
@@ -74,9 +79,9 @@ public class DecomposeOrientationNode: StrategyNode
 
         let quat = simd_quatf(safeVector: orientationVector)
 
-        switch self.strategy
+        switch typedStrategy
         {
-        case "To Euler":
+        case .toEuler:
             guard let outputX: NodePort<Float> = findPort(named: "outputX"),
                   let outputY: NodePort<Float> = findPort(named: "outputY"),
                   let outputZ: NodePort<Float> = findPort(named: "outputZ")
@@ -87,7 +92,7 @@ public class DecomposeOrientationNode: StrategyNode
             outputY.send(euler.y)
             outputZ.send(euler.z)
 
-        case "To Axis Angle":
+        case .toAxisAngle:
             guard let outputAxis: NodePort<simd_float3> = findPort(named: "outputAxis"),
                   let outputAngle: NodePort<Float> = findPort(named: "outputAngle")
             else { return }
@@ -96,7 +101,7 @@ public class DecomposeOrientationNode: StrategyNode
             outputAxis.send(axis)
             outputAngle.send(angleDegrees)
 
-        default:
+        case nil:
             break
         }
     }

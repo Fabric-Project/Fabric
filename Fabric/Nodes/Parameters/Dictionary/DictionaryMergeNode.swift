@@ -12,7 +12,7 @@ public final class DictionaryMergeNode: DictionaryTypeAgnosticNode
     public override class var name: String { "Dictionary Merge" }
     override public class var nodeDescription: String { "Merges two dictionaries. Values from B replace values from A. Choose value type in Settings." }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
         super.rebuildPorts(forStrategy: strategy)
 
