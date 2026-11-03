@@ -10,3 +10,7 @@
 [submodule "HapInAVFoundation"]
 	path = HapInAVFoundation
 	url = https://github.com/Vidvox/hap-in-avfoundation
+[submodule "Fabric-Samples"]
+	path = Fabric-Samples
+	url = https://github.com/Fabric-Project/Fabric-Samples
+	update = none
