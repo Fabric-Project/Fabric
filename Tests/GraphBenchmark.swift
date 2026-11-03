@@ -9,7 +9,9 @@ import Satin
 /// Fails on errors, and never on a time: timings swing up to 2.5x between sessions, so compare builds A, B, A, B.
 enum GraphBenchmark
 {
-    private static let renderSize = (width: 1920, height: 1080)
+    typealias RenderSize = (width: Int, height: Int)
+    static let hd: RenderSize = (width: 1920, height: 1080)
+    static let uhd4K: RenderSize = (width: 3840, height: 2160)
     private static let frameInterval: TimeInterval = 1.0 / 120.0
     #if DEBUG
     private static let configuration = "debug"
@@ -79,14 +81,14 @@ enum GraphBenchmark
     }
 
     /// The graph must use `context`. Writes `.build/benchmarks/<label>.tsv`.
-    static func run(graph: Graph, label: String, context: Context) throws
+    static func run(graph: Graph, label: String, context: Context, renderSize: RenderSize = hd) throws
     {
         try validateLoadedCleanly(graph)
 
         let errorDelegate = RecordingErrorDelegate()
         let renderer = GraphRenderer(context: context, graph: graph)
         renderer.errorDelegate = errorDelegate
-        renderer.resize(size: (width: Float(Self.renderSize.width), height: Float(Self.renderSize.height)), scaleFactor: 1.0)
+        renderer.resize(size: (width: Float(renderSize.width), height: Float(renderSize.height)), scaleFactor: 1.0)
         try renderer.startExecution()
         defer
         {
@@ -95,14 +97,14 @@ enum GraphBenchmark
             renderer.teardown()
         }
 
-        let targets = try Self.makeRenderTargets(context: context)
-        let renderPassDescriptor = Self.makeRenderPassDescriptor(targets: targets)
+        let targets = try Self.makeRenderTargets(context: context, renderSize: renderSize)
+        let renderPassDescriptor = Self.makeRenderPassDescriptor(targets: targets, renderSize: renderSize)
         // Offscreen command buffers are not bounded by a drawable, so the benchmark holds the app's limit itself.
         let framesInFlight = DispatchSemaphore(value: context.maxBuffersInFlight)
         let gpuTimes = GPUTimes()
 
         var nextFrameNumber = 0
-        var report = Self.reportHeader(label: label, gpuName: context.device.name)
+        var report = Self.reportHeader(label: label, gpuName: context.device.name, renderSize: renderSize)
         var passMedians: [Double] = []
 
         for pass in 0..<Self.passCount
@@ -326,7 +328,7 @@ enum GraphBenchmark
         }
     }
 
-    private static func makeRenderTargets(context: Context) throws -> RenderTargets
+    private static func makeRenderTargets(context: Context, renderSize: RenderSize) throws -> RenderTargets
     {
         func makeTexture(pixelFormat: MTLPixelFormat, storageMode: MTLStorageMode) throws -> MTLTexture
         {
@@ -349,7 +351,7 @@ enum GraphBenchmark
                              stencil: try makeTexture(pixelFormat: context.stencilPixelFormat, storageMode: .private))
     }
 
-    private static func makeRenderPassDescriptor(targets: RenderTargets) -> MTLRenderPassDescriptor
+    private static func makeRenderPassDescriptor(targets: RenderTargets, renderSize: RenderSize) -> MTLRenderPassDescriptor
     {
         let descriptor = MTLRenderPassDescriptor()
         descriptor.colorAttachments[0].texture = targets.color
@@ -369,7 +371,7 @@ enum GraphBenchmark
 
     // MARK: - Report
 
-    private static func reportHeader(label: String, gpuName: String) -> String
+    private static func reportHeader(label: String, gpuName: String, renderSize: RenderSize) -> String
     {
         let processInfo = ProcessInfo.processInfo
         let metadata = [
