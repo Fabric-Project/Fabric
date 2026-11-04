@@ -180,7 +180,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 
 ### 3.3  Serialization
 - A node saves only its parameter inlets' values, by key (`"ports": {key: PortValue}`); its interface comes from its declarations on open. Graphs save wires and publishing by address. Port and connection ids are runtime-only.
-- Nodes whose source may not compile on open (Live Image, JavaScript) opt into `savesPortInterface`, saving their interface's shape to declare until the source compiles again.
+- A node whose ports come from compiling a source (JavaScript, Live Image, a user's shader file, Math Expression, Parametric Geometry) sets `lastCompiledSource` on each compile that succeeds; `Node` saves it when it differs from `compilableSource`. When the source does not compile on open (or a shader file has not resolved), the node declares its ports from the last compiled source, read for its interface only and never run. The document carries no port structure.
 - Older documents are read through `GraphFormatMigration`, once at open; keep decode shims until an official migration step.
 
 ### 3.4  Subgraph Behavior
