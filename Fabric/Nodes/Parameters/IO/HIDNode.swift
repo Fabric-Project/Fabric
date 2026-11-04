@@ -693,11 +693,7 @@ public class HIDNode: Node
         updateMonitoring()
         updateDeviceStatus()
 
-        performOnMainSync
-        {
-            _settingsModelStorage?.selectedDeviceID = selectedDeviceID
-            _settingsModelStorage?.deviceElements = deviceElements
-        }
+        performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
     }
 
     // MARK: - Device Status
@@ -796,6 +792,13 @@ public class HIDNode: Node
             self.availableDevices = node.availableDevices
             self.deviceElements = node.deviceElements
             self.deviceStatus = node.deviceStatus
+        }
+
+        func refreshFromNode()
+        {
+            guard let node else { return }
+            if selectedDeviceID != node.selectedDeviceID { selectedDeviceID = node.selectedDeviceID }
+            if deviceElements != node.deviceElements { deviceElements = node.deviceElements }
         }
 
         func refreshDevices() { node?.refreshDevices() }

@@ -212,7 +212,7 @@ public class GameControllerNode: Node
         {
             synchronizePorts(to: settings.portDescriptors)
         }
-        performOnMainSync { _settingsModelStorage?.outputPortCount = outputPorts().count }
+        performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
         super.apply(settings)
     }
 
@@ -236,11 +236,7 @@ public class GameControllerNode: Node
         didSet
         {
             setupController()
-            performOnMainSync
-            {
-                _settingsModelStorage?.selectedControllerID = selectedControllerID
-                _settingsModelStorage?.outputPortCount = outputPorts().count
-            }
+            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
             // `subtitle` is derived from the selected controller; notify so the title refreshes.
             self.subtitleSubject.send()
         }
@@ -307,6 +303,13 @@ public class GameControllerNode: Node
             self.availableControllers = node.availableControllers
             self.outputPortCount = node.outputPorts().count
             self.controllerStatus = node.controllerStatus
+        }
+
+        func refreshFromNode()
+        {
+            guard let node else { return }
+            if selectedControllerID != node.selectedControllerID { selectedControllerID = node.selectedControllerID }
+            outputPortCount = node.outputPorts().count
         }
 
         func refreshControllers() { node?.refreshControllers() }
@@ -468,7 +471,7 @@ public class GameControllerNode: Node
                 savedControllerInfo = nil
             }
             self.synchronizePorts(to: portDescriptorsForAbsentController ?? [])
-            performOnMainSync { _settingsModelStorage?.outputPortCount = outputPorts().count }
+            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
             updateSubscription()
             updateControllerStatus()
             return
@@ -494,7 +497,7 @@ public class GameControllerNode: Node
         }
 
         self.synchronizePorts(to: descriptors)
-        performOnMainSync { _settingsModelStorage?.outputPortCount = outputPorts().count }
+        performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
         updateSubscription()
         updateControllerStatus()
     }
