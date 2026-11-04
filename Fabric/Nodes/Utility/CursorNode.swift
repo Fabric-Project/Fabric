@@ -29,44 +29,17 @@ public class CursorNode : Node
     override public class var nodeDescription: String { "Provides Cursor (Mouse or Touch) Position and Button / Tap state" }
 
     // Ports
-    public let outputCursorPosition:NodePort<simd_float2>
-    public let outputTap:NodePort<Bool>
-    public override var ports: [Port] { [ self.outputCursorPosition, self.outputTap] + super.ports}
-      
-    public required init(context: Context)
+    public let outputCursorPosition = NodePort<simd_float2>(name: "Position", kind: .Outlet, description: "Current cursor position in pixels")
+    public let outputTap = NodePort<Bool>(name: "Tap", kind: .Outlet, description: "True when mouse button is pressed")
+
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        self.outputCursorPosition = NodePort<simd_float2>(name: "Position" , kind: .Outlet, description: "Current cursor position in pixels")
-        self.outputTap = NodePort<Bool>(name: "Tap" , kind: .Outlet, description: "True when mouse button is pressed")
-        
-        super.init(context: context)
-    }
-    
-    enum CodingKeys : String, CodingKey
-    {
-        case outputCursorPositionPort
-        case outputTapPort
+        [
+            PortDeclaration(key: "outputCursorPositionPort", port: self.outputCursorPosition),
+            PortDeclaration(key: "outputTapPort", port: self.outputTap),
+        ] + super.declaredPorts()
     }
 
-    override public func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.outputCursorPosition, forKey: .outputCursorPositionPort)
-        try container.encode(self.outputTap, forKey: .outputTapPort)
-
-        try super.encode(to: encoder)
-    }
-    
-    public required init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        self.outputCursorPosition =  try container.decode(NodePort<simd_float2>.self, forKey: .outputCursorPositionPort)
-        self.outputTap = try container.decode(NodePort<Bool>.self, forKey: .outputTapPort)
-
-        try super.init(from: decoder)
-    }
-    
 #if os(macOS)
     private let moveEventTypesWeListenFor:[NSEvent.EventType] = [
         .mouseMoved
