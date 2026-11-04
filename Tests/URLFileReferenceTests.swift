@@ -336,4 +336,60 @@ struct URLFileReferenceTests
         #expect(decodedDirectoryNode.inputPath.value == missingReference)
         #expect(decodedDirectoryNode.inputPath.valueDidChange)
     }
+
+    @Test("A shader dropped from the user's files is saved by reference and reopens from it")
+    func userShaderIsSavedByReference() throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let fileManager = FileManager.default
+        let directoryURL = fileManager.temporaryDirectory.appending(path: "UserShader-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try fileManager.createDirectory(at: directoryURL.appending(path: "Shaders"), withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: directoryURL) }
+
+        let shaderURL = directoryURL.appending(path: "Shaders/Tint.metal").standardizedFileURL
+        try """
+            typedef struct {
+                float amount; // slider, 0.0, 1.0, 0.5, Amount
+            } PostUniforms;
+
+            fragment half4 postFragment(VertexData in [[stage_in]],
+                                        constant PostUniforms &uniforms [[buffer(FragmentBufferMaterialUniforms)]])
+            {
+                return half4(uniforms.amount);
+            }
+            """.write(to: shaderURL, atomically: true, encoding: .utf8)
+
+        let graph = Graph(context: harness.context, fileReferenceBaseURL: directoryURL)
+        let node = try BaseImageNode(context: harness.context, fileURL: shaderURL)
+        graph.addNode(node)
+        let declaredKeys = node.ports.map(\.key)
+        #expect(node.title == "Tint")
+        #expect(declaredKeys.contains(.own("Amount")))
+
+        let data = try JSONEncoder().encode(graph)
+        let saved = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let savedNode = try #require(((saved["nodeMap"] as? [[String: Any]])?.first?["value"]) as? [String: Any])
+        #expect(savedNode["effectFile"] as? String == "Shaders/Tint.metal")
+        #expect(savedNode["effectPath"] == nil)
+
+        // The host knows the document's folder at decode.
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: harness.context, fileReferenceBaseURL: directoryURL)
+        let reopened = try #require(try decoder.decode(Graph.self, from: data).nodes.first as? BaseImageNode)
+        #expect(reopened.title == "Tint")
+        #expect(reopened.ports.map(\.key) == declaredKeys)
+
+        // The host learns it only after decode: the shader resolves then, and a
+        // save in between keeps the reference.
+        decoder.context = DecoderContext(documentContext: harness.context)
+        let lateGraph = try decoder.decode(Graph.self, from: data)
+        let late = try #require(lateGraph.nodes.first as? BaseImageNode)
+        #expect(late.title != "Tint")
+        let resaved = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(lateGraph)) as? [String: Any])
+        let resavedNode = try #require(((resaved["nodeMap"] as? [[String: Any]])?.first?["value"]) as? [String: Any])
+        #expect(resavedNode["effectFile"] as? String == "Shaders/Tint.metal")
+        lateGraph.updateFileReferenceBaseURL(directoryURL)
+        #expect(late.title == "Tint")
+        #expect(late.ports.map(\.key) == declaredKeys)
+    }
 }

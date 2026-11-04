@@ -38,6 +38,9 @@ open class BaseImageNode: Node, NodeMadeFromFile
     let postProcessor: PostProcessEncoder
 
     private var url: URL? = nil
+    /// A user's shader file the document names but that did not resolve on
+    /// open, kept so a save does not lose it. The node runs its class shader.
+    private var unresolvedEffectFile: String?
     private var cachedFileURLName: String?
     private var lastKnownInputCount: Int = 1
     private var cachedImageInputPorts: [NodePort<FabricImage>]?
@@ -60,6 +63,7 @@ open class BaseImageNode: Node, NodeMadeFromFile
     enum CodingKeys: String, CodingKey
     {
         case effectPath
+        case effectFile
         case baseImageNodeVersion
         case lastKnownInputCount
     }
@@ -132,19 +136,30 @@ open class BaseImageNode: Node, NodeMadeFromFile
         guard shouldUpdatePipeline || self.cachedFileURLName != cachedName else { return }
 
         self.url = url
+        self.unresolvedEffectFile = nil
         self.cachedFileURLName = cachedName
         self.updatePostProcessorLabel()
         self.namingDidChange()
 
         guard shouldUpdatePipeline else { return }
 
+        self.postMaterial.pipelineURL = url
         if let sourceShader = self.postMaterial.shader as? SourceShader {
             sourceShader.pipelineURL = url
             sourceShader.reloadFromSource()
         }
 
-        // New shader may expose a different set of uniforms.
-        self.declareShaderInterface(imageInputCount: self.shaderInterface?.imageInputCount ?? self.lastKnownInputCount)
+        // The new shader may take a different number of images and expose
+        // different uniforms.
+        self.postSetupSynchronizePorts()
+    }
+
+    public func fileReferenceBaseDidChange(_ directoryURL: URL?) {
+        guard let unresolvedEffectFile,
+              let url = URL(fileReference: unresolvedEffectFile, relativeTo: directoryURL),
+              FileManager.default.fileExists(atPath: url.path)
+        else { return }
+        self.setFileURL(url)
     }
 
     public required init(from decoder: any Decoder) throws {
@@ -155,50 +170,32 @@ open class BaseImageNode: Node, NodeMadeFromFile
         }
 
         let decodedEffectPath = try container.decodeIfPresent(String.self, forKey: .effectPath)
+        let decodedEffectFile = try container.decodeIfPresent(String.self, forKey: .effectFile)
 
-        if let path = decodedEffectPath {
-            if let shaderURL = Self.resolveBundleResource(path: path) {
-                self.url = shaderURL
-                self.cachedFileURLName = Self.fileURLToName(fileURL: shaderURL)
-
-                let material = PostMaterial(context:context, pipelineURL: shaderURL)
-
-                self.postMaterial = material
-                self.postProcessor = PostProcessEncoder(context:context,
-                                                        material: material,
-                                                        depthPixelFormat: .invalid,
-                                                        stencilPixelFormat: .invalid,
-                                                        frameBufferOnly: false)
-            }
-            else {
-                self.cachedFileURLName = nil
-
-                let shaderURL = Self.sourceShaderURL
-
-                let material = PostMaterial(context:context,pipelineURL: shaderURL!)
-
-                self.postMaterial = material
-                self.postProcessor = PostProcessEncoder(context:context,
-                                                        material: material,
-                                                        depthPixelFormat: .invalid,
-                                                        stencilPixelFormat: .invalid,
-                                                        frameBufferOnly: false)
-            }
+        // A bundled shader by its path in the bundle; a user's shader file by
+        // its reference, relative to the document's folder where it is inside it.
+        var shaderURL: URL?
+        if let decodedEffectPath
+        {
+            shaderURL = Self.resolveBundleResource(path: decodedEffectPath)
         }
-        else {
-            self.cachedFileURLName = nil
-
-            let shaderURL = Self.sourceShaderURL
-
-            let material = PostMaterial(context:context,pipelineURL: shaderURL!)
-
-            self.postMaterial = material
-            self.postProcessor = PostProcessEncoder(context:context,
-                                                    material: material,
-                                                    depthPixelFormat: .invalid,
-                                                    stencilPixelFormat: .invalid,
-                                                    frameBufferOnly: false)
+        else if let decodedEffectFile
+        {
+            shaderURL = URL(fileReference: decodedEffectFile, relativeTo: decoder.context?.fileReferenceBaseURL)
+                .flatMap { FileManager.default.fileExists(atPath: $0.path) ? $0 : nil }
+            if shaderURL == nil { self.unresolvedEffectFile = decodedEffectFile }
         }
+
+        self.url = shaderURL
+        self.cachedFileURLName = shaderURL.map(Self.fileURLToName(fileURL:))
+
+        let material = PostMaterial(context: context, pipelineURL: shaderURL ?? Self.sourceShaderURL!)
+        self.postMaterial = material
+        self.postProcessor = PostProcessEncoder(context: context,
+                                                material: material,
+                                                depthPixelFormat: .invalid,
+                                                stencilPixelFormat: .invalid,
+                                                frameBufferOnly: false)
 
         self.lastKnownInputCount = try container.decodeIfPresent(Int.self, forKey: .lastKnownInputCount)
             ?? Self.defaultImageInputCountHint
@@ -215,8 +212,20 @@ open class BaseImageNode: Node, NodeMadeFromFile
     override public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
 
-        if let url = self.url {
-            try container.encodeIfPresent(Self.bundleRelativeResourcePath(for: url), forKey: .effectPath)
+        if let url = self.url
+        {
+            if let bundlePath = Self.bundleRelativeResourcePath(for: url)
+            {
+                try container.encode(bundlePath, forKey: .effectPath)
+            }
+            else
+            {
+                try container.encode(url.fileReference(relativeTo: self.graph?.fileReferenceBaseURL), forKey: .effectFile)
+            }
+        }
+        else if let unresolvedEffectFile
+        {
+            try container.encode(unresolvedEffectFile, forKey: .effectFile)
         }
 
         try container.encode(1, forKey: .baseImageNodeVersion)

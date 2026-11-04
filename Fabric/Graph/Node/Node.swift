@@ -835,6 +835,15 @@ public protocol NodeFileLoadingProtocol : Node
 public protocol NodeMadeFromFile : NodeFileLoadingProtocol
 {
     func setFileURL(_ url: URL)
+
+    /// The document's folder is known or moved: a file the node could not
+    /// find relative to it before may resolve now.
+    func fileReferenceBaseDidChange(_ directoryURL: URL?)
+}
+
+public extension NodeMadeFromFile
+{
+    func fileReferenceBaseDidChange(_ directoryURL: URL?) { }
 }
 
 /// A node that takes a file through a file-picker inlet, such as an image or

@@ -483,6 +483,8 @@ internal import AnyCodable
                 node.markDirty()
             }
 
+            (node as? any NodeMadeFromFile)?.fileReferenceBaseDidChange(standardizedURL)
+
             if let subgraphNode = node as? SubgraphNode
             {
                 subgraphNode.subGraph.updateFileReferenceBaseURL(standardizedURL)
