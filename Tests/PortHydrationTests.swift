@@ -731,12 +731,14 @@ struct PortHydrationTests
     {
         guard let context = makeContext() else { return }
 
-        // No controller is present in tests; adding the ports directly stands
-        // in for what a connected profile does via synchronizePorts.
-        let node = GameControllerNode(context: context)
-        node.addDynamicPort(NodePort<Float>(name: "Left Stick X", kind: .Outlet))
-        node.addDynamicPort(NodePort<Bool>(name: "A", kind: .Outlet))
+        // No controller is present in tests; a document carrying descriptors
+        // stands in for what a connected profile does via synchronizePorts.
+        let descriptors: [[String: Any]] = [["name": "Left Stick X", "isButton": false], ["name": "A", "isButton": true]]
+        let node = try roundTrip(GameControllerNode(context: context), context: context) { jsonObject in
+            jsonObject["portDescriptors"] = descriptors
+        }
         let savedPortIDs = node.ports.map(\.id)
+        #expect(savedPortIDs.count == 2)
 
         let decoded = try roundTrip(node, context: context)
 
@@ -778,7 +780,7 @@ struct PortHydrationTests
         guard let context = makeContext() else { return }
 
         let graph = Graph(context: context)
-        let node = NumberBinaryOperator(context: context)
+        let node = MathExpressionNode(context: context)
         graph.addNode(node)
 
         // Retire a key in the saved document, then load: the state is
@@ -805,9 +807,9 @@ struct PortHydrationTests
         // port registered under the stale key months later — a settings
         // toggle, a reconnecting device — suddenly adopted the saved identity
         // without its wires. The window is closed now; late ports are fresh.
-        let decodedNode = try #require(decoded.nodes.first { $0.id == node.id })
-        let latePort = NodePort<Float>(name: "Retired", kind: .Inlet)
-        decodedNode.addDynamicPort(latePort, name: "retiredKey")
+        let decodedNode = try #require(decoded.nodes.first { $0.id == node.id } as? MathExpressionNode)
+        decodedNode.stringExpression = "retiredKey * 2"
+        let latePort = try #require(decodedNode.findPort(named: "retiredKey", as: Fabric.Port.self))
 
         #expect(latePort.id.uuidString != retiredSnapshotID)
     }
@@ -832,21 +834,19 @@ struct PortHydrationTests
         guard let context = makeContext() else { return }
 
         let graph = Graph(context: context)
-        let node = NumberBinaryOperator(context: context)
+        let node = MathExpressionNode(context: context, expression: "extraKey + 1")
         graph.addNode(node)
 
-        // A key no registerPorts declares: it survives the duplicate's encode
-        // and has nothing to hydrate on the way back in, so it is exactly the
-        // stale state a later port must not pick up.
-        node.addDynamicPort(NodePort<Float>(name: "Extra", kind: .Inlet), name: "extraKey")
+        // The duplicate takes extraKey's saved state on its way in. Once its
+        // expression drops the variable and brings it back, the port is a new
+        // one: the window that held the saved state has closed.
+        let duplicated = try #require(graph.duplicateNodes([node]).first as? MathExpressionNode)
+        let hydratedID = try #require(duplicated.findPort(named: "extraKey", as: Fabric.Port.self)).id
+        duplicated.stringExpression = "1"
+        duplicated.stringExpression = "extraKey + 1"
+        let latePort = try #require(duplicated.findPort(named: "extraKey", as: Fabric.Port.self))
 
-        let duplicated = try #require(graph.duplicateNodes([node]).first)
-
-        let latePort = NodePort<Float>(name: "Extra", kind: .Inlet)
-        let freshID = latePort.id
-        duplicated.addDynamicPort(latePort, name: "extraKey")
-
-        #expect(latePort.id == freshID)
+        #expect(latePort.id != hydratedID)
     }
 
     @Test("State under a key the code no longer declares drops and is reported")
@@ -875,8 +875,8 @@ struct PortHydrationTests
     }
 }
 
-/// Stands in for the remove-then-recreate a material sync performs when a
-/// uniform's backing type changes underneath an already hydrated port.
+/// Stands in for a node whose interface drops a port and declares it again
+/// within one decode, as a shader read twice can.
 private final class RecreatingPortNode: Node
 {
     override class var name: String { "Recreating Port" }
@@ -886,12 +886,11 @@ private final class RecreatingPortNode: Node
     override class var nodeDescription: String { "Test node that rebuilds a declared port during decode." }
 
     var value: NodePort<Float> { port(named: "value") }
+    private var declaresValue = true
 
-    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
+    override func declaredPorts() -> [PortDeclaration]
     {
-        super.registerPorts(context: context) + [
-            ("value", NodePort<Float>(name: "Value", kind: .Inlet)),
-        ]
+        super.declaredPorts() + (declaresValue ? [PortDeclaration(key: "value", port: NodePort<Float>(name: "Value", kind: .Inlet))] : [])
     }
 
     required init(context: Context)
@@ -903,8 +902,10 @@ private final class RecreatingPortNode: Node
     {
         try super.init(from: decoder)
 
-        self.removePort(self.value)
-        self.addDynamicPort(NodePort<Float>(name: "Value", kind: .Inlet), name: "value")
+        self.declaresValue = false
+        self.reconcilePorts()
+        self.declaresValue = true
+        self.reconcilePorts()
     }
 }
 

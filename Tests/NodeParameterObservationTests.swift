@@ -4,6 +4,17 @@ import Metal
 import Satin
 @testable import Fabric
 
+/// A node that declares, while it holds one, a plain port carrying a parameter.
+private final class PlainParameterPortNode: NumberBinaryOperator
+{
+    var plain: NodePort<Float>? { didSet { reconcilePorts() } }
+
+    override func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + (plain.map { [PortDeclaration(key: "plain", port: $0)] } ?? [])
+    }
+}
+
 @Suite("Node parameter observation", .serialized)
 struct NodeParameterObservationTests {
     private func context() throws -> Context {
@@ -72,13 +83,13 @@ struct NodeParameterObservationTests {
         #expect((outer.ports.first as? NodePort<Float>)?.value == 6)
     }
 
-    @Test("Dynamically added plain ports with parameters receive Node observation")
+    @Test("Declared plain ports with parameters receive Node observation")
     func dynamicPlainPort() throws {
-        let node = NumberBinaryOperator(context: try context())
+        let node = PlainParameterPortNode(context: try context())
         let parameter = FloatParameter("Plain parameter", 0)
         let port = NodePort<Float>(name: "Plain", kind: .Inlet)
         port.parameter = parameter
-        node.addDynamicPort(port, name: "plain")
+        node.plain = port
         node.markClean()
         parameter.value = 5
         #expect(node.isDirty)
@@ -86,13 +97,13 @@ struct NodeParameterObservationTests {
 
     @Test("Removing a plain port cancels any obsolete Node observation")
     func removePlainPort() throws {
-        let node = NumberBinaryOperator(context: try context())
+        let node = PlainParameterPortNode(context: try context())
         let parameter = FloatParameter("Plain parameter", 0)
         let port = NodePort<Float>(name: "Plain", kind: .Inlet)
         port.parameter = parameter
-        node.addDynamicPort(port, name: "plain")
+        node.plain = port
         node.synchronizeParameters()
-        node.removePort(port)
+        node.plain = nil
         node.markClean()
         parameter.value = 5
         #expect(!node.isDirty)
@@ -101,14 +112,14 @@ struct NodeParameterObservationTests {
 
     @Test("Replacing parameters retires the old observer and preserves new changes", arguments: [false, true])
     func replaceParameter(parameterBacked: Bool) throws {
-        let node = NumberBinaryOperator(context: try context())
+        let node = PlainParameterPortNode(context: try context())
         let port: Fabric.Port
         if parameterBacked {
             port = node.inputNumber1
         } else {
             let plain = NodePort<Float>(name: "Plain", kind: .Inlet)
             plain.parameter = FloatParameter("Original", 0)
-            node.addDynamicPort(plain, name: "plain")
+            node.plain = plain
             port = plain
         }
         node.synchronizeParameters()

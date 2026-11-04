@@ -145,58 +145,6 @@ final class PortRegistry
         }
     }
 
-    // MARK: - Imperative mutation, until every node declares
-
-    func register(_ port: Port, name: String, owner: Node)
-    {
-        self.register(port, key: .own(name), owner: owner)
-    }
-
-    func register(_ port: Port, key: PortKey, owner: Node)
-    {
-        port.node = owner
-        port.key = key
-        port.control = port.parameter.map { PortControl($0.controlType) }
-        self.ordered.append(port)
-        self.indexByKey[key] = self.ordered.count - 1
-    }
-
-    func addDynamic(_ port: Port, owner: Node, name: String? = nil)
-    {
-        self.register(port, name: name ?? port.name, owner: owner)
-    }
-
-    func remove(_ p: Port)
-    {
-        if let graph = p.node?.graph {
-            graph.disconnectAll(from: p)
-        }
-        if let removedIndex = ordered.firstIndex(where: { $0 === p })
-        {
-            self.ordered.remove(at: removedIndex)
-            self.reindex()
-        }
-        // Dynamic type changes replace a Port instance while preserving its
-        // UUID. Detach the retired instance so a transient SwiftUI view cannot
-        // reconnect that stale object after the replacement is registered.
-        p.node = nil
-    }
-
-    func reorder(_ reordered: [Port])
-    {
-        guard reordered.count == self.ordered.count,
-              Set(reordered.map(ObjectIdentifier.init)) == Set(self.ordered.map(ObjectIdentifier.init))
-        else { return }
-
-        self.ordered = ContiguousArray(reordered)
-        self.reindex()
-    }
-
-    private func reindex()
-    {
-        self.indexByKey = Dictionary(self.ordered.enumerated().map { ($0.element.key, $0.offset) }, uniquingKeysWith: { first, _ in first })
-    }
-
     // MARK: - Lookup
 
     func port(forKey key: PortKey) -> Port?

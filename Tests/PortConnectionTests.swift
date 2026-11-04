@@ -360,15 +360,12 @@ struct PortConnectionTests {
         guard let context = makeContext() else { return }
 
         let graph = Graph(context: context)
-        let source = NumberBinaryOperator(context: context)
-        let sink = NumberBinaryOperator(context: context)
-        graph.addNode(source)
-        graph.addNode(sink)
-
         let colorOutlet = ColorArrayNodePort(name: "Colors", kind: .Outlet)
         let float4Inlet = NodePort<ContiguousArray<simd_float4>>(name: "Values", kind: .Inlet)
-        source.addDynamicPort(colorOutlet, name: "colors")
-        sink.addDynamicPort(float4Inlet, name: "values")
+        let source = SinglePortNode(context: context, key: "colors", port: colorOutlet)
+        let sink = SinglePortNode(context: context, key: "values", port: float4Inlet)
+        graph.addNode(source)
+        graph.addNode(sink)
 
         try #require(graph.connect(colorOutlet, to: float4Inlet) != nil)
 
@@ -383,19 +380,16 @@ struct PortConnectionTests {
         guard let context = makeContext() else { return }
 
         let graph = Graph(context: context)
-        let source = NumberBinaryOperator(context: context)
-        let sink = NumberBinaryOperator(context: context)
-        graph.addNode(source)
-        graph.addNode(sink)
-
         let colorOutlet = DeclaredNodePort<Dictionary<String, simd_float4>>(
             declaredPortType: .Dictionary(valueType: .Color),
             name: "Colors",
             kind: .Outlet
         )
         let float4Inlet = NodePort<Dictionary<String, simd_float4>>(name: "Values", kind: .Inlet)
-        source.addDynamicPort(colorOutlet, name: "colors")
-        sink.addDynamicPort(float4Inlet, name: "values")
+        let source = SinglePortNode(context: context, key: "colors", port: colorOutlet)
+        let sink = SinglePortNode(context: context, key: "values", port: float4Inlet)
+        graph.addNode(source)
+        graph.addNode(sink)
 
         try #require(graph.connect(colorOutlet, to: float4Inlet) != nil)
 
@@ -659,5 +653,37 @@ struct PortConnectionTests {
             #expect(specializedInput.id == originalInput.id)
             #expect(specializedOutput.id == originalOutput.id)
         }
+    }
+}
+
+/// A node that declares one port it is given.
+private final class SinglePortNode: Node
+{
+    override class var name: String { "Single Port" }
+    override class var nodeType: Node.NodeType { .Utility }
+    override class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override class var nodeTimeMode: Node.TimeMode { .None }
+
+    private var declaration: PortDeclaration?
+
+    init(context: Context, key: String, port: Fabric.Port)
+    {
+        self.declaration = PortDeclaration(key: key, port: port)
+        super.init(context: context)
+    }
+
+    required init(context: Context)
+    {
+        super.init(context: context)
+    }
+
+    required init(from decoder: any Decoder) throws
+    {
+        try super.init(from: decoder)
+    }
+
+    override func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + (declaration.map { [$0] } ?? [])
     }
 }
