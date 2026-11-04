@@ -65,12 +65,6 @@ extension PortType
         return valueType.defaultValue?.toPortValue()
     }
 
-    /// A port of this type with no parameter, whatever the type.
-    internal func makePlainPort(name: String, kind: PortKind, description: String = "", id: UUID = UUID()) -> Port
-    {
-        makeFreshPlainPort(name: name, kind: kind, description: description, id: id)
-    }
-
     private func makeFreshPlainPort(name: String, kind: PortKind, description: String, id: UUID) -> Port
     {
         switch self

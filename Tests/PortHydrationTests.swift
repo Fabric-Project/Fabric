@@ -377,7 +377,7 @@ struct PortHydrationTests
         #expect(decoded.droppedPortStateKeys.isEmpty)
     }
 
-    @Test("A JavaScript node whose saved script no longer parses keeps its ports and wires")
+    @Test("A JavaScript node saved with a script that does not parse opens with the ports of the last that did")
     @MainActor
     func javaScriptNodeKeepsPortsWhenSavedScriptFailsToParse() throws
     {
@@ -401,11 +401,17 @@ struct PortHydrationTests
         let savedPortIDs = node.ports.map(\.key)
         #expect(savedPortIDs.count == 2)
 
+        // Saved mid-edit: the document holds the script that does not parse,
+        // and the last one that did beside it.
+        node.updateScriptSource("function (this is not javascript")
+        var savedLastCompiled: String?
         let decodedGraph = try roundTripGraph(graph, context: context, editingNode: node.id) { value in
-            value["scriptSource"] = "function (this is not javascript"
+            savedLastCompiled = value["lastCompiledSource"] as? String
         }
+        #expect(savedLastCompiled?.contains("doubled") == true)
 
         let decodedNode = try #require(decodedGraph.nodes.first { $0.id == node.id } as? JavaScriptNode)
+        #expect(decodedNode.currentDiagnostics.isEmpty == false)
 
         #expect(decodedNode.ports.map(\.key) == savedPortIDs)
         #expect(decodedGraph.droppedPortStateDiagnostics.isEmpty)
@@ -413,7 +419,7 @@ struct PortHydrationTests
         #expect(try #require(decodedNode.findPort(named: "doubled") as Fabric.Port?).connections.count == 1)
     }
 
-    @Test("A Live Image node whose saved shader no longer compiles keeps its ports and wires")
+    @Test("A Live Image node saved with a shader that does not compile opens with the uniforms of the last that did")
     @MainActor
     func liveImageNodeKeepsPortsWhenSavedShaderFailsToCompile() throws
     {
@@ -449,14 +455,16 @@ struct PortHydrationTests
 
         let savedPortIDs = node.ports.map(\.key)
 
-        // updateShaderSource writes and recompiles, so the broken source has to
-        // reach the node through the document. The node id has to change with
-        // it: the shader workspace is keyed on that id, and reusing it would
+        // Saved mid-edit: the document holds the shader that does not compile,
+        // and the last one that did beside it. The node id changes on the way
+        // through: the shader workspace is keyed on it, and reusing it would
         // have the decoded node recompile a directory this test already
         // compiled a working shader in.
+        node.updateShaderSource("this is not a metal shader")
+        #expect(Set(node.ports.map(\.key)) == Set(savedPortIDs))
         let decodedNodeID = UUID()
         let decodedGraph = try roundTripGraph(graph, context: context, editingNode: node.id) { value in
-            value["shaderSource"] = "this is not a metal shader"
+            #expect((value["lastCompiledSource"] as? String)?.contains("gain") == true)
             value["id"] = decodedNodeID.uuidString
         }
 
@@ -536,9 +544,9 @@ struct PortHydrationTests
         #expect((decodedPort.parameter as AnyObject) === materialParameter)
     }
 
-    @Test("A Transform uniform saved as a plain port becomes a parameter port once the shader compiles again")
+    @Test("A uniform declared from the last compiled shader takes the material's parameter once the shader compiles again")
     @MainActor
-    func plainTransformUniformPortIsReplacedOnItsIdWhenShaderCompiles() throws
+    func lastCompiledUniformTakesMaterialParameterWhenShaderCompiles() throws
     {
         guard let context = makeContext() else { return }
 
@@ -569,32 +577,24 @@ struct PortHydrationTests
         let uniformPort = try #require(node.ports.first { $0.kind == .Inlet && $0.portType == .Transform })
         uniformPort.publishInGraph(true)
         graph.connect(source.output, to: uniformPort)
-        // A document from before Transform carried a parameter holds the uniform
-        // as a plain port, and its shader fails to compile on load, so the node
-        // declares the saved shape as a stand-in.
+        // Saved with a shader that does not compile: on open the uniform is
+        // declared from the last that did, read for its interface only, so
+        // its parameter is not the material's.
+        node.updateShaderSource("this is not a metal shader")
         let decodedNodeID = UUID()
         let decodedGraph = try roundTripGraph(graph, context: context, editingNode: node.id) { value in
-            value["shaderSource"] = "this is not a metal shader"
             value["id"] = decodedNodeID.uuidString
-
-            var shapes = value["portInterface"] as? [[String: Any]] ?? []
-            for index in shapes.indices where shapes[index]["name"] as? String == uniformPort.name
-            {
-                shapes[index]["isParameter"] = false
-            }
-            value["portInterface"] = shapes
-            var ports = value["ports"] as? [String: Any] ?? [:]
-            ports[uniformPort.name] = nil
-            value["ports"] = ports
         }
 
         let decodedNode = try #require(decodedGraph.nodes.first { $0.id == decodedNodeID } as? LiveImageNode)
-        let adopted = try #require(decodedNode.findPort(named: uniformPort.name) as Fabric.Port?)
-        #expect(adopted.parameter == nil)
+        let adopted = try #require(decodedNode.findPort(named: uniformPort.name) as ParameterPort<simd_float4x4>?)
+        #expect(adopted.isPublishedInGraph)
+        #expect(adopted.connectedPorts.count == 1)
 
         decodedNode.updateShaderSource(shaderSource)
 
         let replaced = try #require(decodedNode.findPort(named: uniformPort.name) as ParameterPort<simd_float4x4>?)
+        #expect(replaced === adopted)
         #expect(replaced.isPublishedInGraph)
         #expect(replaced.connectedPorts.count == 1)
         let materialParameter = try #require(decodedNode.postMaterial.parameters.get(uniformPort.name) as? Float4x4Parameter)

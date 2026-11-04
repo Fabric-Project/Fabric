@@ -536,8 +536,6 @@ public final class JavaScriptNode: Node
         case selectedTimeMode
     }
 
-    /// A script that does not parse on open keeps the ports its document wired.
-    override public class var savesPortInterface: Bool { true }
 
     @ObservationIgnored private(set) var scriptSource: String = JavaScriptNode.defaultScriptSource()
     {
@@ -573,6 +571,8 @@ public final class JavaScriptNode: Node
     {
         didSet { self.settingsDidChange() }
     }
+
+    override public var compilableSource: String? { self.scriptSource }
 
     /// The role the signature puts the node in, on the same reading of it that
     /// gives the node its ports. A script with nothing to return is a script
@@ -783,7 +783,7 @@ public final class JavaScriptNode: Node
             self.diagnostics = []
 
             self.portSignature = signature
-            self.discardSavedInterface()
+            self.lastCompiledSource = signature.canonicalSource
             self.reconcilePorts()
         }
         catch {
@@ -802,8 +802,17 @@ public final class JavaScriptNode: Node
             self.runtime = nil
 
             // Every port here is minted from the script's signature, so a saved
-            // script that no longer parses leaves the node with none at all.
-            self.declareSavedInterfaceWhileDecoding()
+            // script that no longer parses would leave the node with none at
+            // all. The last script that compiled gives the ports instead, read
+            // for its signature only: there is still no runtime, so nothing
+            // runs until the script compiles.
+            if self.portSignature == nil,
+               let fallback = self.interfaceFallbackSource,
+               let signature = try? JavaScriptNodeSourceParser.parse(source: fallback)
+            {
+                self.portSignature = signature
+                self.reconcilePorts()
+            }
         }
     }
 

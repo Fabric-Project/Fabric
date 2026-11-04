@@ -282,7 +282,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         case ports
 
         case userName
-        case portInterface
+        case lastCompiledSource
 
         // Depreciated...
         case inputParameters
@@ -313,10 +313,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         // that never matches a declared port surfaces via droppedPortStateKeys.
         // Order is the declarations'.
         let saved = try container.decodeIfPresent([String: LossyPortValue].self, forKey: .ports) ?? [:]
-        if Self.savesPortInterface
-        {
-            self.decodedPortInterface = try container.decodeIfPresent([SavedPortShape].self, forKey: .portInterface) ?? []
-        }
+        self.lastCompiledSource = try container.decodeIfPresent(String.self, forKey: .lastCompiledSource)
         self.portHydrationSession = PortHydrationSession(states: saved.compactMap { key, saved in
             saved.value.map { PortState(key: .own(key), value: $0) }
         })
@@ -336,7 +333,10 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
             values[key] = state.value
         }
         try container.encode(values, forKey: .ports)
-        if Self.savesPortInterface { try container.encode(self.savedPortShapes(), forKey: .portInterface) }
+        if let lastCompiledSource, lastCompiledSource != self.compilableSource
+        {
+            try container.encode(lastCompiledSource, forKey: .lastCompiledSource)
+        }
         try container.encodeIfPresent(self.userName, forKey: .userName)
         try self.settings?.encode(to: encoder)
     }
@@ -420,67 +420,32 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     /// decode rather than discarding silently.
     internal var droppedPortStateKeys: [String] { self.portHydrationSession?.unconsumedKeys ?? [] }
 
-    /// A port's shape, as a node whose source may not compile on open saves
-    /// its interface: enough to declare the port, so the document's wires
-    /// and values hold until the source compiles again.
-    public struct SavedPortShape: Codable, Equatable
-    {
-        public let key: String
-        public let name: String
-        public let type: PortType
-        public let isInlet: Bool
-        public let isParameter: Bool
-    }
+    /// Whether the node is being decoded: its document's port state is still
+    /// waiting for the ports it belongs to.
+    internal var isDecoding: Bool { self.portHydrationSession != nil }
 
-    /// The shapes of the node's own ports, in order, for its encoding.
-    internal func savedPortShapes() -> [SavedPortShape]
-    {
-        self.ports.compactMap { port in
-            guard case .own(let key) = port.key else { return nil }
-            return SavedPortShape(key: key, name: port.name, type: port.portType,
-                                  isInlet: port.kind == .Inlet, isParameter: port.parameter != nil)
-        }
-    }
+    // MARK: - Last compiled source
 
-    /// Whether the node saves its interface's shape with its document, for a
-    /// node whose source may not compile on open.
-    open class var savesPortInterface: Bool { false }
+    /// For a node whose ports come from compiling a source (a script, a
+    /// shader, an expression): the last source that compiled, which the node
+    /// sets on each compile that succeeds. Saved as `lastCompiledSource` when
+    /// it differs from `compilableSource`. A node whose source does not
+    /// compile on open declares its ports from this one, read for its
+    /// interface only and never run, so its document's wires and values hold
+    /// until the source compiles again; it then becomes the last compiled one.
+    /// Nil for every other node.
+    public var lastCompiledSource: String?
 
-    /// The interface the document saved, while decoding.
-    private var decodedPortInterface: [SavedPortShape] = []
+    /// The source the node saves and compiles, where its document carries it,
+    /// against which `lastCompiledSource` is saved only when it differs. Nil
+    /// for a node without one, or whose source lives outside the document
+    /// (a user's shader file).
+    open var compilableSource: String? { nil }
 
-    /// Declares the interface the document saved, after the node's own ports,
-    /// until the node can declare its interface again. For a node whose source
-    /// does not compile on open (an unparseable script, a shader that no
-    /// longer compiles), which would otherwise open with none of the ports its
-    /// document wired and lose the wires for good at the next save. Does
-    /// nothing outside decode.
-    internal func declareSavedInterfaceWhileDecoding()
-    {
-        guard self.portHydrationSession != nil, !self.decodedPortInterface.isEmpty else { return }
-
-        self.savedInterfaceDeclarations = self.decodedPortInterface.map { shape in
-            let kind: PortKind = shape.isInlet ? .Inlet : .Outlet
-            guard !shape.isParameter, shape.type.freshPortControl(kind: kind) != nil else
-            {
-                return PortDeclaration(key: shape.key, portType: shape.type, kind: kind, name: shape.name)
-            }
-            // A plain port of a type that would otherwise carry a parameter.
-            return PortDeclaration(key: .own(shape.key), kind: kind, portType: shape.type, name: shape.name, control: nil)
-            { id in shape.type.makePlainPort(name: shape.name, kind: kind, id: id ?? UUID()) }
-        }
-        self.reconcilePorts()
-    }
-
-    /// What declareSavedInterfaceWhileDecoding() declared.
-    private var savedInterfaceDeclarations: [PortDeclaration] = []
-
-    /// Lets go of the saved interface once the node declares its own again;
-    /// the next reconcilePorts() takes the ports it does not declare now.
-    internal func discardSavedInterface()
-    {
-        self.savedInterfaceDeclarations.removeAll()
-    }
+    /// The source to read a fallback interface from: the last that compiled,
+    /// else, when the document did not save one because it was the source
+    /// itself, the source.
+    internal var interfaceFallbackSource: String? { self.lastCompiledSource ?? self.compilableSource }
 
     /// Ends the decode-time hydration window, returning the registry keys
     /// whose state never found a port.
@@ -503,7 +468,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     public final func reconcilePorts(applying states: [PortState] = [])
     {
         self.prepareDeclarations()
-        let reconciliation = self.registry.reconcile(to: self.declaredPorts() + self.savedInterfaceDeclarations,
+        let reconciliation = self.registry.reconcile(to: self.declaredPorts(),
                                                      applying: states,
                                                      owner: self,
                                                      hydrating: self.portHydrationSession,

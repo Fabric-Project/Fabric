@@ -392,4 +392,58 @@ struct URLFileReferenceTests
         #expect(late.title == "Tint")
         #expect(late.ports.map(\.key) == declaredKeys)
     }
+
+    @Test("A user's shader opened before its folder is known keeps its uniform wires once the reference resolves")
+    func userShaderKeepsUniformWiresAcrossLateResolution() throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let fileManager = FileManager.default
+        let directoryURL = fileManager.temporaryDirectory.appending(path: "UserShader-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try fileManager.createDirectory(at: directoryURL.appending(path: "Shaders"), withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: directoryURL) }
+
+        let shaderURL = directoryURL.appending(path: "Shaders/Tint.metal").standardizedFileURL
+        try """
+            typedef struct {
+                float amount; // slider, 0.0, 1.0, 0.5, Amount
+            } PostUniforms;
+
+            fragment half4 postFragment(VertexData in [[stage_in]],
+                                        constant PostUniforms &uniforms [[buffer(FragmentBufferMaterialUniforms)]])
+            {
+                return half4(uniforms.amount);
+            }
+            """.write(to: shaderURL, atomically: true, encoding: .utf8)
+
+        let graph = Graph(context: harness.context, fileReferenceBaseURL: directoryURL)
+        let node = try BaseImageNode(context: harness.context, fileURL: shaderURL)
+        let source = NumberBinaryOperator(context: harness.context)
+        graph.addNode(node)
+        graph.addNode(source)
+        let amount = try #require(node.findPort(named: "Amount") as ParameterPort<Float>?)
+        amount.value = 0.25
+        graph.connect(source.outputNumber, to: amount)
+
+        let data = try JSONEncoder().encode(graph)
+
+        // The host learns the document's folder only after decode.
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: harness.context)
+        let lateGraph = try decoder.decode(Graph.self, from: data)
+        let late = try #require(lateGraph.node(forID: node.id) as? BaseImageNode)
+        #expect(late.title != "Tint")
+        #expect(lateGraph.droppedConnectionDiagnostics.isEmpty)
+        let lateAmount = try #require(late.findPort(named: "Amount") as ParameterPort<Float>?)
+        #expect(lateAmount.value == 0.25)
+        #expect(lateAmount.connectedPorts.map { $0.node?.id } == [source.id])
+
+        lateGraph.updateFileReferenceBaseURL(directoryURL)
+        #expect(late.title == "Tint")
+        let resolvedAmount = try #require(late.findPort(named: "Amount") as ParameterPort<Float>?)
+        #expect(resolvedAmount === lateAmount)
+        #expect(resolvedAmount.connectedPorts.map { $0.node?.id } == [source.id])
+        #expect(resolvedAmount.value == 0.25)
+        let materialParameter = try #require(late.postMaterial.parameters.get("Amount"))
+        #expect((resolvedAmount.parameter as AnyObject) === (materialParameter as AnyObject))
+    }
 }

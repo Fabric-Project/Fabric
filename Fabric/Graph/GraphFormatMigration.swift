@@ -10,16 +10,18 @@ import Foundation
 /// understood here and nowhere else: each is reduced to the address it stands
 /// at, its published flag and name, and a parameter inlet's value. Forward
 /// only; the writer never emits the old form.
+///
+/// The envelopes give no node its interface. A script, shader or expression
+/// that compiles on open declares its ports as it would in any document; one
+/// that does not has no last compiled source in an old document, so it opens
+/// without those ports and their wires drop, as a new document saved with a
+/// source that does not compile and never did would.
 enum GraphFormatMigration
 {
     /// Ports a node type saved under a key it no longer declares them by.
     private static let renamedKeys: [String: [String: String]] = [
         "ImageDimensions": ["inputTexturePort": "inputImage", "outputResolutionPort": "legacyOutputResolution"],
     ]
-
-    /// Nodes whose interface comes from a source that may not compile on open:
-    /// they keep the shape the document saved, to declare until it does.
-    private static let nodesKeepingSavedInterface: Set<String> = ["JavaScriptNode", "LiveImageNode", "LiveEffectNode"]
 
     private struct SavedPort
     {
@@ -69,7 +71,6 @@ enum GraphFormatMigration
             else { continue }
             let type = Self.unqualifiedType(nodeMap[index]["type"] as? String ?? "")
             var states: [String: Any] = [:]
-            var shapes: [[String: Any]] = []
 
             // A subgraph's inner graph first: its proxies are addressed by the
             // inner ports they stand for.
@@ -105,12 +106,6 @@ enum GraphFormatMigration
                 {
                     states[key] = state
                 }
-                if let portType = payload["type"] as? String
-                {
-                    shapes.append(["key": key, "type": portType, "name": base["name"] as? String ?? key,
-                                   "isInlet": base["kind"] as? String != "Outlet",
-                                   "isParameter": isParameterPort])
-                }
             }
 
             for snapshot in value["ports"] as? [[String: Any]] ?? []
@@ -136,7 +131,6 @@ enum GraphFormatMigration
             }
 
             value["ports"] = states
-            if Self.nodesKeepingSavedInterface.contains(type), !shapes.isEmpty { value["portInterface"] = shapes }
             nodeMap[index]["value"] = value
         }
         graph["nodeMap"] = nodeMap

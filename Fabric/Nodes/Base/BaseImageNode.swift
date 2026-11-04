@@ -250,12 +250,48 @@ open class BaseImageNode: Node, NodeMadeFromFile
     
     /// Reads the shader's interface and brings the ports to it.
     open func postSetupSynchronizePorts() {
+        // A user's shader file the document names but that has not resolved
+        // yet: the node runs its class shader meanwhile, and takes its ports
+        // from the last source the file compiled from, so the document's
+        // wires to its uniforms restore.
+        if self.unresolvedEffectFile != nil, self.declareLastCompiledInterfaceIfUndeclared() { return }
+
         let inferredInputCount = Self.fixedImageInputCount
             ?? self.inferInputCountFromShader()
             ?? self.lastKnownInputCount
         self.lastKnownInputCount = max(0, inferredInputCount)
 
         self.declareShaderInterface(imageInputCount: self.lastKnownInputCount)
+        self.recordCompiledSource()
+    }
+
+    /// A shader of the user's, a file or a live source, that compiled is the
+    /// last compiled source; a bundled one is always there to read again.
+    private func recordCompiledSource() {
+        let pipelineURL = self.postMaterial.pipelineURL
+        guard let shader = self.postMaterial.shader as? SourceShader,
+              shader.pipelineError == nil,
+              Self.bundleRelativeResourcePath(for: pipelineURL) == nil,
+              let source = try? String(contentsOf: pipelineURL, encoding: .utf8)
+        else { return }
+        self.lastCompiledSource = source
+    }
+
+    /// Declares the uniforms of the last source that compiled, read from its
+    /// text and never run, and the image inlets the document last had, when
+    /// the shader has declared nothing yet: on open, for a shader that does not
+    /// compile or a file that has not resolved. Whether it declared.
+    @discardableResult
+    func declareLastCompiledInterfaceIfUndeclared() -> Bool {
+        guard self.shaderInterface == nil, let source = self.interfaceFallbackSource else { return false }
+
+        let uniformsName = (self.postMaterial.shader?.label ?? "Post") + "Uniforms"
+        let parameters = parseParameters(source: source, key: uniformsName)?.params ?? []
+        let offLimits = self.offLimitsLabels()
+        self.shaderInterface = ShaderInterface(imageInputCount: Self.fixedImageInputCount ?? self.lastKnownInputCount,
+                                               materialParameters: parameters.filter { !offLimits.contains($0.label) })
+        self.reconcilePorts()
+        return true
     }
 
     private func declareShaderInterface(imageInputCount: Int) {
@@ -263,9 +299,6 @@ open class BaseImageNode: Node, NodeMadeFromFile
         self.shaderInterface = ShaderInterface(imageInputCount: imageInputCount,
                                                materialParameters: self.postMaterial.parameters.params.filter { !offLimits.contains($0.label) })
 
-        // The shader declares the node's ports again; any the document kept
-        // while it could not go now.
-        self.discardSavedInterface()
         self.reconcilePorts()
         self.bindMaterialParameters()
     }
