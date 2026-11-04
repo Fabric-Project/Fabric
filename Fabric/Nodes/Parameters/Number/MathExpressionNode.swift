@@ -324,6 +324,8 @@ public class MathExpressionNode: Node
         }
     }
 
+    override public var compilableSource: String? { self.stringExpression }
+
     /// The last compile. Recomputed only when `stringExpression` changes.
     private var compiled: CompileResult?
 
@@ -473,8 +475,23 @@ public class MathExpressionNode: Node
         if result.isValid
         {
             self.portInterface = result.interface
+            self.lastCompiledSource = self.stringExpression
             self.reconcilePorts()
             self.needsEvaluation = true
+        }
+        // An expression that does not compile on open would leave the node
+        // with no ports; the last one that compiled declares them instead,
+        // for its interface only. `compiled` stays the failing one, so the
+        // node does not evaluate until its own expression compiles.
+        else if self.portInterface.inputs.isEmpty && self.portInterface.outputs.isEmpty,
+                let fallback = self.interfaceFallbackSource
+        {
+            let fallbackResult = compile(fallback)
+            if fallbackResult.isValid
+            {
+                self.portInterface = fallbackResult.interface
+                self.reconcilePorts()
+            }
         }
 
         self.evaluatedSubtitle = Self.salientTitle(from: self.stringExpression)

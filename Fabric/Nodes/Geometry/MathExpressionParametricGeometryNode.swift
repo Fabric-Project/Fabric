@@ -383,12 +383,38 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
     /// Each variable's inlet, in declared order.
     private var variablePorts: [(name: String, port: ParameterPort<Float>)] = []
 
+    /// The three expressions as one source, X, Y and Z, for the last
+    /// compiled source.
+    override public var compilableSource: String? { Self.joinedSource([expressionX, expressionY, expressionZ]) }
+
+    private static func joinedSource(_ expressions: [String]) -> String?
+    {
+        (try? JSONEncoder().encode(expressions)).map { String(decoding: $0, as: UTF8.self) }
+    }
+
     private func syncVariablePorts()
     {
+        let current = [evalX, evalY, evalZ]
+        if current.allSatisfy({ $0 != nil }) { self.lastCompiledSource = self.compilableSource }
+
+        // An axis that does not compile on open takes its variables from the
+        // last expressions that compiled, so their wires hold; it still does
+        // not run.
+        var fallback: [AxisExpression?] = [nil, nil, nil]
+        if self.isDecoding,
+           current.contains(where: { $0 == nil }),
+           let data = self.lastCompiledSource?.data(using: .utf8),
+           let expressions = try? JSONDecoder().decode([String].self, from: data),
+           expressions.count == 3
+        {
+            fallback = expressions.map { axisExpression(from: $0) }
+        }
+
         var allVars = Set<String>()
-        if let ev = evalX { allVars.formUnion(ev.variableNames) }
-        if let ev = evalY { allVars.formUnion(ev.variableNames) }
-        if let ev = evalZ { allVars.formUnion(ev.variableNames) }
+        for (axis, lastCompiled) in zip(current, fallback)
+        {
+            if let ev = axis ?? lastCompiled { allVars.formUnion(ev.variableNames) }
+        }
 
         _dynamicVariablePortNames = allVars.subtracting(Self.parametricBindings)
         self.reconcilePorts()
