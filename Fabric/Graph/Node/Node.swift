@@ -467,6 +467,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     /// declarations'.
     public final func reconcilePorts(applying states: [PortState] = [])
     {
+        Self.checkReconcileOutsideExecute(on: self)
         self.prepareDeclarations()
         let reconciliation = self.registry.reconcile(to: self.declaredPorts(),
                                                      applying: states,

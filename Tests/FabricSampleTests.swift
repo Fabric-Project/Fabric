@@ -622,8 +622,9 @@ struct FabricSampleTests
         }
     }
 
-    /// #449: execute reads ports through references bound at reconcile.
-    @Test("Rendering a sample looks no port up by key during execute", arguments: FabricSampleCatalog.samples)
+    /// #449: execute reads ports through references bound at reconcile, and
+    /// changes no node's interface.
+    @Test("Rendering a sample looks no port up by key and reconciles nothing during execute", arguments: FabricSampleCatalog.samples)
     func renderingLooksNoPortUp(_ fixture: FabricSampleFixture) throws
     {
         let context = try FabricSampleTestSupport.makeContext()
