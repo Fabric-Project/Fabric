@@ -206,7 +206,7 @@ open class StrategyNode: Node
         if changed, let graph
         {
             // A replaced port remakes its connections, so the rebuild registers
-            // nothing of its own; setSettings records the strategy step.
+            // nothing of its own; recordSettingsChange records the strategy step.
             graph.withoutUndoRegistration {
                 self.rebuildPorts(forStrategy: self.strategy)
             }
@@ -223,22 +223,15 @@ open class StrategyNode: Node
     }
 
     /// A change of strategy in a graph is an undo step that puts back the
-    /// strategy and nothing else in the settings.
-    override open func setSettings(_ settings: any NodeSettings)
+    /// strategy and nothing else in the settings. See Node.recordSettingsChange(from:).
+    override open func recordSettingsChange(from previous: any NodeSettings)
     {
         guard let graph,
-              let current = self.settings as? any StrategySettings,
-              type(of: current) == type(of: settings),
-              let after = settings as? any StrategySettings,
-              current.strategy != after.strategy
-        else
-        {
-            super.setSettings(settings)
-            return
-        }
+              let previous = previous as? any StrategySettings,
+              previous.strategy != self.strategy
+        else { return }
 
-        let previousStrategy = current.strategy
-        super.setSettings(settings)
+        let previousStrategy = previous.strategy
         graph.undoManager?.registerUndo(withTarget: self) { node in
             node.setStrategy(previousStrategy)
         }
