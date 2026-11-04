@@ -778,7 +778,8 @@ public class HIDNode: Node
             didSet
             {
                 guard selectedDeviceID != node?.selectedDeviceID else { return }
-                node?.selectDevice(selectedDeviceID)
+                // No saved elements: a connected device gives its own, an absent one none.
+                node?.setSettings(HIDSettings(selectedDeviceID: selectedDeviceID, deviceElements: []))
             }
         }
         var availableDevices: [HIDDeviceInfo] = []

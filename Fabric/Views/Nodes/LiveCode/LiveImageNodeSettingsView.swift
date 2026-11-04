@@ -49,7 +49,7 @@ import LanguageSupport
     func flush() {
         guard let node else { return }
         if self.content != self.savedContent {
-            node.updateShaderSource(self.content)
+            node.setSettings(LiveImageSettings(shaderSource: self.content))
             self.savedContent = node.shaderSource
         }
         self.refreshErrorMessagesIfPossible()

@@ -58,7 +58,7 @@ public class DeferredSubgraphNode: SubgraphNode
         var deferredMRTEnabled: Bool {
             didSet {
                 guard deferredMRTEnabled != node?.deferredMRTEnabled else { return }
-                node?.deferredMRTEnabled = deferredMRTEnabled
+                node?.setSettings(DeferredSubgraphSettings(deferredMRTEnabled: deferredMRTEnabled))
             }
         }
         private weak var node: DeferredSubgraphNode?

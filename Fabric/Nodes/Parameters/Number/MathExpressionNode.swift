@@ -387,7 +387,7 @@ public class MathExpressionNode: Node
             didSet
             {
                 guard stringExpression != node?.stringExpression else { return }
-                node?.stringExpression = stringExpression
+                node?.setSettings(MathExpressionSettings(stringExpression: stringExpression))
             }
         }
 

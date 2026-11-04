@@ -171,7 +171,7 @@ public class BaseFormatStringNode: Node {
             didSet
             {
                 guard formatString != node?.formatString else { return }
-                node?.formatString = formatString
+                node?.setSettings(FormatStringSettings(formatString: formatString))
             }
         }
         private weak var node: BaseFormatStringNode?

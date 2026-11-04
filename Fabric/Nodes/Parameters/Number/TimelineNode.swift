@@ -873,8 +873,8 @@ public class TimelineNode: Node
         {
             didSet
             {
-                guard tracks != node?.tracks else { return }
-                node?.tracks = tracks
+                guard let node, tracks != node.tracks else { return }
+                node.setSettings(TimelineSettings(duration: node.duration, tracks: tracks))
             }
         }
 

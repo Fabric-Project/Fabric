@@ -60,8 +60,10 @@ import LanguageSupport
     func flush()
     {
         guard let node else { return }
-        if self.content != self.savedContent { node.updateScriptSource(self.content) }
-        if self.selectedTimeMode != self.savedTimeMode { node.updateTimeMode(self.selectedTimeMode) }
+        if self.content != self.savedContent || self.selectedTimeMode != self.savedTimeMode
+        {
+            node.setSettings(JavaScriptSettings(scriptSource: self.content, selectedTimeMode: self.selectedTimeMode))
+        }
         self.savedContent = node.scriptSource
         self.savedTimeMode = node.selectedTimeMode
         if node.selectedTimeMode != self.selectedTimeMode

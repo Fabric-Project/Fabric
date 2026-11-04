@@ -268,7 +268,7 @@ public class KeyboardNode : Node
             didSet
             {
                 guard keyBindings != node?.keyBindings else { return }
-                node?.keyBindings = keyBindings
+                node?.setSettings(KeyboardSettings(keyBindings: keyBindings))
             }
         }
         private weak var node: KeyboardNode?

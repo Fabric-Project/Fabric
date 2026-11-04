@@ -289,7 +289,8 @@ public class GameControllerNode: Node
             didSet
             {
                 guard selectedControllerID != node?.selectedControllerID else { return }
-                node?.selectedControllerID = selectedControllerID
+                // No saved ports: a plugged-in controller gives its own, an unplugged one none.
+                node?.setSettings(GameControllerSettings(selectedControllerID: selectedControllerID, portDescriptors: []))
             }
         }
         var availableControllers: [GameControllerInfo] = []
