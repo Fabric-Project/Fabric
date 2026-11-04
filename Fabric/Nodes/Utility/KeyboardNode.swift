@@ -11,7 +11,6 @@ import SwiftUI
 import Satin
 import simd
 import Metal
-import Combine
 
 extension KeyEquivalent
 {
@@ -246,7 +245,7 @@ public class KeyboardNode : Node
         didSet
         {
             self.rebuildPorts()
-            self.settingsSubject.send()
+            self.performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
         }
     }
 
@@ -261,6 +260,7 @@ public class KeyboardNode : Node
 
     // MARK: - Settings Model
 
+    @MainActor
     @Observable final class SettingsModel
     {
         var keyBindings: [KeyBinding?]
@@ -272,18 +272,14 @@ public class KeyboardNode : Node
             }
         }
         private weak var node: KeyboardNode?
-        @ObservationIgnored private var subscription: AnyCancellable?
 
         init(node: KeyboardNode)
         {
             self.node = node
             self.keyBindings = node.keyBindings
-            self.subscription = node.settingsSubject
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] in self?.followNode() }
         }
 
-        private func followNode()
+        func refreshFromNode()
         {
             guard let node, keyBindings != node.keyBindings else { return }
             keyBindings = node.keyBindings
@@ -292,10 +288,13 @@ public class KeyboardNode : Node
 
     private var settingsModel: SettingsModel
     {
-        if let model = _settingsModelStorage { return model }
-        let model = SettingsModel(node: self)
-        _settingsModelStorage = model
-        return model
+        performOnMainSync
+        {
+            if let model = _settingsModelStorage { return model }
+            let model = SettingsModel(node: self)
+            _settingsModelStorage = model
+            return model
+        }
     }
 
     /// Nil until a settings view asks for it.

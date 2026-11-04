@@ -365,6 +365,13 @@ struct NodeSettingsTests
         try await runMainLoop()
         #expect(node.strategy == PortType.Bool.rawValue)
         #expect(model.strategy == PortType.Bool.rawValue)
+
+        // A change made off main reaches the model on main.
+        undoManager.beginUndoGrouping()
+        DispatchQueue.global().sync { node.setStrategy(PortType.Float.rawValue) }
+        undoManager.endUndoGrouping()
+        try await runMainLoop()
+        #expect(model.strategy == PortType.Float.rawValue)
     }
 
     @Test("setSettings with another node's settings type changes nothing")

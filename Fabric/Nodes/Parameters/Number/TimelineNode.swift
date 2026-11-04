@@ -10,7 +10,6 @@ import SwiftUI
 import Metal
 import Satin
 import simd
-import Combine
 
 // MARK: - Data Model
 
@@ -825,7 +824,7 @@ public class TimelineNode: Node
         didSet
         {
             guard oldValue != duration else { return }
-            settingsSubject.send()
+            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
         }
     }
 
@@ -834,7 +833,7 @@ public class TimelineNode: Node
         didSet
         {
             guard oldValue != tracks else { return }
-            settingsSubject.send()
+            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
         }
     }
 
@@ -847,14 +846,18 @@ public class TimelineNode: Node
 
     override public func settingsView() -> AnyView
     {
-        if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
-        return AnyView(TimelineNodeView(model: _settingsModelStorage!))
+        performOnMainSync
+        {
+            if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
+            return AnyView(TimelineNodeView(model: _settingsModelStorage!))
+        }
     }
 
     override public var settingsSize: SettingsViewSize { .Custom(size: CGSize(width: 800, height: 500)) }
 
     // MARK: - Settings Model
 
+    @MainActor
     @Observable final class SettingsModel
     {
         var duration: Float
@@ -878,7 +881,6 @@ public class TimelineNode: Node
         var currentTime: Float = 0
 
         private weak var node: TimelineNode?
-        @ObservationIgnored private var subscription: AnyCancellable?
 
         init(node: TimelineNode)
         {
@@ -886,12 +888,9 @@ public class TimelineNode: Node
             self.duration = node.duration
             self.tracks = node.tracks
             self.currentTime = node.currentTime
-            self.subscription = node.settingsSubject
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] in self?.followNode() }
         }
 
-        private func followNode()
+        func refreshFromNode()
         {
             guard let node else { return }
             if duration != node.duration { duration = node.duration }
@@ -1005,7 +1004,11 @@ public class TimelineNode: Node
 
         // Clamp time for display
         currentTime = max(0, min(duration, time))
-        _settingsModelStorage?.currentTime = currentTime
+        if _settingsModelStorage != nil
+        {
+            let shownTime = currentTime
+            performOnMainAsync { [weak self] in self?._settingsModelStorage?.currentTime = shownTime }
+        }
 
         // Evaluate each track and send to corresponding port
         for track in tracks

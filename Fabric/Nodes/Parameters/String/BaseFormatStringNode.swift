@@ -17,7 +17,6 @@
 import Foundation
 import Satin
 import SwiftUI
-import Combine
 
 // MARK: - Settings View
 
@@ -88,7 +87,7 @@ public class BaseFormatStringNode: Node {
         didSet {
             self.updatePorts()
             self.subtitleSubject.send()
-            self.settingsSubject.send()
+            self.performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
         }
     }
 
@@ -158,10 +157,13 @@ public class BaseFormatStringNode: Node {
     override public func providesSettingsView() -> Bool { true }
 
     override public func settingsView() -> AnyView {
-        if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
-        return AnyView(FormatStringSettingsView(model: _settingsModelStorage!, guidance: Self.settingsGuidance))
+        performOnMainSync {
+            if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
+            return AnyView(FormatStringSettingsView(model: _settingsModelStorage!, guidance: Self.settingsGuidance))
+        }
     }
 
+    @MainActor
     @Observable final class SettingsModel
     {
         var formatString: String
@@ -173,18 +175,14 @@ public class BaseFormatStringNode: Node {
             }
         }
         private weak var node: BaseFormatStringNode?
-        @ObservationIgnored private var subscription: AnyCancellable?
 
         init(node: BaseFormatStringNode)
         {
             self.node = node
             self.formatString = node.formatString
-            self.subscription = node.settingsSubject
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] in self?.followNode() }
         }
 
-        private func followNode()
+        func refreshFromNode()
         {
             guard let node, formatString != node.formatString else { return }
             formatString = node.formatString

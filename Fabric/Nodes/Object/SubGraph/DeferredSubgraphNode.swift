@@ -10,7 +10,6 @@ import Satin
 import simd
 import Metal
 import SwiftUI
-import Combine
 
 private struct DeferredSubgraphNodeSettingsView: View
 {
@@ -54,6 +53,7 @@ public class DeferredSubgraphNode: SubgraphNode
         case deferredMRTEnabled
     }
 
+    @MainActor
     @Observable final class SettingsModel {
         var deferredMRTEnabled: Bool {
             didSet {
@@ -62,16 +62,12 @@ public class DeferredSubgraphNode: SubgraphNode
             }
         }
         private weak var node: DeferredSubgraphNode?
-        @ObservationIgnored private var subscription: AnyCancellable?
         init(node: DeferredSubgraphNode) {
             self.node = node
             self.deferredMRTEnabled = node.deferredMRTEnabled
-            self.subscription = node.settingsSubject
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] in self?.followNode() }
         }
 
-        private func followNode() {
+        func refreshFromNode() {
             guard let node, deferredMRTEnabled != node.deferredMRTEnabled else { return }
             deferredMRTEnabled = node.deferredMRTEnabled
         }
@@ -126,7 +122,7 @@ public class DeferredSubgraphNode: SubgraphNode
         {
             guard oldValue != deferredMRTEnabled else { return }
             self.synchronizeDeferredConfiguration()
-            self.settingsSubject.send()
+            self.performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
         }
     }
 
@@ -407,8 +403,11 @@ public class DeferredSubgraphNode: SubgraphNode
 
     override public func settingsView() -> AnyView
     {
-        if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
-        return AnyView(DeferredSubgraphNodeSettingsView(model: _settingsModelStorage!))
+        performOnMainSync
+        {
+            if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
+            return AnyView(DeferredSubgraphNodeSettingsView(model: _settingsModelStorage!))
+        }
     }
 
     override public var settingsSize: SettingsViewSize

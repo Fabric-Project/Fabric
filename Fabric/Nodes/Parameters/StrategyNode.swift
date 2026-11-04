@@ -16,7 +16,6 @@ import Foundation
 import Satin
 import Metal
 import SwiftUI
-import Combine
 
 // MARK: - NodeStrategyOption
 
@@ -219,7 +218,7 @@ open class StrategyNode: Node
         guard changed else { return }
         // `subtitle` is derived from `strategy`; notify so the title refreshes.
         self.subtitleSubject.send()
-        self.settingsSubject.send()
+        self.performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
     }
 
     /// A change of strategy in a graph is an undo step that puts back the
@@ -293,10 +292,13 @@ open class StrategyNode: Node
     /// views (e.g. the routing nodes') reuse it to embed StrategyPickerView.
     public var strategySettingsModel: SettingsModel
     {
-        if let model = _settingsModelStorage { return model }
-        let model = SettingsModel(node: self)
-        _settingsModelStorage = model
-        return model
+        performOnMainSync
+        {
+            if let model = _settingsModelStorage { return model }
+            let model = SettingsModel(node: self)
+            _settingsModelStorage = model
+            return model
+        }
     }
 
     /// Subclasses: diff current dynamic ports against the wanted set for
@@ -339,6 +341,7 @@ open class StrategyNode: Node
 
     // MARK: - Settings Model
 
+    @MainActor
     @Observable public final class SettingsModel
     {
         let strategies: [String]
@@ -352,7 +355,6 @@ open class StrategyNode: Node
             }
         }
         private weak var node: StrategyNode?
-        @ObservationIgnored private var subscription: AnyCancellable?
 
         init(node: StrategyNode)
         {
@@ -360,12 +362,9 @@ open class StrategyNode: Node
             self.strategies = type(of: node).strategies
             self.separatorAfterFirst = type(of: node).separatorAfterFirstStrategy
             self.strategy = node.strategy
-            self.subscription = node.settingsSubject
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] in self?.followNode() }
         }
 
-        private func followNode()
+        func refreshFromNode()
         {
             guard let node, strategy != node.strategy else { return }
             strategy = node.strategy

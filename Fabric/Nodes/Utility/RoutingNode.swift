@@ -40,13 +40,6 @@ public class RoutingNodeBase: TypeAgnosticNode
     /// Init/decode paths assign the stored value directly because their port
     /// rebuild happens in StrategyNode's initializer.
     public private(set) var routeCount: Int = routingNodeMinimumRouteCount
-    {
-        didSet
-        {
-            guard oldValue != routeCount else { return }
-            settingsSubject.send()
-        }
-    }
 
     private enum RoutingCodingKeys: String, CodingKey
     {

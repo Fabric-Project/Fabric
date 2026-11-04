@@ -205,11 +205,6 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     /// NodeViewModel subscribes and refreshes its observable title row mirrors.
     internal let subtitleSubject = PassthroughSubject<Void, Never>()
 
-    /// Fires whenever a setting changes, from the observer of the stored
-    /// setting, so apply, a setter and a view model's own write all fire it.
-    /// A settings view's model subscribes on main and reads the node then.
-    internal let settingsSubject = PassthroughSubject<Void, Never>()
-
     // Dirty Handling
     private var inputsAreDirty = true
     /// Nested execution defers cleanup until its enclosing graph finishes. Only nodes that
@@ -722,8 +717,9 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     ///
     /// Threads: called from main, or from the render thread as a connection
     /// specialises a strategy node. A node whose settings reach main-thread
-    /// state waits for main, so it is applied only from main. A change fires
-    /// `settingsSubject`, and a settings view's model follows the node through it.
+    /// state waits for main, so it is applied only from main. A change reaches
+    /// an open settings view's model through performOnMainAsync, from the
+    /// observer of the stored setting.
     open func apply(_ settings: any NodeSettings)
     {
     }
