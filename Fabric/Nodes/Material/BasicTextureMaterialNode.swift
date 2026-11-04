@@ -16,23 +16,15 @@ public class BasicTextureMaterialNode : BasicColorMaterialNode
     public override class var name:String {  "Image Material" }
     override public class var nodeDescription: String { "Provides basic Image rendering"}
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return  [
-                    ("inputTexture", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Texture image to apply to the material surface") ),
-                ] + ports
-    }
-    
-    public var inputTexture: NodePort<FabricImage> { _inputTexture }
-    private var _inputTexture: NodePort<FabricImage>!
+    public let inputTexture = NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Texture image to apply to the material surface")
 
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputTexture = findPort(named: "inputTexture")
+        [
+            PortDeclaration(key: "inputTexture", port: self.inputTexture),
+        ] + super.declaredPorts()
     }
-    
+
     public override var material: BasicTextureMaterial {
         return _material
     }

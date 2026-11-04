@@ -17,97 +17,51 @@ public class PBRMaterialNode : StandardMaterialNode
 
     
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputBumpTexture", NodePort<FabricImage>(name: "Bump Texture", kind: .Inlet, description: "Bump map for surface height detail")),
-            ("inputDisplacementTexture", NodePort<FabricImage>(name: "Displacement Texture", kind: .Inlet, description: "Displacement map for vertex offset")),
-            ("inputOcclusionTexture", NodePort<FabricImage>(name: "Occlusion Texture", kind: .Inlet, description: "Ambient occlusion texture map")),
-            ("inputSubsurfaceTexture", NodePort<FabricImage>(name: "Subsurface Texture", kind: .Inlet, description: "Subsurface scattering texture map")),
-            ("inputClearcoatTexture", NodePort<FabricImage>(name: "Clearcoat Texture", kind: .Inlet, description: "Clear coat intensity texture map")),
-            ("inputClearcoatRoughTexture", NodePort<FabricImage>(name: "Clearcoat Roughness Texture", kind: .Inlet, description: "Clear coat roughness texture map")),
-            ("inputClearcoatGlossTexture", NodePort<FabricImage>(name: "Clearcoat Gloss Texture", kind: .Inlet, description: "Clear coat gloss texture map")),
-            ("inputTransmissionTexture", NodePort<FabricImage>(name: "Transmission Texture", kind: .Inlet, description: "Light transmission texture map")),
-            ("inputSubsurface", ParameterPort(parameter:FloatParameter("Sub Surface", 0.0, 0.0, 1.0, .slider, "Subsurface scattering intensity for translucent materials"))),
-            ("inputAnisotropic", ParameterPort(parameter:FloatParameter("Anisotropic", 0.0, -1.0, 1.0, .slider, "Anisotropic reflection strength (-1 to 1)"))),
-            ("inputAnisotropicAngle", ParameterPort(parameter:FloatParameter("Anisotropic Angle", 0.0, -1.0, 1.0, .slider, "Rotation angle for anisotropic reflections"))),
-            ("inputSpecularTint", ParameterPort(parameter:FloatParameter("Specular Tint", 0.0, 0.0, 1.0, .slider, "Tints specular reflections with the base color"))),
-            ("inputClearcoat", ParameterPort(parameter:FloatParameter("Clearcoat", 0.0, 0.0, 1.0, .slider, "Intensity of the clear coat layer (0 = none, 1 = full)"))),
-            ("inputClearcoatRoughness", ParameterPort(parameter:FloatParameter("Clearcoat Roughness", 0.0, 0.0, 1.0, .slider, "Roughness of the clear coat layer"))),
-            ("inputSheen", ParameterPort(parameter:FloatParameter("Sheen", 0.0, 0.0, 1.0, .slider, "Sheen intensity for fabric-like materials"))),
-            ("inputSheenTint", ParameterPort(parameter:FloatParameter("Sheen Tint", 0.0, 0.0, 1.0, .slider, "Tints sheen reflections with the base color"))),
-            ("inputTransmission", ParameterPort(parameter:FloatParameter("Transmission", 0.0, 0.0, 1.0, .slider, "Light transmission for glass-like materials (0-1)"))),
-            ("inputThickness", ParameterPort(parameter:FloatParameter("Thickness", 1.0, 0.0, 5.0, .slider, "Thickness of the material for transmission calculations"))),
-            ("inputIOR", ParameterPort(parameter:FloatParameter("Index of Refraction", 1.5, 0.0, 3.0, .slider, "Index of refraction (1.0 = air, 1.5 = glass, 2.4 = diamond)"))),
+    let inputBumpTexture = NodePort<FabricImage>(name: "Bump Texture", kind: .Inlet, description: "Bump map for surface height detail")
+    let inputDisplacementTexture = NodePort<FabricImage>(name: "Displacement Texture", kind: .Inlet, description: "Displacement map for vertex offset")
+    let inputOcclusionTexture = NodePort<FabricImage>(name: "Occlusion Texture", kind: .Inlet, description: "Ambient occlusion texture map")
+    let inputSubsurfaceTexture = NodePort<FabricImage>(name: "Subsurface Texture", kind: .Inlet, description: "Subsurface scattering texture map")
+    let inputClearcoatTexture = NodePort<FabricImage>(name: "Clearcoat Texture", kind: .Inlet, description: "Clear coat intensity texture map")
+    let inputClearcoatRoughTexture = NodePort<FabricImage>(name: "Clearcoat Roughness Texture", kind: .Inlet, description: "Clear coat roughness texture map")
+    let inputClearcoatGlossTexture = NodePort<FabricImage>(name: "Clearcoat Gloss Texture", kind: .Inlet, description: "Clear coat gloss texture map")
+    let inputTransmissionTexture = NodePort<FabricImage>(name: "Transmission Texture", kind: .Inlet, description: "Light transmission texture map")
+    let inputSubsurface = ParameterPort(parameter:FloatParameter("Sub Surface", 0.0, 0.0, 1.0, .slider, "Subsurface scattering intensity for translucent materials"))
+    let inputAnisotropic = ParameterPort(parameter:FloatParameter("Anisotropic", 0.0, -1.0, 1.0, .slider, "Anisotropic reflection strength (-1 to 1)"))
+    let inputAnisotropicAngle = ParameterPort(parameter:FloatParameter("Anisotropic Angle", 0.0, -1.0, 1.0, .slider, "Rotation angle for anisotropic reflections"))
+    let inputSpecularTint = ParameterPort(parameter:FloatParameter("Specular Tint", 0.0, 0.0, 1.0, .slider, "Tints specular reflections with the base color"))
+    let inputClearcoat = ParameterPort(parameter:FloatParameter("Clearcoat", 0.0, 0.0, 1.0, .slider, "Intensity of the clear coat layer (0 = none, 1 = full)"))
+    let inputClearcoatRoughness = ParameterPort(parameter:FloatParameter("Clearcoat Roughness", 0.0, 0.0, 1.0, .slider, "Roughness of the clear coat layer"))
+    let inputSheen = ParameterPort(parameter:FloatParameter("Sheen", 0.0, 0.0, 1.0, .slider, "Sheen intensity for fabric-like materials"))
+    let inputSheenTint = ParameterPort(parameter:FloatParameter("Sheen Tint", 0.0, 0.0, 1.0, .slider, "Tints sheen reflections with the base color"))
+    let inputTransmission = ParameterPort(parameter:FloatParameter("Transmission", 0.0, 0.0, 1.0, .slider, "Light transmission for glass-like materials (0-1)"))
+    let inputThickness = ParameterPort(parameter:FloatParameter("Thickness", 1.0, 0.0, 5.0, .slider, "Thickness of the material for transmission calculations"))
+    let inputIOR = ParameterPort(parameter:FloatParameter("Index of Refraction", 1.5, 0.0, 3.0, .slider, "Index of refraction (1.0 = air, 1.5 = glass, 2.4 = diamond)"))
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputBumpTexture", port: self.inputBumpTexture),
+            PortDeclaration(key: "inputDisplacementTexture", port: self.inputDisplacementTexture),
+            PortDeclaration(key: "inputOcclusionTexture", port: self.inputOcclusionTexture),
+            PortDeclaration(key: "inputSubsurfaceTexture", port: self.inputSubsurfaceTexture),
+            PortDeclaration(key: "inputClearcoatTexture", port: self.inputClearcoatTexture),
+            PortDeclaration(key: "inputClearcoatRoughTexture", port: self.inputClearcoatRoughTexture),
+            PortDeclaration(key: "inputClearcoatGlossTexture", port: self.inputClearcoatGlossTexture),
+            PortDeclaration(key: "inputTransmissionTexture", port: self.inputTransmissionTexture),
+            PortDeclaration(key: "inputSubsurface", port: self.inputSubsurface),
+            PortDeclaration(key: "inputAnisotropic", port: self.inputAnisotropic),
+            PortDeclaration(key: "inputAnisotropicAngle", port: self.inputAnisotropicAngle),
+            PortDeclaration(key: "inputSpecularTint", port: self.inputSpecularTint),
+            PortDeclaration(key: "inputClearcoat", port: self.inputClearcoat),
+            PortDeclaration(key: "inputClearcoatRoughness", port: self.inputClearcoatRoughness),
+            PortDeclaration(key: "inputSheen", port: self.inputSheen),
+            PortDeclaration(key: "inputSheenTint", port: self.inputSheenTint),
+            PortDeclaration(key: "inputTransmission", port: self.inputTransmission),
+            PortDeclaration(key: "inputThickness", port: self.inputThickness),
+            PortDeclaration(key: "inputIOR", port: self.inputIOR),
         ]
     }
 
-    // Port Proxys
-    var inputBumpTexture: NodePort<FabricImage> { _inputBumpTexture }
-    private var _inputBumpTexture: NodePort<FabricImage>!
-    var inputDisplacementTexture: NodePort<FabricImage> { _inputDisplacementTexture }
-    private var _inputDisplacementTexture: NodePort<FabricImage>!
-    var inputOcclusionTexture: NodePort<FabricImage> { _inputOcclusionTexture }
-    private var _inputOcclusionTexture: NodePort<FabricImage>!
-    var inputSubsurfaceTexture: NodePort<FabricImage> { _inputSubsurfaceTexture }
-    private var _inputSubsurfaceTexture: NodePort<FabricImage>!
-    var inputClearcoatTexture: NodePort<FabricImage> { _inputClearcoatTexture }
-    private var _inputClearcoatTexture: NodePort<FabricImage>!
-    var inputClearcoatRoughTexture: NodePort<FabricImage> { _inputClearcoatRoughTexture }
-    private var _inputClearcoatRoughTexture: NodePort<FabricImage>!
-    var inputClearcoatGlossTexture: NodePort<FabricImage> { _inputClearcoatGlossTexture }
-    private var _inputClearcoatGlossTexture: NodePort<FabricImage>!
-    var inputTransmissionTexture: NodePort<FabricImage> { _inputTransmissionTexture }
-    private var _inputTransmissionTexture: NodePort<FabricImage>!
-    var inputSubsurface: ParameterPort<Float> { _inputSubsurface }
-    private var _inputSubsurface: ParameterPort<Float>!
-    var inputAnisotropic: ParameterPort<Float> { _inputAnisotropic }
-    private var _inputAnisotropic: ParameterPort<Float>!
-    var inputAnisotropicAngle: ParameterPort<Float> { _inputAnisotropicAngle }
-    private var _inputAnisotropicAngle: ParameterPort<Float>!
-    var inputSpecularTint: ParameterPort<Float> { _inputSpecularTint }
-    private var _inputSpecularTint: ParameterPort<Float>!
-    var inputClearcoat: ParameterPort<Float> { _inputClearcoat }
-    private var _inputClearcoat: ParameterPort<Float>!
-    var inputClearcoatRoughness: ParameterPort<Float> { _inputClearcoatRoughness }
-    private var _inputClearcoatRoughness: ParameterPort<Float>!
-    var inputSheen: ParameterPort<Float> { _inputSheen }
-    private var _inputSheen: ParameterPort<Float>!
-    var inputSheenTint: ParameterPort<Float> { _inputSheenTint }
-    private var _inputSheenTint: ParameterPort<Float>!
-    var inputTransmission: ParameterPort<Float> { _inputTransmission }
-    private var _inputTransmission: ParameterPort<Float>!
-    var inputThickness: ParameterPort<Float> { _inputThickness }
-    private var _inputThickness: ParameterPort<Float>!
-    var inputIOR: ParameterPort<Float> { _inputIOR }
-    private var _inputIOR: ParameterPort<Float>!
-
-    override public func bindPorts()
-    {
-        super.bindPorts()
-        self._inputBumpTexture = findPort(named: "inputBumpTexture")
-        self._inputDisplacementTexture = findPort(named: "inputDisplacementTexture")
-        self._inputOcclusionTexture = findPort(named: "inputOcclusionTexture")
-        self._inputSubsurfaceTexture = findPort(named: "inputSubsurfaceTexture")
-        self._inputClearcoatTexture = findPort(named: "inputClearcoatTexture")
-        self._inputClearcoatRoughTexture = findPort(named: "inputClearcoatRoughTexture")
-        self._inputClearcoatGlossTexture = findPort(named: "inputClearcoatGlossTexture")
-        self._inputTransmissionTexture = findPort(named: "inputTransmissionTexture")
-        self._inputSubsurface = findPort(named: "inputSubsurface")
-        self._inputAnisotropic = findPort(named: "inputAnisotropic")
-        self._inputAnisotropicAngle = findPort(named: "inputAnisotropicAngle")
-        self._inputSpecularTint = findPort(named: "inputSpecularTint")
-        self._inputClearcoat = findPort(named: "inputClearcoat")
-        self._inputClearcoatRoughness = findPort(named: "inputClearcoatRoughness")
-        self._inputSheen = findPort(named: "inputSheen")
-        self._inputSheenTint = findPort(named: "inputSheenTint")
-        self._inputTransmission = findPort(named: "inputTransmission")
-        self._inputThickness = findPort(named: "inputThickness")
-        self._inputIOR = findPort(named: "inputIOR")
-    }
-    
     override public var material: PhysicalMaterial {
         return _material
     }

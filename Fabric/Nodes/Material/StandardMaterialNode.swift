@@ -16,82 +16,43 @@ public class StandardMaterialNode : BaseMaterialNode
     override public class var nodeDescription: String { "Provides a Physically Based Rendering Material supporting basic PBR rendering like Diffuse, Normal, Specular, Metallic, and Emissive Images and properties."}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return [
-            ("inputDiffuseTexture",  NodePort<FabricImage>(name: "Diffuse Texture", kind: .Inlet, description: "Base color/albedo texture map")),
-            ("inputNormalTexture",  NodePort<FabricImage>(name: "Normal Texture", kind: .Inlet, description: "Normal map for surface detail")),
-            ("inputEmissiveTexture",  NodePort<FabricImage>(name: "Emissive Texture", kind: .Inlet, description: "Emission/glow texture map")),
-            ("inputSpecularTexture",  NodePort<FabricImage>(name: "Specular Texture", kind: .Inlet, description: "Specular intensity texture map")),
-            ("inputRoughnessTexture",  NodePort<FabricImage>(name: "Roughness Texture", kind: .Inlet, description: "Surface roughness texture map")),
-            ("inputMetallicTexture",  NodePort<FabricImage>(name: "Metallic Texture", kind: .Inlet, description: "Metallic property texture map")),
-            ("inputBaseColor",  ParameterPort(parameter:Float4Parameter("Base Color", simd_float4(repeating:1), .colorpicker, "Base diffuse color of the material (RGBA)"))),
-            ("inputEmissiveColor",  ParameterPort(parameter:Float4Parameter("Emissive Color", simd_float4(repeating:0), .colorpicker, "Self-illumination color independent of lighting (RGBA)"))),
-            ("inputSpecular",  ParameterPort(parameter:FloatParameter("Specular", 0.25, 0.0, 1.0, .slider, "Intensity of specular highlights (0 = none, 1 = full)"))),
-            ("inputRoughness",  ParameterPort(parameter:FloatParameter("Roughness", 0.25, 0.0, 1.0, .slider, "Surface roughness where 0 is smooth and 1 is fully rough"))),
-            ("inputMetallic",  ParameterPort(parameter:FloatParameter("Metallic", 0.75, 0.0, 1.0, .slider, "Metallic property where 0 is dielectric and 1 is pure metal"))),
-            ("inputOcclusion",  ParameterPort(parameter:FloatParameter("Occlusion", 0.75, 0.0, 1.0, .slider, "Ambient occlusion factor to darken crevices (0-1)"))),
-            ("inputEnvironmentIntensity",  ParameterPort(parameter:FloatParameter("Environment Intensity", 1.0, 0.0, 1.0, .slider, "Strength of environment map reflections (0-1)"))),
-            ("inputGammaCorrection",  ParameterPort(parameter:FloatParameter("Gamma Correction", 1.0, 0.0, 2.4, .slider, "Gamma correction value for color space conversion"))),
-            ("inputPointSize", ParameterPort(parameter:FloatParameter("Point Size", 1.0, 0.5, 64.0, .slider, "Point Size") ) ),
-            ]
-        + ports
-    }
+    public let inputDiffuseTexture = NodePort<FabricImage>(name: "Diffuse Texture", kind: .Inlet, description: "Base color/albedo texture map")
+    public let inputNormalTexture = NodePort<FabricImage>(name: "Normal Texture", kind: .Inlet, description: "Normal map for surface detail")
+    public let inputEmissiveTexture = NodePort<FabricImage>(name: "Emissive Texture", kind: .Inlet, description: "Emission/glow texture map")
+    public let inputSpecularTexture = NodePort<FabricImage>(name: "Specular Texture", kind: .Inlet, description: "Specular intensity texture map")
+    public let inputRoughnessTexture = NodePort<FabricImage>(name: "Roughness Texture", kind: .Inlet, description: "Surface roughness texture map")
+    public let inputMetallicTexture = NodePort<FabricImage>(name: "Metallic Texture", kind: .Inlet, description: "Metallic property texture map")
+    public let inputBaseColor = ParameterPort(parameter:Float4Parameter("Base Color", simd_float4(repeating:1), .colorpicker, "Base diffuse color of the material (RGBA)"))
+    public let inputEmissiveColor = ParameterPort(parameter:Float4Parameter("Emissive Color", simd_float4(repeating:0), .colorpicker, "Self-illumination color independent of lighting (RGBA)"))
+    public let inputSpecular = ParameterPort(parameter:FloatParameter("Specular", 0.25, 0.0, 1.0, .slider, "Intensity of specular highlights (0 = none, 1 = full)"))
+    public let inputRoughness = ParameterPort(parameter:FloatParameter("Roughness", 0.25, 0.0, 1.0, .slider, "Surface roughness where 0 is smooth and 1 is fully rough"))
+    public let inputMetallic = ParameterPort(parameter:FloatParameter("Metallic", 0.75, 0.0, 1.0, .slider, "Metallic property where 0 is dielectric and 1 is pure metal"))
+    public let inputOcclusion = ParameterPort(parameter:FloatParameter("Occlusion", 0.75, 0.0, 1.0, .slider, "Ambient occlusion factor to darken crevices (0-1)"))
+    public let inputEnvironmentIntensity = ParameterPort(parameter:FloatParameter("Environment Intensity", 1.0, 0.0, 1.0, .slider, "Strength of environment map reflections (0-1)"))
+    public let inputGammaCorrection = ParameterPort(parameter:FloatParameter("Gamma Correction", 1.0, 0.0, 2.4, .slider, "Gamma correction value for color space conversion"))
+    public let inputPointSize = ParameterPort(parameter:FloatParameter("Point Size", 1.0, 0.5, 64.0, .slider, "Point Size") )
 
-    // Proxy Ports
-    public var inputDiffuseTexture: NodePort<FabricImage> { _inputDiffuseTexture }
-    private var _inputDiffuseTexture: NodePort<FabricImage>!
-    public var inputNormalTexture: NodePort<FabricImage> { _inputNormalTexture }
-    private var _inputNormalTexture: NodePort<FabricImage>!
-    public var inputEmissiveTexture: NodePort<FabricImage> { _inputEmissiveTexture }
-    private var _inputEmissiveTexture: NodePort<FabricImage>!
-    public var inputSpecularTexture: NodePort<FabricImage> { _inputSpecularTexture }
-    private var _inputSpecularTexture: NodePort<FabricImage>!
-    public var inputRoughnessTexture: NodePort<FabricImage> { _inputRoughnessTexture }
-    private var _inputRoughnessTexture: NodePort<FabricImage>!
-    public var inputMetallicTexture: NodePort<FabricImage> { _inputMetallicTexture }
-    private var _inputMetallicTexture: NodePort<FabricImage>!
-    public var inputBaseColor: ParameterPort<simd_float4> { _inputBaseColor }
-    private var _inputBaseColor: ParameterPort<simd_float4>!
-    public var inputEmissiveColor: ParameterPort<simd_float4> { _inputEmissiveColor }
-    private var _inputEmissiveColor: ParameterPort<simd_float4>!
-    public var inputSpecular: ParameterPort<Float> { _inputSpecular }
-    private var _inputSpecular: ParameterPort<Float>!
-    public var inputRoughness: ParameterPort<Float> { _inputRoughness }
-    private var _inputRoughness: ParameterPort<Float>!
-    public var inputMetallic: ParameterPort<Float> { _inputMetallic }
-    private var _inputMetallic: ParameterPort<Float>!
-    public var inputOcclusion: ParameterPort<Float> { _inputOcclusion }
-    private var _inputOcclusion: ParameterPort<Float>!
-    public var inputEnvironmentIntensity: ParameterPort<Float> { _inputEnvironmentIntensity }
-    private var _inputEnvironmentIntensity: ParameterPort<Float>!
-    public var inputGammaCorrection: ParameterPort<Float> { _inputGammaCorrection }
-    private var _inputGammaCorrection: ParameterPort<Float>!
-    public var inputPointSize: ParameterPort<Float> { _inputPointSize }
-    private var _inputPointSize: ParameterPort<Float>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputDiffuseTexture = findPort(named: "inputDiffuseTexture")
-        self._inputNormalTexture = findPort(named: "inputNormalTexture")
-        self._inputEmissiveTexture = findPort(named: "inputEmissiveTexture")
-        self._inputSpecularTexture = findPort(named: "inputSpecularTexture")
-        self._inputRoughnessTexture = findPort(named: "inputRoughnessTexture")
-        self._inputMetallicTexture = findPort(named: "inputMetallicTexture")
-        self._inputBaseColor = findPort(named: "inputBaseColor")
-        self._inputEmissiveColor = findPort(named: "inputEmissiveColor")
-        self._inputSpecular = findPort(named: "inputSpecular")
-        self._inputRoughness = findPort(named: "inputRoughness")
-        self._inputMetallic = findPort(named: "inputMetallic")
-        self._inputOcclusion = findPort(named: "inputOcclusion")
-        self._inputEnvironmentIntensity = findPort(named: "inputEnvironmentIntensity")
-        self._inputGammaCorrection = findPort(named: "inputGammaCorrection")
-        self._inputPointSize = findPort(named: "inputPointSize")
+        [
+            PortDeclaration(key: "inputDiffuseTexture", port: self.inputDiffuseTexture),
+            PortDeclaration(key: "inputNormalTexture", port: self.inputNormalTexture),
+            PortDeclaration(key: "inputEmissiveTexture", port: self.inputEmissiveTexture),
+            PortDeclaration(key: "inputSpecularTexture", port: self.inputSpecularTexture),
+            PortDeclaration(key: "inputRoughnessTexture", port: self.inputRoughnessTexture),
+            PortDeclaration(key: "inputMetallicTexture", port: self.inputMetallicTexture),
+            PortDeclaration(key: "inputBaseColor", port: self.inputBaseColor),
+            PortDeclaration(key: "inputEmissiveColor", port: self.inputEmissiveColor),
+            PortDeclaration(key: "inputSpecular", port: self.inputSpecular),
+            PortDeclaration(key: "inputRoughness", port: self.inputRoughness),
+            PortDeclaration(key: "inputMetallic", port: self.inputMetallic),
+            PortDeclaration(key: "inputOcclusion", port: self.inputOcclusion),
+            PortDeclaration(key: "inputEnvironmentIntensity", port: self.inputEnvironmentIntensity),
+            PortDeclaration(key: "inputGammaCorrection", port: self.inputGammaCorrection),
+            PortDeclaration(key: "inputPointSize", port: self.inputPointSize),
+        ] + super.declaredPorts()
     }
 
-    
     public override var material: StandardMaterial {
         return _material
     }

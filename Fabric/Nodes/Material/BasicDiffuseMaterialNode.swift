@@ -15,23 +15,15 @@ public class BasicDiffuseMaterialNode : BasicColorMaterialNode
     public override class var name:String {  "Diffuse Material" }
     override public class var nodeDescription: String { "Provides basic color rendering, with simple lighting."}
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return  [
-                    ("inputHardness", ParameterPort(parameter:FloatParameter("Hardness", 1, 0, 1, .slider, "Controls diffuse falloff sharpness (0 = soft, 1 = hard)")) ),
-                ] + ports
-    }
-    
-    public var inputHardness: ParameterPort<Float> { _inputHardness }
-    private var _inputHardness: ParameterPort<Float>!
+    public let inputHardness = ParameterPort(parameter:FloatParameter("Hardness", 1, 0, 1, .slider, "Controls diffuse falloff sharpness (0 = soft, 1 = hard)"))
 
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputHardness = findPort(named: "inputHardness")
+        [
+            PortDeclaration(key: "inputHardness", port: self.inputHardness),
+        ] + super.declaredPorts()
     }
-    
+
     public override var material: BasicDiffuseMaterial {
         return _material
     }
