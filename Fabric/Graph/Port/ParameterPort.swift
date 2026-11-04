@@ -8,19 +8,13 @@
 import Foundation
 import Satin
 
-/// Internal coverage for Node's parameter invalidation. Proxies deliberately do
-/// not conform: their inner port invalidates a different node.
-protocol NodeInvalidatingParameterPort: AnyObject {
-    var observedParameter: any Parameter { get }
-}
-
 /// An inlet with a control: it rests at a value of its own when unwired, and
 /// a document saves that value. The port's value is canonical. Its parameter
 /// mirrors it, one way, written through the parameter's setter whenever the
 /// value changes: for a control to draw its range and options from, and, for
 /// a material-backed port, as the uniform the material uploads. Nothing reads
 /// the parameter to learn the port's value.
-public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hashable> : NodePort<ParamValue>, NodeInvalidatingParameterPort
+public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hashable> : NodePort<ParamValue>
 {
     private var _parameter: GenericParameter<ParamValue>
 
@@ -33,8 +27,6 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
         // value before assigning so restoration reports one final value change.
         super.restoreValue(from: boxed ?? restingValue.toPortValue())
     }
-
-    internal var observedParameter: any Parameter { self._parameter }
 
     // Proxy the parameter's description
     // Setter ignores empty values to preserve parameter's description during decoding of old files

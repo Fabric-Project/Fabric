@@ -231,8 +231,6 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     /// results in this hook; markDirty()/markClean() still own the underlying input dirty flag.
     open var isDirty: Bool { inputsAreDirty }
 
-    // Input Parameter update tracking:
-    var inputParamCancellables: [AnyCancellable] = []
 
 
     // MARK: - Serialization and Init
@@ -317,9 +315,8 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     deinit
     {
-        // Ports and parameter sinks reference this node unowned; clear both
-        // before they can dangle. Subclass ports are still alive here.
-        self.inputParamCancellables.forEach { $0.cancel() }
+        // Ports reference this node unowned; clear them before they can
+        // dangle. Subclass ports are still alive here.
         for port in self.ports { port.node = nil }
     }
 
@@ -339,9 +336,6 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
             }
             port.teardown()
         }
-
-        self.inputParamCancellables.forEach { $0.cancel() }
-        self.inputParamCancellables.removeAll()
     }
 
     // MARK: - Ports
@@ -524,7 +518,6 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
         self.parameterGroup.clear()
         self.parameterGroup.append(parameters)
-        self.synchronizeParameters()
     }
 
     /// The key the port is registered under: the declared name, where the
@@ -620,40 +613,6 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     public func markDirty()
     {
         inputsAreDirty = true
-    }
-
-    /// Rebuild dirty notifications when the parameter/port structure changes.
-    /// Parameters observed by this node's ports already invalidate it; standalone
-    /// and proxy parameters still need a Node subscription.
-    public func synchronizeParameters()
-    {
-        self.inputParamCancellables.forEach { $0.cancel() }
-        self.inputParamCancellables.removeAll(keepingCapacity: true)
-
-        let ports = self.ports
-        for parameter in self.parameterGroup.params
-        {
-            let observedByPort = ports.contains { port in
-                guard let observingPort = port as? any NodeInvalidatingParameterPort,
-                      observingPort.observedParameter === parameter
-                else { return false }
-                return port.node === self
-            }
-            if observedByPort { continue }
-
-            let cancellable = self.makeCancelable(parameter: parameter)
-            self.inputParamCancellables.append(cancellable)
-        }
-    }
-
-    private func makeCancelable(parameter: some Parameter) -> AnyCancellable
-    {
-        // Unowned: this node owns the subscription and cancels it in deinit.
-        let cancellable = parameter.valuePublisher.sink { [unowned self] _ in
-            self.markDirty()
-        }
-
-        return cancellable
     }
 
     open func updateConnectionTopology()

@@ -80,8 +80,6 @@ open class SubgraphNode: BaseObjectNode
             }
         }
 
-        self.synchronizeParameters()
-
         self.invalidatePortCaches()
         // The graph around may publish a proxy this rebuild remade.
         self.graph?.rebuildPublishedParameterGroup()
