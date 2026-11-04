@@ -87,6 +87,13 @@ extension UTType
 
     public let name: String
 
+    /// What the port's node finds it by; the registry sets it.
+    public internal(set) var key: PortKey
+
+    /// The control the port's declaration gives it; nil for a plain port. The
+    /// registry sets it.
+    public internal(set) var control: PortControl?
+
     public var portDescription: String = ""
 
     public var published: Bool = false
@@ -140,6 +147,7 @@ extension UTType
         self.id = id
         self.kind = kind
         self.name = name
+        self.key = .own(name)
         self.portDescription = description
         self.color = .clear
         self.backgroundColor = .clear
@@ -162,6 +170,7 @@ extension UTType
 
         self.id = try container.decode(UUID.self, forKey: .id)
         self.name = try container.decode(String.self, forKey: .name)
+        self.key = .own(self.name)
         self.kind = try container.decode(PortKind.self, forKey: .kind)
         self.published = try container.decodeIfPresent(Bool.self, forKey: .published) ?? false
         self.publishedName = try container.decodeIfPresent(String.self, forKey: .publishedName)
@@ -250,24 +259,45 @@ extension UTType
         return "\(head) - \(portType.previewString(for: value))"
     }
 
-    /// Applies document-owned state from a decoded snapshot onto this
-    /// code-declared port: identity (connections are keyed by port UUID),
-    /// published state, and — when the types still agree — the persisted value.
-    /// Code-owned metadata (name, description, parameter range and control
-    /// type) deliberately stays as declared; the document does not own it.
-    /// Must run before the port is registered — the registry indexes by id.
-    internal func hydrate(from decoded: Port)
+    /// Takes the document's saved identity and publishing from a decoded
+    /// snapshot, for wires and published entries that name the port by id.
+    /// Must run before the port is registered.
+    internal func hydrateIdentity(from decoded: Port)
     {
-        self.id = decoded.id
+        self.adoptID(decoded.id)
         self.published = decoded.published
         self.publishedName = decoded.publishedName
-
-        if decoded.portType == self.portType,
-           let boxedValue = decoded.snapshotValue()
-        {
-            self.restoreValue(from: boxedValue)
-        }
     }
+
+    internal func setPublishing(_ published: Bool, name: String?)
+    {
+        self.published = published
+        self.publishedName = name
+    }
+
+    /// Takes `id` as the port's runtime identity.
+    internal func adoptID(_ id: UUID)
+    {
+        self.id = id
+    }
+
+    /// Puts a saved or carried value on the port when it fits the port's type,
+    /// then lets the port correct it. Returns whether the value fitted.
+    @discardableResult
+    internal func apply(_ state: PortState) -> Bool
+    {
+        guard self.accepts(state.value) else { return false }
+        self.restoreValue(from: state.value)
+        self.correctAppliedValue()
+        return true
+    }
+
+    /// Whether `value` is a value of this port's type.
+    internal func accepts(_ value: PortValue) -> Bool { false }
+
+    /// A port's own correction of a value put on it from outside the node, as
+    /// a slider's clamp to its range. Never an edit.
+    internal func correctAppliedValue() { }
 
     public func canConnect(to other:Port) -> Bool
     {

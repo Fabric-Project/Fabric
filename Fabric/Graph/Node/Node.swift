@@ -159,7 +159,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         Self.registerPorts(context: self.context).map { PortDeclaration(key: $0.name, port: $0.port) }
     }
     // All port serilization, adding, removing and key value access goes through the port registry
-    private let registry = PortRegistry()
+    internal let registry = PortRegistry()
 
     // Sadly this needs to be observed
     public let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
@@ -261,19 +261,18 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         let decodedUserName = try container.decodeIfPresent(String.self, forKey: .userName)
         self.userName = decodedUserName?.isEmpty == true ? nil : decodedUserName
 
-        // Declare, then hydrate: the port set comes from the code — registerPorts
-        // now, subclass rebuilds (strategy, route count, expression, shader) after
-        // this initializer — and the document contributes only the state it owns,
-        // applied per registry key as each port registers. Snapshot keys that
-        // never match a declared or rebuilt port surface via
-        // droppedPortStateKeys instead of resurrecting retired ports.
+        // Declare, then hydrate: the port set comes from the code's
+        // declarations, here and in any reconcile a subclass makes once it has
+        // read its source, and the document contributes only the state it
+        // owns, applied per key as each port is made. Snapshot keys that never
+        // match a declared port surface via droppedPortStateKeys instead of
+        // resurrecting retired ports. Order is the declarations'.
         let snaps = try container.decodeIfPresent([PortRegistry.Snapshot].self, forKey: .ports) ?? []
         let session = PortHydrationSession(snapshots: snaps)
         self.portHydrationSession = session
 
-        let declarations = self.declaredPorts()
-        try session.addSnapshotsSavedOutsideRegistry(for: declarations, from: decoder)
-        self.register(declarations)
+        try session.addSnapshotsSavedOutsideRegistry(for: self.declaredPorts(), from: decoder)
+        self.reconcilePorts()
     }
 
     open func encode(to encoder:Encoder) throws
@@ -292,26 +291,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         self.id = UUID()
         self.context = context
 
-        self.register(self.declaredPorts())
-    }
-
-    private func register(_ declarations: [PortDeclaration])
-    {
-        for declaration in declarations
-        {
-            self.portHydrationSession?.hydrate(declaration.port, registryKey: declaration.key)
-            self.registry.register(declaration.port, name: declaration.key, owner: self)
-        }
-
-        for port in self.registry.all()
-        {
-            if let param = port.parameter
-            {
-                self.parameterGroup.append(param)
-            }
-        }
-
-        self.synchronizeParameters()
+        self.reconcilePorts()
     }
 
     open class func initWithContext(context: Context) throws -> Node
@@ -406,12 +386,75 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         return droppedKeys
     }
 
+    // MARK: - Declared ports
+
+    /// Brings the node's ports to declaredPorts(), putting `states` on them. A
+    /// port kept under its key and type keeps its wires and value; a retyped
+    /// one is made afresh under its runtime id and keeps the wires it can
+    /// take; a removed one takes its wires with it, as graph edits. A node
+    /// whose interface follows state it holds, a strategy, a source, a device,
+    /// calls this once it has changed what declaredPorts() reads. Order is the
+    /// declarations'.
+    public final func reconcilePorts(applying states: [PortState] = [])
+    {
+        let reconciliation = self.registry.reconcile(to: self.declaredPorts(),
+                                                     applying: states,
+                                                     owner: self,
+                                                     hydrating: self.portHydrationSession)
+        guard !reconciliation.isEmpty else { return }
+
+        let graph = self.graph
+
+        for port in reconciliation.removed
+        {
+            graph?.disconnectAll(fromRetired: port)
+        }
+
+        for (old, new) in reconciliation.retyped
+        {
+            new.setPublishing(old.published, name: old.publishedName)
+            graph?.rebindWires(from: old, to: new)
+        }
+
+        // A retired port is detached, so a transient view holding it cannot
+        // reconnect it under the id its replacement now has.
+        for port in reconciliation.removed + reconciliation.retyped.map(\.old)
+        {
+            port.node = nil
+        }
+
+        self.invalidatePortCaches()
+        self.rebuildParameterGroup()
+
+        let publishingChanged = reconciliation.removed.contains(where: \.published)
+            || reconciliation.retyped.contains(where: { $0.old.published || $0.new.published })
+            || reconciliation.added.contains(where: \.published)
+        if publishingChanged { graph?.rebuildPublishedParameterGroup() }
+
+        graph?.markConnectionsChanged()
+        self.portsChangedSubject.send()
+    }
+
+    /// The parameters of the node's ports, in port order.
+    private func rebuildParameterGroup()
+    {
+        let parameters = self.ports.compactMap(\.parameter)
+        let current = self.parameterGroup.params
+        guard parameters.count != current.count
+                || zip(parameters, current).contains(where: { $0 !== $1 })
+        else { return }
+
+        self.parameterGroup.clear()
+        self.parameterGroup.append(parameters)
+        self.synchronizeParameters()
+    }
+
     // Dynamic add/remove (kept by serialization automatically)
     public func addDynamicPort(_ p: Port, name:String? = nil)
     {
         // Dynamic ports created after decode (rebuildPorts and friends) adopt
         // their persisted state here, before the registry indexes their id.
-        self.portHydrationSession?.hydrate(p, registryKey: name ?? p.name)
+        if let state = self.portHydrationSession?.hydrate(p, key: .own(name ?? p.name)) { p.apply(state) }
 
         self.registry.addDynamic(p, owner: self, name:name)
         self.invalidatePortCaches()

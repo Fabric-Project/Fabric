@@ -28,6 +28,11 @@ public class NodePort<Value : PortValueRepresentable>: Port
         }
     }
 
+    override internal func accepts(_ value: PortValue) -> Bool
+    {
+        Value.fromPortValue(value) != nil
+    }
+
     override internal func sendBoxed(_ boxed: PortValue?)
     {
         sendBoxed(boxed, force: false)

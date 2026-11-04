@@ -162,19 +162,15 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
         try super.encode(to: encoder)
     }
     
-    /// After adopting the document's value, re-impose the declared range — but
-    /// only for controls that enforce their range in the UI (a slider can only
-    /// ever have produced in-range values, so out-of-range persisted state
-    /// means the declared range changed since the save). Input fields and
-    /// connected inlets legitimately hold values outside min/max — many
-    /// parameters carry FloatParameter's default 0...1 range as a placeholder —
-    /// so those are left untouched.
-    override internal func hydrate(from decoded: Port)
+    /// A value put on the port from a document or a carried state takes the
+    /// declared range again, but only for a control that enforces its range in
+    /// the UI: a slider can only ever have produced in-range values, so an
+    /// out-of-range one means the declared range changed since. Input fields
+    /// and wired inlets legitimately hold values outside min/max (many
+    /// parameters carry FloatParameter's default 0...1 as a placeholder), so
+    /// those are left alone.
+    override internal func correctAppliedValue()
     {
-        super.hydrate(from: decoded)
-
-        self._parameter.id = self.id
-
         guard self._parameter.controlType == .slider,
               let value = self.value,
               let ranged = self._parameter as? GenericParameterWithMinMax<ParamValue>
@@ -185,6 +181,12 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
         {
             self.value = clamped
         }
+    }
+
+    override internal func adoptID(_ id: UUID)
+    {
+        super.adoptID(id)
+        self._parameter.id = id
     }
 
     private static func clampedComparable(_ value: ParamValue, min minValue: ParamValue, max maxValue: ParamValue) -> ParamValue?

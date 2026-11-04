@@ -33,23 +33,24 @@ internal final class PortHydrationSession
     {
         let container = try decoder.container(keyedBy: NodeCodingKey.self)
 
-        for declaration in declarations where pendingByRegistryKey[declaration.key] == nil
+        for declaration in declarations
         {
-            guard let codingKey = NodeCodingKey(stringValue: declaration.key),
+            guard case .own(let key) = declaration.key,
+                  pendingByRegistryKey[key] == nil,
+                  let codingKey = NodeCodingKey(stringValue: key),
                   container.contains(codingKey)
             else { continue }
 
-            let port = declaration.port
-            let saved = (port.parameter != nil
-                            ? try? PortType.portForType(port.portType, isParameterPort: true, decoder: container.superDecoder(forKey: codingKey))
+            let saved = (declaration.control != nil
+                            ? try? PortType.portForType(declaration.portType, isParameterPort: true, decoder: container.superDecoder(forKey: codingKey))
                             : nil)
                 // A parameter port saved before it had a parameter.
-                ?? (try? PortType.portForType(port.portType, isParameterPort: false, decoder: container.superDecoder(forKey: codingKey)))
+                ?? (try? PortType.portForType(declaration.portType, isParameterPort: false, decoder: container.superDecoder(forKey: codingKey)))
 
             if let saved
             {
-                pendingByRegistryKey[declaration.key] = saved
-                documentKeyOrder.append(declaration.key)
+                pendingByRegistryKey[key] = saved
+                documentKeyOrder.append(key)
             }
         }
     }
@@ -65,20 +66,23 @@ internal final class PortHydrationSession
     /// Registry keys whose state has not landed on any registered port.
     var unconsumedKeys: [String] { pendingByRegistryKey.keys.sorted() }
 
-    /// Applies the pending snapshot for `registryKey` onto `port`, provided the
-    /// directions agree. The match is exact: state saved under any other key —
-    /// a retired port, a renamed one — stays pending and is reported dropped at
-    /// finalize. Must run before the port registers: the registry indexes by
-    /// the id hydration adopts.
-    func hydrate(_ port: Port, registryKey: String)
+    /// Gives `port` the identity and publishing of the pending snapshot under
+    /// `key`, provided the directions agree, and hands back the snapshot's
+    /// value as a state for the registry to put on it. The match is exact:
+    /// state saved under any other key, a retired port or a renamed one, stays
+    /// pending and is reported dropped at finalize. Must run before the port
+    /// registers.
+    func hydrate(_ port: Port, key: PortKey) -> PortState?
     {
-        guard let decoded = pendingByRegistryKey[registryKey],
+        guard case .own(let registryKey) = key,
+              let decoded = pendingByRegistryKey[registryKey],
               decoded.kind == port.kind
-        else { return }
+        else { return nil }
 
         pendingByRegistryKey.removeValue(forKey: registryKey)
-        port.hydrate(from: decoded)
+        port.hydrateIdentity(from: decoded)
         consumedByPortID[port.id] = (registryKey: registryKey, snapshot: decoded)
+        return decoded.snapshotValue().map { PortState(key: key, value: $0) }
     }
 
     /// Empties the pending set and hands back what was in it, in the order the

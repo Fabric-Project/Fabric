@@ -798,6 +798,41 @@ internal import AnyCodable
         undoManager?.setActionName("Disconnect Ports")
     }
 
+    /// Takes the wires off a port its node has just retired from its registry,
+    /// as undo steps of the edit in progress.
+    internal func disconnectAll(fromRetired port: Port)
+    {
+        guard port.node?.graph === self else { return }
+
+        for connection in port.connections where connection.graph === self
+        {
+            disconnect(connection)
+        }
+    }
+
+    /// Moves every wire on `old` that `new`, its retyped replacement under the
+    /// same key, can take onto `new`, and disconnects the rest as undo steps.
+    internal func rebindWires(from old: Port, to new: Port)
+    {
+        let wires = old.connections.filter { $0.graph === self }
+        guard !wires.isEmpty else { return }
+
+        for connection in wires
+        {
+            guard let opposite = connection.port(opposite: old),
+                  new.kind == .Outlet ? new.canConnect(to: opposite) : opposite.canConnect(to: new)
+            else
+            {
+                self.disconnect(connection)
+                continue
+            }
+
+            self.rebindConnection(connection, replacing: old, with: new)
+            if let outlet = connection.outletPort { outlet.sendBoxed(outlet.snapshotValue(), force: true) }
+        }
+        self.markConnectionTopologyChanged()
+    }
+
     @discardableResult
     public func setConnection(_ connection: Connection, active: Bool) -> Bool
     {
