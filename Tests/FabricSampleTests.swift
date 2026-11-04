@@ -419,6 +419,110 @@ private enum FabricSampleTestSupport
     }
 }
 
+/// What a document says about a graph, as a comparable value: each node's
+/// type and ports, the wires and publishing by address, every parameter
+/// inlet's value, and inner graphs by their node.
+private struct GraphShape: Equatable
+{
+    struct PortShape: Equatable { let type: String; let isInlet: Bool }
+
+    var nodeTypes: [UUID: String] = [:]
+    var ports: [PortAddress: PortShape] = [:]
+    var connections: Set<String> = []
+    var published: [String] = []
+    var values: [PortAddress: String] = [:]
+    var inner: [UUID: GraphShape] = [:]
+
+    init(_ graph: Graph)
+    {
+        for node in graph.nodes
+        {
+            nodeTypes[node.id] = String(describing: type(of: node))
+            for port in node.ports
+            {
+                let address = PortAddress(node: node.id, key: port.key)
+                ports[address] = PortShape(type: port.portType.rawValue, isInlet: port.kind == .Inlet)
+            }
+            for state in node.registry.states()
+            {
+                values[PortAddress(node: node.id, key: state.key)] = "\(state.value)"
+            }
+            if let subgraph = node as? SubgraphNode { inner[node.id] = GraphShape(subgraph.subGraph) }
+        }
+        for connection in graph.connections
+        {
+            guard let outlet = connection.outletPort.flatMap(graph.address(of:)),
+                  let inlet = connection.inletPort.flatMap(graph.address(of:))
+            else { continue }
+            connections.insert("\(outlet) -> \(inlet) \(connection.active)")
+        }
+        published = graph.publishedPortEntries.map { "\($0.address) \($0.name ?? "-")" }
+    }
+}
+
+/// What an old document holds, read from its JSON as the old format had it.
+private struct LegacyShape
+{
+    var connectionCount = 0
+    var publishedCount = 0
+    /// Parameter inlet values by node id and key.
+    var values: [UUID: [String: Any]] = [:]
+    var inner: [UUID: LegacyShape] = [:]
+
+    init(_ json: [String: Any])
+    {
+        if let connections = json["connections"] as? [[String: Any]]
+        {
+            connectionCount = connections.count
+        }
+        else if let map = json["portConnectionMap"] as? [String: [String]]
+        {
+            var pairs = Set<Set<String>>()
+            for (port, others) in map { for other in others { pairs.insert([port, other]) } }
+            connectionCount = pairs.count
+        }
+
+        for entry in json["nodeMap"] as? [[String: Any]] ?? []
+        {
+            guard let value = entry["value"] as? [String: Any],
+                  let id = (value["id"] as? String).flatMap(UUID.init(uuidString:))
+            else { continue }
+
+            var envelopes: [(key: String, base: [String: Any], isParameter: Bool)] = []
+            for snapshot in value["ports"] as? [[String: Any]] ?? []
+            {
+                guard let key = snapshot["name"] as? String,
+                      let payload = snapshot["payload"] as? [String: Any],
+                      let base = payload["base"] as? [String: Any]
+                else { continue }
+                envelopes.append((key, base, payload["isParameterPort"] as? Bool ?? false))
+            }
+            for (key, saved) in value
+            {
+                guard let base = saved as? [String: Any], base["kind"] is String, base["id"] is String else { continue }
+                envelopes.append((key, base, base["parameter"] != nil))
+            }
+            for proxy in value["proxyPorts"] as? [[String: Any]] ?? []
+            {
+                if (proxy["base"] as? [String: Any])?["published"] as? Bool == true { publishedCount += 1 }
+            }
+
+            for envelope in envelopes
+            {
+                if envelope.base["published"] as? Bool == true { publishedCount += 1 }
+                guard envelope.isParameter,
+                      let parameter = envelope.base["parameter"] as? [String: Any],
+                      parameter["type"] as? String != "generic",
+                      let saved = (parameter["base"] as? [String: Any])?["value"]
+                else { continue }
+                values[id, default: [:]][envelope.key] = saved
+            }
+
+            if let subGraph = value["subGraph"] as? [String: Any] { inner[id] = LegacyShape(subGraph) }
+        }
+    }
+}
+
 @Suite("Fabric Samples", .serialized, .enabled(if: FabricSampleCatalog.isAvailable, FabricSampleCatalog.unavailableComment))
 struct FabricSampleTests
 {
@@ -439,6 +543,83 @@ struct FabricSampleTests
             serializedGraph: loaded.serializedGraph,
             path: fixture.relativePath
         )
+    }
+
+    /// The reader for documents saved before ports were addressed, checked
+    /// against every sample: what the old document held arrives, and a save in
+    /// the current format then loads back as the same graph.
+    @Test("Every sample migrates, and survives a save in the current format", arguments: FabricSampleCatalog.samples)
+    func everySampleMigratesAndRoundTrips(_ fixture: FabricSampleFixture) throws
+    {
+        let context = try FabricSampleTestSupport.makeContext()
+        let loaded = try FabricSampleTestSupport.load(fixture, context: context)
+        try Self.expect(loaded.graph, holds: LegacyShape(loaded.serializedGraph), path: fixture.relativePath)
+
+        let saved = try JSONEncoder().encode(loaded.graph)
+        let savedJSON = try #require(try JSONSerialization.jsonObject(with: saved) as? [String: Any])
+        #expect(savedJSON["portConnectionMap"] == nil)
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context,
+                                         fileReferenceBaseURL: fixture.documentURL.deletingLastPathComponent())
+        let reloaded = try decoder.decode(Graph.self, from: saved)
+
+        #expect(GraphShape(reloaded) == GraphShape(loaded.graph), "\(fixture.relativePath) changed across a save")
+        #expect(reloaded.droppedConnectionDiagnostics.isEmpty)
+        #expect(reloaded.droppedPortStateDiagnostics.isEmpty)
+    }
+
+    private static func expect(_ graph: Graph, holds legacy: LegacyShape, path: String) throws
+    {
+        // A wire either arrives or is reported dropped; none disappears.
+        #expect(graph.connections.count + graph.droppedConnectionDiagnostics.count == legacy.connectionCount,
+                "\(path): \(graph.connections.count) wires and \(graph.droppedConnectionDiagnostics.count) dropped of \(legacy.connectionCount)")
+        if graph.missingNodeDiagnostics.isEmpty
+        {
+            #expect(graph.publishedPortEntries.count == legacy.publishedCount, "\(path): published")
+        }
+
+        for (nodeID, values) in legacy.values
+        {
+            guard let node = graph.node(forID: nodeID) else { continue }
+            for (key, saved) in values
+            {
+                guard let port = node.port(forKey: .own(key)), let value = port.snapshotValue() else { continue }
+                // A slider clamps a value its range no longer holds, as decode always has.
+                if port.control == .slider, case .Float = value { continue }
+                #expect(Self.matches(value, saved), "\(path): \(node.title).\(key) is \(value), saved \(saved)")
+            }
+        }
+
+        for (nodeID, inner) in legacy.inner
+        {
+            guard let subgraph = graph.node(forID: nodeID) as? SubgraphNode else { continue }
+            try expect(subgraph.subGraph, holds: inner, path: "\(path)/\(subgraph.title)")
+        }
+    }
+
+    /// Whether a loaded value is the one the old document saved.
+    private static func matches(_ value: PortValue, _ saved: Any) -> Bool
+    {
+        func floats(_ any: Any) -> [Float]? { (any as? [Any])?.compactMap { ($0 as? NSNumber)?.floatValue } }
+        // A vector saved with another width, a float3 color now declared
+        // float4 say, does not fit the port: the port keeps its default.
+        func near(_ a: [Float], _ b: [Float]) -> Bool { a.count != b.count || zip(a, b).allSatisfy { abs($0 - $1) < 1e-5 } }
+
+        switch value
+        {
+        case .Bool(let v): return (saved as? Bool) == v
+        case .Int(let v): return (saved as? NSNumber)?.intValue == v
+        case .Float(let v): return (saved as? NSNumber).map { abs($0.floatValue - v) < 1e-5 } ?? false
+        case .String(let v): return (saved as? String) == v
+        case .Vector2(let v): return floats(saved).map { near($0, [v.x, v.y]) } ?? false
+        case .Vector3(let v): return floats(saved).map { near($0, [v.x, v.y, v.z]) } ?? false
+        case .Vector4(let v): return floats(saved).map { near($0, [v.x, v.y, v.z, v.w]) } ?? false
+        case .Transform(let m):
+            let columns = (saved as? [Any])?.compactMap(floats) ?? []
+            return columns.count == 4 && near(columns.flatMap { $0 },
+                                              [m.columns.0, m.columns.1, m.columns.2, m.columns.3].flatMap { [$0.x, $0.y, $0.z, $0.w] })
+        default: return true
+        }
     }
 
     /// #449: execute reads ports through references bound at reconcile.
