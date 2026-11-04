@@ -363,8 +363,15 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
         return AxisExpression(compileResult: compileResult)
     }
 
-    /// Keeps dynamic input ports in sync with the union of free variables across all
-    /// three expressions, minus u and v which are always resolved by the generator.
+    /// One Float inlet per free variable across the three expressions, minus u
+    /// and v which the generator resolves, after the node's own ports.
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + _dynamicVariablePortNames.sorted().map { name in
+            PortDeclaration(key: name, portType: .Float, kind: .Inlet, name: name)
+        }
+    }
+
     private func syncVariablePorts()
     {
         var allVars = Set<String>()
@@ -372,25 +379,8 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
         if let ev = evalY { allVars.formUnion(ev.variableNames) }
         if let ev = evalZ { allVars.formUnion(ev.variableNames) }
 
-        let variableNames = allVars.subtracting(Self.parametricBindings)
-
-        for name in _dynamicVariablePortNames.subtracting(variableNames)
-        {
-            if let port: Port = self.findPort(named: name)
-            {
-                self.removePort(port)
-            }
-            _dynamicVariablePortNames.remove(name)
-        }
-
-        for name in variableNames.subtracting(_dynamicVariablePortNames).sorted()
-        {
-            self.addDynamicPort(
-                PortType.Float.makeFreshPort(name: name, kind: .Inlet),
-                name: name
-            )
-            _dynamicVariablePortNames.insert(name)
-        }
+        _dynamicVariablePortNames = allVars.subtracting(Self.parametricBindings)
+        self.reconcilePorts()
     }
 
     // MARK: - Settings View

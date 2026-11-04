@@ -356,14 +356,14 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     /// decode rather than discarding silently.
     internal var droppedPortStateKeys: [String] { self.portHydrationSession?.unconsumedKeys ?? [] }
 
-    /// Registers the document's remaining port state as ports in their own
-    /// right. A node whose source cannot rebuild its port set at decode time
-    /// (an unparseable script, a shader that no longer compiles) would
-    /// otherwise decode with none of the ports the document saved, taking
-    /// every wire with them and making the loss permanent at the next save.
-    /// The decoded instances carry their saved identity, value and published
-    /// state, so a later successful rebuild reconciles against them by name
-    /// and keeps the wires whose names and types still agree.
+    /// Keeps the document's remaining ports, declared after the node's own,
+    /// until the node can declare its interface again. A node whose source
+    /// cannot declare its port set at decode time (an unparseable script, a
+    /// shader that no longer compiles) would otherwise decode with none of the
+    /// ports the document saved, taking every wire with them and making the
+    /// loss permanent at the next save. The decoded instances carry their saved
+    /// identity, value and published state, so once the node declares again a
+    /// declared port under the same key and type is the kept one.
     ///
     /// Only ever does anything mid-decode, and must run inside the node's init
     /// path so Graph still sees the keys as adopted rather than dropped.
@@ -372,9 +372,23 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         guard let session = self.portHydrationSession else { return }
 
         for (registryKey, port) in session.drainPendingSnapshots()
+            where self.registry.port(named: registryKey) == nil
+                && !self.undeclaredSnapshotPorts.contains(where: { $0.key == .own(registryKey) })
         {
-            self.addDynamicPort(port, name: registryKey)
+            self.undeclaredSnapshotPorts.append(PortDeclaration(key: registryKey, port: port))
         }
+        self.reconcilePorts()
+    }
+
+    /// The ports adoptRemainingSnapshotPortsAsFallback() kept.
+    private var undeclaredSnapshotPorts: [PortDeclaration] = []
+
+    /// Lets go of the ports kept from the document while the node could not
+    /// declare its interface; the next reconcilePorts() takes those it does
+    /// not declare now.
+    internal func discardUndeclaredSnapshotPorts()
+    {
+        self.undeclaredSnapshotPorts.removeAll()
     }
 
     /// Ends the decode-time hydration window, returning the registry keys
@@ -397,7 +411,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     /// declarations'.
     public final func reconcilePorts(applying states: [PortState] = [])
     {
-        let reconciliation = self.registry.reconcile(to: self.declaredPorts(),
+        let reconciliation = self.registry.reconcile(to: self.declaredPorts() + self.undeclaredSnapshotPorts,
                                                      applying: states,
                                                      owner: self,
                                                      hydrating: self.portHydrationSession)

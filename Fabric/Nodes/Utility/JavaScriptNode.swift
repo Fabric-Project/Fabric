@@ -774,7 +774,9 @@ public final class JavaScriptNode: Node
             self.runtime = runtime
             self.diagnostics = []
 
-            self.synchronizeDynamicPorts(with: signature)
+            self.portSignature = signature
+            self.discardUndeclaredSnapshotPorts()
+            self.reconcilePorts()
         }
         catch {
             let summary = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
@@ -785,9 +787,9 @@ public final class JavaScriptNode: Node
             // from a script the editor no longer shows, and the next clean run
             // clears the compile error along with it. `execute` throws this
             // diagnostic for as long as there is nothing to run, as
-            // MathExpressionNode's does. The ports are left where they are:
-            // every one of them came from the last signature that parsed, and a
-            // half-typed script is no reason to take an author's wires down.
+            // MathExpressionNode's does. The ports stay with the last signature
+            // that parsed: a half-typed script is no reason to take an author's
+            // wires down.
             self.compiledSignature = nil
             self.runtime = nil
 
@@ -797,39 +799,20 @@ public final class JavaScriptNode: Node
         }
     }
 
-    private func synchronizeDynamicPorts(with signature: JavaScriptNodeSignature)
+    /// The signature of the last script that parsed, which the ports follow.
+    private var portSignature: JavaScriptNodeSignature?
+
+    /// The signature's inputs as inlets, then its outputs as outlets, in the
+    /// order the script gives them.
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        let desiredPorts = signature.inputs + signature.outputs
-        let desiredNames = Set(desiredPorts.map(\.name))
-
-        for port in self.ports where !desiredNames.contains(port.name) {
-            self.removePort(port)
+        let definitions = self.portSignature.map { $0.inputs + $0.outputs } ?? []
+        return super.declaredPorts() + definitions.map { definition in
+            PortDeclaration(key: definition.name,
+                            portType: definition.portType,
+                            kind: definition.direction == .input ? .Inlet : .Outlet,
+                            name: definition.name)
         }
-
-        var reorderedPorts: [Port] = []
-        for definition in desiredPorts {
-            let expectedKind: PortKind = definition.direction == .input ? .Inlet : .Outlet
-
-            if let existingPort = self.findPort(named: definition.name, as: Port.self),
-               existingPort.kind == expectedKind,
-               existingPort.portType == definition.portType
-            {
-                reorderedPorts.append(existingPort)
-                continue
-            }
-
-            if let existingPort = self.findPort(named: definition.name, as: Port.self) {
-                let replacement = definition.portType.makeFreshPort(name: definition.name, kind: expectedKind, id: existingPort.id)
-                self.replacePort(existingPort, with: replacement)
-                reorderedPorts.append(replacement)
-            } else {
-                let added = definition.portType.makeFreshPort(name: definition.name, kind: expectedKind)
-                self.addDynamicPort(added, name: definition.name)
-                reorderedPorts.append(added)
-            }
-        }
-
-        self.reorderPorts(reorderedPorts)
     }
 
     private static func defaultScriptSource() -> String

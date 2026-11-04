@@ -467,7 +467,7 @@ public class MathExpressionNode: Node
         if result.isValid
         {
             self.portInterface = result.interface
-            self.syncPorts(to: result.interface)
+            self.reconcilePorts()
             self.needsEvaluation = true
         }
 
@@ -484,54 +484,19 @@ public class MathExpressionNode: Node
         self.subtitleSubject.send()
     }
 
-    /// Diff the compiled interface against the current dynamic ports, adding,
-    /// removing, and retyping to match. A port whose name *and* type are
-    /// unchanged is left completely untouched, so its wires survive. On a
-    /// genuine retype, wires the new type can still accept are re-established;
-    /// the rest are dropped.
-    private func syncPorts(to interface: Interface)
+    /// The ports of the last valid compile: its inputs then its outputs, each
+    /// under its name. A port whose name and type are unchanged keeps its
+    /// wires; a retyped one keeps those the new type accepts.
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        self.syncPorts(desired: interface.inputs.map { ($0.name, $0.type) },
-                       existing: self.inputPorts(),
-                       kind: .Inlet)
-        self.syncPorts(desired: interface.outputs.map { ($0.name, $0.type) },
-                       existing: self.outputPorts(),
-                       kind: .Outlet)
+        super.declaredPorts()
+            + self.portInterface.inputs.map { self.declaration(name: $0.name, type: $0.type, kind: .Inlet) }
+            + self.portInterface.outputs.map { self.declaration(name: $0.name, type: $0.type, kind: .Outlet) }
     }
 
-    private func syncPorts(desired: [(name: String, type: ValueType)], existing: [Port], kind: PortKind)
+    private func declaration(name: String, type: ValueType, kind: PortKind) -> PortDeclaration
     {
-        let desiredNames = Set(desired.map(\.name))
-        var existingByName: [String: Port] = [:]
-        for port in existing { existingByName[port.name] = port }
-
-        // Remove ports the expression no longer references.
-        for port in existing where !desiredNames.contains(port.name)
-        {
-            self.removePort(port)
-        }
-
-        // Add new ports, and retype ports whose type changed.
-        for (portName, valueType) in desired
-        {
-            let wantType = EnginePortMarshalling.portType(for: valueType)
-
-            if let port = existingByName[portName]
-            {
-                if port.portType == wantType { continue } // unchanged — keep wires
-
-                self.replacePort(port, with: self.makePort(name: portName, type: valueType, kind: kind, id: port.id))
-            }
-            else
-            {
-                self.addDynamicPort(self.makePort(name: portName, type: valueType, kind: kind), name: portName)
-            }
-        }
-    }
-
-    private func makePort(name: String, type: ValueType, kind: PortKind, id: UUID = UUID()) -> Port
-    {
-        EnginePortMarshalling.portType(for: type).makeFreshPort(name: name, kind: kind, id: id)
+        PortDeclaration(key: name, portType: EnginePortMarshalling.portType(for: type), kind: kind, name: name)
     }
 
     // MARK: - Execution

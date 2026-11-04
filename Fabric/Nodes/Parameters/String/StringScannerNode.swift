@@ -19,11 +19,6 @@ public class StringScannerNode: BaseFormatStringNode {
 
     override public class var defaultFormatString: String { "Frame {n:d} at {t:f}s" }
 
-    /// Placeholders are what the scan captures, so each builds an outlet —
-    /// alongside Matched, which the format string does not own.
-    override public class var placeholderPortKind: PortKind { .Outlet }
-    override public class var staticPortNames: Set<String> { ["Matched"] }
-
     override public class var settingsGuidance: String {
         "Use `{name}` for String, `{name:s}` String, `{name:d}` or `{name:i}` Int, `{name:b}` Bool, `{name:f}` Float.\n\nExample: `Frame {n:d} at {t:f}s`\n\nEscapes: `\\n`, `\\r`, `\\t`, `\\\\`, and `\\{` `\\}` for literal braces.\n\nThe format string is converted to a regex that captures values from the input string."
     }
