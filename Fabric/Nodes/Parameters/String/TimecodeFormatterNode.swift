@@ -15,30 +15,17 @@ public class TimecodeFormatterNode: Node {
     override public class var nodeDescription: String { "Convert a time value in seconds to a timecode formatted String" }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputTime = ParameterPort(parameter: FloatParameter("Seconds", 0.0, .inputfield, "Time value in seconds"))
+    public let inputFPS = ParameterPort(parameter: IntParameter("FPS", 30, .inputfield, "Frames per second for frame count"))
+    public let outputPort = NodePort<String>(name: "Timecode", kind: .Outlet, description: "Formatted timecode string (HH:MM:SS:FF)")
 
-        return ports + [
-            ("inputTime", ParameterPort(parameter: FloatParameter("Seconds", 0.0, .inputfield, "Time value in seconds"))),
-            ("inputFPS", ParameterPort(parameter: IntParameter("FPS", 30, .inputfield, "Frames per second for frame count"))),
-            ("outputPort", NodePort<String>(name: "Timecode", kind: .Outlet, description: "Formatted timecode string (HH:MM:SS:FF)")),
-        ]
-    }
-
-    // Port proxies
-    public var inputTime: ParameterPort<Float> { _inputTime }
-    private var _inputTime: ParameterPort<Float>!
-    public var inputFPS: ParameterPort<Int> { _inputFPS }
-    private var _inputFPS: ParameterPort<Int>!
-    public var outputPort: NodePort<String> { _outputPort }
-    private var _outputPort: NodePort<String>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputTime = findPort(named: "inputTime")
-        self._inputFPS = findPort(named: "inputFPS")
-        self._outputPort = findPort(named: "outputPort")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputTime", port: self.inputTime),
+            PortDeclaration(key: "inputFPS", port: self.inputFPS),
+            PortDeclaration(key: "outputPort", port: self.outputPort),
+        ]
     }
 
     override public func execute(renderer:GraphRenderer,

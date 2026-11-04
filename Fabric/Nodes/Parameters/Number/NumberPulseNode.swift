@@ -22,30 +22,17 @@ public class NumberPulseNode : Node
     // boundary.
     private var phase: Float = 0
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputPeriod = ParameterPort(parameter: FloatParameter("Period (secs)", 1.0, 0.0, 60.0, .inputfield, "Seconds between signals; zero or below holds off."))
+    public let inputPhase = ParameterPort(parameter: FloatParameter("Phase", 0.0, 0.0, 1.0, .inputfield, "Offset (0–1) staggering where in the cycle it fires"))
+    public let outputSignal = NodePort<Bool>(name: "Signal", kind: .Outlet, description: "Signal, once per Period")
 
-        return ports +
-        [
-            ("inputPeriod", ParameterPort(parameter: FloatParameter("Period (secs)", 1.0, 0.0, 60.0, .inputfield, "Seconds between signals; zero or below holds off."))),
-            ("inputPhase", ParameterPort(parameter: FloatParameter("Phase", 0.0, 0.0, 1.0, .inputfield, "Offset (0–1) staggering where in the cycle it fires"))),
-            ("outputSignal", NodePort<Bool>(name: "Signal", kind: .Outlet, description: "Signal, once per Period")),
-        ]
-    }
-
-    public var inputPeriod: ParameterPort<Float> { _inputPeriod }
-    private var _inputPeriod: ParameterPort<Float>!
-    public var inputPhase: ParameterPort<Float> { _inputPhase }
-    private var _inputPhase: ParameterPort<Float>!
-    public var outputSignal: NodePort<Bool> { _outputSignal }
-    private var _outputSignal: NodePort<Bool>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputPeriod = findPort(named: "inputPeriod")
-        self._inputPhase = findPort(named: "inputPhase")
-        self._outputSignal = findPort(named: "outputSignal")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputPeriod", port: self.inputPeriod),
+            PortDeclaration(key: "inputPhase", port: self.inputPhase),
+            PortDeclaration(key: "outputSignal", port: self.outputSignal),
+        ]
     }
 
     override public func startExecution(renderer: GraphRenderer) throws {

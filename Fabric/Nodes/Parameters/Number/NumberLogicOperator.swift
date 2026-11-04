@@ -19,37 +19,21 @@ public class NumberLogicOperator : Node
     override public class var nodeDescription: String { "Run an comparison on 2 inputs Number and return the result"}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputNumber1", ParameterPort(parameter: FloatParameter("Number A", 0.0, .inputfield, "First value to compare"))),
-            ("inputNumber2", ParameterPort(parameter: FloatParameter("Number B", 0.0, .inputfield, "Second value to compare"))),
-            ("inputParam", ParameterPort(parameter: StringParameter("Operator", BinaryMathLogicOperator.Equals.rawValue, BinaryMathLogicOperator.allCases.map(\.rawValue), .dropdown, "Comparison operation to perform")) ),
-            ("outputResult", NodePort<Bool>(name: "Result" , kind: .Outlet, description: "Result of the comparison")),
+    public let inputNumber1 = ParameterPort(parameter: FloatParameter("Number A", 0.0, .inputfield, "First value to compare"))
+    public let inputNumber2 = ParameterPort(parameter: FloatParameter("Number B", 0.0, .inputfield, "Second value to compare"))
+    public let inputParam = ParameterPort(parameter: StringParameter("Operator", BinaryMathLogicOperator.Equals.rawValue, BinaryMathLogicOperator.allCases.map(\.rawValue), .dropdown, "Comparison operation to perform"))
+    public let outputResult = NodePort<Bool>(name: "Result" , kind: .Outlet, description: "Result of the comparison")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputNumber1", port: self.inputNumber1),
+            PortDeclaration(key: "inputNumber2", port: self.inputNumber2),
+            PortDeclaration(key: "inputParam", port: self.inputParam),
+            PortDeclaration(key: "outputResult", port: self.outputResult),
         ]
     }
-    
-    // Port Proxy
-    public var inputNumber1: ParameterPort<Float> { _inputNumber1 }
-    private var _inputNumber1: ParameterPort<Float>!
-    public var inputNumber2: ParameterPort<Float> { _inputNumber2 }
-    private var _inputNumber2: ParameterPort<Float>!
-    public var inputParam: ParameterPort<String> { _inputParam }
-    private var _inputParam: ParameterPort<String>!
-    public var outputResult: NodePort<Bool> { _outputResult }
-    private var _outputResult: NodePort<Bool>!
 
-    override public func bindPorts()
-    {
-        super.bindPorts()
-        self._inputNumber1 = findPort(named: "inputNumber1")
-        self._inputNumber2 = findPort(named: "inputNumber2")
-        self._inputParam = findPort(named: "inputParam")
-        self._outputResult = findPort(named: "outputResult")
-    }
-    
     private var mathOperator = BinaryMathLogicOperator.Equals
     
     override public func startExecution(renderer:GraphRenderer) throws

@@ -26,27 +26,15 @@ public final class TextFileLoaderNode : Node, NodeTakingFile
     override public class var nodeDescription: String { "Load a Plaintext file and output a String"}
         
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputFilePathParam", ParameterPort(parameter: StringParameter("Text File", "", .filepicker, "Path to the text file to load"))),
-            ("outputPort", NodePort<String>(name: "String", kind: .Outlet, description: "Contents of the loaded text file")),
-        ]
-    }
-    
-    // Port Proxy
-    public var inputFilePathParam: ParameterPort<String> { _inputFilePathParam }
-    private var _inputFilePathParam: ParameterPort<String>!
-    public var outputPort: NodePort<String> { _outputPort }
-    private var _outputPort: NodePort<String>!
+    public let inputFilePathParam = ParameterPort(parameter: StringParameter("Text File", "", .filepicker, "Path to the text file to load"))
+    public let outputPort = NodePort<String>(name: "String", kind: .Outlet, description: "Contents of the loaded text file")
 
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputFilePathParam = findPort(named: "inputFilePathParam")
-        self._outputPort = findPort(named: "outputPort")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputFilePathParam", port: self.inputFilePathParam),
+            PortDeclaration(key: "outputPort", port: self.outputPort),
+        ]
     }
 
     private var url:URL? = nil

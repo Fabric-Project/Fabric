@@ -24,28 +24,15 @@ public class SystemTimeNode : Node
     private var startTime: TimeInterval?
     
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("outputNumber", NodePort<Float>(name: "Number" , kind: .Outlet, description: "Elapsed system time in seconds since execution started")),
+    public let outputNumber = NodePort<Float>(name: "Number" , kind: .Outlet, description: "Elapsed system time in seconds since execution started")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "outputNumber", port: self.outputNumber),
         ]
     }
-    
-    // Port Proxy
-    public var inputNumber: ParameterPort<Float> { _inputNumber }
-    private var _inputNumber: ParameterPort<Float>!
-    public var outputNumber: NodePort<Float> { _outputNumber }
-    private var _outputNumber: NodePort<Float>!
 
-    override public func bindPorts()
-    {
-        super.bindPorts()
-        self._inputNumber = findPort(named: "inputNumber")
-        self._outputNumber = findPort(named: "outputNumber")
-    }
-    
     override public func startExecution(renderer: GraphRenderer) throws
     {
         self.startTime = nil

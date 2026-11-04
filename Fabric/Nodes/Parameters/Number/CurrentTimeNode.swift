@@ -19,28 +19,15 @@ public class CurrentTimeNode : Node
     override public class var nodeDescription: String { "Elapsed time in seconds since graph execution started" }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let outputNumber = NodePort<Float>(name: "Seconds", kind: .Outlet, description: "Elapsed time in seconds since graph execution started")
 
-        return ports +
-        [
-            ("outputNumber", NodePort<Float>(name: "Seconds", kind: .Outlet, description: "Elapsed time in seconds since graph execution started")),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "outputNumber", port: self.outputNumber),
         ]
     }
-    
-    // Port Proxy
-    public var inputNumber: ParameterPort<Float> { _inputNumber }
-    private var _inputNumber: ParameterPort<Float>!
-    public var outputNumber: NodePort<Float> { _outputNumber }
-    private var _outputNumber: NodePort<Float>!
 
-    override public func bindPorts()
-    {
-        super.bindPorts()
-        self._inputNumber = findPort(named: "inputNumber")
-        self._outputNumber = findPort(named: "outputNumber")
-    }
-    
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,

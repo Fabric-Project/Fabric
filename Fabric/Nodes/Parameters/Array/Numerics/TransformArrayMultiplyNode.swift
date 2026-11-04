@@ -16,28 +16,17 @@ public class TransformArrayMultiplyNode: Node
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Multiplies two arrays of Transforms per element: A × B, which applies B first, then A. Use it to stack motions, such as a piece riding its parent's motion. Output length matches the longer input; the shorter input pads with identity." }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        super.registerPorts(context: context) +
-        [
-            ("inputA", NodePort<ContiguousArray<simd_float4x4>>(name: "A", kind: .Inlet, description: "Applied second, on top of B")),
-            ("inputB", NodePort<ContiguousArray<simd_float4x4>>(name: "B", kind: .Inlet, description: "Applied first")),
-            ("outputTransforms", NodePort<ContiguousArray<simd_float4x4>>(name: "Transforms", kind: .Outlet, description: "A × B per element")),
-        ]
-    }
+    public let inputA = NodePort<ContiguousArray<simd_float4x4>>(name: "A", kind: .Inlet, description: "Applied second, on top of B")
+    public let inputB = NodePort<ContiguousArray<simd_float4x4>>(name: "B", kind: .Inlet, description: "Applied first")
+    public let outputTransforms = NodePort<ContiguousArray<simd_float4x4>>(name: "Transforms", kind: .Outlet, description: "A × B per element")
 
-    public var inputA: NodePort<ContiguousArray<simd_float4x4>> { _inputA }
-    private var _inputA: NodePort<ContiguousArray<simd_float4x4>>!
-    public var inputB: NodePort<ContiguousArray<simd_float4x4>> { _inputB }
-    private var _inputB: NodePort<ContiguousArray<simd_float4x4>>!
-    public var outputTransforms: NodePort<ContiguousArray<simd_float4x4>> { _outputTransforms }
-    private var _outputTransforms: NodePort<ContiguousArray<simd_float4x4>>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputA = findPort(named: "inputA")
-        self._inputB = findPort(named: "inputB")
-        self._outputTransforms = findPort(named: "outputTransforms")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputA", port: self.inputA),
+            PortDeclaration(key: "inputB", port: self.inputB),
+            PortDeclaration(key: "outputTransforms", port: self.outputTransforms),
+        ]
     }
 
     /// `a[i] × b[i]`, as long as the longer array; a missing element is identity.

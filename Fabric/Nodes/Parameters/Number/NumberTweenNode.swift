@@ -20,31 +20,17 @@ public class NumberEaseNode : Node
     override public class var nodeDescription: String { "Run an easing on an input Number between 0 and 1 and return the resulting Eased Number"}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputNumber = ParameterPort(parameter: FloatParameter("Number", 0.0, .inputfield, "Normalized input value (0-1) to apply easing to"))
+    public let inputParam = ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing function to apply to the input"))
+    public let outputNumber = NodePort<Float>(name: "Number" , kind: .Outlet, description: "The eased output value")
 
-        return ports +
-        [
-            ("inputNumber", ParameterPort(parameter: FloatParameter("Number", 0.0, .inputfield, "Normalized input value (0-1) to apply easing to"))),
-            ("inputParam", ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing function to apply to the input")) ),
-            ("outputNumber", NodePort<Float>(name: "Number" , kind: .Outlet, description: "The eased output value")),
-        ]
-    }
-
-    // Port Proxy
-    public var inputNumber: ParameterPort<Float> { _inputNumber }
-    private var _inputNumber: ParameterPort<Float>!
-    public var inputParam: ParameterPort<String> { _inputParam }
-    private var _inputParam: ParameterPort<String>!
-    public var outputNumber: NodePort<Float> { _outputNumber }
-    private var _outputNumber: NodePort<Float>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputNumber = findPort(named: "inputNumber")
-        self._inputParam = findPort(named: "inputParam")
-        self._outputNumber = findPort(named: "outputNumber")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputNumber", port: self.inputNumber),
+            PortDeclaration(key: "inputParam", port: self.inputParam),
+            PortDeclaration(key: "outputNumber", port: self.outputNumber),
+        ]
     }
 
     override public func execute(renderer:GraphRenderer,

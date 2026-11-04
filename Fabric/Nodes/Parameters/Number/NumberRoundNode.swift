@@ -23,33 +23,19 @@ public class NumberRoundNode : Node
     override public class var nodeDescription: String { "Round a Number to an Index"}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputNumber", ParameterPort(parameter: FloatParameter("Number", 0, Float.leastNormalMagnitude, Float.greatestFiniteMagnitude, .inputfield, "Number to round"))),
-            ("inputRoundMethod", ParameterPort(parameter: StringParameter("Round Method", "Round", ["Round", "Floor", "Ceil"], .dropdown, "Rounding method (Round, Floor, or Ceiling)"))),
-            ("outputNumber", NodePort<Int>(name: "Number" , kind: .Outlet, description: "The rounded integer value")),
+    public let inputNumber = ParameterPort(parameter: FloatParameter("Number", 0, Float.leastNormalMagnitude, Float.greatestFiniteMagnitude, .inputfield, "Number to round"))
+    public let inputRoundMethod = ParameterPort(parameter: StringParameter("Round Method", "Round", ["Round", "Floor", "Ceil"], .dropdown, "Rounding method (Round, Floor, or Ceiling)"))
+    public let outputNumber = NodePort<Int>(name: "Number" , kind: .Outlet, description: "The rounded integer value")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputNumber", port: self.inputNumber),
+            PortDeclaration(key: "inputRoundMethod", port: self.inputRoundMethod),
+            PortDeclaration(key: "outputNumber", port: self.outputNumber),
         ]
     }
-    
-    // Port Proxy
-    public var inputNumber: ParameterPort<Float> { _inputNumber }
-    private var _inputNumber: ParameterPort<Float>!
-    public var inputRoundMethod: ParameterPort<String> { _inputRoundMethod }
-    private var _inputRoundMethod: ParameterPort<String>!
-    public var outputNumber: NodePort<Int> { _outputNumber }
-    private var _outputNumber: NodePort<Int>!
 
-    override public func bindPorts()
-    {
-        super.bindPorts()
-        self._inputNumber = findPort(named: "inputNumber")
-        self._inputRoundMethod = findPort(named: "inputRoundMethod")
-        self._outputNumber = findPort(named: "outputNumber")
-    }
-    
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,

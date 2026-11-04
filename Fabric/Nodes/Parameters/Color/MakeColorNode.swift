@@ -20,39 +20,21 @@ public class MakeColorNode: Node
     override public class var nodeDescription: String { "Converts 4 numerical components to a Color" }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputR = ParameterPort(parameter: FloatParameter("R", 0.0, .inputfield, "Red component (0–1)"))
+    public let inputG = ParameterPort(parameter: FloatParameter("G", 0.0, .inputfield, "Green component (0–1)"))
+    public let inputB = ParameterPort(parameter: FloatParameter("B", 0.0, .inputfield, "Blue component (0–1)"))
+    public let inputA = ParameterPort(parameter: FloatParameter("A", 1.0, .inputfield, "Alpha component (0–1)"))
+    public let outputColor: NodePort<simd_float4> = ColorNodePort(name: "Color", kind: .Outlet, description: "Combined RGBA color")
 
-        return ports +
-        [
-            ("inputR", ParameterPort(parameter: FloatParameter("R", 0.0, .inputfield, "Red component (0–1)"))),
-            ("inputG", ParameterPort(parameter: FloatParameter("G", 0.0, .inputfield, "Green component (0–1)"))),
-            ("inputB", ParameterPort(parameter: FloatParameter("B", 0.0, .inputfield, "Blue component (0–1)"))),
-            ("inputA", ParameterPort(parameter: FloatParameter("A", 1.0, .inputfield, "Alpha component (0–1)"))),
-            ("outputColor", ColorNodePort(name: "Color", kind: .Outlet, description: "Combined RGBA color")),
-        ]
-    }
-
-    // Port Proxy
-    public var inputR: ParameterPort<Float> { _inputR }
-    private var _inputR: ParameterPort<Float>!
-    public var inputG: ParameterPort<Float> { _inputG }
-    private var _inputG: ParameterPort<Float>!
-    public var inputB: ParameterPort<Float> { _inputB }
-    private var _inputB: ParameterPort<Float>!
-    public var inputA: ParameterPort<Float> { _inputA }
-    private var _inputA: ParameterPort<Float>!
-    public var outputColor: NodePort<simd_float4> { _outputColor }
-    private var _outputColor: NodePort<simd_float4>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputR = findPort(named: "inputR")
-        self._inputG = findPort(named: "inputG")
-        self._inputB = findPort(named: "inputB")
-        self._inputA = findPort(named: "inputA")
-        self._outputColor = findPort(named: "outputColor")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputR", port: self.inputR),
+            PortDeclaration(key: "inputG", port: self.inputG),
+            PortDeclaration(key: "inputB", port: self.inputB),
+            PortDeclaration(key: "inputA", port: self.inputA),
+            PortDeclaration(key: "outputColor", port: self.outputColor),
+        ]
     }
 
     override public func execute(renderer:GraphRenderer,

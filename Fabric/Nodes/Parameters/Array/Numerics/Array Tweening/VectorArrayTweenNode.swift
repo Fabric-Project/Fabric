@@ -19,38 +19,21 @@ public class VectorArrayTweenNode<Value> : Node where Value: PortValueRepresenta
     override public class var nodeTimeMode: Node.TimeMode { .TimeBase }
     override public class var nodeDescription: String { "Tweens each element of a \(Value.portType.rawValue) array toward the matching Target over a duration using linear interpolation and an easing curve. All elements share one tween clock. When the Targets array changes, each element tweens from its current value; elements beyond the previous count start at their target." }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputTargets = NodePort<ContiguousArray<Value>>(name: "Targets", kind: .Inlet, description: "Per-element target value")
+    public let inputDuration = ParameterPort(parameter: FloatParameter("Duration", 1.0, .inputfield, "Tween duration in seconds"))
+    public let inputEasing = ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing curve"))
+    public let outputValues = NodePort<ContiguousArray<Value>>(name: "Values", kind: .Outlet, description: "Current tweened values")
+    public let outputProgress = NodePort<Float>(name: "Progress", kind: .Outlet, description: "Tween progress (0-1)")
 
-        return ports +
-        [
-            ("inputTargets", NodePort<ContiguousArray<Value>>(name: "Targets", kind: .Inlet, description: "Per-element target value")),
-            ("inputDuration", ParameterPort(parameter: FloatParameter("Duration", 1.0, .inputfield, "Tween duration in seconds"))),
-            ("inputEasing", ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing curve"))),
-            ("outputValues", NodePort<ContiguousArray<Value>>(name: "Values", kind: .Outlet, description: "Current tweened values")),
-            ("outputProgress", NodePort<Float>(name: "Progress", kind: .Outlet, description: "Tween progress (0-1)")),
-        ]
-    }
-
-    public var inputTargets: NodePort<ContiguousArray<Value>> { _inputTargets }
-    private var _inputTargets: NodePort<ContiguousArray<Value>>!
-    public var inputDuration: ParameterPort<Float> { _inputDuration }
-    private var _inputDuration: ParameterPort<Float>!
-    public var inputEasing: ParameterPort<String> { _inputEasing }
-    private var _inputEasing: ParameterPort<String>!
-    public var outputValues: NodePort<ContiguousArray<Value>> { _outputValues }
-    private var _outputValues: NodePort<ContiguousArray<Value>>!
-    public var outputProgress: NodePort<Float> { _outputProgress }
-    private var _outputProgress: NodePort<Float>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputTargets = findPort(named: "inputTargets")
-        self._inputDuration = findPort(named: "inputDuration")
-        self._inputEasing = findPort(named: "inputEasing")
-        self._outputValues = findPort(named: "outputValues")
-        self._outputProgress = findPort(named: "outputProgress")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputTargets", port: self.inputTargets),
+            PortDeclaration(key: "inputDuration", port: self.inputDuration),
+            PortDeclaration(key: "inputEasing", port: self.inputEasing),
+            PortDeclaration(key: "outputValues", port: self.outputValues),
+            PortDeclaration(key: "outputProgress", port: self.outputProgress),
+        ]
     }
 
     private let driver = TweenArrayDriver<Value>()

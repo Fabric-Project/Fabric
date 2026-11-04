@@ -66,16 +66,20 @@ struct NamedPortLookupTests {
     @Test("Retyping a port keeps its key and releases the retired instance")
     func retype() throws {
         let node = EditableOperatorNode(context: try context())
-        weak var retired: Fabric.Port?
         let originalID = node.inputNumber1.id
+        node.retypedFirstInput = true
+        #expect(node.findPort(named: "inputNumber1", as: ParameterPort<Int>.self)?.id == originalID)
+        #expect(node.inputNumber2.value == 0)
+
+        // The stored Float port is the node's own; the Int one only the
+        // registry held, so retyping back lets it go.
+        weak var retired: Fabric.Port?
         do {
-            retired = node.inputNumber1
-            node.retypedFirstInput = true
+            retired = node.findPort(named: "inputNumber1", as: ParameterPort<Int>.self)
+            node.retypedFirstInput = false
         }
         #expect(retired == nil)
-        let retyped = try #require(node.findPort(named: "inputNumber1", as: ParameterPort<Int>.self))
-        #expect(retyped.id == originalID)
-        #expect(node.inputNumber2.value == 0)
+        #expect(node.findPort(named: "inputNumber1", as: ParameterPort<Float>.self) === node.inputNumber1)
     }
 
     @Test("An earlier public port array remains a snapshot across registry edits")

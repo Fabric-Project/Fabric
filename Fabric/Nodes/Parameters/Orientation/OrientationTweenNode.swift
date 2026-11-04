@@ -22,40 +22,24 @@ public class OrientationTweenNode : Node
     override public class var nodeDescription: String { "Tween toward a target orientation over a duration using slerp and an easing curve" }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputTarget = ParameterPort(parameter: Float4Parameter("Target", simd_float4(0, 0, 0, 1), .inputfield, "Target quaternion orientation (X, Y, Z, W)"))
+    public let inputDuration = ParameterPort(parameter: FloatParameter("Duration", 1.0, .inputfield, "Tween duration in seconds"))
+    public let inputEasing = ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing curve"))
+    public let outputOrientation = NodePort<simd_float4>(name: "Orientation", kind: .Outlet, description: "Current tweened quaternion orientation (X, Y, Z, W)")
+    public let outputProgress = NodePort<Float>(name: "Progress", kind: .Outlet, description: "Tween progress (0-1)")
 
-        return ports +
-        [
-            ("inputTarget", ParameterPort(parameter: Float4Parameter("Target", simd_float4(0, 0, 0, 1), .inputfield, "Target quaternion orientation (X, Y, Z, W)"))),
-            ("inputDuration", ParameterPort(parameter: FloatParameter("Duration", 1.0, .inputfield, "Tween duration in seconds"))),
-            ("inputEasing", ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing curve"))),
-            ("outputOrientation", NodePort<simd_float4>(name: "Orientation", kind: .Outlet, description: "Current tweened quaternion orientation (X, Y, Z, W)")),
-            ("outputProgress", NodePort<Float>(name: "Progress", kind: .Outlet, description: "Tween progress (0-1)")),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputTarget", port: self.inputTarget),
+            PortDeclaration(key: "inputDuration", port: self.inputDuration),
+            PortDeclaration(key: "inputEasing", port: self.inputEasing),
+            PortDeclaration(key: "outputOrientation", port: self.outputOrientation),
+            PortDeclaration(key: "outputProgress", port: self.outputProgress),
         ]
     }
 
     // Port Proxies
-    public var inputTarget: ParameterPort<simd_float4> { _inputTarget }
-    private var _inputTarget: ParameterPort<simd_float4>!
-    public var inputDuration: ParameterPort<Float> { _inputDuration }
-    private var _inputDuration: ParameterPort<Float>!
-    public var inputEasing: ParameterPort<String> { _inputEasing }
-    private var _inputEasing: ParameterPort<String>!
-    public var outputOrientation: NodePort<simd_float4> { _outputOrientation }
-    private var _outputOrientation: NodePort<simd_float4>!
-    public var outputProgress: NodePort<Float> { _outputProgress }
-    private var _outputProgress: NodePort<Float>!
-
-    override public func bindPorts()
-    {
-        super.bindPorts()
-        self._inputTarget = findPort(named: "inputTarget")
-        self._inputDuration = findPort(named: "inputDuration")
-        self._inputEasing = findPort(named: "inputEasing")
-        self._outputOrientation = findPort(named: "outputOrientation")
-        self._outputProgress = findPort(named: "outputProgress")
-    }
 
     // Quaternions, so the driver slerps; the ports carry them as float4.
     private let driver = TweenDriver<simd_quatf>()

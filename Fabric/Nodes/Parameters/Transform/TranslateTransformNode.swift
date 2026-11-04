@@ -19,33 +19,19 @@ public class TranslateTransformNode : Node
     override public class var nodeDescription: String { "Translate a transform"}
     
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputTransform", PortType.Transform.makeFreshPort(name: "Transform", kind: .Inlet, description: "4x4 transform matrix to translate")),
-            ("inputTranslation", ParameterPort(parameter: Float3Parameter("Translation", simd_float3(0, 0, 0), .inputfield, "XYZ translation offset to apply"))),
-            ("outputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Outlet, description: "Translated 4x4 transform matrix")),
+    public let inputTransform = NodePort<simd_float4x4>.makeFresh(name: "Transform", kind: .Inlet, description: "4x4 transform matrix to translate")
+    public let inputTranslation = ParameterPort(parameter: Float3Parameter("Translation", simd_float3(0, 0, 0), .inputfield, "XYZ translation offset to apply"))
+    public let outputTransform = NodePort<simd_float4x4>(name: "Transform" , kind: .Outlet, description: "Translated 4x4 transform matrix")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputTransform", port: self.inputTransform),
+            PortDeclaration(key: "inputTranslation", port: self.inputTranslation),
+            PortDeclaration(key: "outputTransform", port: self.outputTransform),
         ]
     }
 
-    // Port Proxy
-    public var inputTransform: NodePort<simd_float4x4> { _inputTransform }
-    private var _inputTransform: NodePort<simd_float4x4>!
-    public var inputTranslation: ParameterPort<simd_float3> { _inputTranslation }
-    private var _inputTranslation: ParameterPort<simd_float3>!
-    public var outputTransform: NodePort<simd_float4x4> { _outputTransform }
-    private var _outputTransform: NodePort<simd_float4x4>!
-
-    override public func bindPorts()
-    {
-        super.bindPorts()
-        self._inputTransform = findPort(named: "inputTransform")
-        self._inputTranslation = findPort(named: "inputTranslation")
-        self._outputTransform = findPort(named: "outputTransform")
-    }
-    
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,

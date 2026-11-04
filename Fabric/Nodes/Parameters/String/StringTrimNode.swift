@@ -20,29 +20,16 @@ public class StringTrimNode : Node
     override public class var nodeDescription: String { "Remove Whitespace from a String"}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputPort", ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to trim"))),
-            ("outputPort",  NodePort<String>(name: "String", kind: .Outlet, description: "String with leading and trailing whitespace removed")),
+    public let inputPort = ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to trim"))
+    public let outputPort = NodePort<String>(name: "String", kind: .Outlet, description: "String with leading and trailing whitespace removed")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputPort", port: self.inputPort),
+            PortDeclaration(key: "outputPort", port: self.outputPort),
         ]
     }
-    
-    // Port Proxy
-    public var inputPort: ParameterPort<String> { _inputPort }
-    private var _inputPort: ParameterPort<String>!
-    public var outputPort: NodePort<String> { _outputPort }
-    private var _outputPort: NodePort<String>!
-
-    override public func bindPorts()
-    {
-        super.bindPorts()
-        self._inputPort = findPort(named: "inputPort")
-        self._outputPort = findPort(named: "outputPort")
-    }
-
 
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,

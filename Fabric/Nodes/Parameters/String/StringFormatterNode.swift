@@ -260,20 +260,13 @@ public class StringFormatterNode: BaseFormatStringNode {
 
     // MARK: - Ports
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        return ports + [
-            ("outputString", NodePort<String>(name: "String", kind: .Outlet, description: "The formatted output string")),
-        ]
-    }
+    public let outputString = NodePort<String>(name: "String", kind: .Outlet, description: "The formatted output string")
 
-    public var outputString: NodePort<String> { _outputString }
-    private var _outputString: NodePort<String>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._outputString = findPort(named: "outputString")
+        [
+            PortDeclaration(key: "outputString", port: self.outputString),
+        ] + super.declaredPorts()
     }
 
     // MARK: - Execution

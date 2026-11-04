@@ -23,27 +23,15 @@ public class ColorPassThroughNode: Node
     override public var nodeExecutionMode: Node.ExecutionMode { self.input.connections.isEmpty ? .Provider : .Processor }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let input: NodePort<simd_float4> = ParameterPort(parameter: Float4Parameter("Color", simd_float4(0, 0, 0, 1), .colorpicker, "Input color (RGBA)"))
+    public let output: NodePort<simd_float4> = ColorNodePort(name: "Color", kind: .Outlet, description: "Output color")
 
-        return ports +
-        [
-            ("input", ParameterPort(parameter: Float4Parameter("Color", simd_float4(0, 0, 0, 1), .colorpicker, "Input color (RGBA)"))),
-            ("output", ColorNodePort(name: "Color", kind: .Outlet, description: "Output color")),
-        ]
-    }
-
-    // Port Proxy
-    public var input: NodePort<simd_float4> { _input }
-    private var _input: NodePort<simd_float4>!
-    public var output: NodePort<simd_float4> { _output }
-    private var _output: NodePort<simd_float4>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._input = findPort(named: "input")
-        self._output = findPort(named: "output")
+        super.declaredPorts() + [
+            PortDeclaration(key: "input", port: self.input),
+            PortDeclaration(key: "output", port: self.output),
+        ]
     }
 
     override public func execute(renderer:GraphRenderer,

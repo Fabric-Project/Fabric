@@ -26,38 +26,21 @@ public class NumberTriggerNode : Node
     private var triggerTime: TimeInterval = 0
     private var hasEmitted: Bool = false
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputTarget = ParameterPort(parameter: FloatParameter("Target", 0.0, .inputfield, "Value being watched"))
+    public let inputTriggerThreshold = ParameterPort(parameter: FloatParameter("Trigger Threshold", 0.8, .inputfield, "Rising-edge threshold: Target at or above this value turns the output to 1"))
+    public let inputReleaseThreshold = ParameterPort(parameter: FloatParameter("Release Threshold", 0.5, .inputfield, "Falling-edge threshold: Target below this value (once Minimum Duration has elapsed) returns the output to 0"))
+    public let inputMinDurationSecs = ParameterPort(parameter: FloatParameter("Minimum Duration (secs)", 0.0, 0.0, 60.0, .inputfield, "Minimum seconds the output must remain 1 before it can fall back to 0"))
+    public let outputValue = NodePort<Float>(name: "Trigger", kind: .Outlet, description: "1 while latched high, 0 while latched low")
 
-        return ports +
-        [
-            ("inputTarget", ParameterPort(parameter: FloatParameter("Target", 0.0, .inputfield, "Value being watched"))),
-            ("inputTriggerThreshold", ParameterPort(parameter: FloatParameter("Trigger Threshold", 0.8, .inputfield, "Rising-edge threshold: Target at or above this value turns the output to 1"))),
-            ("inputReleaseThreshold", ParameterPort(parameter: FloatParameter("Release Threshold", 0.5, .inputfield, "Falling-edge threshold: Target below this value (once Minimum Duration has elapsed) returns the output to 0"))),
-            ("inputMinDurationSecs", ParameterPort(parameter: FloatParameter("Minimum Duration (secs)", 0.0, 0.0, 60.0, .inputfield, "Minimum seconds the output must remain 1 before it can fall back to 0"))),
-            ("outputValue", NodePort<Float>(name: "Trigger", kind: .Outlet, description: "1 while latched high, 0 while latched low")),
-        ]
-    }
-
-    public var inputTarget: ParameterPort<Float> { _inputTarget }
-    private var _inputTarget: ParameterPort<Float>!
-    public var inputTriggerThreshold: ParameterPort<Float> { _inputTriggerThreshold }
-    private var _inputTriggerThreshold: ParameterPort<Float>!
-    public var inputReleaseThreshold: ParameterPort<Float> { _inputReleaseThreshold }
-    private var _inputReleaseThreshold: ParameterPort<Float>!
-    public var inputMinDurationSecs: ParameterPort<Float> { _inputMinDurationSecs }
-    private var _inputMinDurationSecs: ParameterPort<Float>!
-    public var outputValue: NodePort<Float> { _outputValue }
-    private var _outputValue: NodePort<Float>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputTarget = findPort(named: "inputTarget")
-        self._inputTriggerThreshold = findPort(named: "inputTriggerThreshold")
-        self._inputReleaseThreshold = findPort(named: "inputReleaseThreshold")
-        self._inputMinDurationSecs = findPort(named: "inputMinDurationSecs")
-        self._outputValue = findPort(named: "outputValue")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputTarget", port: self.inputTarget),
+            PortDeclaration(key: "inputTriggerThreshold", port: self.inputTriggerThreshold),
+            PortDeclaration(key: "inputReleaseThreshold", port: self.inputReleaseThreshold),
+            PortDeclaration(key: "inputMinDurationSecs", port: self.inputMinDurationSecs),
+            PortDeclaration(key: "outputValue", port: self.outputValue),
+        ]
     }
 
     override public func startExecution(renderer: GraphRenderer) throws {

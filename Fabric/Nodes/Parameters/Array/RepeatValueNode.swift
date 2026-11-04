@@ -16,33 +16,21 @@ public class RepeatValueNode<Value : PortValueRepresentable & ParameterValueType
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Replicates a single \(Value.portType.rawValue) value into an array of the given count." }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputValue = NodePort<Value>.makeFresh(name: "Value", kind: .Inlet, description: "Value to place in every array element")
+    public let inputCount = ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Number of elements to fill"))
+    public let outputArray = NodePort<ContiguousArray<Value>>(name: "Array", kind: .Outlet, description: "Array of length Count containing Value in every slot")
 
-        return ports +
-        [
-            ("inputValue", Value.makeDefaultParameterPort(name: "Value", description: "Value to place in every array element")),
-            ("inputCount", ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Number of elements to fill"))),
-            ("outputArray", NodePort<ContiguousArray<Value>>(name: "Array", kind: .Outlet, description: "Array of length Count containing Value in every slot")),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputValue", port: self.inputValue),
+            PortDeclaration(key: "inputCount", port: self.inputCount),
+            PortDeclaration(key: "outputArray", port: self.outputArray),
         ]
     }
 
     // ParameterPort<T> is a subclass of NodePort<T>, so this accessor type is
     // compatible whether the concrete port is a ParameterPort or a NodePort.
-    public var inputValue: NodePort<Value> { _inputValue }
-    private var _inputValue: NodePort<Value>!
-    public var inputCount: ParameterPort<Int> { _inputCount }
-    private var _inputCount: ParameterPort<Int>!
-    public var outputArray: NodePort<ContiguousArray<Value>> { _outputArray }
-    private var _outputArray: NodePort<ContiguousArray<Value>>!
-
-    override public func bindPorts()
-    {
-        super.bindPorts()
-        self._inputValue = findPort(named: "inputValue")
-        self._inputCount = findPort(named: "inputCount")
-        self._outputArray = findPort(named: "outputArray")
-    }
 
     public override func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,

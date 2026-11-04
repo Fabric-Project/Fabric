@@ -15,30 +15,17 @@ public class StringCaseNode: Node {
     override public class var nodeDescription: String { "Convert the case of a String" }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputPort = ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to convert"))
+    public let inputCase = ParameterPort(parameter: StringParameter("Case", "Uppercase", StringCaseMode.allCases.map(\.rawValue), .dropdown, "Case conversion to apply"))
+    public let outputPort = NodePort<String>(name: "String", kind: .Outlet, description: "Case-converted string")
 
-        return ports + [
-            ("inputPort", ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to convert"))),
-            ("inputCase", ParameterPort(parameter: StringParameter("Case", "Uppercase", StringCaseMode.allCases.map(\.rawValue), .dropdown, "Case conversion to apply"))),
-            ("outputPort", NodePort<String>(name: "String", kind: .Outlet, description: "Case-converted string")),
-        ]
-    }
-
-    // Port proxies
-    public var inputPort: ParameterPort<String> { _inputPort }
-    private var _inputPort: ParameterPort<String>!
-    public var inputCase: ParameterPort<String> { _inputCase }
-    private var _inputCase: ParameterPort<String>!
-    public var outputPort: NodePort<String> { _outputPort }
-    private var _outputPort: NodePort<String>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputPort = findPort(named: "inputPort")
-        self._inputCase = findPort(named: "inputCase")
-        self._outputPort = findPort(named: "outputPort")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputPort", port: self.inputPort),
+            PortDeclaration(key: "inputCase", port: self.inputCase),
+            PortDeclaration(key: "outputPort", port: self.outputPort),
+        ]
     }
 
     private var mode = StringCaseMode.Uppercase

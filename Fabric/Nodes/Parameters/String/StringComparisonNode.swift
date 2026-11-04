@@ -15,34 +15,19 @@ public class StringComparisonNode: Node {
     override public class var nodeDescription: String { "Compare two String values" }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputStringA = ParameterPort(parameter: StringParameter("String A", "", .inputfield, "First string to compare"))
+    public let inputStringB = ParameterPort(parameter: StringParameter("String B", "", .inputfield, "Second string to compare"))
+    public let inputOperator = ParameterPort(parameter: StringParameter("Operator", "Equals", StringComparisonOperator.allCases.map(\.rawValue), .dropdown, "Comparison operation to perform"))
+    public let outputResult = NodePort<Bool>(name: "Result", kind: .Outlet, description: "Result of the string comparison")
 
-        return ports + [
-            ("inputStringA", ParameterPort(parameter: StringParameter("String A", "", .inputfield, "First string to compare"))),
-            ("inputStringB", ParameterPort(parameter: StringParameter("String B", "", .inputfield, "Second string to compare"))),
-            ("inputOperator", ParameterPort(parameter: StringParameter("Operator", "Equals", StringComparisonOperator.allCases.map(\.rawValue), .dropdown, "Comparison operation to perform"))),
-            ("outputResult", NodePort<Bool>(name: "Result", kind: .Outlet, description: "Result of the string comparison")),
-        ]
-    }
-
-    // Port proxies
-    public var inputStringA: ParameterPort<String> { _inputStringA }
-    private var _inputStringA: ParameterPort<String>!
-    public var inputStringB: ParameterPort<String> { _inputStringB }
-    private var _inputStringB: ParameterPort<String>!
-    public var inputOperator: ParameterPort<String> { _inputOperator }
-    private var _inputOperator: ParameterPort<String>!
-    public var outputResult: NodePort<Bool> { _outputResult }
-    private var _outputResult: NodePort<Bool>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputStringA = findPort(named: "inputStringA")
-        self._inputStringB = findPort(named: "inputStringB")
-        self._inputOperator = findPort(named: "inputOperator")
-        self._outputResult = findPort(named: "outputResult")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputStringA", port: self.inputStringA),
+            PortDeclaration(key: "inputStringB", port: self.inputStringB),
+            PortDeclaration(key: "inputOperator", port: self.inputOperator),
+            PortDeclaration(key: "outputResult", port: self.outputResult),
+        ]
     }
 
     private var op = StringComparisonOperator.Equals

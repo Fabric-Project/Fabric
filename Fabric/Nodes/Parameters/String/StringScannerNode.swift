@@ -27,24 +27,15 @@ public class StringScannerNode: BaseFormatStringNode {
 
     // MARK: - Ports
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        return ports + [
-            ("inputString", ParameterPort(parameter: StringParameter("String", "", .inputfield, "The string to scan"))),
-            ("outputMatched", NodePort<Bool>(name: "Matched", kind: .Outlet, description: "True if the input string matched the format")),
-        ]
-    }
+    public let inputString = ParameterPort(parameter: StringParameter("String", "", .inputfield, "The string to scan"))
+    public let outputMatched = NodePort<Bool>(name: "Matched", kind: .Outlet, description: "True if the input string matched the format")
 
-    public var inputString: ParameterPort<String> { _inputString }
-    private var _inputString: ParameterPort<String>!
-    public var outputMatched: NodePort<Bool> { _outputMatched }
-    private var _outputMatched: NodePort<Bool>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputString = findPort(named: "inputString")
-        self._outputMatched = findPort(named: "outputMatched")
+        [
+            PortDeclaration(key: "inputString", port: self.inputString),
+            PortDeclaration(key: "outputMatched", port: self.outputMatched),
+        ] + super.declaredPorts()
     }
 
     // MARK: - Execution

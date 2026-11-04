@@ -19,37 +19,21 @@ public class NumberBinaryOperator : Node
     override public class var nodeDescription: String { "Run an operation on 2 inputs Number and return the resulting Number"}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputNumber1", ParameterPort(parameter: FloatParameter("Number A", 0.0, .inputfield, "First operand for the binary operation"))),
-            ("inputNumber2", ParameterPort(parameter: FloatParameter("Number B", 0.0, .inputfield, "Second operand for the binary operation"))),
-            ("inputParam", ParameterPort(parameter: StringParameter("Operator", "Add", BinaryMathOperator.allCases.map(\.rawValue), .dropdown, "Mathematical operation to perform")) ),
-            ("outputNumber", NodePort<Float>(name: "Number" , kind: .Outlet, description: "Result of the binary operation")),
+    public let inputNumber1 = ParameterPort(parameter: FloatParameter("Number A", 0.0, .inputfield, "First operand for the binary operation"))
+    public let inputNumber2 = ParameterPort(parameter: FloatParameter("Number B", 0.0, .inputfield, "Second operand for the binary operation"))
+    public let inputParam = ParameterPort(parameter: StringParameter("Operator", "Add", BinaryMathOperator.allCases.map(\.rawValue), .dropdown, "Mathematical operation to perform"))
+    public let outputNumber = NodePort<Float>(name: "Number" , kind: .Outlet, description: "Result of the binary operation")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputNumber1", port: self.inputNumber1),
+            PortDeclaration(key: "inputNumber2", port: self.inputNumber2),
+            PortDeclaration(key: "inputParam", port: self.inputParam),
+            PortDeclaration(key: "outputNumber", port: self.outputNumber),
         ]
     }
-    
-    // Port Proxy
-    public var inputNumber1: ParameterPort<Float> { _inputNumber1 }
-    private var _inputNumber1: ParameterPort<Float>!
-    public var inputNumber2: ParameterPort<Float> { _inputNumber2 }
-    private var _inputNumber2: ParameterPort<Float>!
-    public var inputParam: ParameterPort<String> { _inputParam }
-    private var _inputParam: ParameterPort<String>!
-    public var outputNumber: NodePort<Float> { _outputNumber }
-    private var _outputNumber: NodePort<Float>!
 
-    override public func bindPorts()
-    {
-        super.bindPorts()
-        self._inputNumber1 = findPort(named: "inputNumber1")
-        self._inputNumber2 = findPort(named: "inputNumber2")
-        self._inputParam = findPort(named: "inputParam")
-        self._outputNumber = findPort(named: "outputNumber")
-    }
-    
     private var mathOperator = BinaryMathOperator.Add
     
     override public func startExecution(renderer:GraphRenderer) throws

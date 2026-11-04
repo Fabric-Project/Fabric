@@ -24,33 +24,19 @@ public class NumberIntegralNode : Node
     private var state:Float = 0.0
     
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputNumber", ParameterPort(parameter: FloatParameter("Number", 0.0, .inputfield, "Value to integrate over time"))),
-            ("inputReset", ParameterPort(parameter: BoolParameter("Reset", false, .button, "Hold the Integral at zero while on"))),
-            ("outputNumber", NodePort<Float>(name: "Number" , kind: .Outlet, description: "Accumulated sum of input values over time")),
+    public let inputNumber = ParameterPort(parameter: FloatParameter("Number", 0.0, .inputfield, "Value to integrate over time"))
+    public let inputReset = ParameterPort(parameter: BoolParameter("Reset", false, .button, "Hold the Integral at zero while on"))
+    public let outputNumber = NodePort<Float>(name: "Number" , kind: .Outlet, description: "Accumulated sum of input values over time")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputNumber", port: self.inputNumber),
+            PortDeclaration(key: "inputReset", port: self.inputReset),
+            PortDeclaration(key: "outputNumber", port: self.outputNumber),
         ]
     }
-    
-    // Port Proxy
-    public var inputNumber: ParameterPort<Float> { _inputNumber }
-    private var _inputNumber: ParameterPort<Float>!
-    public var inputReset: ParameterPort<Bool> { _inputReset }
-    private var _inputReset: ParameterPort<Bool>!
-    public var outputNumber: NodePort<Float> { _outputNumber }
-    private var _outputNumber: NodePort<Float>!
 
-    override public func bindPorts()
-    {
-        super.bindPorts()
-        self._inputNumber = findPort(named: "inputNumber")
-        self._inputReset = findPort(named: "inputReset")
-        self._outputNumber = findPort(named: "outputNumber")
-    }
-    
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,

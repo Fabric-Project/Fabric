@@ -20,37 +20,20 @@ public class StringRangeNode : Node
     override public class var nodeDescription: String { "Produce a Substring from a String"}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputPort = ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to extract substring from"))
+    public let inputRangeFrom = ParameterPort(parameter: IntParameter("From", 0, .inputfield, "Start index for the substring"))
+    public let inputRangeTo = ParameterPort(parameter: IntParameter("To", 1, .inputfield, "End index for the substring (exclusive)"))
+    public let outputPort = NodePort<String>(name: "String", kind: .Outlet, description: "Extracted substring")
 
-        return ports +
-        [
-            ("inputPort",       ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to extract substring from"))),
-            ("inputRangeFrom",  ParameterPort(parameter: IntParameter("From", 0, .inputfield, "Start index for the substring"))),
-            ("inputRangeTo",    ParameterPort(parameter: IntParameter("To", 1, .inputfield, "End index for the substring (exclusive)"))),
-            ("outputPort",      NodePort<String>(name: "String", kind: .Outlet, description: "Extracted substring")),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputPort", port: self.inputPort),
+            PortDeclaration(key: "inputRangeFrom", port: self.inputRangeFrom),
+            PortDeclaration(key: "inputRangeTo", port: self.inputRangeTo),
+            PortDeclaration(key: "outputPort", port: self.outputPort),
         ]
     }
-
-    // Port Proxy
-    public var inputPort: ParameterPort<String> { _inputPort }
-    private var _inputPort: ParameterPort<String>!
-    public var inputRangeFrom: ParameterPort<Int> { _inputRangeFrom }
-    private var _inputRangeFrom: ParameterPort<Int>!
-    public var inputRangeTo: ParameterPort<Int> { _inputRangeTo }
-    private var _inputRangeTo: ParameterPort<Int>!
-    public var outputPort: NodePort<String> { _outputPort }
-    private var _outputPort: NodePort<String>!
-
-    override public func bindPorts()
-    {
-        super.bindPorts()
-        self._inputPort = findPort(named: "inputPort")
-        self._inputRangeFrom = findPort(named: "inputRangeFrom")
-        self._inputRangeTo = findPort(named: "inputRangeTo")
-        self._outputPort = findPort(named: "outputPort")
-    }
-
 
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,

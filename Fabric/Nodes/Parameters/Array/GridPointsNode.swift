@@ -16,42 +16,23 @@ public class GridPointsNode : Node
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Generates cols x rows points on a grid, centred on the origin, in row-major order (row 0 first). The Orientation quaternion rotates a canonical local frame (columns along local +X, rows along local +Y, normal +Z) into world space. Identity orientation places the grid in the XY plane." }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputColumns = ParameterPort(parameter: IntParameter("Columns", 4, 0, 1024, .inputfield, "Number of columns"))
+    public let inputRows = ParameterPort(parameter: IntParameter("Rows", 4, 0, 1024, .inputfield, "Number of rows"))
+    public let inputColumnSpacing = ParameterPort(parameter: FloatParameter("Column Spacing", 1.0, 0.0, 1000.0, .inputfield, "Distance between adjacent columns"))
+    public let inputRowSpacing = ParameterPort(parameter: FloatParameter("Row Spacing", 1.0, 0.0, 1000.0, .inputfield, "Distance between adjacent rows"))
+    public let inputOrientation = ParameterPort(parameter: Float4Parameter("Up Orientation", simd_float4(0, 0, 0, 1), .inputfield, "Quaternion rotating the canonical frame (+X=cols, +Y=rows, +Z=normal) into world space. Same format as the Look At node's Up Orientation, so one source can drive both."))
+    public let outputPositions = NodePort<ContiguousArray<simd_float3>>(name: "Positions", kind: .Outlet, description: "Array of cols*rows per-point world-space positions, row-major")
 
-        return ports +
-        [
-            ("inputColumns", ParameterPort(parameter: IntParameter("Columns", 4, 0, 1024, .inputfield, "Number of columns"))),
-            ("inputRows", ParameterPort(parameter: IntParameter("Rows", 4, 0, 1024, .inputfield, "Number of rows"))),
-            ("inputColumnSpacing", ParameterPort(parameter: FloatParameter("Column Spacing", 1.0, 0.0, 1000.0, .inputfield, "Distance between adjacent columns"))),
-            ("inputRowSpacing", ParameterPort(parameter: FloatParameter("Row Spacing", 1.0, 0.0, 1000.0, .inputfield, "Distance between adjacent rows"))),
-            ("inputOrientation", ParameterPort(parameter: Float4Parameter("Up Orientation", simd_float4(0, 0, 0, 1), .inputfield, "Quaternion rotating the canonical frame (+X=cols, +Y=rows, +Z=normal) into world space. Same format as the Look At node's Up Orientation, so one source can drive both."))),
-            ("outputPositions", NodePort<ContiguousArray<simd_float3>>(name: "Positions", kind: .Outlet, description: "Array of cols*rows per-point world-space positions, row-major")),
-        ]
-    }
-
-    public var inputColumns: ParameterPort<Int> { _inputColumns }
-    private var _inputColumns: ParameterPort<Int>!
-    public var inputRows: ParameterPort<Int> { _inputRows }
-    private var _inputRows: ParameterPort<Int>!
-    public var inputColumnSpacing: ParameterPort<Float> { _inputColumnSpacing }
-    private var _inputColumnSpacing: ParameterPort<Float>!
-    public var inputRowSpacing: ParameterPort<Float> { _inputRowSpacing }
-    private var _inputRowSpacing: ParameterPort<Float>!
-    public var inputOrientation: ParameterPort<simd_float4> { _inputOrientation }
-    private var _inputOrientation: ParameterPort<simd_float4>!
-    public var outputPositions: NodePort<ContiguousArray<simd_float3>> { _outputPositions }
-    private var _outputPositions: NodePort<ContiguousArray<simd_float3>>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputColumns = findPort(named: "inputColumns")
-        self._inputRows = findPort(named: "inputRows")
-        self._inputColumnSpacing = findPort(named: "inputColumnSpacing")
-        self._inputRowSpacing = findPort(named: "inputRowSpacing")
-        self._inputOrientation = findPort(named: "inputOrientation")
-        self._outputPositions = findPort(named: "outputPositions")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputColumns", port: self.inputColumns),
+            PortDeclaration(key: "inputRows", port: self.inputRows),
+            PortDeclaration(key: "inputColumnSpacing", port: self.inputColumnSpacing),
+            PortDeclaration(key: "inputRowSpacing", port: self.inputRowSpacing),
+            PortDeclaration(key: "inputOrientation", port: self.inputOrientation),
+            PortDeclaration(key: "outputPositions", port: self.outputPositions),
+        ]
     }
 
     public override func execute(renderer: GraphRenderer,

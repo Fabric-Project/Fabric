@@ -17,40 +17,24 @@ public class NumberTweenNode : Node
     override public class var nodeDescription: String { "Tween toward a target value over a duration using an easing curve" }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputTarget = ParameterPort(parameter: FloatParameter("Target", 0.0, .inputfield, "The value to tween toward"))
+    public let inputDuration = ParameterPort(parameter: FloatParameter("Duration", 1.0, .inputfield, "Tween duration in seconds"))
+    public let inputEasing = ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing curve"))
+    public let outputNumber = NodePort<Float>(name: "Number", kind: .Outlet, description: "Current tweened value")
+    public let outputProgress = NodePort<Float>(name: "Progress", kind: .Outlet, description: "Tween progress (0-1)")
 
-        return ports +
-        [
-            ("inputTarget", ParameterPort(parameter: FloatParameter("Target", 0.0, .inputfield, "The value to tween toward"))),
-            ("inputDuration", ParameterPort(parameter: FloatParameter("Duration", 1.0, .inputfield, "Tween duration in seconds"))),
-            ("inputEasing", ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing curve"))),
-            ("outputNumber", NodePort<Float>(name: "Number", kind: .Outlet, description: "Current tweened value")),
-            ("outputProgress", NodePort<Float>(name: "Progress", kind: .Outlet, description: "Tween progress (0-1)")),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputTarget", port: self.inputTarget),
+            PortDeclaration(key: "inputDuration", port: self.inputDuration),
+            PortDeclaration(key: "inputEasing", port: self.inputEasing),
+            PortDeclaration(key: "outputNumber", port: self.outputNumber),
+            PortDeclaration(key: "outputProgress", port: self.outputProgress),
         ]
     }
 
     // Port Proxies
-    public var inputTarget: ParameterPort<Float> { _inputTarget }
-    private var _inputTarget: ParameterPort<Float>!
-    public var inputDuration: ParameterPort<Float> { _inputDuration }
-    private var _inputDuration: ParameterPort<Float>!
-    public var inputEasing: ParameterPort<String> { _inputEasing }
-    private var _inputEasing: ParameterPort<String>!
-    public var outputNumber: NodePort<Float> { _outputNumber }
-    private var _outputNumber: NodePort<Float>!
-    public var outputProgress: NodePort<Float> { _outputProgress }
-    private var _outputProgress: NodePort<Float>!
-
-    override public func bindPorts()
-    {
-        super.bindPorts()
-        self._inputTarget = findPort(named: "inputTarget")
-        self._inputDuration = findPort(named: "inputDuration")
-        self._inputEasing = findPort(named: "inputEasing")
-        self._outputNumber = findPort(named: "outputNumber")
-        self._outputProgress = findPort(named: "outputProgress")
-    }
 
     // Tween state
     private var tween = TweenState()

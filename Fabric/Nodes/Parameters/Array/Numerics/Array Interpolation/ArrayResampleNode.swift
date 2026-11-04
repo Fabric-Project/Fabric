@@ -16,30 +16,17 @@ public class ArrayResampleNode<Value: PortValueRepresentable & Lerpable>: Node
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Changes a \(Value.portType.rawValue) array's element count via index-domain linear interpolation. Handles both decimation (reducing count) and upsampling (increasing count) with the same code path." }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputArray = NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet, description: "Source array")
+    public let inputCount = ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Desired output element count"))
+    public let outputArray = NodePort<ContiguousArray<Value>>(name: "Array", kind: .Outlet, description: "Resampled array of length Count")
 
-        return ports +
-        [
-            ("inputArray", NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet, description: "Source array")),
-            ("inputCount", ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Desired output element count"))),
-            ("outputArray", NodePort<ContiguousArray<Value>>(name: "Array", kind: .Outlet, description: "Resampled array of length Count")),
-        ]
-    }
-
-    public var inputArray: NodePort<ContiguousArray<Value>> { _inputArray }
-    private var _inputArray: NodePort<ContiguousArray<Value>>!
-    public var inputCount: ParameterPort<Int> { _inputCount }
-    private var _inputCount: ParameterPort<Int>!
-    public var outputArray: NodePort<ContiguousArray<Value>> { _outputArray }
-    private var _outputArray: NodePort<ContiguousArray<Value>>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputArray = findPort(named: "inputArray")
-        self._inputCount = findPort(named: "inputCount")
-        self._outputArray = findPort(named: "outputArray")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputArray", port: self.inputArray),
+            PortDeclaration(key: "inputCount", port: self.inputCount),
+            PortDeclaration(key: "outputArray", port: self.outputArray),
+        ]
     }
 
     override public func execute(renderer: GraphRenderer,

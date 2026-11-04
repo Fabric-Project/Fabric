@@ -20,33 +20,19 @@ public class StringDifferenceNode : Node
     override public class var nodeDescription: String { "Find the difference between two strings"}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputPort",   ParameterPort(parameter: StringParameter("String", "", .inputfield, "First string to compare"))),
-            ("input2Port",  ParameterPort(parameter: StringParameter("String", "", .inputfield, "Second string to compare"))),
-            ("outputPort",  NodePort<String>(name: "String", kind: .Outlet, description: "Characters that differ between the two strings")),
+    public let inputPort: NodePort<String> = ParameterPort(parameter: StringParameter("String", "", .inputfield, "First string to compare"))
+    public let input2Port: NodePort<String> = ParameterPort(parameter: StringParameter("String", "", .inputfield, "Second string to compare"))
+    public let outputPort = NodePort<String>(name: "String", kind: .Outlet, description: "Characters that differ between the two strings")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputPort", port: self.inputPort),
+            PortDeclaration(key: "input2Port", port: self.input2Port),
+            PortDeclaration(key: "outputPort", port: self.outputPort),
         ]
     }
-    
-    // Port Proxy
-    public var inputPort: NodePort<String> { _inputPort }
-    private var _inputPort: NodePort<String>!
-    public var input2Port: NodePort<String> { _input2Port }
-    private var _input2Port: NodePort<String>!
-    public var outputPort: NodePort<String> { _outputPort }
-    private var _outputPort: NodePort<String>!
 
-    override public func bindPorts()
-    {
-        super.bindPorts()
-        self._inputPort = findPort(named: "inputPort")
-        self._input2Port = findPort(named: "input2Port")
-        self._outputPort = findPort(named: "outputPort")
-    }
-    
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,

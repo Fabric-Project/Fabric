@@ -20,31 +20,17 @@ public class StringJoinNode : Node
     override public class var nodeDescription: String { "Join an array of Strings into a single String using a separator. Inverse of String Split. To join two or more string inputs, use String Formatter node."}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputPort = NodePort<ContiguousArray<String>>(name: "Strings", kind: .Inlet, description: "Array of strings to join")
+    public let separatorPort: NodePort<String> = ParameterPort(parameter: StringParameter("Separator", ", ", .inputfield, #"Separator to place between each string. Supports \n, \r, \t, and \\ escape sequences"#))
+    public let outputPort = NodePort<String>(name: "String", kind: .Outlet, description: "Joined string result")
 
-        return ports +
-        [
-            ("inputPort",       NodePort<ContiguousArray<String>>(name: "Strings", kind: .Inlet, description: "Array of strings to join")),
-            ("separatorPort",   ParameterPort(parameter: StringParameter("Separator", ", ", .inputfield, #"Separator to place between each string. Supports \n, \r, \t, and \\ escape sequences"#))),
-            ("outputPort",      NodePort<String>(name: "String", kind: .Outlet, description: "Joined string result")),
-        ]
-    }
-
-    // Port Proxy
-    public var inputPort: NodePort<ContiguousArray<String>> { _inputPort }
-    private var _inputPort: NodePort<ContiguousArray<String>>!
-    public var separatorPort: NodePort<String> { _separatorPort }
-    private var _separatorPort: NodePort<String>!
-    public var outputPort: NodePort<String> { _outputPort }
-    private var _outputPort: NodePort<String>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputPort = findPort(named: "inputPort")
-        self._separatorPort = findPort(named: "separatorPort")
-        self._outputPort = findPort(named: "outputPort")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputPort", port: self.inputPort),
+            PortDeclaration(key: "separatorPort", port: self.separatorPort),
+            PortDeclaration(key: "outputPort", port: self.outputPort),
+        ]
     }
 
     override public func execute(renderer:GraphRenderer,

@@ -16,38 +16,21 @@ public class ArrayRangeInterpolationNode<Value: PortValueRepresentable & Lerpabl
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Generates a \(Value.portType.rawValue) array of Count elements interpolated from From to To using the selected easing function." }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputFrom = NodePort<Value>.makeFresh(name: "From", kind: .Inlet, description: "Start value of the interpolation range")
+    public let inputTo = NodePort<Value>.makeFresh(name: "To", kind: .Inlet, description: "End value of the interpolation range")
+    public let inputCount = ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Number of elements to generate"))
+    public let inputEasing = ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing function applied to the interpolation"))
+    public let outputArray = NodePort<ContiguousArray<Value>>(name: "Array", kind: .Outlet, description: "Array of eased \(Value.portType.rawValue) values from From to To")
 
-        return ports +
-        [
-            ("inputFrom",   Value.makeDefaultParameterPort(name: "From",   description: "Start value of the interpolation range")),
-            ("inputTo",     Value.makeDefaultParameterPort(name: "To",     description: "End value of the interpolation range")),
-            ("inputCount",  ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Number of elements to generate"))),
-            ("inputEasing", ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing function applied to the interpolation"))),
-            ("outputArray", NodePort<ContiguousArray<Value>>(name: "Array", kind: .Outlet, description: "Array of eased \(Value.portType.rawValue) values from From to To")),
-        ]
-    }
-
-    public var inputFrom: NodePort<Value> { _inputFrom }
-    private var _inputFrom: NodePort<Value>!
-    public var inputTo: NodePort<Value> { _inputTo }
-    private var _inputTo: NodePort<Value>!
-    public var inputCount: ParameterPort<Int> { _inputCount }
-    private var _inputCount: ParameterPort<Int>!
-    public var inputEasing: ParameterPort<String> { _inputEasing }
-    private var _inputEasing: ParameterPort<String>!
-    public var outputArray: NodePort<ContiguousArray<Value>> { _outputArray }
-    private var _outputArray: NodePort<ContiguousArray<Value>>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputFrom = findPort(named: "inputFrom")
-        self._inputTo = findPort(named: "inputTo")
-        self._inputCount = findPort(named: "inputCount")
-        self._inputEasing = findPort(named: "inputEasing")
-        self._outputArray = findPort(named: "outputArray")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputFrom", port: self.inputFrom),
+            PortDeclaration(key: "inputTo", port: self.inputTo),
+            PortDeclaration(key: "inputCount", port: self.inputCount),
+            PortDeclaration(key: "inputEasing", port: self.inputEasing),
+            PortDeclaration(key: "outputArray", port: self.outputArray),
+        ]
     }
 
     override public func execute(renderer: GraphRenderer,

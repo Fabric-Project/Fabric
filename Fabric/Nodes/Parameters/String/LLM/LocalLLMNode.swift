@@ -42,35 +42,21 @@ struct LocalLLMNodeSettingsView: View {
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Provide a string prompt to a local LLM for evaluation via MLX-Swift-LM" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        super.registerPorts(context: context) + [
-            ("inputPrompt", ParameterPort(parameter: StringParameter("Prompt", "What color is the sky?", [], .inputfield))),
-            ("inputGenerate", ParameterPort(parameter: BoolParameter("Generate", false, .button))),
-            ("outputPort", NodePort<String>(name: "Output", kind: .Outlet)),
-            ("outputStats", NodePort<String>(name: "Stats", kind: .Outlet)),
-            ("outputModel", NodePort<String>(name: "Model Info", kind: .Outlet)),
-        ]
-    }
+    public let inputPrompt: NodePort<String> = ParameterPort(parameter: StringParameter("Prompt", "What color is the sky?", [], .inputfield))
+    public let inputGenerate: NodePort<Bool> = ParameterPort(parameter: BoolParameter("Generate", false, .button))
+    public let outputPort = NodePort<String>(name: "Output", kind: .Outlet)
+    public let outputStats = NodePort<String>(name: "Stats", kind: .Outlet)
+    public let outputModel = NodePort<String>(name: "Model Info", kind: .Outlet)
 
-    public var inputPrompt: NodePort<String> { _inputPrompt }
-    private var _inputPrompt: NodePort<String>!
-    public var inputGenerate: NodePort<Bool> { _inputGenerate }
-    private var _inputGenerate: NodePort<Bool>!
-    public var outputPort: NodePort<String> { _outputPort }
-    private var _outputPort: NodePort<String>!
-    public var outputStats: NodePort<String> { _outputStats }
-    private var _outputStats: NodePort<String>!
-    public var outputModel: NodePort<String> { _outputModel }
-    private var _outputModel: NodePort<String>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputPrompt = findPort(named: "inputPrompt")
-        self._inputGenerate = findPort(named: "inputGenerate")
-        self._outputPort = findPort(named: "outputPort")
-        self._outputStats = findPort(named: "outputStats")
-        self._outputModel = findPort(named: "outputModel")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputPrompt", port: self.inputPrompt),
+            PortDeclaration(key: "inputGenerate", port: self.inputGenerate),
+            PortDeclaration(key: "outputPort", port: self.outputPort),
+            PortDeclaration(key: "outputStats", port: self.outputStats),
+            PortDeclaration(key: "outputModel", port: self.outputModel),
+        ]
     }
 
     private enum CodingKeys: String, CodingKey {
