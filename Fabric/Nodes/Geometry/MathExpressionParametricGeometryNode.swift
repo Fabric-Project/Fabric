@@ -235,31 +235,12 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
 
     // MARK: - Static Ports
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
-    {
-        let ports = super.registerPorts(context: context)
-        return [
-            ("inputResolutionU", ParameterPort(parameter: IntParameter("Resolution U",  128,  .inputfield, "Mesh segments along the U direction"))),
-            ("inputResolutionV", ParameterPort(parameter: IntParameter("Resolution V",  128,  .inputfield, "Mesh segments along the V direction"))),
-            ("inputRangeUMin",   ParameterPort(parameter: FloatParameter("Range U Min", -.pi, .inputfield, "Lower bound of the U parameter domain"))),
-            ("inputRangeUMax",   ParameterPort(parameter: FloatParameter("Range U Max",  .pi, .inputfield, "Upper bound of the U parameter domain"))),
-            ("inputRangeVMin",   ParameterPort(parameter: FloatParameter("Range V Min",    0, .inputfield, "Lower bound of the V parameter domain"))),
-            ("inputRangeVMax",   ParameterPort(parameter: FloatParameter("Range V Max",  .pi, .inputfield, "Upper bound of the V parameter domain"))),
-        ] + ports
-    }
-
-    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
-    private var _inputResolutionU: ParameterPort<Int>!
-    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
-    private var _inputResolutionV: ParameterPort<Int>!
-    public var inputRangeUMin: ParameterPort<Float> { _inputRangeUMin }
-    private var _inputRangeUMin: ParameterPort<Float>!
-    public var inputRangeUMax: ParameterPort<Float> { _inputRangeUMax }
-    private var _inputRangeUMax: ParameterPort<Float>!
-    public var inputRangeVMin: ParameterPort<Float> { _inputRangeVMin }
-    private var _inputRangeVMin: ParameterPort<Float>!
-    public var inputRangeVMax: ParameterPort<Float> { _inputRangeVMax }
-    private var _inputRangeVMax: ParameterPort<Float>!
+    public let inputResolutionU = ParameterPort(parameter: IntParameter("Resolution U",  128,  .inputfield, "Mesh segments along the U direction"))
+    public let inputResolutionV = ParameterPort(parameter: IntParameter("Resolution V",  128,  .inputfield, "Mesh segments along the V direction"))
+    public let inputRangeUMin = ParameterPort(parameter: FloatParameter("Range U Min", -.pi, .inputfield, "Lower bound of the U parameter domain"))
+    public let inputRangeUMax = ParameterPort(parameter: FloatParameter("Range U Max",  .pi, .inputfield, "Upper bound of the U parameter domain"))
+    public let inputRangeVMin = ParameterPort(parameter: FloatParameter("Range V Min",    0, .inputfield, "Lower bound of the V parameter domain"))
+    public let inputRangeVMax = ParameterPort(parameter: FloatParameter("Range V Max",  .pi, .inputfield, "Upper bound of the V parameter domain"))
 
     override public func bindPorts()
     {
@@ -267,12 +248,6 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
         self.variablePorts = _dynamicVariablePortNames.sorted().compactMap { name in
             (findPort(named: name) as ParameterPort<Float>?).map { (name, $0) }
         }
-        self._inputResolutionU = findPort(named: "inputResolutionU")
-        self._inputResolutionV = findPort(named: "inputResolutionV")
-        self._inputRangeUMin = findPort(named: "inputRangeUMin")
-        self._inputRangeUMax = findPort(named: "inputRangeUMax")
-        self._inputRangeVMin = findPort(named: "inputRangeVMin")
-        self._inputRangeVMax = findPort(named: "inputRangeVMax")
     }
 
     // MARK: - Geometry
@@ -393,7 +368,14 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
     /// and v which the generator resolves, after the node's own ports.
     override public func declaredPorts() -> [PortDeclaration]
     {
-        super.declaredPorts() + _dynamicVariablePortNames.sorted().map { name in
+        [
+            PortDeclaration(key: "inputResolutionU", port: self.inputResolutionU),
+            PortDeclaration(key: "inputResolutionV", port: self.inputResolutionV),
+            PortDeclaration(key: "inputRangeUMin", port: self.inputRangeUMin),
+            PortDeclaration(key: "inputRangeUMax", port: self.inputRangeUMax),
+            PortDeclaration(key: "inputRangeVMin", port: self.inputRangeVMin),
+            PortDeclaration(key: "inputRangeVMax", port: self.inputRangeVMax),
+        ] + super.declaredPorts() + _dynamicVariablePortNames.sorted().map { name in
             PortDeclaration(key: name, portType: .Float, kind: .Inlet, name: name)
         }
     }

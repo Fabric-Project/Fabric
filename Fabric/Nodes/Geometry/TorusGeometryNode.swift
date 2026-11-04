@@ -14,35 +14,19 @@ public class TorusGeometryNode : BaseGeometryNode
     public override class var name:String { "Torus Geometry" }
     public override class var nodeDescription: String { "Generates torus geometry" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return  [
-            ("inputMinorRadius",  ParameterPort(parameter:FloatParameter("Minor Radius", 5.0, .inputfield, "Radius of the tube cross-section in world units"))),
-            ("inputMajorRadius",  ParameterPort(parameter:FloatParameter("Major Radius", 0.25, .inputfield, "Distance from center to tube center in world units"))),
-            ("inputMinorResolution",  ParameterPort(parameter:IntParameter("Minor Segments", 20, .inputfield, "Number of segments around the tube cross-section"))),
-            ("inputMajorResolution",  ParameterPort(parameter:IntParameter("Major Segments", 20, .inputfield, "Number of segments around the torus ring"))),
+    public let inputMinorRadius = ParameterPort(parameter:FloatParameter("Minor Radius", 5.0, .inputfield, "Radius of the tube cross-section in world units"))
+    public let inputMajorRadius = ParameterPort(parameter:FloatParameter("Major Radius", 0.25, .inputfield, "Distance from center to tube center in world units"))
+    public let inputMinorResolution = ParameterPort(parameter:IntParameter("Minor Segments", 20, .inputfield, "Number of segments around the tube cross-section"))
+    public let inputMajorResolution = ParameterPort(parameter:IntParameter("Major Segments", 20, .inputfield, "Number of segments around the torus ring"))
 
-        ] + ports
-    }
-    
-    // Proxy Port
-    public var inputMinorRadius: ParameterPort<Float> { _inputMinorRadius }
-    private var _inputMinorRadius: ParameterPort<Float>!
-    public var inputMajorRadius: ParameterPort<Float> { _inputMajorRadius }
-    private var _inputMajorRadius: ParameterPort<Float>!
-    public var inputMinorResolution: ParameterPort<Int> { _inputMinorResolution }
-    private var _inputMinorResolution: ParameterPort<Int>!
-    public var inputMajorResolution: ParameterPort<Int> { _inputMajorResolution }
-    private var _inputMajorResolution: ParameterPort<Int>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputMinorRadius = findPort(named: "inputMinorRadius")
-        self._inputMajorRadius = findPort(named: "inputMajorRadius")
-        self._inputMinorResolution = findPort(named: "inputMinorResolution")
-        self._inputMajorResolution = findPort(named: "inputMajorResolution")
+        [
+            PortDeclaration(key: "inputMinorRadius", port: self.inputMinorRadius),
+            PortDeclaration(key: "inputMajorRadius", port: self.inputMajorRadius),
+            PortDeclaration(key: "inputMinorResolution", port: self.inputMinorResolution),
+            PortDeclaration(key: "inputMajorResolution", port: self.inputMajorResolution),
+        ] + super.declaredPorts()
     }
 
     public override var geometry: TorusGeometry { _geometry }

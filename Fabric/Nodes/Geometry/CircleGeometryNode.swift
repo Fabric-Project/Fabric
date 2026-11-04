@@ -15,25 +15,15 @@ public class CircleGeometryNode : BaseGeometryNode
     public override class var name:String { "Circle Geometry" }
     public override class var nodeDescription: String { "Generates circle geometry" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return  [
-        ("inputSize",  ParameterPort(parameter:FloatParameter("Size", 1.0, .inputfield, "Radius of the circle in world units"))),
+    public let inputSize = ParameterPort(parameter:FloatParameter("Size", 1.0, .inputfield, "Radius of the circle in world units"))
 
-        ] + ports
-    }
-    
-    // Proxy Port
-    public var inputSize: ParameterPort<Float> { _inputSize }
-    private var _inputSize: ParameterPort<Float>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputSize = findPort(named: "inputSize")
+        [
+            PortDeclaration(key: "inputSize", port: self.inputSize),
+        ] + super.declaredPorts()
     }
-   
+
     public override var geometry: CircleGeometry { _geometry }
     
     private lazy var _geometry = CircleGeometry(context:self.context, radius: 1.0, angularResolution: 60, radialResolution: 1)

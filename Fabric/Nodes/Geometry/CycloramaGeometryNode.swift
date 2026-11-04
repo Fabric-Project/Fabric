@@ -13,49 +13,27 @@ public class CycloramaGeometryNode: BaseGeometryNode
     public override class var name: String { "Cyclorama Geometry" }
     public override class var nodeDescription: String { "Generates a cyclorama — a seamless sweep geometry with a flat floor, curved transition, and vertical back wall, like a photography studio infinity cove." }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputWidth = ParameterPort(parameter: FloatParameter("Width",           4.0, .inputfield, "Width of the cyclorama along the X axis in world units"))
+    public let inputLength = ParameterPort(parameter: FloatParameter("Length",          4.0, .inputfield, "Length of the floor section along the Z axis in world units"))
+    public let inputDepth = ParameterPort(parameter: FloatParameter("Depth",           4.0, .inputfield, "Height of the back wall in world units"))
+    public let inputRadius = ParameterPort(parameter: FloatParameter("Radius",          1.0, .inputfield, "Radius of the curved transition between floor and wall"))
+    public let inputWidthResolution = ParameterPort(parameter: IntParameter("Width Segments",     1,  .inputfield, "Subdivisions along the width"))
+    public let inputLengthResolution = ParameterPort(parameter: IntParameter("Length Segments",    1,  .inputfield, "Subdivisions along the floor length"))
+    public let inputDepthResolution = ParameterPort(parameter: IntParameter("Depth Segments",     1,  .inputfield, "Subdivisions along the back wall height"))
+    public let inputAngularResolution = ParameterPort(parameter: IntParameter("Angular Segments",  24,  .inputfield, "Subdivisions around the curved transition arc"))
 
-        return [
-            ("inputWidth",             ParameterPort(parameter: FloatParameter("Width",           4.0, .inputfield, "Width of the cyclorama along the X axis in world units"))),
-            ("inputLength",            ParameterPort(parameter: FloatParameter("Length",          4.0, .inputfield, "Length of the floor section along the Z axis in world units"))),
-            ("inputDepth",             ParameterPort(parameter: FloatParameter("Depth",           4.0, .inputfield, "Height of the back wall in world units"))),
-            ("inputRadius",            ParameterPort(parameter: FloatParameter("Radius",          1.0, .inputfield, "Radius of the curved transition between floor and wall"))),
-            ("inputWidthResolution",   ParameterPort(parameter: IntParameter("Width Segments",     1,  .inputfield, "Subdivisions along the width"))),
-            ("inputLengthResolution",  ParameterPort(parameter: IntParameter("Length Segments",    1,  .inputfield, "Subdivisions along the floor length"))),
-            ("inputDepthResolution",   ParameterPort(parameter: IntParameter("Depth Segments",     1,  .inputfield, "Subdivisions along the back wall height"))),
-            ("inputAngularResolution", ParameterPort(parameter: IntParameter("Angular Segments",  24,  .inputfield, "Subdivisions around the curved transition arc"))),
-        ] + ports
-    }
-
-    public var inputWidth: ParameterPort<Float> { _inputWidth }
-    private var _inputWidth: ParameterPort<Float>!
-    public var inputLength: ParameterPort<Float> { _inputLength }
-    private var _inputLength: ParameterPort<Float>!
-    public var inputDepth: ParameterPort<Float> { _inputDepth }
-    private var _inputDepth: ParameterPort<Float>!
-    public var inputRadius: ParameterPort<Float> { _inputRadius }
-    private var _inputRadius: ParameterPort<Float>!
-    public var inputWidthResolution: ParameterPort<Int> { _inputWidthResolution }
-    private var _inputWidthResolution: ParameterPort<Int>!
-    public var inputLengthResolution: ParameterPort<Int> { _inputLengthResolution }
-    private var _inputLengthResolution: ParameterPort<Int>!
-    public var inputDepthResolution: ParameterPort<Int> { _inputDepthResolution }
-    private var _inputDepthResolution: ParameterPort<Int>!
-    public var inputAngularResolution: ParameterPort<Int> { _inputAngularResolution }
-    private var _inputAngularResolution: ParameterPort<Int>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputWidth = findPort(named: "inputWidth")
-        self._inputLength = findPort(named: "inputLength")
-        self._inputDepth = findPort(named: "inputDepth")
-        self._inputRadius = findPort(named: "inputRadius")
-        self._inputWidthResolution = findPort(named: "inputWidthResolution")
-        self._inputLengthResolution = findPort(named: "inputLengthResolution")
-        self._inputDepthResolution = findPort(named: "inputDepthResolution")
-        self._inputAngularResolution = findPort(named: "inputAngularResolution")
+        [
+            PortDeclaration(key: "inputWidth", port: self.inputWidth),
+            PortDeclaration(key: "inputLength", port: self.inputLength),
+            PortDeclaration(key: "inputDepth", port: self.inputDepth),
+            PortDeclaration(key: "inputRadius", port: self.inputRadius),
+            PortDeclaration(key: "inputWidthResolution", port: self.inputWidthResolution),
+            PortDeclaration(key: "inputLengthResolution", port: self.inputLengthResolution),
+            PortDeclaration(key: "inputDepthResolution", port: self.inputDepthResolution),
+            PortDeclaration(key: "inputAngularResolution", port: self.inputAngularResolution),
+        ] + super.declaredPorts()
     }
 
     public override var geometry: CycloramaGeometry { _geometry }

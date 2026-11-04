@@ -14,31 +14,17 @@ public class SphereGeometryNode : BaseGeometryNode
     public override class var name:String { "Sphere Geometry" }
     public override class var nodeDescription: String { "Generates sphere geometry" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return  [
-        ("inputRadius", ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield, "Radius of the sphere in world units"))),
-        ("inputAngularResolution", ParameterPort(parameter:IntParameter("Angular Segments", 60, .inputfield, "Number of segments around the circumference"))),
-        ("inputVerticalResolution", ParameterPort(parameter:IntParameter("Vertical Segments", 30, .inputfield, "Number of segments from pole to pole"))),
+    public let inputRadius = ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield, "Radius of the sphere in world units"))
+    public let inputAngularResolution = ParameterPort(parameter:IntParameter("Angular Segments", 60, .inputfield, "Number of segments around the circumference"))
+    public let inputVerticalResolution = ParameterPort(parameter:IntParameter("Vertical Segments", 30, .inputfield, "Number of segments from pole to pole"))
 
-        ] + ports
-    }
-    
-    // Proxy Port
-    public var inputRadius: ParameterPort<Float> { _inputRadius }
-    private var _inputRadius: ParameterPort<Float>!
-    public var inputAngularResolution: ParameterPort<Int> { _inputAngularResolution }
-    private var _inputAngularResolution: ParameterPort<Int>!
-    public var inputVerticalResolution: ParameterPort<Int> { _inputVerticalResolution }
-    private var _inputVerticalResolution: ParameterPort<Int>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputRadius = findPort(named: "inputRadius")
-        self._inputAngularResolution = findPort(named: "inputAngularResolution")
-        self._inputVerticalResolution = findPort(named: "inputVerticalResolution")
+        [
+            PortDeclaration(key: "inputRadius", port: self.inputRadius),
+            PortDeclaration(key: "inputAngularResolution", port: self.inputAngularResolution),
+            PortDeclaration(key: "inputVerticalResolution", port: self.inputVerticalResolution),
+        ] + super.declaredPorts()
     }
 
     public override var geometry: SphereGeometry { _geometry }

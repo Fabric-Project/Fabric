@@ -26,32 +26,19 @@ public class MobiusStripGeometryNode: BaseGeometryNode {
     public override class var name: String { "Mobius Strip Geometry" }
     public override class var nodeDescription: String { "Generates a Möbius strip — a single-sided surface with a half-twist" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        return [
-            ("inputRadius",      ParameterPort(parameter: FloatParameter("Radius",      1.0,  .inputfield, "Distance from center to the midline of the strip"))),
-            ("inputWidth",       ParameterPort(parameter: FloatParameter("Width",        0.35, .inputfield, "Half-width of the strip cross-section"))),
-            ("inputResolutionU", ParameterPort(parameter: IntParameter("Resolution U", 192,   .inputfield, "Segments along the strip length"))),
-            ("inputResolutionV", ParameterPort(parameter: IntParameter("Resolution V",  32,   .inputfield, "Segments across the strip width"))),
-        ] + ports
-    }
+    public let inputRadius = ParameterPort(parameter: FloatParameter("Radius",      1.0,  .inputfield, "Distance from center to the midline of the strip"))
+    public let inputWidth = ParameterPort(parameter: FloatParameter("Width",        0.35, .inputfield, "Half-width of the strip cross-section"))
+    public let inputResolutionU = ParameterPort(parameter: IntParameter("Resolution U", 192,   .inputfield, "Segments along the strip length"))
+    public let inputResolutionV = ParameterPort(parameter: IntParameter("Resolution V",  32,   .inputfield, "Segments across the strip width"))
 
-    public var inputRadius: ParameterPort<Float> { _inputRadius }
-    private var _inputRadius: ParameterPort<Float>!
-    public var inputWidth: ParameterPort<Float> { _inputWidth }
-    private var _inputWidth: ParameterPort<Float>!
-    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
-    private var _inputResolutionU: ParameterPort<Int>!
-    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
-    private var _inputResolutionV: ParameterPort<Int>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputRadius = findPort(named: "inputRadius")
-        self._inputWidth = findPort(named: "inputWidth")
-        self._inputResolutionU = findPort(named: "inputResolutionU")
-        self._inputResolutionV = findPort(named: "inputResolutionV")
+        [
+            PortDeclaration(key: "inputRadius", port: self.inputRadius),
+            PortDeclaration(key: "inputWidth", port: self.inputWidth),
+            PortDeclaration(key: "inputResolutionU", port: self.inputResolutionU),
+            PortDeclaration(key: "inputResolutionV", port: self.inputResolutionV),
+        ] + super.declaredPorts()
     }
 
     public override var geometry: ParametricGeometry { _geometry }
@@ -88,36 +75,21 @@ public class HelicoidGeometryNode: BaseGeometryNode {
     public override class var name: String { "Helicoid Geometry" }
     public override class var nodeDescription: String { "Generates a helicoid — a ruled spiral ramp surface" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        return [
-            ("inputRadius",      ParameterPort(parameter: FloatParameter("Radius",      1.5, .inputfield, "Outer radius of the helicoid"))),
-            ("inputPitch",       ParameterPort(parameter: FloatParameter("Pitch",        0.2, .inputfield, "Vertical rise per radian of rotation"))),
-            ("inputTurns",       ParameterPort(parameter: FloatParameter("Turns",        3.0, .inputfield, "Number of complete helical turns"))),
-            ("inputResolutionU", ParameterPort(parameter: IntParameter("Resolution U", 192,  .inputfield, "Segments along the helix angle"))),
-            ("inputResolutionV", ParameterPort(parameter: IntParameter("Resolution V",  64,  .inputfield, "Segments along the radial direction"))),
-        ] + ports
-    }
+    public let inputRadius = ParameterPort(parameter: FloatParameter("Radius",      1.5, .inputfield, "Outer radius of the helicoid"))
+    public let inputPitch = ParameterPort(parameter: FloatParameter("Pitch",        0.2, .inputfield, "Vertical rise per radian of rotation"))
+    public let inputTurns = ParameterPort(parameter: FloatParameter("Turns",        3.0, .inputfield, "Number of complete helical turns"))
+    public let inputResolutionU = ParameterPort(parameter: IntParameter("Resolution U", 192,  .inputfield, "Segments along the helix angle"))
+    public let inputResolutionV = ParameterPort(parameter: IntParameter("Resolution V",  64,  .inputfield, "Segments along the radial direction"))
 
-    public var inputRadius: ParameterPort<Float> { _inputRadius }
-    private var _inputRadius: ParameterPort<Float>!
-    public var inputPitch: ParameterPort<Float> { _inputPitch }
-    private var _inputPitch: ParameterPort<Float>!
-    public var inputTurns: ParameterPort<Float> { _inputTurns }
-    private var _inputTurns: ParameterPort<Float>!
-    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
-    private var _inputResolutionU: ParameterPort<Int>!
-    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
-    private var _inputResolutionV: ParameterPort<Int>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputRadius = findPort(named: "inputRadius")
-        self._inputPitch = findPort(named: "inputPitch")
-        self._inputTurns = findPort(named: "inputTurns")
-        self._inputResolutionU = findPort(named: "inputResolutionU")
-        self._inputResolutionV = findPort(named: "inputResolutionV")
+        [
+            PortDeclaration(key: "inputRadius", port: self.inputRadius),
+            PortDeclaration(key: "inputPitch", port: self.inputPitch),
+            PortDeclaration(key: "inputTurns", port: self.inputTurns),
+            PortDeclaration(key: "inputResolutionU", port: self.inputResolutionU),
+            PortDeclaration(key: "inputResolutionV", port: self.inputResolutionV),
+        ] + super.declaredPorts()
     }
 
     public override var geometry: ParametricGeometry { _geometry }
@@ -150,44 +122,25 @@ public class SuperellipsoidGeometryNode: BaseGeometryNode {
     public override class var name: String { "Superellipsoid Geometry" }
     public override class var nodeDescription: String { "Generates a superellipsoid — a generalization of spheres and cylinders controlled by two shape exponents" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        return [
-            ("inputRadiusX",     ParameterPort(parameter: FloatParameter("Radius X",    1.0, .inputfield, "Scale along the X axis"))),
-            ("inputRadiusY",     ParameterPort(parameter: FloatParameter("Radius Y",    1.0, .inputfield, "Scale along the Y axis"))),
-            ("inputRadiusZ",     ParameterPort(parameter: FloatParameter("Radius Z",    1.0, .inputfield, "Scale along the Z axis"))),
-            ("inputExponentU",   ParameterPort(parameter: FloatParameter("Exponent U",  0.5, .inputfield, "Horizontal cross-section shape exponent (< 1 pinched, > 1 rounded)"))),
-            ("inputExponentV",   ParameterPort(parameter: FloatParameter("Exponent V",  0.5, .inputfield, "Vertical cross-section shape exponent"))),
-            ("inputResolutionU", ParameterPort(parameter: IntParameter("Resolution U", 160, .inputfield, "Segments along the U direction"))),
-            ("inputResolutionV", ParameterPort(parameter: IntParameter("Resolution V",  96, .inputfield, "Segments along the V direction"))),
-        ] + ports
-    }
+    public let inputRadiusX = ParameterPort(parameter: FloatParameter("Radius X",    1.0, .inputfield, "Scale along the X axis"))
+    public let inputRadiusY = ParameterPort(parameter: FloatParameter("Radius Y",    1.0, .inputfield, "Scale along the Y axis"))
+    public let inputRadiusZ = ParameterPort(parameter: FloatParameter("Radius Z",    1.0, .inputfield, "Scale along the Z axis"))
+    public let inputExponentU = ParameterPort(parameter: FloatParameter("Exponent U",  0.5, .inputfield, "Horizontal cross-section shape exponent (< 1 pinched, > 1 rounded)"))
+    public let inputExponentV = ParameterPort(parameter: FloatParameter("Exponent V",  0.5, .inputfield, "Vertical cross-section shape exponent"))
+    public let inputResolutionU = ParameterPort(parameter: IntParameter("Resolution U", 160, .inputfield, "Segments along the U direction"))
+    public let inputResolutionV = ParameterPort(parameter: IntParameter("Resolution V",  96, .inputfield, "Segments along the V direction"))
 
-    public var inputRadiusX: ParameterPort<Float> { _inputRadiusX }
-    private var _inputRadiusX: ParameterPort<Float>!
-    public var inputRadiusY: ParameterPort<Float> { _inputRadiusY }
-    private var _inputRadiusY: ParameterPort<Float>!
-    public var inputRadiusZ: ParameterPort<Float> { _inputRadiusZ }
-    private var _inputRadiusZ: ParameterPort<Float>!
-    public var inputExponentU: ParameterPort<Float> { _inputExponentU }
-    private var _inputExponentU: ParameterPort<Float>!
-    public var inputExponentV: ParameterPort<Float> { _inputExponentV }
-    private var _inputExponentV: ParameterPort<Float>!
-    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
-    private var _inputResolutionU: ParameterPort<Int>!
-    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
-    private var _inputResolutionV: ParameterPort<Int>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputRadiusX = findPort(named: "inputRadiusX")
-        self._inputRadiusY = findPort(named: "inputRadiusY")
-        self._inputRadiusZ = findPort(named: "inputRadiusZ")
-        self._inputExponentU = findPort(named: "inputExponentU")
-        self._inputExponentV = findPort(named: "inputExponentV")
-        self._inputResolutionU = findPort(named: "inputResolutionU")
-        self._inputResolutionV = findPort(named: "inputResolutionV")
+        [
+            PortDeclaration(key: "inputRadiusX", port: self.inputRadiusX),
+            PortDeclaration(key: "inputRadiusY", port: self.inputRadiusY),
+            PortDeclaration(key: "inputRadiusZ", port: self.inputRadiusZ),
+            PortDeclaration(key: "inputExponentU", port: self.inputExponentU),
+            PortDeclaration(key: "inputExponentV", port: self.inputExponentV),
+            PortDeclaration(key: "inputResolutionU", port: self.inputResolutionU),
+            PortDeclaration(key: "inputResolutionV", port: self.inputResolutionV),
+        ] + super.declaredPorts()
     }
 
     public override var geometry: ParametricGeometry { _geometry }
@@ -227,32 +180,19 @@ public class KleinBottleGeometryNode: BaseGeometryNode {
     public override class var name: String { "Klein Bottle Geometry" }
     public override class var nodeDescription: String { "Generates a Klein bottle — a non-orientable closed surface with no interior" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        return [
-            ("inputRadius",      ParameterPort(parameter: FloatParameter("Radius",      2.0,  .inputfield, "Overall scale of the bottle"))),
-            ("inputTube",        ParameterPort(parameter: FloatParameter("Tube Radius",  0.55, .inputfield, "Radius of the tubular cross-section"))),
-            ("inputResolutionU", ParameterPort(parameter: IntParameter("Resolution U", 192,   .inputfield, "Segments around the bottle axis"))),
-            ("inputResolutionV", ParameterPort(parameter: IntParameter("Resolution V",  96,   .inputfield, "Segments around the tube cross-section"))),
-        ] + ports
-    }
+    public let inputRadius = ParameterPort(parameter: FloatParameter("Radius",      2.0,  .inputfield, "Overall scale of the bottle"))
+    public let inputTube = ParameterPort(parameter: FloatParameter("Tube Radius",  0.55, .inputfield, "Radius of the tubular cross-section"))
+    public let inputResolutionU = ParameterPort(parameter: IntParameter("Resolution U", 192,   .inputfield, "Segments around the bottle axis"))
+    public let inputResolutionV = ParameterPort(parameter: IntParameter("Resolution V",  96,   .inputfield, "Segments around the tube cross-section"))
 
-    public var inputRadius: ParameterPort<Float> { _inputRadius }
-    private var _inputRadius: ParameterPort<Float>!
-    public var inputTube: ParameterPort<Float> { _inputTube }
-    private var _inputTube: ParameterPort<Float>!
-    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
-    private var _inputResolutionU: ParameterPort<Int>!
-    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
-    private var _inputResolutionV: ParameterPort<Int>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputRadius = findPort(named: "inputRadius")
-        self._inputTube = findPort(named: "inputTube")
-        self._inputResolutionU = findPort(named: "inputResolutionU")
-        self._inputResolutionV = findPort(named: "inputResolutionV")
+        [
+            PortDeclaration(key: "inputRadius", port: self.inputRadius),
+            PortDeclaration(key: "inputTube", port: self.inputTube),
+            PortDeclaration(key: "inputResolutionU", port: self.inputResolutionU),
+            PortDeclaration(key: "inputResolutionV", port: self.inputResolutionV),
+        ] + super.declaredPorts()
     }
 
     public override var geometry: ParametricGeometry { _geometry }
@@ -292,32 +232,19 @@ public class CatenoidGeometryNode: BaseGeometryNode {
     public override class var name: String { "Catenoid Geometry" }
     public override class var nodeDescription: String { "Generates a catenoid — the minimal surface of revolution formed by a catenary" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        return [
-            ("inputRadius",      ParameterPort(parameter: FloatParameter("Radius",      0.75, .inputfield, "Radius of the waist (narrowest point)"))),
-            ("inputHeight",      ParameterPort(parameter: FloatParameter("Height",       2.0,  .inputfield, "Total height of the surface"))),
-            ("inputResolutionU", ParameterPort(parameter: IntParameter("Resolution U", 160,   .inputfield, "Segments around the axis"))),
-            ("inputResolutionV", ParameterPort(parameter: IntParameter("Resolution V",  96,   .inputfield, "Segments along the height"))),
-        ] + ports
-    }
+    public let inputRadius = ParameterPort(parameter: FloatParameter("Radius",      0.75, .inputfield, "Radius of the waist (narrowest point)"))
+    public let inputHeight = ParameterPort(parameter: FloatParameter("Height",       2.0,  .inputfield, "Total height of the surface"))
+    public let inputResolutionU = ParameterPort(parameter: IntParameter("Resolution U", 160,   .inputfield, "Segments around the axis"))
+    public let inputResolutionV = ParameterPort(parameter: IntParameter("Resolution V",  96,   .inputfield, "Segments along the height"))
 
-    public var inputRadius: ParameterPort<Float> { _inputRadius }
-    private var _inputRadius: ParameterPort<Float>!
-    public var inputHeight: ParameterPort<Float> { _inputHeight }
-    private var _inputHeight: ParameterPort<Float>!
-    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
-    private var _inputResolutionU: ParameterPort<Int>!
-    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
-    private var _inputResolutionV: ParameterPort<Int>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputRadius = findPort(named: "inputRadius")
-        self._inputHeight = findPort(named: "inputHeight")
-        self._inputResolutionU = findPort(named: "inputResolutionU")
-        self._inputResolutionV = findPort(named: "inputResolutionV")
+        [
+            PortDeclaration(key: "inputRadius", port: self.inputRadius),
+            PortDeclaration(key: "inputHeight", port: self.inputHeight),
+            PortDeclaration(key: "inputResolutionU", port: self.inputResolutionU),
+            PortDeclaration(key: "inputResolutionV", port: self.inputResolutionV),
+        ] + super.declaredPorts()
     }
 
     public override var geometry: ParametricGeometry { _geometry }
@@ -353,36 +280,21 @@ public class ParaboloidGeometryNode: BaseGeometryNode {
     public override class var name: String { "Paraboloid Geometry" }
     public override class var nodeDescription: String { "Generates an elliptic paraboloid — a bowl-shaped quadric surface" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        return [
-            ("inputRadiusX",     ParameterPort(parameter: FloatParameter("Radius X",    1.0, .inputfield, "Horizontal scale along the X axis"))),
-            ("inputRadiusY",     ParameterPort(parameter: FloatParameter("Radius Y",    1.0, .inputfield, "Horizontal scale along the Y axis"))),
-            ("inputHeight",      ParameterPort(parameter: FloatParameter("Height",       2.0, .inputfield, "Vertical scale of the paraboloid"))),
-            ("inputResolutionU", ParameterPort(parameter: IntParameter("Resolution U", 160, .inputfield, "Segments around the axis"))),
-            ("inputResolutionV", ParameterPort(parameter: IntParameter("Resolution V",  80, .inputfield, "Segments along the radial direction"))),
-        ] + ports
-    }
+    public let inputRadiusX = ParameterPort(parameter: FloatParameter("Radius X",    1.0, .inputfield, "Horizontal scale along the X axis"))
+    public let inputRadiusY = ParameterPort(parameter: FloatParameter("Radius Y",    1.0, .inputfield, "Horizontal scale along the Y axis"))
+    public let inputHeight = ParameterPort(parameter: FloatParameter("Height",       2.0, .inputfield, "Vertical scale of the paraboloid"))
+    public let inputResolutionU = ParameterPort(parameter: IntParameter("Resolution U", 160, .inputfield, "Segments around the axis"))
+    public let inputResolutionV = ParameterPort(parameter: IntParameter("Resolution V",  80, .inputfield, "Segments along the radial direction"))
 
-    public var inputRadiusX: ParameterPort<Float> { _inputRadiusX }
-    private var _inputRadiusX: ParameterPort<Float>!
-    public var inputRadiusY: ParameterPort<Float> { _inputRadiusY }
-    private var _inputRadiusY: ParameterPort<Float>!
-    public var inputHeight: ParameterPort<Float> { _inputHeight }
-    private var _inputHeight: ParameterPort<Float>!
-    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
-    private var _inputResolutionU: ParameterPort<Int>!
-    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
-    private var _inputResolutionV: ParameterPort<Int>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputRadiusX = findPort(named: "inputRadiusX")
-        self._inputRadiusY = findPort(named: "inputRadiusY")
-        self._inputHeight = findPort(named: "inputHeight")
-        self._inputResolutionU = findPort(named: "inputResolutionU")
-        self._inputResolutionV = findPort(named: "inputResolutionV")
+        [
+            PortDeclaration(key: "inputRadiusX", port: self.inputRadiusX),
+            PortDeclaration(key: "inputRadiusY", port: self.inputRadiusY),
+            PortDeclaration(key: "inputHeight", port: self.inputHeight),
+            PortDeclaration(key: "inputResolutionU", port: self.inputResolutionU),
+            PortDeclaration(key: "inputResolutionV", port: self.inputResolutionV),
+        ] + super.declaredPorts()
     }
 
     public override var geometry: ParametricGeometry { _geometry }
@@ -415,32 +327,19 @@ public class EnneperSurfaceGeometryNode: BaseGeometryNode {
     public override class var name: String { "Enneper Surface Geometry" }
     public override class var nodeDescription: String { "Generates an Enneper surface — a self-intersecting minimal surface with cubic saddle geometry" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        return [
-            ("inputScale",       ParameterPort(parameter: FloatParameter("Scale",        0.35, .inputfield, "Uniform scale applied to the surface"))),
-            ("inputExtent",      ParameterPort(parameter: FloatParameter("Extent",        2.25, .inputfield, "Parameter domain half-extent for both U and V"))),
-            ("inputResolutionU", ParameterPort(parameter: IntParameter("Resolution U", 160,   .inputfield, "Segments along the U direction"))),
-            ("inputResolutionV", ParameterPort(parameter: IntParameter("Resolution V", 160,   .inputfield, "Segments along the V direction"))),
-        ] + ports
-    }
+    public let inputScale = ParameterPort(parameter: FloatParameter("Scale",        0.35, .inputfield, "Uniform scale applied to the surface"))
+    public let inputExtent = ParameterPort(parameter: FloatParameter("Extent",        2.25, .inputfield, "Parameter domain half-extent for both U and V"))
+    public let inputResolutionU = ParameterPort(parameter: IntParameter("Resolution U", 160,   .inputfield, "Segments along the U direction"))
+    public let inputResolutionV = ParameterPort(parameter: IntParameter("Resolution V", 160,   .inputfield, "Segments along the V direction"))
 
-    public var inputScale: ParameterPort<Float> { _inputScale }
-    private var _inputScale: ParameterPort<Float>!
-    public var inputExtent: ParameterPort<Float> { _inputExtent }
-    private var _inputExtent: ParameterPort<Float>!
-    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
-    private var _inputResolutionU: ParameterPort<Int>!
-    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
-    private var _inputResolutionV: ParameterPort<Int>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputScale = findPort(named: "inputScale")
-        self._inputExtent = findPort(named: "inputExtent")
-        self._inputResolutionU = findPort(named: "inputResolutionU")
-        self._inputResolutionV = findPort(named: "inputResolutionV")
+        [
+            PortDeclaration(key: "inputScale", port: self.inputScale),
+            PortDeclaration(key: "inputExtent", port: self.inputExtent),
+            PortDeclaration(key: "inputResolutionU", port: self.inputResolutionU),
+            PortDeclaration(key: "inputResolutionV", port: self.inputResolutionV),
+        ] + super.declaredPorts()
     }
 
     public override var geometry: ParametricGeometry { _geometry }
@@ -477,32 +376,19 @@ public class PseudosphereGeometryNode: BaseGeometryNode {
     public override class var name: String { "Pseudosphere Geometry" }
     public override class var nodeDescription: String { "Generates a pseudosphere — a surface of constant negative Gaussian curvature" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        return [
-            ("inputRadius",       ParameterPort(parameter: FloatParameter("Radius",        1.0, .inputfield, "Radius of the pseudosphere"))),
-            ("inputHeightExtent", ParameterPort(parameter: FloatParameter("Height Extent",  3.0, .inputfield, "Half-height of the parameter domain along the axis"))),
-            ("inputResolutionU",  ParameterPort(parameter: IntParameter("Resolution U",  192, .inputfield, "Segments around the axis"))),
-            ("inputResolutionV",  ParameterPort(parameter: IntParameter("Resolution V",   96, .inputfield, "Segments along the height"))),
-        ] + ports
-    }
+    public let inputRadius = ParameterPort(parameter: FloatParameter("Radius",        1.0, .inputfield, "Radius of the pseudosphere"))
+    public let inputHeightExtent = ParameterPort(parameter: FloatParameter("Height Extent",  3.0, .inputfield, "Half-height of the parameter domain along the axis"))
+    public let inputResolutionU = ParameterPort(parameter: IntParameter("Resolution U",  192, .inputfield, "Segments around the axis"))
+    public let inputResolutionV = ParameterPort(parameter: IntParameter("Resolution V",   96, .inputfield, "Segments along the height"))
 
-    public var inputRadius: ParameterPort<Float> { _inputRadius }
-    private var _inputRadius: ParameterPort<Float>!
-    public var inputHeightExtent: ParameterPort<Float> { _inputHeightExtent }
-    private var _inputHeightExtent: ParameterPort<Float>!
-    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
-    private var _inputResolutionU: ParameterPort<Int>!
-    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
-    private var _inputResolutionV: ParameterPort<Int>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputRadius = findPort(named: "inputRadius")
-        self._inputHeightExtent = findPort(named: "inputHeightExtent")
-        self._inputResolutionU = findPort(named: "inputResolutionU")
-        self._inputResolutionV = findPort(named: "inputResolutionV")
+        [
+            PortDeclaration(key: "inputRadius", port: self.inputRadius),
+            PortDeclaration(key: "inputHeightExtent", port: self.inputHeightExtent),
+            PortDeclaration(key: "inputResolutionU", port: self.inputResolutionU),
+            PortDeclaration(key: "inputResolutionV", port: self.inputResolutionV),
+        ] + super.declaredPorts()
     }
 
     public override var geometry: ParametricGeometry { _geometry }
@@ -538,40 +424,23 @@ public class DupinCyclideGeometryNode: BaseGeometryNode {
     public override class var name: String { "Dupin Cyclide Geometry" }
     public override class var nodeDescription: String { "Generates a Dupin cyclide — a family of surfaces related to tori via sphere inversion" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        return [
-            ("inputMajorRadius",    ParameterPort(parameter: FloatParameter("Major Radius",    1.5, .inputfield, "Major radius of the base torus before inversion"))),
-            ("inputMinorRadius",    ParameterPort(parameter: FloatParameter("Minor Radius",    0.45, .inputfield, "Minor (tube) radius of the base torus before inversion"))),
-            ("inputTorusOffset",    ParameterPort(parameter: FloatParameter("Torus Offset",    2.4,  .inputfield, "Translation offset applied to the torus before inversion"))),
-            ("inputInversionRadius",ParameterPort(parameter: FloatParameter("Inversion Radius",1.0,  .inputfield, "Radius of the inversion sphere"))),
-            ("inputResolutionU",    ParameterPort(parameter: IntParameter("Resolution U",    192, .inputfield, "Segments around the primary axis"))),
-            ("inputResolutionV",    ParameterPort(parameter: IntParameter("Resolution V",     96, .inputfield, "Segments around the tube cross-section"))),
-        ] + ports
-    }
+    public let inputMajorRadius = ParameterPort(parameter: FloatParameter("Major Radius",    1.5, .inputfield, "Major radius of the base torus before inversion"))
+    public let inputMinorRadius = ParameterPort(parameter: FloatParameter("Minor Radius",    0.45, .inputfield, "Minor (tube) radius of the base torus before inversion"))
+    public let inputTorusOffset = ParameterPort(parameter: FloatParameter("Torus Offset",    2.4,  .inputfield, "Translation offset applied to the torus before inversion"))
+    public let inputInversionRadius = ParameterPort(parameter: FloatParameter("Inversion Radius",1.0,  .inputfield, "Radius of the inversion sphere"))
+    public let inputResolutionU = ParameterPort(parameter: IntParameter("Resolution U",    192, .inputfield, "Segments around the primary axis"))
+    public let inputResolutionV = ParameterPort(parameter: IntParameter("Resolution V",     96, .inputfield, "Segments around the tube cross-section"))
 
-    public var inputMajorRadius: ParameterPort<Float> { _inputMajorRadius }
-    private var _inputMajorRadius: ParameterPort<Float>!
-    public var inputMinorRadius: ParameterPort<Float> { _inputMinorRadius }
-    private var _inputMinorRadius: ParameterPort<Float>!
-    public var inputTorusOffset: ParameterPort<Float> { _inputTorusOffset }
-    private var _inputTorusOffset: ParameterPort<Float>!
-    public var inputInversionRadius: ParameterPort<Float> { _inputInversionRadius }
-    private var _inputInversionRadius: ParameterPort<Float>!
-    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
-    private var _inputResolutionU: ParameterPort<Int>!
-    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
-    private var _inputResolutionV: ParameterPort<Int>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputMajorRadius = findPort(named: "inputMajorRadius")
-        self._inputMinorRadius = findPort(named: "inputMinorRadius")
-        self._inputTorusOffset = findPort(named: "inputTorusOffset")
-        self._inputInversionRadius = findPort(named: "inputInversionRadius")
-        self._inputResolutionU = findPort(named: "inputResolutionU")
-        self._inputResolutionV = findPort(named: "inputResolutionV")
+        [
+            PortDeclaration(key: "inputMajorRadius", port: self.inputMajorRadius),
+            PortDeclaration(key: "inputMinorRadius", port: self.inputMinorRadius),
+            PortDeclaration(key: "inputTorusOffset", port: self.inputTorusOffset),
+            PortDeclaration(key: "inputInversionRadius", port: self.inputInversionRadius),
+            PortDeclaration(key: "inputResolutionU", port: self.inputResolutionU),
+            PortDeclaration(key: "inputResolutionV", port: self.inputResolutionV),
+        ] + super.declaredPorts()
     }
 
     public override var geometry: ParametricGeometry { _geometry }
@@ -611,28 +480,17 @@ public class RomanSurfaceGeometryNode: BaseGeometryNode {
     public override class var name: String { "Roman Surface Geometry" }
     public override class var nodeDescription: String { "Generates Steiner's Roman surface — a self-intersecting immersion of the real projective plane" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        return [
-            ("inputScale",       ParameterPort(parameter: FloatParameter("Scale",        2.0, .inputfield, "Uniform scale of the surface"))),
-            ("inputResolutionU", ParameterPort(parameter: IntParameter("Resolution U", 160, .inputfield, "Segments around the U direction"))),
-            ("inputResolutionV", ParameterPort(parameter: IntParameter("Resolution V",  96, .inputfield, "Segments around the V direction"))),
-        ] + ports
-    }
+    public let inputScale = ParameterPort(parameter: FloatParameter("Scale",        2.0, .inputfield, "Uniform scale of the surface"))
+    public let inputResolutionU = ParameterPort(parameter: IntParameter("Resolution U", 160, .inputfield, "Segments around the U direction"))
+    public let inputResolutionV = ParameterPort(parameter: IntParameter("Resolution V",  96, .inputfield, "Segments around the V direction"))
 
-    public var inputScale: ParameterPort<Float> { _inputScale }
-    private var _inputScale: ParameterPort<Float>!
-    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
-    private var _inputResolutionU: ParameterPort<Int>!
-    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
-    private var _inputResolutionV: ParameterPort<Int>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputScale = findPort(named: "inputScale")
-        self._inputResolutionU = findPort(named: "inputResolutionU")
-        self._inputResolutionV = findPort(named: "inputResolutionV")
+        [
+            PortDeclaration(key: "inputScale", port: self.inputScale),
+            PortDeclaration(key: "inputResolutionU", port: self.inputResolutionU),
+            PortDeclaration(key: "inputResolutionV", port: self.inputResolutionV),
+        ] + super.declaredPorts()
     }
 
     public override var geometry: ParametricGeometry { _geometry }
@@ -665,28 +523,17 @@ public class CrossCapGeometryNode: BaseGeometryNode {
     public override class var name: String { "Cross Cap Geometry" }
     public override class var nodeDescription: String { "Generates a cross-cap — another immersion of the real projective plane with two self-intersection lines" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        return [
-            ("inputScale",       ParameterPort(parameter: FloatParameter("Scale",        2.0, .inputfield, "Uniform scale of the surface"))),
-            ("inputResolutionU", ParameterPort(parameter: IntParameter("Resolution U", 160, .inputfield, "Segments along the U direction"))),
-            ("inputResolutionV", ParameterPort(parameter: IntParameter("Resolution V",  96, .inputfield, "Segments along the V direction"))),
-        ] + ports
-    }
+    public let inputScale = ParameterPort(parameter: FloatParameter("Scale",        2.0, .inputfield, "Uniform scale of the surface"))
+    public let inputResolutionU = ParameterPort(parameter: IntParameter("Resolution U", 160, .inputfield, "Segments along the U direction"))
+    public let inputResolutionV = ParameterPort(parameter: IntParameter("Resolution V",  96, .inputfield, "Segments along the V direction"))
 
-    public var inputScale: ParameterPort<Float> { _inputScale }
-    private var _inputScale: ParameterPort<Float>!
-    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
-    private var _inputResolutionU: ParameterPort<Int>!
-    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
-    private var _inputResolutionV: ParameterPort<Int>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputScale = findPort(named: "inputScale")
-        self._inputResolutionU = findPort(named: "inputResolutionU")
-        self._inputResolutionV = findPort(named: "inputResolutionV")
+        [
+            PortDeclaration(key: "inputScale", port: self.inputScale),
+            PortDeclaration(key: "inputResolutionU", port: self.inputResolutionU),
+            PortDeclaration(key: "inputResolutionV", port: self.inputResolutionV),
+        ] + super.declaredPorts()
     }
 
     public override var geometry: ParametricGeometry { _geometry }
@@ -721,36 +568,21 @@ public class BourSurfaceGeometryNode: BaseGeometryNode {
     public override class var name: String { "Bour Surface Geometry" }
     public override class var nodeDescription: String { "Generates a Bour surface — a minimal surface discovered by Edmond Bour in 1862" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        return [
-            ("inputRadius",      ParameterPort(parameter: FloatParameter("Radius",      1.35, .inputfield, "Radial extent of the parameter domain"))),
-            ("inputTurns",       ParameterPort(parameter: FloatParameter("Turns",        4.0,  .inputfield, "Number of turns (multiples of π) in the angular domain"))),
-            ("inputScale",       ParameterPort(parameter: FloatParameter("Scale",        0.65, .inputfield, "Uniform scale applied to the output surface"))),
-            ("inputResolutionU", ParameterPort(parameter: IntParameter("Resolution U", 192,   .inputfield, "Segments along the radial direction"))),
-            ("inputResolutionV", ParameterPort(parameter: IntParameter("Resolution V",  96,   .inputfield, "Segments along the angular direction"))),
-        ] + ports
-    }
+    public let inputRadius = ParameterPort(parameter: FloatParameter("Radius",      1.35, .inputfield, "Radial extent of the parameter domain"))
+    public let inputTurns = ParameterPort(parameter: FloatParameter("Turns",        4.0,  .inputfield, "Number of turns (multiples of π) in the angular domain"))
+    public let inputScale = ParameterPort(parameter: FloatParameter("Scale",        0.65, .inputfield, "Uniform scale applied to the output surface"))
+    public let inputResolutionU = ParameterPort(parameter: IntParameter("Resolution U", 192,   .inputfield, "Segments along the radial direction"))
+    public let inputResolutionV = ParameterPort(parameter: IntParameter("Resolution V",  96,   .inputfield, "Segments along the angular direction"))
 
-    public var inputRadius: ParameterPort<Float> { _inputRadius }
-    private var _inputRadius: ParameterPort<Float>!
-    public var inputTurns: ParameterPort<Float> { _inputTurns }
-    private var _inputTurns: ParameterPort<Float>!
-    public var inputScale: ParameterPort<Float> { _inputScale }
-    private var _inputScale: ParameterPort<Float>!
-    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
-    private var _inputResolutionU: ParameterPort<Int>!
-    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
-    private var _inputResolutionV: ParameterPort<Int>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputRadius = findPort(named: "inputRadius")
-        self._inputTurns = findPort(named: "inputTurns")
-        self._inputScale = findPort(named: "inputScale")
-        self._inputResolutionU = findPort(named: "inputResolutionU")
-        self._inputResolutionV = findPort(named: "inputResolutionV")
+        [
+            PortDeclaration(key: "inputRadius", port: self.inputRadius),
+            PortDeclaration(key: "inputTurns", port: self.inputTurns),
+            PortDeclaration(key: "inputScale", port: self.inputScale),
+            PortDeclaration(key: "inputResolutionU", port: self.inputResolutionU),
+            PortDeclaration(key: "inputResolutionV", port: self.inputResolutionV),
+        ] + super.declaredPorts()
     }
 
     public override var geometry: ParametricGeometry { _geometry }
@@ -788,48 +620,27 @@ public class BreatherSurfaceGeometryNode: BaseGeometryNode {
     public override class var name: String { "Breather Surface Geometry" }
     public override class var nodeDescription: String { "Generates a breather surface — a pseudo-spherical surface related to solutions of the sine-Gordon equation" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        return [
-            ("inputParameterA",  ParameterPort(parameter: FloatParameter("Parameter A",    0.4,   .inputfield, "Shape parameter in (0, 1); values near 0 or 1 collapse the surface"))),
-            ("inputRangeUMin",   ParameterPort(parameter: FloatParameter("Range U Min",   -14.0,  .inputfield, "Lower bound of the U parameter domain"))),
-            ("inputRangeUMax",   ParameterPort(parameter: FloatParameter("Range U Max",    14.0,  .inputfield, "Upper bound of the U parameter domain"))),
-            ("inputRangeVMin",   ParameterPort(parameter: FloatParameter("Range V Min",   -37.4,  .inputfield, "Lower bound of the V parameter domain"))),
-            ("inputRangeVMax",   ParameterPort(parameter: FloatParameter("Range V Max",    37.4,  .inputfield, "Upper bound of the V parameter domain"))),
-            ("inputScale",       ParameterPort(parameter: FloatParameter("Scale",            0.2,  .inputfield, "Uniform scale applied to the output surface"))),
-            ("inputResolutionU", ParameterPort(parameter: IntParameter("Resolution U",    192,    .inputfield, "Segments along the U direction"))),
-            ("inputResolutionV", ParameterPort(parameter: IntParameter("Resolution V",    160,    .inputfield, "Segments along the V direction"))),
-        ] + ports
-    }
+    public let inputParameterA = ParameterPort(parameter: FloatParameter("Parameter A",    0.4,   .inputfield, "Shape parameter in (0, 1); values near 0 or 1 collapse the surface"))
+    public let inputRangeUMin = ParameterPort(parameter: FloatParameter("Range U Min",   -14.0,  .inputfield, "Lower bound of the U parameter domain"))
+    public let inputRangeUMax = ParameterPort(parameter: FloatParameter("Range U Max",    14.0,  .inputfield, "Upper bound of the U parameter domain"))
+    public let inputRangeVMin = ParameterPort(parameter: FloatParameter("Range V Min",   -37.4,  .inputfield, "Lower bound of the V parameter domain"))
+    public let inputRangeVMax = ParameterPort(parameter: FloatParameter("Range V Max",    37.4,  .inputfield, "Upper bound of the V parameter domain"))
+    public let inputScale = ParameterPort(parameter: FloatParameter("Scale",            0.2,  .inputfield, "Uniform scale applied to the output surface"))
+    public let inputResolutionU = ParameterPort(parameter: IntParameter("Resolution U",    192,    .inputfield, "Segments along the U direction"))
+    public let inputResolutionV = ParameterPort(parameter: IntParameter("Resolution V",    160,    .inputfield, "Segments along the V direction"))
 
-    public var inputParameterA: ParameterPort<Float> { _inputParameterA }
-    private var _inputParameterA: ParameterPort<Float>!
-    public var inputRangeUMin: ParameterPort<Float> { _inputRangeUMin }
-    private var _inputRangeUMin: ParameterPort<Float>!
-    public var inputRangeUMax: ParameterPort<Float> { _inputRangeUMax }
-    private var _inputRangeUMax: ParameterPort<Float>!
-    public var inputRangeVMin: ParameterPort<Float> { _inputRangeVMin }
-    private var _inputRangeVMin: ParameterPort<Float>!
-    public var inputRangeVMax: ParameterPort<Float> { _inputRangeVMax }
-    private var _inputRangeVMax: ParameterPort<Float>!
-    public var inputScale: ParameterPort<Float> { _inputScale }
-    private var _inputScale: ParameterPort<Float>!
-    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
-    private var _inputResolutionU: ParameterPort<Int>!
-    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
-    private var _inputResolutionV: ParameterPort<Int>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputParameterA = findPort(named: "inputParameterA")
-        self._inputRangeUMin = findPort(named: "inputRangeUMin")
-        self._inputRangeUMax = findPort(named: "inputRangeUMax")
-        self._inputRangeVMin = findPort(named: "inputRangeVMin")
-        self._inputRangeVMax = findPort(named: "inputRangeVMax")
-        self._inputScale = findPort(named: "inputScale")
-        self._inputResolutionU = findPort(named: "inputResolutionU")
-        self._inputResolutionV = findPort(named: "inputResolutionV")
+        [
+            PortDeclaration(key: "inputParameterA", port: self.inputParameterA),
+            PortDeclaration(key: "inputRangeUMin", port: self.inputRangeUMin),
+            PortDeclaration(key: "inputRangeUMax", port: self.inputRangeUMax),
+            PortDeclaration(key: "inputRangeVMin", port: self.inputRangeVMin),
+            PortDeclaration(key: "inputRangeVMax", port: self.inputRangeVMax),
+            PortDeclaration(key: "inputScale", port: self.inputScale),
+            PortDeclaration(key: "inputResolutionU", port: self.inputResolutionU),
+            PortDeclaration(key: "inputResolutionV", port: self.inputResolutionV),
+        ] + super.declaredPorts()
     }
 
     public override var geometry: ParametricGeometry { _geometry }
@@ -879,48 +690,27 @@ public class DiniSurfaceGeometryNode: BaseGeometryNode {
     public override class var name: String { "Dini Surface Geometry" }
     public override class var nodeDescription: String { "Generates a Dini surface — a pseudo-spherical surface that looks like a twisted trumpet" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        return [
-            ("inputRadius",      ParameterPort(parameter: FloatParameter("Radius",       1.0,           .inputfield, "Overall radius of the surface"))),
-            ("inputTwist",       ParameterPort(parameter: FloatParameter("Twist",         0.2,           .inputfield, "Axial twist applied per unit of U"))),
-            ("inputRangeUMin",   ParameterPort(parameter: FloatParameter("Range U Min",   0.0,           .inputfield, "Lower bound of the U parameter domain"))),
-            ("inputRangeUMax",   ParameterPort(parameter: FloatParameter("Range U Max",   .pi * 4.0,     .inputfield, "Upper bound of the U parameter domain"))),
-            ("inputRangeVMin",   ParameterPort(parameter: FloatParameter("Range V Min",   0.08,          .inputfield, "Lower bound of the V parameter domain (avoid 0 singularity)"))),
-            ("inputRangeVMax",   ParameterPort(parameter: FloatParameter("Range V Max",   1.45,          .inputfield, "Upper bound of the V parameter domain (avoid π singularity)"))),
-            ("inputResolutionU", ParameterPort(parameter: IntParameter("Resolution U", 192,             .inputfield, "Segments along the U direction"))),
-            ("inputResolutionV", ParameterPort(parameter: IntParameter("Resolution V",  96,             .inputfield, "Segments along the V direction"))),
-        ] + ports
-    }
+    public let inputRadius = ParameterPort(parameter: FloatParameter("Radius",       1.0,           .inputfield, "Overall radius of the surface"))
+    public let inputTwist = ParameterPort(parameter: FloatParameter("Twist",         0.2,           .inputfield, "Axial twist applied per unit of U"))
+    public let inputRangeUMin = ParameterPort(parameter: FloatParameter("Range U Min",   0.0,           .inputfield, "Lower bound of the U parameter domain"))
+    public let inputRangeUMax = ParameterPort(parameter: FloatParameter("Range U Max",   .pi * 4.0,     .inputfield, "Upper bound of the U parameter domain"))
+    public let inputRangeVMin = ParameterPort(parameter: FloatParameter("Range V Min",   0.08,          .inputfield, "Lower bound of the V parameter domain (avoid 0 singularity)"))
+    public let inputRangeVMax = ParameterPort(parameter: FloatParameter("Range V Max",   1.45,          .inputfield, "Upper bound of the V parameter domain (avoid π singularity)"))
+    public let inputResolutionU = ParameterPort(parameter: IntParameter("Resolution U", 192,             .inputfield, "Segments along the U direction"))
+    public let inputResolutionV = ParameterPort(parameter: IntParameter("Resolution V",  96,             .inputfield, "Segments along the V direction"))
 
-    public var inputRadius: ParameterPort<Float> { _inputRadius }
-    private var _inputRadius: ParameterPort<Float>!
-    public var inputTwist: ParameterPort<Float> { _inputTwist }
-    private var _inputTwist: ParameterPort<Float>!
-    public var inputRangeUMin: ParameterPort<Float> { _inputRangeUMin }
-    private var _inputRangeUMin: ParameterPort<Float>!
-    public var inputRangeUMax: ParameterPort<Float> { _inputRangeUMax }
-    private var _inputRangeUMax: ParameterPort<Float>!
-    public var inputRangeVMin: ParameterPort<Float> { _inputRangeVMin }
-    private var _inputRangeVMin: ParameterPort<Float>!
-    public var inputRangeVMax: ParameterPort<Float> { _inputRangeVMax }
-    private var _inputRangeVMax: ParameterPort<Float>!
-    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
-    private var _inputResolutionU: ParameterPort<Int>!
-    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
-    private var _inputResolutionV: ParameterPort<Int>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputRadius = findPort(named: "inputRadius")
-        self._inputTwist = findPort(named: "inputTwist")
-        self._inputRangeUMin = findPort(named: "inputRangeUMin")
-        self._inputRangeUMax = findPort(named: "inputRangeUMax")
-        self._inputRangeVMin = findPort(named: "inputRangeVMin")
-        self._inputRangeVMax = findPort(named: "inputRangeVMax")
-        self._inputResolutionU = findPort(named: "inputResolutionU")
-        self._inputResolutionV = findPort(named: "inputResolutionV")
+        [
+            PortDeclaration(key: "inputRadius", port: self.inputRadius),
+            PortDeclaration(key: "inputTwist", port: self.inputTwist),
+            PortDeclaration(key: "inputRangeUMin", port: self.inputRangeUMin),
+            PortDeclaration(key: "inputRangeUMax", port: self.inputRangeUMax),
+            PortDeclaration(key: "inputRangeVMin", port: self.inputRangeVMin),
+            PortDeclaration(key: "inputRangeVMax", port: self.inputRangeVMax),
+            PortDeclaration(key: "inputResolutionU", port: self.inputResolutionU),
+            PortDeclaration(key: "inputResolutionV", port: self.inputResolutionV),
+        ] + super.declaredPorts()
     }
 
     public override var geometry: ParametricGeometry { _geometry }

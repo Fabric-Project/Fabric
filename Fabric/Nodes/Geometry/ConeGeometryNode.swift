@@ -14,39 +14,21 @@ public class ConeGeometryNode : BaseGeometryNode
     public override class var name:String { "Cone Geometry" }
     public override class var nodeDescription: String { "Generates cone geometry" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return  [
-        ("inputRadius",  ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield, "Radius of the cone base in world units"))),
-        ("inputHeight",  ParameterPort(parameter:FloatParameter("Height", 2.0, .inputfield, "Height of the cone from base to tip in world units"))),
-        ("inputAngularResolution",  ParameterPort(parameter:IntParameter("Angular Segments", 20, .inputfield, "Number of segments around the cone circumference"))),
-        ("inputRadialResolution",  ParameterPort(parameter:IntParameter("Radial Segments", 2, .inputfield, "Number of segments from center to edge on the base"))),
-        ("inputVerticalResolution",  ParameterPort(parameter:IntParameter("Vertical Segments", 2, .inputfield, "Number of segments along the cone height"))),
+    public let inputRadius = ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield, "Radius of the cone base in world units"))
+    public let inputHeight = ParameterPort(parameter:FloatParameter("Height", 2.0, .inputfield, "Height of the cone from base to tip in world units"))
+    public let inputAngularResolution = ParameterPort(parameter:IntParameter("Angular Segments", 20, .inputfield, "Number of segments around the cone circumference"))
+    public let inputRadialResolution = ParameterPort(parameter:IntParameter("Radial Segments", 2, .inputfield, "Number of segments from center to edge on the base"))
+    public let inputVerticalResolution = ParameterPort(parameter:IntParameter("Vertical Segments", 2, .inputfield, "Number of segments along the cone height"))
 
-        ] + ports
-    }
-    
-    // Proxy Port
-    public var inputRadius: ParameterPort<Float> { _inputRadius }
-    private var _inputRadius: ParameterPort<Float>!
-    public var inputHeight: ParameterPort<Float> { _inputHeight }
-    private var _inputHeight: ParameterPort<Float>!
-    public var inputAngularResolution: ParameterPort<Int> { _inputAngularResolution }
-    private var _inputAngularResolution: ParameterPort<Int>!
-    public var inputRadialResolution: ParameterPort<Int> { _inputRadialResolution }
-    private var _inputRadialResolution: ParameterPort<Int>!
-    public var inputVerticalResolution: ParameterPort<Int> { _inputVerticalResolution }
-    private var _inputVerticalResolution: ParameterPort<Int>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputRadius = findPort(named: "inputRadius")
-        self._inputHeight = findPort(named: "inputHeight")
-        self._inputAngularResolution = findPort(named: "inputAngularResolution")
-        self._inputRadialResolution = findPort(named: "inputRadialResolution")
-        self._inputVerticalResolution = findPort(named: "inputVerticalResolution")
+        [
+            PortDeclaration(key: "inputRadius", port: self.inputRadius),
+            PortDeclaration(key: "inputHeight", port: self.inputHeight),
+            PortDeclaration(key: "inputAngularResolution", port: self.inputAngularResolution),
+            PortDeclaration(key: "inputRadialResolution", port: self.inputRadialResolution),
+            PortDeclaration(key: "inputVerticalResolution", port: self.inputVerticalResolution),
+        ] + super.declaredPorts()
     }
 
     public override var geometry: ConeGeometry { _geometry }

@@ -14,43 +14,23 @@ public class TubeGeometryNode : BaseGeometryNode
     public override class var name:String { "Tube Geometry" }
     public override class var nodeDescription: String { "Generates tube geometry" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return  [
-            ("inputRadius",  ParameterPort(parameter:FloatParameter("Radius", 0.25, .inputfield, "Radius of the tube in world units"))),
-            ("inputHeight",  ParameterPort(parameter:FloatParameter("Height", 0.75, .inputfield, "Height of the tube in world units"))),
-            ("inputStartAngle",  ParameterPort(parameter:FloatParameter("Start Angle", 0.0, .inputfield, "Starting angle of the tube arc in degrees"))),
-            ("inputEndAngle",  ParameterPort(parameter:FloatParameter("End Angle", 90.0, .inputfield, "Ending angle of the tube arc in degrees"))),
-            ("inputAngularResolution",  ParameterPort(parameter:IntParameter("Angular Segments", 20, .inputfield, "Number of segments around the tube circumference"))),
-            ("inputVerticalResolution",  ParameterPort(parameter:IntParameter("Vertical Segments", 5, .inputfield, "Number of segments along the tube height"))),
+    public let inputRadius = ParameterPort(parameter:FloatParameter("Radius", 0.25, .inputfield, "Radius of the tube in world units"))
+    public let inputHeight = ParameterPort(parameter:FloatParameter("Height", 0.75, .inputfield, "Height of the tube in world units"))
+    public let inputStartAngle = ParameterPort(parameter:FloatParameter("Start Angle", 0.0, .inputfield, "Starting angle of the tube arc in degrees"))
+    public let inputEndAngle = ParameterPort(parameter:FloatParameter("End Angle", 90.0, .inputfield, "Ending angle of the tube arc in degrees"))
+    public let inputAngularResolution = ParameterPort(parameter:IntParameter("Angular Segments", 20, .inputfield, "Number of segments around the tube circumference"))
+    public let inputVerticalResolution = ParameterPort(parameter:IntParameter("Vertical Segments", 5, .inputfield, "Number of segments along the tube height"))
 
-        ] + ports
-    }
-    
-    // Proxy Port
-    public var inputRadius: ParameterPort<Float> { _inputRadius }
-    private var _inputRadius: ParameterPort<Float>!
-    public var inputHeight: ParameterPort<Float> { _inputHeight }
-    private var _inputHeight: ParameterPort<Float>!
-    public var inputStartAngle: ParameterPort<Float> { _inputStartAngle }
-    private var _inputStartAngle: ParameterPort<Float>!
-    public var inputEndAngle: ParameterPort<Float> { _inputEndAngle }
-    private var _inputEndAngle: ParameterPort<Float>!
-    public var inputAngularResolution: ParameterPort<Int> { _inputAngularResolution }
-    private var _inputAngularResolution: ParameterPort<Int>!
-    public var inputVerticalResolution: ParameterPort<Int> { _inputVerticalResolution }
-    private var _inputVerticalResolution: ParameterPort<Int>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputRadius = findPort(named: "inputRadius")
-        self._inputHeight = findPort(named: "inputHeight")
-        self._inputStartAngle = findPort(named: "inputStartAngle")
-        self._inputEndAngle = findPort(named: "inputEndAngle")
-        self._inputAngularResolution = findPort(named: "inputAngularResolution")
-        self._inputVerticalResolution = findPort(named: "inputVerticalResolution")
+        [
+            PortDeclaration(key: "inputRadius", port: self.inputRadius),
+            PortDeclaration(key: "inputHeight", port: self.inputHeight),
+            PortDeclaration(key: "inputStartAngle", port: self.inputStartAngle),
+            PortDeclaration(key: "inputEndAngle", port: self.inputEndAngle),
+            PortDeclaration(key: "inputAngularResolution", port: self.inputAngularResolution),
+            PortDeclaration(key: "inputVerticalResolution", port: self.inputVerticalResolution),
+        ] + super.declaredPorts()
     }
 
     public override var geometry: TubeGeometry { _geometry }

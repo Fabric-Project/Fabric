@@ -23,32 +23,20 @@ public class PixelArrayToGeometryNode : BaseGeometryNode
     public override class var name:String { "Geometry Compose" }
     public override class var nodeDescription: String { "Builds a point geometry from per-vertex Positions, Orientations and UVs — the inverse of Geometry Decompose. Orientation and UV are optional: normals default to +Z and UVs to a planar projection of the points." }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        // Drop the base's Triangle-defaulted Primitive port; this node emits a
-        // point cloud, so Point is the sensible default.
-        let ports = super.registerPorts(context: context).filter { $0.name != "inputPrimitiveType" }
+    // This node emits a point cloud, so Point is the sensible default.
+    override public class var defaultPrimitiveType: String { "Point" }
 
-        return [
-            ("inputPositions", NodePort<ContiguousArray<simd_float3>>(name: "Positions", kind: .Inlet, description: "Per-vertex position (XYZ). One vertex per element.")),
-            ("inputOrientations", NodePort<ContiguousArray<simd_float4>>(name: "Orientations", kind: .Inlet, description: "Optional per-vertex quaternion orientation (X, Y, Z, W); its local +Z becomes the vertex normal. Defaults to identity (normal +Z) when unconnected.")),
-            ("inputUVs", NodePort<ContiguousArray<simd_float2>>(name: "UVs", kind: .Inlet, description: "Optional per-vertex texture coordinate. Defaults to a planar [0,1] projection of the XY bounds when unconnected.")),
-            ("inputPrimitiveType", ParameterPort(parameter: StringParameter("Primitive", "Point", ["Point", "Line", "Line Strip", "Triangle", "Triangle Strip"], .dropdown, "Rendering primitive type for the geometry mesh"))),
-        ] + ports
-    }
+    public let inputPositions = NodePort<ContiguousArray<simd_float3>>(name: "Positions", kind: .Inlet, description: "Per-vertex position (XYZ). One vertex per element.")
+    public let inputOrientations = NodePort<ContiguousArray<simd_float4>>(name: "Orientations", kind: .Inlet, description: "Optional per-vertex quaternion orientation (X, Y, Z, W); its local +Z becomes the vertex normal. Defaults to identity (normal +Z) when unconnected.")
+    public let inputUVs = NodePort<ContiguousArray<simd_float2>>(name: "UVs", kind: .Inlet, description: "Optional per-vertex texture coordinate. Defaults to a planar [0,1] projection of the XY bounds when unconnected.")
 
-    public var inputPositions: NodePort<ContiguousArray<simd_float3>> { _inputPositions }
-    private var _inputPositions: NodePort<ContiguousArray<simd_float3>>!
-    public var inputOrientations: NodePort<ContiguousArray<simd_float4>> { _inputOrientations }
-    private var _inputOrientations: NodePort<ContiguousArray<simd_float4>>!
-    public var inputUVs: NodePort<ContiguousArray<simd_float2>> { _inputUVs }
-    private var _inputUVs: NodePort<ContiguousArray<simd_float2>>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputPositions = findPort(named: "inputPositions")
-        self._inputOrientations = findPort(named: "inputOrientations")
-        self._inputUVs = findPort(named: "inputUVs")
+        [
+            PortDeclaration(key: "inputPositions", port: self.inputPositions),
+            PortDeclaration(key: "inputOrientations", port: self.inputOrientations),
+            PortDeclaration(key: "inputUVs", port: self.inputUVs),
+        ] + super.declaredPorts()
     }
 
     public override var geometry: PointCloudGeometry { _geometry }

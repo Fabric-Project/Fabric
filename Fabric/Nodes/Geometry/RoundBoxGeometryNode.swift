@@ -16,33 +16,19 @@ public class RoundBoxGeometryNode : BaseGeometryNode
     public override class var nodeDescription: String { "Generates rounded box geometry" }
 
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return  [
-        ("inputSize", ParameterPort(parameter:Float3Parameter("Size", .zero, .inputfield, "Dimensions of the box (width, height, depth) in world units"))),
-        ("inputRadius", ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield, "Corner radius for the rounded edges in world units"))),
-        ("inputResolution", ParameterPort(parameter:IntParameter("Segments", 1, .inputfield, "Number of segments for the rounded corners"))),
+    public let inputSize = ParameterPort(parameter:Float3Parameter("Size", .zero, .inputfield, "Dimensions of the box (width, height, depth) in world units"))
+    public let inputRadius = ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield, "Corner radius for the rounded edges in world units"))
+    public let inputResolution = ParameterPort(parameter:IntParameter("Segments", 1, .inputfield, "Number of segments for the rounded corners"))
 
-        ] + ports
-    }
-    
-    // Proxy Port
-    public var inputSize: ParameterPort<simd_float3> { _inputSize }
-    private var _inputSize: ParameterPort<simd_float3>!
-    public var inputRadius: ParameterPort<Float> { _inputRadius }
-    private var _inputRadius: ParameterPort<Float>!
-    public var inputResolution: ParameterPort<Int> { _inputResolution }
-    private var _inputResolution: ParameterPort<Int>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputSize = findPort(named: "inputSize")
-        self._inputRadius = findPort(named: "inputRadius")
-        self._inputResolution = findPort(named: "inputResolution")
+        [
+            PortDeclaration(key: "inputSize", port: self.inputSize),
+            PortDeclaration(key: "inputRadius", port: self.inputRadius),
+            PortDeclaration(key: "inputResolution", port: self.inputResolution),
+        ] + super.declaredPorts()
     }
-       
+
     public override var geometry: RoundedBoxGeometry { _geometry }
 
     private lazy var _geometry = RoundedBoxGeometry(context:self.context, size: .init(repeating: 2.0), radius: 0.25, resolution: 3)
