@@ -414,7 +414,8 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         let reconciliation = self.registry.reconcile(to: self.declaredPorts() + self.undeclaredSnapshotPorts,
                                                      applying: states,
                                                      owner: self,
-                                                     hydrating: self.portHydrationSession)
+                                                     hydrating: self.portHydrationSession,
+                                                     fileReferenceBase: self.graph?.fileReferenceBaseURL)
         guard !reconciliation.isEmpty else { return }
 
         let graph = self.graph

@@ -284,20 +284,21 @@ extension UTType
     /// Puts a saved or carried value on the port when it fits the port's type,
     /// then lets the port correct it. Returns whether the value fitted.
     @discardableResult
-    internal func apply(_ state: PortState) -> Bool
+    internal func apply(_ state: PortState, fileReferenceBase: URL? = nil) -> Bool
     {
         guard self.accepts(state.value) else { return false }
         self.restoreValue(from: state.value)
-        self.correctAppliedValue()
+        self.correctAppliedValue(fileReferenceBase: fileReferenceBase)
         return true
     }
 
     /// Whether `value` is a value of this port's type.
     internal func accepts(_ value: PortValue) -> Bool { false }
 
-    /// A port's own correction of a value put on it from outside the node, as
-    /// a slider's clamp to its range. Never an edit.
-    internal func correctAppliedValue() { }
+    /// A port's own correction of a value put on it from outside the node: a
+    /// slider's clamp to its range, a file picker's absolute reference inside
+    /// `fileReferenceBase` made relative. Never an edit.
+    internal func correctAppliedValue(fileReferenceBase: URL?) { }
 
     public func canConnect(to other:Port) -> Bool
     {

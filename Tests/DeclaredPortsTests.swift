@@ -31,6 +31,11 @@ private final class DeclaredInterfaceNode: Node
         didSet { self.reconcilePorts() }
     }
 
+    var picker: ParameterPort<String>?
+    {
+        didSet { self.reconcilePorts() }
+    }
+
     override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
     {
         super.registerPorts(context: context) + [
@@ -60,7 +65,7 @@ private final class DeclaredInterfaceNode: Node
             PortDeclaration(key: entry.key, portType: entry.type, kind: entry.isInlet ? .Inlet : .Outlet, name: entry.key)
         }
         declarations.insert(contentsOf: super.declaredPorts(), at: min(max(0, self.interface.fixedIndex), declarations.count))
-        return declarations
+        return declarations + (picker.map { [PortDeclaration(key: "picker", port: $0)] } ?? [])
     }
 }
 
@@ -227,6 +232,21 @@ struct DeclaredPortsTests
         #expect(node.findPort(named: "x", as: ParameterPort<Float>.self)?.value == 3)
         #expect(node.findPort(named: "n", as: ParameterPort<Int>.self)?.value == 0)
         #expect(node.findPort(named: "fixed", as: ParameterPort<Float>.self)?.value == 1)
+    }
+
+    @Test("A file picker's absolute reference inside the document folder comes back relative")
+    func filePickerStateIsNormalised() throws
+    {
+        guard let context = makeContext() else { return }
+        let folder = URL(fileURLWithPath: "/tmp/FabricDocument", isDirectory: true)
+        let graph = Graph(context: context, fileReferenceBaseURL: folder)
+        let node = DeclaredInterfaceNode(context: context, interface: Interface(entries: [], fixedIndex: 0))
+        graph.addNode(node)
+        node.picker = ParameterPort(parameter: StringParameter("File", "", .filepicker, "A file"))
+
+        node.reconcilePorts(applying: [PortState(key: .own("picker"), value: .String(folder.appending(path: "a.png").absoluteString))])
+
+        #expect(node.picker?.value == "a.png")
     }
 
     @Test("The registry's states are the values of its parameter inlets")

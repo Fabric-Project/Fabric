@@ -162,15 +162,28 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
         try super.encode(to: encoder)
     }
     
-    /// A value put on the port from a document or a carried state takes the
-    /// declared range again, but only for a control that enforces its range in
+    /// A file picker's absolute reference inside the document's folder becomes
+    /// relative to it, as NodeFileLoadingProtocol.normalizeFileReference has a
+    /// picked file. A value put on the port from a document or a carried state
+    /// takes the declared range again, but only for a control that enforces its range in
     /// the UI: a slider can only ever have produced in-range values, so an
     /// out-of-range one means the declared range changed since. Input fields
     /// and wired inlets legitimately hold values outside min/max (many
     /// parameters carry FloatParameter's default 0...1 as a placeholder), so
     /// those are left alone.
-    override internal func correctAppliedValue()
+    override internal func correctAppliedValue(fileReferenceBase: URL?)
     {
+        if self._parameter.controlType == .filepicker,
+           self.connectedOutlets.isEmpty,
+           let fileReferenceBase,
+           let reference = self.value as? String, reference.hasPrefix("file://"),
+           let url = URL(fileReference: reference, relativeTo: fileReferenceBase),
+           let relative = url.fileReference(relativeTo: fileReferenceBase) as? ParamValue,
+           relative != self.value
+        {
+            self.value = relative
+        }
+
         guard self._parameter.controlType == .slider,
               let value = self.value,
               let ranged = self._parameter as? GenericParameterWithMinMax<ParamValue>

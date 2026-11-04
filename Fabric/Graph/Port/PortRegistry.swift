@@ -54,12 +54,14 @@ final class PortRegistry
     /// removed. The first of two declarations under one key counts.
     ///
     /// A state goes onto the port at its key when its value fits the port's
-    /// type; the port then corrects it (a slider clamps to its range). This
+    /// type; the port then corrects it (a slider clamps to its range, a file
+    /// picker's reference inside `fileReferenceBase` becomes relative). This
     /// never touches the graph: the caller applies the result to it.
     func reconcile(to declarations: [PortDeclaration],
                    applying states: [PortState],
                    owner: Node,
-                   hydrating session: PortHydrationSession?) -> Reconciliation
+                   hydrating session: PortHydrationSession?,
+                   fileReferenceBase: URL? = nil) -> Reconciliation
     {
         var reconciliation = Reconciliation()
         var reconciled: [(key: PortKey, port: Port, control: PortControl?)] = []
@@ -120,9 +122,16 @@ final class PortRegistry
             entry.port.control = entry.control
         }
 
-        for state in hydratedStates + states
+        // A decoded value is put back as saved: wires come back after the
+        // nodes, so a file picker cannot yet tell whether a wire drives it, and
+        // saving already made its unwired references relative.
+        for state in hydratedStates
         {
             self.port(forKey: state.key)?.apply(state)
+        }
+        for state in states
+        {
+            self.port(forKey: state.key)?.apply(state, fileReferenceBase: fileReferenceBase)
         }
 
         return reconciliation
