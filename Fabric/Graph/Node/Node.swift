@@ -210,8 +210,13 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     /// Fires whenever offset changes so NodeViewModel can update its cached copy.
     internal let offsetSubject = CurrentValueSubject<CGSize, Never>(.zero)
 
-    /// Fires whenever the port list changes.
-    internal let portsChangedSubject = PassthroughSubject<Void, Never>()
+    /// Tells the node's view model, where its graph has one, that the port
+    /// list changed. Called on the thread that made the change, so the view
+    /// model reads the ports where they were written.
+    internal func portsDidChange()
+    {
+        self.graph?.viewModelIfPresent(for: self)?.portsDidChange()
+    }
 
     /// Fires whenever state feeding `title`, `subtitle` or `status` changes.
     /// NodeViewModel subscribes and refreshes its observable title row mirrors.
@@ -447,7 +452,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         if publishingChanged { graph?.rebuildPublishedParameterGroup() }
 
         graph?.markConnectionsChanged()
-        self.portsChangedSubject.send()
+        self.portsDidChange()
     }
 
     /// The parameters of the node's ports, in port order.

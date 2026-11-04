@@ -71,7 +71,7 @@ open class SubgraphNode: BaseObjectNode
 
         self.invalidatePortCaches()
         self.graph?.markConnectionsChanged()
-        self.portsChangedSubject.send()
+        self.portsDidChange()
     }
 
     /// Type-erase proxy creation — matches the inner port's generic type.

@@ -108,6 +108,15 @@ import Satin
     public func settingsView() -> AnyView      { node.settingsView() }
     public var settingsSize: Node.SettingsViewSize { node.settingsSize }
 
+    /// The node's port list changed: take it, and the size it gives.
+    internal func portsDidChange()
+    {
+        self.ports = node.ports
+        self.nodeSize = node.nodeSize
+        // Forces a redraw of the node to pull in changed ports, a retype among them.
+        self.version += 1
+    }
+
     // MARK: - Init
 
     private var cancellables: Set<AnyCancellable> = []
@@ -131,19 +140,6 @@ import Satin
             .receive(on: DispatchQueue.main)
             .sink { [weak self] newOffset in
                 self?._offset = newOffset
-            }
-            .store(in: &cancellables)
-
-        // Sync port list + nodeSize when dynamic ports are added/removed.
-        node.portsChangedSubject
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] in
-                guard let self else { return }
-                self.ports    = node.ports
-                self.nodeSize = node.nodeSize
-                // this forces redraw of a node to pull in changed ports
-                // esp if port type changed and UUID didnt (which can happen)... 
-                self.version += 1
             }
             .store(in: &cancellables)
 
