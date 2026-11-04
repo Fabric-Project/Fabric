@@ -91,13 +91,6 @@ public class BaseFormatStringNode: Node {
         }
     }
 
-    /// Sets the format string from outside the Settings view — the procedural
-    /// equivalent of typing in the inspector.
-    public func setFormatString(_ formatString: String) {
-        guard formatString != self.formatString else { return }
-        self.formatString = formatString
-    }
-
     override public var settings: (any NodeSettings)? { FormatStringSettings(formatString: self.formatString) }
 
     override public func apply(_ settings: any NodeSettings) {

@@ -491,7 +491,7 @@ public struct JavaScriptSettings: NodeSettings
     public var scriptSource: String
     public var selectedTimeMode: Node.TimeMode
 
-    public init(scriptSource: String, selectedTimeMode: Node.TimeMode = .None)
+    public init(scriptSource: String, selectedTimeMode: Node.TimeMode)
     {
         self.scriptSource = scriptSource
         self.selectedTimeMode = selectedTimeMode
@@ -566,7 +566,7 @@ public final class JavaScriptNode: Node
         }
     }
 
-    public var selectedTimeMode: Node.TimeMode = .None
+    public private(set) var selectedTimeMode: Node.TimeMode = .None
     {
         didSet { self.performOnMainAsync { [weak self] in self?._editorModelStorage?.refreshFromNode() } }
     }
@@ -677,7 +677,7 @@ public final class JavaScriptNode: Node
     }
 
     @MainActor
-    public func updateScriptSource(_ source: String)
+    func updateScriptSource(_ source: String)
     {
         self.scriptSource = source
         self.compileAndSynchronizePorts()
@@ -686,7 +686,7 @@ public final class JavaScriptNode: Node
     /// The execution mode is read off the ports and has no setter. The time
     /// mode is not declared by the script, so it has one.
     @MainActor
-    public func updateTimeMode(_ timeMode: Node.TimeMode)
+    func updateTimeMode(_ timeMode: Node.TimeMode)
     {
         guard self.selectedTimeMode != timeMode else { return }
         self.selectedTimeMode = timeMode

@@ -219,7 +219,7 @@ struct StringFormatStringTests
         // What a pass through the renderer would leave behind.
         formatter.markClean()
 
-        formatter.setFormatString("Goodbye {name}")
+        formatter.setSettings(FormatStringSettings(formatString: "Goodbye {name}"))
         #expect(formatter.isDirty)
 
         try harness.execute(formatter)
@@ -313,7 +313,7 @@ struct StringFormatStringTests
         // What a pass through the renderer would leave behind.
         scanner.markClean()
 
-        scanner.setFormatString("Frame {n:d} at {t:f}s")
+        scanner.setSettings(FormatStringSettings(formatString: "Frame {n:d} at {t:f}s"))
         #expect(scanner.isDirty)
 
         try harness.execute(scanner)

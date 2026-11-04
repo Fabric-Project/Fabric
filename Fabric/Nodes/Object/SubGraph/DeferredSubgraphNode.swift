@@ -116,7 +116,7 @@ public class DeferredSubgraphNode: SubgraphNode
     lazy var graphRenderer:GraphRenderer = self.makeGraphRenderer()
     internal override var childGraphRenderer: GraphRenderer? { self.graphRenderer }
 
-    public var deferredMRTEnabled: Bool = false
+    public internal(set) var deferredMRTEnabled: Bool = false
     {
         didSet
         {

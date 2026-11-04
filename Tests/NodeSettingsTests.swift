@@ -390,7 +390,7 @@ struct NodeSettingsTests
         {
             return { doubled: value * 2 }
         }
-        """))
+        """, selectedTimeMode: .None))
         let editor = node.editorModel
 
         node.setSettings(JavaScriptSettings(scriptSource: """
@@ -454,14 +454,14 @@ struct NodeSettingsTests
         {
             return { doubled: value * 2 }
         }
-        """))
+        """, selectedTimeMode: .None))
         let portIDs = node.ports.map(\.id)
 
         node.setSettings(JavaScriptSettings(scriptSource: """
         function main(value: Number  {
             return { doubled: value * 2 }
         }
-        """))
+        """, selectedTimeMode: .None))
         #expect(node.ports.map(\.id) == portIDs)
         #expect(Set(node.ports.map(\.id)).count == node.ports.count)
     }
