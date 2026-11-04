@@ -565,7 +565,7 @@ public final class JavaScriptNode: Node
             // Sent with the lock given up, and not only to keep a frame off the
             // canvas's wake: a subscriber's first move is to read the statuses
             // back, and this lock is not recursive.
-            if changed { self.subtitleSubject.send() }
+            if changed { self.namingDidChange() }
         }
     }
 

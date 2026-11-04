@@ -282,7 +282,7 @@ public class CameraProviderNode : Node
                 // Retry is for failures; a warning, such as no camera selected, has nothing to retry.
                 _settingsModelStorage?.canRetry = if case .error = captureStatus { true } else { false }
             }
-            self.subtitleSubject.send()
+            self.namingDidChange()
         }
     }
 

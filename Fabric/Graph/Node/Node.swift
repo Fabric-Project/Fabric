@@ -8,7 +8,7 @@
 import SwiftUI
 import Metal
 import Satin
-import Combine
+import Synchronization
 import UniformTypeIdentifiers
 
 
@@ -114,7 +114,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         didSet
         {
             if userName?.isEmpty == true { userName = nil }
-            subtitleSubject.send()
+            namingDidChange()
         }
     }
     
@@ -198,29 +198,48 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     public var offset: CGSize = .zero
     {
-        didSet { offsetSubject.send(offset) }
+        didSet { self.viewModel?.offsetDidChange() }
     }
 
     // Readable by Node subclasses (e.g. AudioSpectrumNode checks self.showSettings
     // to decide whether to compute visualisation data). Written by NodeViewModel.
     public internal(set) var showSettings: Bool = false
 
-    // MARK: - Combine subjects for NodeViewModel sync
+    // MARK: - Telling the view model
 
-    /// Fires whenever offset changes so NodeViewModel can update its cached copy.
-    internal let offsetSubject = CurrentValueSubject<CGSize, Never>(.zero)
+    /// The view model the graph made for this node, which sets it. Held here
+    /// rather than looked up in the graph so a hop to main reads no graph
+    /// state another thread may be editing.
+    internal weak var viewModel: NodeViewModel?
 
     /// Tells the node's view model, where its graph has one, that the port
     /// list changed. Called on the thread that made the change, so the view
     /// model reads the ports where they were written.
     internal func portsDidChange()
     {
-        self.graph?.viewModelIfPresent(for: self)?.portsDidChange()
+        self.viewModel?.portsDidChange()
     }
 
-    /// Fires whenever state feeding `title`, `subtitle` or `status` changes.
-    /// NodeViewModel subscribes and refreshes its observable title row mirrors.
-    internal let subtitleSubject = PassthroughSubject<Void, Never>()
+    /// Call whenever state feeding `title`, `subtitle` or `status` changes,
+    /// from any thread. On main the view model refreshes its title row there
+    /// and then; from elsewhere, on main once for however many calls arrive
+    /// before it gets there. The hop holds the node until it runs, so a call on
+    /// main does not take it, or a deleted node would outlive its last turn.
+    internal func namingDidChange()
+    {
+        if Thread.isMainThread
+        {
+            self.viewModel?.namingDidChange()
+            return
+        }
+        guard !self.namingRefreshPending.exchange(true, ordering: .acquiringAndReleasing) else { return }
+        self.performOnMainAsync {
+            self.namingRefreshPending.store(false, ordering: .releasing)
+            self.viewModel?.namingDidChange()
+        }
+    }
+
+    private let namingRefreshPending = Atomic<Bool>(false)
 
     // Dirty Handling
     private var inputsAreDirty = true

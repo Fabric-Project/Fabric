@@ -466,7 +466,7 @@ public class MIDIInputNode: Node
             updateMIDIConnection()
             performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
             // `subtitle` is derived from the selected input; notify so the title refreshes.
-            self.subtitleSubject.send()
+            self.namingDidChange()
         }
     }
 
@@ -653,7 +653,7 @@ public class MIDIInputNode: Node
 
         performOnMainSync { _settingsModelStorage?.availableInputs = availableInputs }
         // `subtitle` resolves against the input list; notify so the title refreshes.
-        self.subtitleSubject.send()
+        self.namingDidChange()
 
         print("[MIDI] Found \(availableInputs.count) MIDI sources:")
         for input in availableInputs
@@ -782,7 +782,7 @@ public class MIDIInputNode: Node
                 Self.log.error("\(inputStatus.message, privacy: .public)")
             }
             performOnMainSync { _settingsModelStorage?.inputStatus = inputStatus }
-            self.subtitleSubject.send()
+            self.namingDidChange()
         }
     }
 

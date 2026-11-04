@@ -145,7 +145,7 @@ public class InstancedModelMeshNode : InstancedMeshNode
 
         if self.status != statusBefore
         {
-            self.subtitleSubject.send()
+            self.namingDidChange()
         }
 
         switch outcome

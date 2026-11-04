@@ -133,7 +133,7 @@ public class ScreenCaptureProviderNode: Node
                 _settingsModelStorage?.captureStatus = captureFailure?.status
                 _settingsModelStorage?.canRetry = captureFailure?.canRetry ?? false
             }
-            self.subtitleSubject.send()
+            self.namingDidChange()
         }
     }
 

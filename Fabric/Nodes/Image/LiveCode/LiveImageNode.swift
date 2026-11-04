@@ -80,7 +80,7 @@ public class LiveImageNode: BaseImageNode
     private var shaderFileURL: URL?
     private var workspaceError: (any Error)?
     {
-        didSet { self.subtitleSubject.send() }
+        didSet { self.namingDidChange() }
     }
 
     /// Set for the duration of super.init(from:) — see init(from:).
@@ -305,7 +305,7 @@ public class LiveImageNode: BaseImageNode
 
     private func recompileAndResyncPorts() {
         // Whether the shader compiled is the node's status, and it just changed.
-        defer { self.subtitleSubject.send() }
+        defer { self.namingDidChange() }
 
         if let sourceShader = self.postMaterial.shader as? SourceShader {
             sourceShader.reloadFromSource()

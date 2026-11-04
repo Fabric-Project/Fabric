@@ -300,7 +300,7 @@ public class OSCReceiveNode: Node
         {
             guard serverStatus != oldValue else { return }
             performOnMainSync { _settingsModelStorage?.serverStatus = serverStatus }
-            self.subtitleSubject.send()
+            self.namingDidChange()
         }
     }
 

@@ -134,7 +134,7 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
         self.url = url
         self.cachedFileURLName = cachedName
         self.updatePostProcessorLabel()
-        self.subtitleSubject.send()
+        self.namingDidChange()
 
         guard shouldUpdatePipeline else { return }
 

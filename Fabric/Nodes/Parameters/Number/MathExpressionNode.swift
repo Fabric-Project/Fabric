@@ -481,7 +481,7 @@ public class MathExpressionNode: Node
                      : errors.map(\.message).joined(separator: "\n"))
 
         self.performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
-        self.subtitleSubject.send()
+        self.namingDidChange()
     }
 
     /// The ports of the last valid compile: its inputs then its outputs, each

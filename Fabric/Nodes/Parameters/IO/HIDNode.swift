@@ -711,7 +711,7 @@ public class HIDNode: Node
                 Self.log.error("\(deviceStatus.message, privacy: .public)")
             }
             performOnMainSync { _settingsModelStorage?.deviceStatus = deviceStatus }
-            self.subtitleSubject.send()
+            self.namingDidChange()
         }
     }
 

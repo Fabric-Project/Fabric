@@ -219,7 +219,7 @@ open class StrategyNode: Node
         super.apply(settings)
         guard changed else { return }
         // `subtitle` is derived from `strategy`; notify so the title refreshes.
-        self.subtitleSubject.send()
+        self.namingDidChange()
         self.performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
     }
 

@@ -238,7 +238,7 @@ public class GameControllerNode: Node
             setupController()
             performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
             // `subtitle` is derived from the selected controller; notify so the title refreshes.
-            self.subtitleSubject.send()
+            self.namingDidChange()
         }
     }
 
@@ -427,7 +427,7 @@ public class GameControllerNode: Node
 
         performOnMainSync { _settingsModelStorage?.availableControllers = availableControllers }
         // `subtitle` resolves against the controller list; notify so the title refreshes.
-        self.subtitleSubject.send()
+        self.namingDidChange()
 
         print("[GameController] Found \(availableControllers.count) controllers:")
         for info in availableControllers
@@ -534,7 +534,7 @@ public class GameControllerNode: Node
                 Self.log.error("\(controllerStatus.message, privacy: .public)")
             }
             performOnMainSync { _settingsModelStorage?.controllerStatus = controllerStatus }
-            self.subtitleSubject.send()
+            self.namingDidChange()
         }
     }
 

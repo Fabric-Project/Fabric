@@ -4,7 +4,6 @@
 //
 
 import SwiftUI
-import Combine
 import Satin
 
 /// The SwiftUI-observable face of a Node.
@@ -78,10 +77,10 @@ import Satin
     /// `Node.title`, cached and refreshed with the node's other naming state.
     public private(set) var title: String
 
-    /// `Node.subtitle`, cached and kept fresh by subtitleSubject.
+    /// `Node.subtitle`, cached and kept fresh by `namingDidChange()`.
     public private(set) var subtitle: String?
 
-    /// `Node.statuses`, most severe first, cached and kept fresh by subtitleSubject.
+    /// `Node.statuses`, most severe first, cached and kept fresh by `namingDidChange()`.
     public private(set) var statuses: [NodeStatus] = []
 
     /// The most severe status; nil for none.
@@ -117,9 +116,30 @@ import Satin
         self.version += 1
     }
 
-    // MARK: - Init
+    /// The node's offset was set: by this model, or by a graph operation
+    /// such as paste, duplicate or auto-layout.
+    internal func offsetDidChange()
+    {
+        let offset = node.offset
+        if offset != self._offset { self._offset = offset }
+    }
 
-    private var cancellables: Set<AnyCancellable> = []
+    /// State feeding the node's title, rename, subtitle or statuses changed.
+    /// Equality-gated: force-sending upstreams re-assign subtitle-feeding
+    /// ports every frame; only a real change may touch the observable.
+    internal func namingDidChange()
+    {
+        let newUserName = node.userName
+        if newUserName != self._userName { self._userName = newUserName }
+        let newTitle = node.title
+        if newTitle != self.title { self.title = newTitle }
+        let newSubtitle = node.subtitle
+        if newSubtitle != self.subtitle { self.subtitle = newSubtitle }
+        let newStatuses = node.statuses
+        if newStatuses != self.statuses { self.statuses = newStatuses }
+    }
+
+    // MARK: - Init
 
     public init(node: Node)
     {
@@ -132,34 +152,6 @@ import Satin
         self.statuses     = node.statuses
         self.ports        = node.ports
         self.nodeSize     = node.nodeSize
-
-        // Sync offset when graph operations (paste, duplicate, auto-layout)
-        // set node.offset directly.
-        node.offsetSubject
-            .dropFirst()
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] newOffset in
-                self?._offset = newOffset
-            }
-            .store(in: &cancellables)
-
-        // Sync the cached title, rename, and resolved subtitle whenever the
-        // node's naming state changes.
-        node.subtitleSubject
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] in
-                guard let self else { return }
-                // Equality-gated: force-sending upstreams re-assign subtitle-feeding
-                // ports every frame; only a real change may touch the observable.
-                let newUserName = node.userName
-                if newUserName != self._userName { self._userName = newUserName }
-                let newTitle = node.title
-                if newTitle != self.title { self.title = newTitle }
-                let newSubtitle = node.subtitle
-                if newSubtitle != self.subtitle { self.subtitle = newSubtitle }
-                let newStatuses = node.statuses
-                if newStatuses != self.statuses { self.statuses = newStatuses }
-            }
-            .store(in: &cancellables)
+        node.viewModel    = self
     }
 }

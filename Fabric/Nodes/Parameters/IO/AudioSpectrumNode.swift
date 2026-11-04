@@ -528,7 +528,7 @@ public class AudioSpectrumNode : Node
                 // Retry is for failures; a warning says what the node is doing instead.
                 _settingsModel.canRetry = if case .error = captureStatus { true } else { false }
             }
-            self.subtitleSubject.send()
+            self.namingDidChange()
         }
     }
 

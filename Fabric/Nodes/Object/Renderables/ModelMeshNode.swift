@@ -117,7 +117,7 @@ public class ModelMeshNode : MeshNode
 
         if self.status != statusBefore
         {
-            self.subtitleSubject.send()
+            self.namingDidChange()
         }
 
         switch outcome
