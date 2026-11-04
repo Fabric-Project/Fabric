@@ -45,7 +45,7 @@ public struct PortAddress: Hashable, CustomStringConvertible
 /// at, under the port's key. Nothing else about a port belongs to the
 /// document; its type, order and metadata are the code's, and its wires and
 /// publishing are the graph's.
-public struct PortState: Equatable
+public struct PortState: Equatable, Codable
 {
     public let key: PortKey
     public let value: PortValue
