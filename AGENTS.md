@@ -106,7 +106,7 @@ For all development:
   - Override `apply(_:)`; never call it. `setSettings(_:)` is the final entry for views, the procedural API and undo. In `apply`, cast the existential to your own type and return on any other, bring the ports in line so a port whose registry key survives keeps its identity, then call super.
   - The value saves flattened into the node's container, so its coding keys must not be `Node.CodingKeys`. Decode it in `init(from:)`, before `super.init` where the ports depend on it. What the view does not edit, such as a device's reconnect record, stays out of the value.
   - A setting's side effects live in the stored property's observer, so apply, a setter and the view reach them alike: the port rebuild, `subtitleSubject`, and the settings model's `refreshFromNode()` through `performOnMainAsync`. Settings models are `@MainActor`.
-  - `apply` can run off main, as a connection specialises a strategy node. A node whose settings reach main-thread state is applied from main only.
+  - `apply` runs on the thread that edits the graph, which a host can keep off main, and on the render thread as a `NumericTypeAgnosticNode` specialises from `execute`. A node whose settings reach main-thread state is applied from main only.
   - `NodeSettingsTests` covers every registered node with settings; a new one needs no test of its own to be checked.
 
 - Important Node subclasses

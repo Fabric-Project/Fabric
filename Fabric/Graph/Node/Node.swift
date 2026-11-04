@@ -715,8 +715,9 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     /// its own type out of the existential, treats a value of any other type
     /// as no change, and calls super with the same value.
     ///
-    /// Threads: called from main, or from the render thread as a connection
-    /// specialises a strategy node. A node whose settings reach main-thread
+    /// Threads: called on the thread that edits the graph, which a host can
+    /// keep off main, and on the render thread as a NumericTypeAgnosticNode
+    /// specialises from execute(). A node whose settings reach main-thread
     /// state waits for main, so it is applied only from main. A change reaches
     /// an open settings view's model through performOnMainAsync, from the
     /// observer of the stored setting.
