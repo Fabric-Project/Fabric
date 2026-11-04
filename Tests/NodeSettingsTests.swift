@@ -374,8 +374,8 @@ struct NodeSettingsTests
         #expect(model.strategy == PortType.Float.rawValue)
     }
 
-    @Test("A code editor closed unedited keeps the settings applied while it was open, and an edit still wins")
-    func unEditedCodeEditorKeepsAppliedSettings() throws
+    @Test("An open code editor takes a value applied under it, and an edit made in it still wins")
+    func openCodeEditorFollowsAppliedSettings() async throws
     {
         guard let context = makeContext() else { return }
         let node = JavaScriptNode(context: context, settings: JavaScriptSettings(scriptSource: """
@@ -384,7 +384,7 @@ struct NodeSettingsTests
             return { doubled: value * 2 }
         }
         """))
-        let editor = JavaScriptNodeEditorModel(node: node)
+        let editor = node.editorModel
 
         node.setSettings(JavaScriptSettings(scriptSource: """
         function main(value: Number): { tripled: Number }
@@ -394,6 +394,11 @@ struct NodeSettingsTests
         """, selectedTimeMode: .Idle))
         let applied = node.scriptSource
         #expect(applied != editor.content)
+
+        // The editor takes the value on a later turn of main.
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(editor.content == applied)
+        #expect(editor.selectedTimeMode == .Idle)
 
         editor.flush()
         #expect(node.scriptSource == applied)

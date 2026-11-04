@@ -83,6 +83,24 @@ import LanguageSupport
         self.refreshMessages()
     }
 
+    /// Takes the node's source and time mode where they changed under the
+    /// editor, as a value applied to the node; an edit not yet flushed goes.
+    func refreshFromNode()
+    {
+        guard let node else { return }
+        if node.scriptSource != self.savedContent
+        {
+            self.savedContent = node.scriptSource
+            self.content = node.scriptSource
+        }
+        if node.selectedTimeMode != self.savedTimeMode
+        {
+            self.savedTimeMode = node.selectedTimeMode
+            self.selectedTimeMode = node.selectedTimeMode
+        }
+        self.refreshMessages()
+    }
+
     func refreshMessages()
     {
         self.messages = Set(self.diagnostics.map { diagnostic in
@@ -99,12 +117,12 @@ import LanguageSupport
 
 struct JavaScriptNodeSettingsView: View
 {
-    @State private var editorModel: JavaScriptNodeEditorModel
+    @Bindable var editorModel: JavaScriptNodeEditorModel
     @State private var position: CodeEditor.Position = .init()
 
-    init(node: JavaScriptNode)
+    init(editorModel: JavaScriptNodeEditorModel)
     {
-        _editorModel = State(initialValue: JavaScriptNodeEditorModel(node: node))
+        self.editorModel = editorModel
     }
 
     var body: some View

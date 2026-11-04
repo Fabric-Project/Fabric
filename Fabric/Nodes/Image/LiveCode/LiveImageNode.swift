@@ -60,6 +60,9 @@ public class LiveImageNode: BaseImageNode
     private static let staleWorkspaceTTL: TimeInterval = 24 * 60 * 60
 
     private(set) var shaderSource: String = LiveImageNode.defaultShaderSource()
+    {
+        didSet { self.performOnMainAsync { [weak self] in self?._editorModelStorage?.refreshFromNode() } }
+    }
 
     // A decoded copy of a node carries the document and node UUIDs of the
     // original, so keying the workspace on those alone puts two live instances
@@ -152,8 +155,21 @@ public class LiveImageNode: BaseImageNode
     }
 
     override public func settingsView() -> AnyView {
-        AnyView(LiveImageNodeSettingsView(node: self))
+        performOnMainSync { AnyView(LiveImageNodeSettingsView(editorModel: editorModel)) }
     }
+
+    /// The editor's model, made on main when a view first asks for it and
+    /// kept, so a value applied under an open editor reaches it.
+    var editorModel: LiveImageNodeEditorModel {
+        performOnMainSync {
+            if let model = _editorModelStorage { return model }
+            let model = LiveImageNodeEditorModel(node: self)
+            _editorModelStorage = model
+            return model
+        }
+    }
+
+    private var _editorModelStorage: LiveImageNodeEditorModel?
 
     override public var settingsSize: SettingsViewSize {
         .Custom(size: CGSize(width: 900, height: 620))

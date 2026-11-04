@@ -55,6 +55,18 @@ import LanguageSupport
         self.refreshErrorMessagesIfPossible()
     }
 
+    /// Takes the node's source where it changed under the editor, as a value
+    /// applied to the node or the file on disk read on save; an edit not yet
+    /// flushed goes.
+    func refreshFromNode() {
+        guard let node else { return }
+        if node.shaderSource != self.savedContent {
+            self.savedContent = node.shaderSource
+            self.content = node.shaderSource
+        }
+        self.refreshErrorMessagesIfPossible()
+    }
+
     private func refreshErrorMessagesIfPossible() {
         self.messages.removeAll()
         self.diagnostics.removeAll()
@@ -175,11 +187,11 @@ import LanguageSupport
 
 struct LiveImageNodeSettingsView: View
 {
-    @State private var editorModel: LiveImageNodeEditorModel
+    @Bindable var editorModel: LiveImageNodeEditorModel
     @State private var position: CodeEditor.Position = .init()
 
-    init(node: LiveImageNode) {
-        _editorModel = State(initialValue: LiveImageNodeEditorModel(node: node))
+    init(editorModel: LiveImageNodeEditorModel) {
+        self.editorModel = editorModel
     }
 
     var body: some View {

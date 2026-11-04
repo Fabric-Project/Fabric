@@ -537,6 +537,9 @@ public final class JavaScriptNode: Node
     }
 
     @ObservationIgnored private(set) var scriptSource: String = JavaScriptNode.defaultScriptSource()
+    {
+        didSet { self.performOnMainAsync { [weak self] in self?._editorModelStorage?.refreshFromNode() } }
+    }
     @ObservationIgnored private var compiledSignature: JavaScriptNodeSignature?
     @ObservationIgnored private var runtime: JavaScriptNodeRuntime?
     /// What the script last had to say about itself. `execute` writes this from
@@ -564,6 +567,9 @@ public final class JavaScriptNode: Node
     }
 
     public var selectedTimeMode: Node.TimeMode = .None
+    {
+        didSet { self.performOnMainAsync { [weak self] in self?._editorModelStorage?.refreshFromNode() } }
+    }
 
     /// The role the signature puts the node in, on the same reading of it that
     /// gives the node its ports. A script with nothing to return is a script
@@ -647,8 +653,23 @@ public final class JavaScriptNode: Node
 
     override public func settingsView() -> AnyView
     {
-        AnyView(JavaScriptNodeSettingsView(node: self))
+        performOnMainSync { AnyView(JavaScriptNodeSettingsView(editorModel: editorModel)) }
     }
+
+    /// The editor's model, made on main when a view first asks for it and
+    /// kept, so a value applied under an open editor reaches it.
+    var editorModel: JavaScriptNodeEditorModel
+    {
+        performOnMainSync
+        {
+            if let model = _editorModelStorage { return model }
+            let model = JavaScriptNodeEditorModel(node: self)
+            _editorModelStorage = model
+            return model
+        }
+    }
+
+    private var _editorModelStorage: JavaScriptNodeEditorModel?
 
     override public var settingsSize: SettingsViewSize
     {
