@@ -274,7 +274,7 @@ public class OSCReceiveNode: Node
         didSet
         {
             updateServer()
-            performOnMainSync { _settingsModelStorage?.listenPort = listenPort }
+            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
         }
     }
 
@@ -283,7 +283,7 @@ public class OSCReceiveNode: Node
         didSet
         {
             self.rebuildPorts()
-            performOnMainSync { _settingsModelStorage?.addressBindings = addressBindings }
+            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
         }
     }
 
@@ -333,16 +333,16 @@ public class OSCReceiveNode: Node
         {
             didSet
             {
-                guard listenPort != node?.listenPort else { return }
-                node?.listenPort = listenPort
+                guard let node, listenPort != node.listenPort else { return }
+                node.setSettings(OSCReceiveSettings(listenPort: listenPort, addressBindings: node.addressBindings))
             }
         }
         var addressBindings: [OSCAddressBinding]
         {
             didSet
             {
-                guard addressBindings != node?.addressBindings else { return }
-                node?.addressBindings = addressBindings
+                guard let node, addressBindings != node.addressBindings else { return }
+                node.setSettings(OSCReceiveSettings(listenPort: node.listenPort, addressBindings: addressBindings))
             }
         }
         /// Why the server is not running although the node is started, or nil.
@@ -355,6 +355,13 @@ public class OSCReceiveNode: Node
             self.listenPort = node.listenPort
             self.addressBindings = node.addressBindings
             self.serverStatus = node.serverStatus
+        }
+
+        func refreshFromNode()
+        {
+            guard let node else { return }
+            if listenPort != node.listenPort { listenPort = node.listenPort }
+            if addressBindings != node.addressBindings { addressBindings = node.addressBindings }
         }
 
         func retryServer() { node?.updateServer() }
@@ -533,12 +540,12 @@ public class OSCReceiveNode: Node
     fileprivate func addAddressBinding()
     {
         let newBinding = OSCAddressBinding(address: "/osc/\(addressBindings.count + 1)", dataType: .float)
-        addressBindings.append(newBinding)
+        setSettings(OSCReceiveSettings(listenPort: listenPort, addressBindings: addressBindings + [newBinding]))
     }
 
     fileprivate func removeAddressBinding(id: UUID)
     {
-        addressBindings.removeAll(where: { $0.id == id })
+        setSettings(OSCReceiveSettings(listenPort: listenPort, addressBindings: addressBindings.filter { $0.id != id }))
     }
 
     // MARK: - Port Management
