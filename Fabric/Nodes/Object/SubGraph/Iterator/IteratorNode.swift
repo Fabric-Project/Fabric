@@ -17,25 +17,15 @@ public class IteratorNode: SubgraphNode
     override public class var nodeDescription: String { "Execute a Sub Graph n number of times"}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputIteratonCount", ParameterPort(parameter: IntParameter("Iterations", 0, 100, 2, .inputfield, "Number of times to execute the subgraph"))),
+    public let inputIteratonCount = ParameterPort(parameter: IntParameter("Iterations", 0, 100, 2, .inputfield, "Number of times to execute the subgraph"))
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputIteratonCount", port: self.inputIteratonCount),
         ]
     }
-    
-    // Port Proxy
-    public var inputIteratonCount: ParameterPort<Int> { _inputIteratonCount }
-    private var _inputIteratonCount: ParameterPort<Int>!
 
-    override public func bindPorts()
-    {
-        super.bindPorts()
-        self._inputIteratonCount = findPort(named: "inputIteratonCount")
-    }
-        
     // Ensure we always render!
     override public var isDirty:Bool { get {  true  } set { } }
 

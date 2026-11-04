@@ -97,35 +97,15 @@ public class DeferredSubgraphNode: SubgraphNode
     override public class var nodeTimeMode: Node.TimeMode { .TimeBase }
     override public class var nodeDescription: String { "Renders a Sub Graph to an Color Image and Depth Image, suitable for post processing."}
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return  [
-            ("inputWidth", ParameterPort(parameter: IntParameter("Width", 1920, .inputfield, "Output texture width in pixels"))),
-            ("inputHeight", ParameterPort(parameter: IntParameter("Height", 1080, .inputfield, "Output texture height in pixels"))),
-            ("outputColorTexture", NodePort<FabricImage>(name: "Color Texture", kind: .Outlet, description: "Rendered color output from the subgraph")),
-            ("outputDepthTexture", NodePort<FabricImage>(name: "Depth Texture", kind: .Outlet, description: "Rendered depth buffer from the subgraph")),
-        ] + ports
-    }
-    
-    // Proxy Port
-    public var inputWidth: ParameterPort<Int> { _inputWidth }
-    private var _inputWidth: ParameterPort<Int>!
-    public var inputHeight: ParameterPort<Int> { _inputHeight }
-    private var _inputHeight: ParameterPort<Int>!
-    public var outputColorTexture: NodePort<FabricImage> { _outputColorTexture }
-    private var _outputColorTexture: NodePort<FabricImage>!
-    public var outputDepthTexture: NodePort<FabricImage> { _outputDepthTexture }
-    private var _outputDepthTexture: NodePort<FabricImage>!
+    public let inputWidth = ParameterPort(parameter: IntParameter("Width", 1920, .inputfield, "Output texture width in pixels"))
+    public let inputHeight = ParameterPort(parameter: IntParameter("Height", 1080, .inputfield, "Output texture height in pixels"))
+    public let outputColorTexture = NodePort<FabricImage>(name: "Color Texture", kind: .Outlet, description: "Rendered color output from the subgraph")
+    public let outputDepthTexture = NodePort<FabricImage>(name: "Depth Texture", kind: .Outlet, description: "Rendered depth buffer from the subgraph")
 
     override public func bindPorts()
     {
         super.bindPorts()
         self.auxiliaryOutlets = Self.auxiliaryOutputPorts.compactMap { findPort(named: $0.registryName) }
-        self._inputWidth = findPort(named: "inputWidth")
-        self._inputHeight = findPort(named: "inputHeight")
-        self._outputColorTexture = findPort(named: "outputColorTexture")
-        self._outputDepthTexture = findPort(named: "outputDepthTexture")
     }
     
     override public var object:Object? {
@@ -222,9 +202,16 @@ public class DeferredSubgraphNode: SubgraphNode
     /// enabled.
     override public func declaredPorts() -> [PortDeclaration]
     {
-        guard deferredMRTEnabled else { return super.declaredPorts() }
+        let storedPorts = [
+            PortDeclaration(key: "inputWidth", port: self.inputWidth),
+            PortDeclaration(key: "inputHeight", port: self.inputHeight),
+            PortDeclaration(key: "outputColorTexture", port: self.outputColorTexture),
+            PortDeclaration(key: "outputDepthTexture", port: self.outputDepthTexture),
+        ]
 
-        return super.declaredPorts() + Self.auxiliaryOutputPorts.map { descriptor in
+        guard deferredMRTEnabled else { return storedPorts + super.declaredPorts() }
+
+        return storedPorts + super.declaredPorts() + Self.auxiliaryOutputPorts.map { descriptor in
             PortDeclaration(key: descriptor.registryName,
                             port: NodePort<FabricImage>(name: descriptor.displayName,
                                                         kind: .Outlet,

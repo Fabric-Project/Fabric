@@ -18,57 +18,34 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Renders an image on a plane with automatic aspect-ratio sizing" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputImage = NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Image to display on the image mesh")
+    public let inputColor = ParameterPort(parameter: Float4Parameter("Color", .one, .zero, .one, .colorpicker, "Tint color applied to the image (RGBA)"))
+    public let inputSize = ParameterPort(parameter: FloatParameter("Size", 1.0, .inputfield, "Size of the image mesh in world units"))
+    public let inputSizingDimension = ParameterPort(parameter: StringParameter("Sizing Dimension", "Width", ["Width", "Height"], .dropdown, "Which dimension the Size parameter controls"))
+    public let inputBlending = ParameterPort(parameter: StringParameter("Blending Mode", "Alpha", ["Disabled", "Alpha", "Additive", "Subtractive"], .dropdown, "Blending mode for combining with background pixels"))
+    public let inputWriteDepth = ParameterPort(parameter: BoolParameter("Write Depth", true, .button, "When enabled, writes depth values to the depth buffer"))
+    public let inputDepthTest = ParameterPort(parameter: BoolParameter("Depth Test", true, .button, "When enabled, performs depth testing against existing geometry"))
+    public let inputDoubleSided = ParameterPort(parameter: BoolParameter("Double Sided", true, .button, "When enabled, the image shows from behind as well as in front"))
+    public let inputCastsShadow = ParameterPort(parameter: BoolParameter("Enable Shadows", false, .button, "When enabled, the image mesh casts and receives shadows"))
 
-        let visible = ports.filter { $0.name == "inputVisible" }
-        let rest = ports.filter { $0.name != "inputVisible" }
+    /// Visible, then the image mesh's own, then the object's others.
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        let inherited = super.declaredPorts()
+        let visible = inherited.filter { $0.key == .own("inputVisible") }
+        let rest = inherited.filter { $0.key != .own("inputVisible") }
 
         return visible + [
-            ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Image to display on the image mesh")),
-            ("inputColor", ParameterPort(parameter: Float4Parameter("Color", .one, .zero, .one, .colorpicker, "Tint color applied to the image (RGBA)"))),
-            ("inputSize", ParameterPort(parameter: FloatParameter("Size", 1.0, .inputfield, "Size of the image mesh in world units"))),
-            ("inputSizingDimension", ParameterPort(parameter: StringParameter("Sizing Dimension", "Width", ["Width", "Height"], .dropdown, "Which dimension the Size parameter controls"))),
-            ("inputBlending", ParameterPort(parameter: StringParameter("Blending Mode", "Alpha", ["Disabled", "Alpha", "Additive", "Subtractive"], .dropdown, "Blending mode for combining with background pixels"))),
-            ("inputWriteDepth", ParameterPort(parameter: BoolParameter("Write Depth", true, .button, "When enabled, writes depth values to the depth buffer"))),
-            ("inputDepthTest", ParameterPort(parameter: BoolParameter("Depth Test", true, .button, "When enabled, performs depth testing against existing geometry"))),
-            ("inputDoubleSided", ParameterPort(parameter: BoolParameter("Double Sided", true, .button, "When enabled, the image shows from behind as well as in front"))),
-            ("inputCastsShadow", ParameterPort(parameter: BoolParameter("Enable Shadows", false, .button, "When enabled, the image mesh casts and receives shadows"))),
+            PortDeclaration(key: "inputImage", port: self.inputImage),
+            PortDeclaration(key: "inputColor", port: self.inputColor),
+            PortDeclaration(key: "inputSize", port: self.inputSize),
+            PortDeclaration(key: "inputSizingDimension", port: self.inputSizingDimension),
+            PortDeclaration(key: "inputBlending", port: self.inputBlending),
+            PortDeclaration(key: "inputWriteDepth", port: self.inputWriteDepth),
+            PortDeclaration(key: "inputDepthTest", port: self.inputDepthTest),
+            PortDeclaration(key: "inputDoubleSided", port: self.inputDoubleSided),
+            PortDeclaration(key: "inputCastsShadow", port: self.inputCastsShadow),
         ] + rest
-    }
-
-    // Port accessors
-    public var inputImage: NodePort<FabricImage> { _inputImage }
-    private var _inputImage: NodePort<FabricImage>!
-    public var inputColor: ParameterPort<simd_float4> { _inputColor }
-    private var _inputColor: ParameterPort<simd_float4>!
-    public var inputSize: ParameterPort<Float> { _inputSize }
-    private var _inputSize: ParameterPort<Float>!
-    public var inputSizingDimension: ParameterPort<String> { _inputSizingDimension }
-    private var _inputSizingDimension: ParameterPort<String>!
-    public var inputBlending: ParameterPort<String> { _inputBlending }
-    private var _inputBlending: ParameterPort<String>!
-    public var inputWriteDepth: ParameterPort<Bool> { _inputWriteDepth }
-    private var _inputWriteDepth: ParameterPort<Bool>!
-    public var inputDepthTest: ParameterPort<Bool> { _inputDepthTest }
-    private var _inputDepthTest: ParameterPort<Bool>!
-    public var inputDoubleSided: ParameterPort<Bool> { _inputDoubleSided }
-    private var _inputDoubleSided: ParameterPort<Bool>!
-    public var inputCastsShadow: ParameterPort<Bool> { _inputCastsShadow }
-    private var _inputCastsShadow: ParameterPort<Bool>!
-
-    override func bindPorts()
-    {
-        super.bindPorts()
-        self._inputImage = findPort(named: "inputImage")
-        self._inputColor = findPort(named: "inputColor")
-        self._inputSize = findPort(named: "inputSize")
-        self._inputSizingDimension = findPort(named: "inputSizingDimension")
-        self._inputBlending = findPort(named: "inputBlending")
-        self._inputWriteDepth = findPort(named: "inputWriteDepth")
-        self._inputDepthTest = findPort(named: "inputDepthTest")
-        self._inputDoubleSided = findPort(named: "inputDoubleSided")
-        self._inputCastsShadow = findPort(named: "inputCastsShadow")
     }
 
     override public var object: Mesh? {

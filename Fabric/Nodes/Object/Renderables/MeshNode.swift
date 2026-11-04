@@ -17,42 +17,25 @@ public class MeshNode : BaseRenderableNode<Mesh>
     override public class var nodeType:Node.NodeType { .Object(objectType: .Mesh) }
 
     // Register ports, in order of appearance
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        
-        let ports = super.registerPorts(context: context)
-        
-        return ports + [
-            ("inputGeometry",  NodePort<Geometry>(name: "Geometry", kind: .Inlet, description: "Geometry mesh to render")),
-            ("inputMaterial",  NodePort<Material>(name: "Material", kind: .Inlet, description: "Material to apply to the geometry")),
-            ("inputCastsShadow",  ParameterPort(parameter: BoolParameter("Enable Shadows", true, .button, "When enabled, the mesh casts and receives shadows") ) ),
-            ("inputDoubleSided",  ParameterPort(parameter: BoolParameter("Double Sided", false, .button, "When enabled, renders both front and back faces") ) ),
-            ("inputCullingMode",  ParameterPort(parameter: StringParameter("Culling Mode", "Back", ["Back", "Front", "None"], .dropdown, "Which faces to cull during rendering") ) ),
+    public let inputGeometry = NodePort<Geometry>(name: "Geometry", kind: .Inlet, description: "Geometry mesh to render")
+    public let inputMaterial = NodePort<Material>(name: "Material", kind: .Inlet, description: "Material to apply to the geometry")
+    public let inputCastsShadow = ParameterPort(parameter: BoolParameter("Enable Shadows", true, .button, "When enabled, the mesh casts and receives shadows") )
+    public let inputDoubleSided = ParameterPort(parameter: BoolParameter("Double Sided", false, .button, "When enabled, renders both front and back faces") )
+    public let inputCullingMode = ParameterPort(parameter: StringParameter("Culling Mode", "Back", ["Back", "Front", "None"], .dropdown, "Which faces to cull during rendering") )
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputGeometry", port: self.inputGeometry),
+            PortDeclaration(key: "inputMaterial", port: self.inputMaterial),
+            PortDeclaration(key: "inputCastsShadow", port: self.inputCastsShadow),
+            PortDeclaration(key: "inputDoubleSided", port: self.inputDoubleSided),
+            PortDeclaration(key: "inputCullingMode", port: self.inputCullingMode),
         ]
     }
         
     // Ergonomic access (no storage assignment needed)
-    public var inputGeometry: NodePort<Geometry> { _inputGeometry }
-    private var _inputGeometry: NodePort<Geometry>!
-    public var inputMaterial: NodePort<Material> { _inputMaterial }
-    private var _inputMaterial: NodePort<Material>!
-    public var inputCastsShadow: ParameterPort<Bool> { _inputCastsShadow }
-    private var _inputCastsShadow: ParameterPort<Bool>!
-    public var inputDoubleSided: ParameterPort<Bool> { _inputDoubleSided }
-    private var _inputDoubleSided: ParameterPort<Bool>!
-    public var inputCullingMode: ParameterPort<String> { _inputCullingMode }
-    private var _inputCullingMode: ParameterPort<String>!
 
-    override public func bindPorts()
-    {
-        super.bindPorts()
-        self._inputGeometry = findPort(named: "inputGeometry")
-        self._inputMaterial = findPort(named: "inputMaterial")
-        self._inputCastsShadow = findPort(named: "inputCastsShadow")
-        self._inputDoubleSided = findPort(named: "inputDoubleSided")
-        self._inputCullingMode = findPort(named: "inputCullingMode")
-    }
-
-    
     override public var object:Mesh? {
         
         // This is tricky - we want to output nil if we have no inputGeometry  / inputMaterial from upstream ports

@@ -19,45 +19,25 @@ public class DirectionalLightNode : ObjectNode<DirectionalLight>
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Adds a Directional Light to the scene."}
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return  [
-            ("inputLookAt", ParameterPort(parameter:Float3Parameter("Look At", simd_float3(repeating:0), .inputfield, "Target position the light points toward")) ),
-            ("inputColor", ParameterPort(parameter:Float3Parameter("Color", simd_float3(repeating:1), .inputfield, "RGB color of the light")) ),
+    public let inputLookAt = ParameterPort(parameter:Float3Parameter("Look At", simd_float3(repeating:0), .inputfield, "Target position the light points toward"))
+    public let inputColor = ParameterPort(parameter:Float3Parameter("Color", simd_float3(repeating:1), .inputfield, "RGB color of the light"))
+    public let inputIntensity = ParameterPort(parameter: FloatParameter("Intensity", 1.0, 0.0, 10.0, .slider, "Brightness multiplier for the light"))
+    public let inputShadowStrength = ParameterPort(parameter: FloatParameter("Shadow Strength", 0.5, 0.0, 1.0, .slider, "Opacity of cast shadows (0 = invisible, 1 = fully dark)"))
+    public let inputShadowRadius = ParameterPort(parameter: FloatParameter("Shadow Radius", 2.0, 0.0, 16.0, .slider, "Blur radius for soft shadow edges"))
+    public let inputShadowBias = ParameterPort(parameter: FloatParameter("Shadow Bias", 0.005, 0.0, 1.0, .slider, "Offset to prevent shadow acne artifacts"))
 
-            ("inputIntensity", ParameterPort(parameter: FloatParameter("Intensity", 1.0, 0.0, 10.0, .slider, "Brightness multiplier for the light"))),
-            ("inputShadowStrength", ParameterPort(parameter: FloatParameter("Shadow Strength", 0.5, 0.0, 1.0, .slider, "Opacity of cast shadows (0 = invisible, 1 = fully dark)"))),
-            ("inputShadowRadius", ParameterPort(parameter: FloatParameter("Shadow Radius", 2.0, 0.0, 16.0, .slider, "Blur radius for soft shadow edges"))),
-            ("inputShadowBias", ParameterPort(parameter: FloatParameter("Shadow Bias", 0.005, 0.0, 1.0, .slider, "Offset to prevent shadow acne artifacts"))),
-        ] + ports
-    }
-    
-    // Proxy Port
-    public var inputLookAt: ParameterPort<simd_float3> { _inputLookAt }
-    private var _inputLookAt: ParameterPort<simd_float3>!
-    public var inputColor: ParameterPort<simd_float3> { _inputColor }
-    private var _inputColor: ParameterPort<simd_float3>!
-    public var inputIntensity: ParameterPort<Float> { _inputIntensity }
-    private var _inputIntensity: ParameterPort<Float>!
-    public var inputShadowStrength: ParameterPort<Float> { _inputShadowStrength }
-    private var _inputShadowStrength: ParameterPort<Float>!
-    public var inputShadowRadius: ParameterPort<Float> { _inputShadowRadius }
-    private var _inputShadowRadius: ParameterPort<Float>!
-    public var inputShadowBias: ParameterPort<Float> { _inputShadowBias }
-    private var _inputShadowBias: ParameterPort<Float>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputLookAt = findPort(named: "inputLookAt")
-        self._inputColor = findPort(named: "inputColor")
-        self._inputIntensity = findPort(named: "inputIntensity")
-        self._inputShadowStrength = findPort(named: "inputShadowStrength")
-        self._inputShadowRadius = findPort(named: "inputShadowRadius")
-        self._inputShadowBias = findPort(named: "inputShadowBias")
+        [
+            PortDeclaration(key: "inputLookAt", port: self.inputLookAt),
+            PortDeclaration(key: "inputColor", port: self.inputColor),
+            PortDeclaration(key: "inputIntensity", port: self.inputIntensity),
+            PortDeclaration(key: "inputShadowStrength", port: self.inputShadowStrength),
+            PortDeclaration(key: "inputShadowRadius", port: self.inputShadowRadius),
+            PortDeclaration(key: "inputShadowBias", port: self.inputShadowBias),
+        ] + super.declaredPorts()
     }
-    
+
     public override var object: DirectionalLight? {
         return light
     }

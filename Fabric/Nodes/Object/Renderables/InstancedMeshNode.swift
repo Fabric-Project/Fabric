@@ -17,43 +17,25 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
     override public class var nodeDescription: String { "Provides optimized rendering of multiple copies of this Geometry and Material Mesh"}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return [
-            ("inputGeometry", NodePort<Geometry>(name: "Geometry", kind: .Inlet, description: "Geometry mesh to render")),
-            ("inputMaterial", NodePort<Material>(name: "Material", kind: .Inlet, description: "Material to apply to the geometry")),
-            ("inputTransforms", NodePort<ContiguousArray<simd_float4x4>>(name: "Transforms", kind: .Inlet, description: "Array of transforms for each instance")),
-            ("inputCastsShadow", ParameterPort(parameter:BoolParameter("Enable Shadows", true, .button, "When enabled, the mesh casts and receives shadows"))),
-            ("inputDoubleSided", ParameterPort(parameter:BoolParameter("Double Sided", false, .button, "When enabled, renders both front and back faces"))),
-            ("inputCullingMode", ParameterPort(parameter:StringParameter("Culling Mode", "Back", ["Back", "Front", "None"], .dropdown, "Which faces to cull during rendering"))),
-        ] + ports
-    }
-    // Proxy Ports
-    public var inputGeometry: NodePort<Geometry> { _inputGeometry }
-    private var _inputGeometry: NodePort<Geometry>!
-    public var inputMaterial: NodePort<Material> { _inputMaterial }
-    private var _inputMaterial: NodePort<Material>!
-    public var inputTransforms: NodePort<ContiguousArray<simd_float4x4>> { _inputTransforms }
-    private var _inputTransforms: NodePort<ContiguousArray<simd_float4x4>>!
-    public var inputCastsShadow: ParameterPort<Bool> { _inputCastsShadow }
-    private var _inputCastsShadow: ParameterPort<Bool>!
-    public var inputDoubleSided: ParameterPort<Bool> { _inputDoubleSided }
-    private var _inputDoubleSided: ParameterPort<Bool>!
-    public var inputCullingMode: ParameterPort<String> { _inputCullingMode }
-    private var _inputCullingMode: ParameterPort<String>!
+    public let inputGeometry = NodePort<Geometry>(name: "Geometry", kind: .Inlet, description: "Geometry mesh to render")
+    public let inputMaterial = NodePort<Material>(name: "Material", kind: .Inlet, description: "Material to apply to the geometry")
+    public let inputTransforms = NodePort<ContiguousArray<simd_float4x4>>(name: "Transforms", kind: .Inlet, description: "Array of transforms for each instance")
+    public let inputCastsShadow = ParameterPort(parameter:BoolParameter("Enable Shadows", true, .button, "When enabled, the mesh casts and receives shadows"))
+    public let inputDoubleSided = ParameterPort(parameter:BoolParameter("Double Sided", false, .button, "When enabled, renders both front and back faces"))
+    public let inputCullingMode = ParameterPort(parameter:StringParameter("Culling Mode", "Back", ["Back", "Front", "None"], .dropdown, "Which faces to cull during rendering"))
 
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputGeometry = findPort(named: "inputGeometry")
-        self._inputMaterial = findPort(named: "inputMaterial")
-        self._inputTransforms = findPort(named: "inputTransforms")
-        self._inputCastsShadow = findPort(named: "inputCastsShadow")
-        self._inputDoubleSided = findPort(named: "inputDoubleSided")
-        self._inputCullingMode = findPort(named: "inputCullingMode")
+        [
+            PortDeclaration(key: "inputGeometry", port: self.inputGeometry),
+            PortDeclaration(key: "inputMaterial", port: self.inputMaterial),
+            PortDeclaration(key: "inputTransforms", port: self.inputTransforms),
+            PortDeclaration(key: "inputCastsShadow", port: self.inputCastsShadow),
+            PortDeclaration(key: "inputDoubleSided", port: self.inputDoubleSided),
+            PortDeclaration(key: "inputCullingMode", port: self.inputCullingMode),
+        ] + super.declaredPorts()
     }
-  
+
     override public var object:InstancedMesh? { 
         // This is tricky - we want to output nil if we have no inputGeometry  / inputMaterial from upstream ports
         if let _ = self.inputGeometry.value ,

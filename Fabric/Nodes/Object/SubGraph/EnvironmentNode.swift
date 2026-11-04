@@ -17,29 +17,17 @@ public class EnvironmentNode: SubgraphNode
     override public class var nodeDescription: String { "Subgraph that provides an environment for 3D rendering" }
     
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputEnvironmentTexture", NodePort<FabricImage>(name: "Environment Texture", kind: .Inlet, description: "HDR environment map for image-based lighting")),
-            ("inputEnvironmentIntensity", ParameterPort(parameter: FloatParameter("Environment Intensity", 1.0, 0.0, 1.0, .slider, "Brightness multiplier for the environment lighting"))),
-//            ("inputBlur", ParameterPort(parameter: FloatParameter("Blur", 0.0, 0.0, 5.0, .slider))),
+    public let inputEnvironmentTexture = NodePort<FabricImage>(name: "Environment Texture", kind: .Inlet, description: "HDR environment map for image-based lighting")
+    public let inputEnvironmentIntensity = ParameterPort(parameter: FloatParameter("Environment Intensity", 1.0, 0.0, 1.0, .slider, "Brightness multiplier for the environment lighting"))
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputEnvironmentTexture", port: self.inputEnvironmentTexture),
+            PortDeclaration(key: "inputEnvironmentIntensity", port: self.inputEnvironmentIntensity),
         ]
     }
-    
-    // Port Proxy
-    public var inputEnvironmentTexture: NodePort<FabricImage> { _inputEnvironmentTexture }
-    private var _inputEnvironmentTexture: NodePort<FabricImage>!
-    public var inputEnvironmentIntensity: ParameterPort<Float> { _inputEnvironmentIntensity }
-    private var _inputEnvironmentIntensity: ParameterPort<Float>!
 
-    override public func bindPorts()
-    {
-        super.bindPorts()
-        self._inputEnvironmentTexture = findPort(named: "inputEnvironmentTexture")
-        self._inputEnvironmentIntensity = findPort(named: "inputEnvironmentIntensity")
-    }
 //    public var inputBlur:ParameterPort<Float> { port(named: "inputBlur") }
     
     
