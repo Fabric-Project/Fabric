@@ -25,7 +25,7 @@ public class PixelsToUnitsNode : Node
     public override func declaredPorts() -> [PortDeclaration]
     {
         [
-            PortDeclaration(key: "inputCursorPositionPort", port: self.inputCursorPosition),
+            PortDeclaration(key: "inputPixelPositionPort", port: self.inputCursorPosition),
             PortDeclaration(key: "outputUnitPositionPort", port: self.outputUnitPosition),
         ] + super.declaredPorts()
     }

@@ -31,7 +31,7 @@ struct StoredPortDeclarationTests
         #expect(log.ports.count == 1)
 
         let units = PixelsToUnitsNode(context: context)
-        #expect((units.findPort(named: "inputCursorPositionPort") as Fabric.Port?) === units.inputCursorPosition)
+        #expect((units.findPort(named: "inputPixelPositionPort") as Fabric.Port?) === units.inputCursorPosition)
         #expect((units.findPort(named: "outputUnitPositionPort") as Fabric.Port?) === units.outputUnitPosition)
         #expect(units.ports.map(\.id) == [units.inputCursorPosition.id, units.outputUnitPosition.id])
         #expect(units.parameterGroup.params.contains { $0 === units.inputCursorPosition.parameter })
@@ -58,5 +58,20 @@ struct StoredPortDeclarationTests
         #expect(loadedUnits.inputCursorPosition.connectedOutlets.first === loadedNumber.outputNumber)
         #expect(loaded.droppedConnectionDiagnostics.isEmpty)
         #expect(loaded.droppedPortStateDiagnostics.isEmpty)
+    }
+
+    @Test("A port an old document saved in the registry under a renamed key comes back under the new one")
+    func renamedRegistryKeyKeepsItsPublishing() throws
+    {
+        guard let context = makeContext() else { return }
+
+        let image = LegacyDocumentFixture.SavedPort(key: "inputTexturePort", type: "Image", name: "Image", published: true, publishedName: "Picture")
+        let vlm = LegacyDocumentFixture.SavedNode(type: "LocalVLMNode", ports: [image])
+        let loaded = try LegacyDocumentFixture(nodes: [vlm], connections: []).decode(context: context)
+
+        let loadedVLM = try #require(loaded.node(forID: vlm.id) as? LocalVLMNode)
+        #expect((loadedVLM.findPort(named: "inputImage") as Fabric.Port?) === loadedVLM.inputTexturePort)
+        #expect(loaded.isPublished(loadedVLM.inputTexturePort))
+        #expect(loaded.publishedName(of: loadedVLM.inputTexturePort) == "Picture")
     }
 }

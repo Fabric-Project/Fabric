@@ -27,7 +27,7 @@ public class ForegroundMaskNode: Node
     override public func declaredPorts() -> [PortDeclaration]
     {
         [
-            PortDeclaration(key: "inputTexturePort", port: self.inputTexturePort),
+            PortDeclaration(key: "inputImage", port: self.inputTexturePort),
             PortDeclaration(key: "outputTexturePort", port: self.outputTexturePort),
         ] + super.declaredPorts()
     }

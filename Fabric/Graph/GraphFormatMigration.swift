@@ -18,9 +18,16 @@ import Foundation
 /// source that does not compile and never did would.
 enum GraphFormatMigration
 {
-    /// Ports a node type saved under a key it no longer declares them by.
+    /// Ports a node type saved under a key it no longer declares them by,
+    /// whether the old document kept the port in its registry or under a
+    /// coding key of its own.
     private static let renamedKeys: [String: [String: String]] = [
         "ImageDimensions": ["inputTexturePort": "inputImage", "outputResolutionPort": "legacyOutputResolution"],
+        "ForegroundMaskNode": ["inputTexturePort": "inputImage"],
+        "PersonSegmentationMaskNode": ["inputTexturePort": "inputImage"],
+        "LocalVLMNode": ["inputTexturePort": "inputImage"],
+        "UnitsoPixelsNode": ["outputCursorPositionPort": "outputPixelPositionPort"],
+        "PixelsToUnitsNode": ["inputCursorPositionPort": "inputPixelPositionPort"],
     ]
 
     private struct SavedPort
@@ -114,7 +121,7 @@ enum GraphFormatMigration
                       let payload = snapshot["payload"] as? [String: Any],
                       let base = payload["base"] as? [String: Any]
                 else { continue }
-                take(payload, base: base, key: key)
+                take(payload, base: base, key: Self.renamedKeys[type]?[key] ?? key)
             }
 
             // Nodes that kept ports in stored properties saved each under a

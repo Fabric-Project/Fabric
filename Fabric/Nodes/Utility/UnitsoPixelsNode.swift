@@ -26,7 +26,7 @@ public class UnitsoPixelsNode : Node
     {
         [
             PortDeclaration(key: "inputUnitPositionPort", port: self.inputUnitPosition),
-            PortDeclaration(key: "outputCursorPositionPort", port: self.outputPixelPosition),
+            PortDeclaration(key: "outputPixelPositionPort", port: self.outputPixelPosition),
         ] + super.declaredPorts()
     }
 

@@ -54,7 +54,7 @@ struct LocalVLMNodeSettingsView: View {
     {
         super.declaredPorts() + [
             PortDeclaration(key: "inputPrompt", port: self.inputPrompt),
-            PortDeclaration(key: "inputTexturePort", port: self.inputTexturePort),
+            PortDeclaration(key: "inputImage", port: self.inputTexturePort),
             PortDeclaration(key: "inputGenerate", port: self.inputGenerate),
             PortDeclaration(key: "outputPort", port: self.outputPort),
             PortDeclaration(key: "outputStats", port: self.outputStats),
