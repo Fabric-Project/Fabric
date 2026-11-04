@@ -558,6 +558,9 @@ internal import AnyCodable
             self.nodeViewModels[node.id] = nil
         }
 
+        // Before registering, as setPublished(_:at:name:) explains.
+        self.rebuildPublishedParameterGroup()
+
         self.undoManager?.registerUndo(withTarget: self) { graph in
             graph.restoreDeletedNode(node,
                                      offset: savedOffset,
@@ -569,7 +572,6 @@ internal import AnyCodable
         self.markConnectionsChanged()
 
         self.updateCameraSelection()
-        self.rebuildPublishedParameterGroup()
     }
 
     private func restoreDeletedNode(_ node: Node,
@@ -982,6 +984,10 @@ internal import AnyCodable
         self.undoManager?.setActionName("Rename Published Port")
     }
 
+    /// The enclosing subgraph node reconciles its proxies inside the rebuild,
+    /// registering its own undo steps, such as restoring a retired proxy's
+    /// wires. This step registers after them so it undoes first: the proxy
+    /// is back before its wires are.
     private func setPublished(_ published: Bool, at address: PortAddress, name: String?)
     {
         let existing = self.publishedPortEntries.firstIndex { $0.address == address }
@@ -989,16 +995,17 @@ internal import AnyCodable
         {
         case (true, nil):
             self.publishedPortEntries.append(PublishedPort(address: address, name: name))
+            self.rebuildPublishedParameterGroup()
             self.undoManager?.registerUndo(withTarget: self) { graph in graph.setPublished(false, at: address, name: nil) }
             self.undoManager?.setActionName("Publish Port")
         case (false, let index?):
             let removed = self.publishedPortEntries.remove(at: index)
+            self.rebuildPublishedParameterGroup()
             self.undoManager?.registerUndo(withTarget: self) { graph in graph.setPublished(true, at: address, name: removed.name) }
             self.undoManager?.setActionName("Unpublish Port")
         default:
             return
         }
-        self.rebuildPublishedParameterGroup()
     }
 
 
