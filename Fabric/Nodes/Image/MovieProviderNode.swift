@@ -69,58 +69,31 @@ public class MovieProviderNode : Node, NodeTakingFile
     public let seekTolerance: TimeInterval
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputFilePathParam = ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the movie file to play"))
+    public let inputPlayingParam = ParameterPort(parameter: BoolParameter("Playing", true, .toggle, "Play / pause the video"))
+    public let inputRateParam = ParameterPort(parameter: FloatParameter("Rate", 1.0, 0.0, 1.0, .slider, "Playback rate where 0 is paused and 1 is normal speed"))
+    public let inputSeekTimeParam = ParameterPort(parameter: FloatParameter("Seek Time", -1.0, .inputfield, "Write a value to seek the player to that time (seconds). Setting to a different value seeks; setting to the same value is a no-op. Negative values are ignored on first load."))
+    public let inputVolumeParam = ParameterPort(parameter: FloatParameter("Volume", 0.0, 0.0, 1.0, .slider, "Audio playback volume where 0 is silent and 1 is full volume"))
+    public let outputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Current video frame")
+    public let outputCurrentTimePort = NodePort<Float>(name: "Current Time", kind: .Outlet, description: "Current movie playback time in seconds")
+    public let outputDurationPort = NodePort<Float>(name: "Duration", kind: .Outlet, description: "Movie duration in seconds")
+    public let outputNormalizedTimePort = NodePort<Float>(name: "Normalized Time", kind: .Outlet, description: "Current playback position normalized from 0 to 1")
+    public let outputDidPlayToEndPort = NodePort<Bool>(name: "Did Play To End", kind: .Outlet, description: "True for one execution pass when playback reaches the end")
 
-        return ports +
-        [
-            ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the movie file to play"))),
-            ("inputPlayingParam", ParameterPort(parameter: BoolParameter("Playing", true, .toggle, "Play / pause the video"))),
-            ("inputRateParam", ParameterPort(parameter: FloatParameter("Rate", 1.0, 0.0, 1.0, .slider, "Playback rate where 0 is paused and 1 is normal speed"))),
-            ("inputSeekTimeParam", ParameterPort(parameter: FloatParameter("Seek Time", -1.0, .inputfield, "Write a value to seek the player to that time (seconds). Setting to a different value seeks; setting to the same value is a no-op. Negative values are ignored on first load."))),
-            ("inputVolumeParam", ParameterPort(parameter: FloatParameter("Volume", 0.0, 0.0, 1.0, .slider, "Audio playback volume where 0 is silent and 1 is full volume"))),
-            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Current video frame")),
-            ("outputCurrentTimePort", NodePort<Float>(name: "Current Time", kind: .Outlet, description: "Current movie playback time in seconds")),
-            ("outputDurationPort", NodePort<Float>(name: "Duration", kind: .Outlet, description: "Movie duration in seconds")),
-            ("outputNormalizedTimePort", NodePort<Float>(name: "Normalized Time", kind: .Outlet, description: "Current playback position normalized from 0 to 1")),
-            ("outputDidPlayToEndPort", NodePort<Bool>(name: "Did Play To End", kind: .Outlet, description: "True for one execution pass when playback reaches the end")),
-        ]
-    }
-
-    public var inputFilePathParam: ParameterPort<String> { _inputFilePathParam }
-    private var _inputFilePathParam: ParameterPort<String>!
-    public var inputPlayingParam: ParameterPort<Bool> { _inputPlayingParam }
-    private var _inputPlayingParam: ParameterPort<Bool>!
-    public var inputRateParam: ParameterPort<Float> { _inputRateParam }
-    private var _inputRateParam: ParameterPort<Float>!
-    public var inputSeekTimeParam: ParameterPort<Float> { _inputSeekTimeParam }
-    private var _inputSeekTimeParam: ParameterPort<Float>!
-    public var inputVolumeParam: ParameterPort<Float> { _inputVolumeParam }
-    private var _inputVolumeParam: ParameterPort<Float>!
-    public var outputTexturePort: NodePort<FabricImage> { _outputTexturePort }
-    private var _outputTexturePort: NodePort<FabricImage>!
-    public var outputCurrentTimePort: NodePort<Float> { _outputCurrentTimePort }
-    private var _outputCurrentTimePort: NodePort<Float>!
-    public var outputDurationPort: NodePort<Float> { _outputDurationPort }
-    private var _outputDurationPort: NodePort<Float>!
-    public var outputNormalizedTimePort: NodePort<Float> { _outputNormalizedTimePort }
-    private var _outputNormalizedTimePort: NodePort<Float>!
-    public var outputDidPlayToEndPort: NodePort<Bool> { _outputDidPlayToEndPort }
-    private var _outputDidPlayToEndPort: NodePort<Bool>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputFilePathParam = findPort(named: "inputFilePathParam")
-        self._inputPlayingParam = findPort(named: "inputPlayingParam")
-        self._inputRateParam = findPort(named: "inputRateParam")
-        self._inputSeekTimeParam = findPort(named: "inputSeekTimeParam")
-        self._inputVolumeParam = findPort(named: "inputVolumeParam")
-        self._outputTexturePort = findPort(named: "outputTexturePort")
-        self._outputCurrentTimePort = findPort(named: "outputCurrentTimePort")
-        self._outputDurationPort = findPort(named: "outputDurationPort")
-        self._outputNormalizedTimePort = findPort(named: "outputNormalizedTimePort")
-        self._outputDidPlayToEndPort = findPort(named: "outputDidPlayToEndPort")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputFilePathParam", port: self.inputFilePathParam),
+            PortDeclaration(key: "inputPlayingParam", port: self.inputPlayingParam),
+            PortDeclaration(key: "inputRateParam", port: self.inputRateParam),
+            PortDeclaration(key: "inputSeekTimeParam", port: self.inputSeekTimeParam),
+            PortDeclaration(key: "inputVolumeParam", port: self.inputVolumeParam),
+            PortDeclaration(key: "outputTexturePort", port: self.outputTexturePort),
+            PortDeclaration(key: "outputCurrentTimePort", port: self.outputCurrentTimePort),
+            PortDeclaration(key: "outputDurationPort", port: self.outputDurationPort),
+            PortDeclaration(key: "outputNormalizedTimePort", port: self.outputNormalizedTimePort),
+            PortDeclaration(key: "outputDidPlayToEndPort", port: self.outputDidPlayToEndPort),
+        ]
     }
 
     private var url: URL? = nil

@@ -21,54 +21,29 @@ public final class ContourPathNode: Node {
     static let kMaxSegments: Int = 5_000_000
     
     // MARK: - Ports (Registry)
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputMask = NodePort<FabricImage>(name: "Mask", kind: .Inlet, description: "Grayscale mask image to extract contours from")
+    public let inputIso = ParameterPort(parameter: FloatParameter("Iso Level", 0.5, .inputfield, "Threshold value for edge detection (0-1)"))
+    public let inputMaxSegments = ParameterPort(parameter: IntParameter("Max Segments", ContourPathNode.kMaxSegments, .inputfield, "Maximum number of contour segments to generate"))
+    public let inputJoinEpsilon = ParameterPort(parameter: FloatParameter("Join Epsilon (px)", 1.0, .inputfield, "Pixel tolerance for joining contour endpoints"))
+    public let inputResultDelivery = ParameterPort(parameter: StringParameter(
+    "Result Timing", GPUResultDeliveryMode.sync.rawValue,
+    GPUResultDeliveryMode.allCases.map(\.rawValue), .dropdown,
+    "Same Frame waits for GPU results; Next Frame publishes completed results on a later matching execution"))
+    public let outputContour = NodePort<ContiguousArray<simd_float2>>(name: "Contour (points)", kind: .Outlet, description: "Ordered contour points in pixel coordinates")
 
-        return ports + [
-            // Inputs
-            ("inputMask", NodePort<FabricImage>(name: "Mask", kind: .Inlet, description: "Grayscale mask image to extract contours from")),
-
-            // Params
-            ("inputIso",  ParameterPort(parameter: FloatParameter("Iso Level", 0.5, .inputfield, "Threshold value for edge detection (0-1)"))),
-            ("inputMaxSegments", ParameterPort(parameter: IntParameter("Max Segments", Self.kMaxSegments, .inputfield, "Maximum number of contour segments to generate"))),
-            ("inputJoinEpsilon", ParameterPort(parameter: FloatParameter("Join Epsilon (px)", 1.0, .inputfield, "Pixel tolerance for joining contour endpoints"))),
-
-            ("inputResultDelivery", ParameterPort(parameter: StringParameter(
-                "Result Timing", GPUResultDeliveryMode.sync.rawValue,
-                GPUResultDeliveryMode.allCases.map(\.rawValue), .dropdown,
-                "Same Frame waits for GPU results; Next Frame publishes completed results on a later matching execution"))),
-
-            // Output (arbitrary payload for now)
-            ("outputContour", NodePort<ContiguousArray<simd_float2>>(name: "Contour (points)", kind: .Outlet, description: "Ordered contour points in pixel coordinates")),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputMask", port: self.inputMask),
+            PortDeclaration(key: "inputIso", port: self.inputIso),
+            PortDeclaration(key: "inputMaxSegments", port: self.inputMaxSegments),
+            PortDeclaration(key: "inputJoinEpsilon", port: self.inputJoinEpsilon),
+            PortDeclaration(key: "inputResultDelivery", port: self.inputResultDelivery),
+            PortDeclaration(key: "outputContour", port: self.outputContour),
         ]
     }
 
     // Proxies
-    public var inputMask: NodePort<FabricImage> { _inputMask }
-    private var _inputMask: NodePort<FabricImage>!
-    public var inputIso: ParameterPort<Float> { _inputIso }
-    private var _inputIso: ParameterPort<Float>!
-    public var inputMaxSegments: ParameterPort<Int> { _inputMaxSegments }
-    private var _inputMaxSegments: ParameterPort<Int>!
-    public var inputJoinEpsilon: ParameterPort<Float> { _inputJoinEpsilon }
-    private var _inputJoinEpsilon: ParameterPort<Float>!
-
-    public var outputContour: NodePort<ContiguousArray<simd_float2>> { _outputContour }
-    private var _outputContour: NodePort<ContiguousArray<simd_float2>>!
-
-    public var inputResultDelivery: ParameterPort<String> { _inputResultDelivery }
-    private var _inputResultDelivery: ParameterPort<String>!
-
-    override public func bindPorts()
-    {
-        super.bindPorts()
-        self._inputMask = findPort(named: "inputMask")
-        self._inputIso = findPort(named: "inputIso")
-        self._inputMaxSegments = findPort(named: "inputMaxSegments")
-        self._inputJoinEpsilon = findPort(named: "inputJoinEpsilon")
-        self._outputContour = findPort(named: "outputContour")
-        self._inputResultDelivery = findPort(named: "inputResultDelivery")
-    }
     public var resultDeliveryMode: GPUResultDeliveryMode {
         get { GPUResultDeliveryMode(rawValue: inputResultDelivery.value ?? "") ?? .sync }
         set { inputResultDelivery.value = newValue.rawValue }

@@ -43,39 +43,23 @@ struct LocalVLMNodeSettingsView: View {
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Provide a string prompt to a local VLLM for evaluation via MLX-Swift-LM" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        super.registerPorts(context: context) + [
-            ("inputPrompt", ParameterPort(parameter: StringParameter("Prompt", "Describe this image?", [], .inputfield, "Text prompt to send to the model"))),
-            ("inputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Image to analyze with the VLM")),
-            ("inputGenerate", ParameterPort(parameter: BoolParameter("Generate", false, .button, "Trigger text generation"))),
-            ("outputPort", NodePort<String>(name: "Output", kind: .Outlet, description: "Generated text response")),
-            ("outputStats", NodePort<String>(name: "Stats", kind: .Outlet, description: "Generation statistics")),
-            ("outputModel", NodePort<String>(name: "Model Info", kind: .Outlet, description: "Current model information")),
-        ]
-    }
+    public let inputPrompt: NodePort<String> = ParameterPort(parameter: StringParameter("Prompt", "Describe this image?", [], .inputfield, "Text prompt to send to the model"))
+    public let inputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Image to analyze with the VLM")
+    public let inputGenerate: NodePort<Bool> = ParameterPort(parameter: BoolParameter("Generate", false, .button, "Trigger text generation"))
+    public let outputPort = NodePort<String>(name: "Output", kind: .Outlet, description: "Generated text response")
+    public let outputStats = NodePort<String>(name: "Stats", kind: .Outlet, description: "Generation statistics")
+    public let outputModel = NodePort<String>(name: "Model Info", kind: .Outlet, description: "Current model information")
 
-    public var inputPrompt: NodePort<String> { _inputPrompt }
-    private var _inputPrompt: NodePort<String>!
-    public var inputTexturePort: NodePort<FabricImage> { _inputTexturePort }
-    private var _inputTexturePort: NodePort<FabricImage>!
-    public var inputGenerate: NodePort<Bool> { _inputGenerate }
-    private var _inputGenerate: NodePort<Bool>!
-    public var outputPort: NodePort<String> { _outputPort }
-    private var _outputPort: NodePort<String>!
-    public var outputStats: NodePort<String> { _outputStats }
-    private var _outputStats: NodePort<String>!
-    public var outputModel: NodePort<String> { _outputModel }
-    private var _outputModel: NodePort<String>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputPrompt = findPort(named: "inputPrompt")
-        self._inputTexturePort = findPort(named: "inputTexturePort")
-        self._inputGenerate = findPort(named: "inputGenerate")
-        self._outputPort = findPort(named: "outputPort")
-        self._outputStats = findPort(named: "outputStats")
-        self._outputModel = findPort(named: "outputModel")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputPrompt", port: self.inputPrompt),
+            PortDeclaration(key: "inputTexturePort", port: self.inputTexturePort),
+            PortDeclaration(key: "inputGenerate", port: self.inputGenerate),
+            PortDeclaration(key: "outputPort", port: self.outputPort),
+            PortDeclaration(key: "outputStats", port: self.outputStats),
+            PortDeclaration(key: "outputModel", port: self.outputModel),
+        ]
     }
 
     private enum CodingKeys: String, CodingKey {

@@ -10,43 +10,25 @@ public final class PostProcessMotionBlurNode: Node
     public override class var nodeTimeMode: Node.TimeMode { .None }
     public override class var nodeDescription: String { "Applies Satin's velocity-buffer motion blur to an input image." }
 
-    public override class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        super.registerPorts(context: context) + [
-            ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input color image to blur")),
-            ("inputVelocityImage", NodePort<FabricImage>(name: "Velocity Image", kind: .Inlet, description: "Input motion-vector image used to drive blur direction and length")),
-            ("inputDepthImage", NodePort<FabricImage>(name: "Depth Image", kind: .Inlet, description: "Optional input depth image for neighborhood rejection")),
-            ("inputShutterAngle", ParameterPort(parameter: FloatParameter("Shutter Angle", 180.0, 0.0, 720.0 * 64.0, .slider, "Exposure as degrees of one frame interval"))),
-            ("inputSamples", ParameterPort(parameter: IntParameter("Samples", 16, 1, 32, .slider, "Number of velocity samples used during reconstruction"))),
-            ("inputJitter", ParameterPort(parameter: FloatParameter("Jitter", 1.0, 0.0, 1.0, .slider, "Blue-noise jitter amount for sampling"))),
-            ("outputImage", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Motion-blurred image")),
-        ]
-    }
+    public let inputImage = NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input color image to blur")
+    public let inputVelocityImage = NodePort<FabricImage>(name: "Velocity Image", kind: .Inlet, description: "Input motion-vector image used to drive blur direction and length")
+    public let inputDepthImage = NodePort<FabricImage>(name: "Depth Image", kind: .Inlet, description: "Optional input depth image for neighborhood rejection")
+    public let inputShutterAngle = ParameterPort(parameter: FloatParameter("Shutter Angle", 180.0, 0.0, 720.0 * 64.0, .slider, "Exposure as degrees of one frame interval"))
+    public let inputSamples = ParameterPort(parameter: IntParameter("Samples", 16, 1, 32, .slider, "Number of velocity samples used during reconstruction"))
+    public let inputJitter = ParameterPort(parameter: FloatParameter("Jitter", 1.0, 0.0, 1.0, .slider, "Blue-noise jitter amount for sampling"))
+    public let outputImage = NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Motion-blurred image")
 
-    public var inputImage: NodePort<FabricImage> { _inputImage }
-    private var _inputImage: NodePort<FabricImage>!
-    public var inputVelocityImage: NodePort<FabricImage> { _inputVelocityImage }
-    private var _inputVelocityImage: NodePort<FabricImage>!
-    public var inputDepthImage: NodePort<FabricImage> { _inputDepthImage }
-    private var _inputDepthImage: NodePort<FabricImage>!
-    public var inputShutterAngle: ParameterPort<Float> { _inputShutterAngle }
-    private var _inputShutterAngle: ParameterPort<Float>!
-    public var inputSamples: ParameterPort<Int> { _inputSamples }
-    private var _inputSamples: ParameterPort<Int>!
-    public var inputJitter: ParameterPort<Float> { _inputJitter }
-    private var _inputJitter: ParameterPort<Float>!
-    public var outputImage: NodePort<FabricImage> { _outputImage }
-    private var _outputImage: NodePort<FabricImage>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputImage = findPort(named: "inputImage")
-        self._inputVelocityImage = findPort(named: "inputVelocityImage")
-        self._inputDepthImage = findPort(named: "inputDepthImage")
-        self._inputShutterAngle = findPort(named: "inputShutterAngle")
-        self._inputSamples = findPort(named: "inputSamples")
-        self._inputJitter = findPort(named: "inputJitter")
-        self._outputImage = findPort(named: "outputImage")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputImage", port: self.inputImage),
+            PortDeclaration(key: "inputVelocityImage", port: self.inputVelocityImage),
+            PortDeclaration(key: "inputDepthImage", port: self.inputDepthImage),
+            PortDeclaration(key: "inputShutterAngle", port: self.inputShutterAngle),
+            PortDeclaration(key: "inputSamples", port: self.inputSamples),
+            PortDeclaration(key: "inputJitter", port: self.inputJitter),
+            PortDeclaration(key: "outputImage", port: self.outputImage),
+        ]
     }
 
     private let postProcessor: MotionBlurPostProcessEncoder

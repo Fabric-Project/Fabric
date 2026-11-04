@@ -11,47 +11,27 @@ public final class DepthOfFieldNode: Node
     public override class var nodeTimeMode: Node.TimeMode { .None }
     public override class var nodeDescription: String { "Applies a bokeh depth-of-field pass using a color image and matching depth image." }
 
-    public override class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        super.registerPorts(context: context) + [
-            ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input color image to blur")),
-            ("inputDepthImage", NodePort<FabricImage>(name: "Depth Image", kind: .Inlet, description: "Input depth image for focus reconstruction")),
-            ("inputFocusDistance", ParameterPort(parameter: FloatParameter("Focus Distance", 4.0, 0.001, 1000.0, .slider, "Distance from the camera that stays sharp"))),
-            ("inputFocusRange", ParameterPort(parameter: FloatParameter("Focus Range", 1.5, 0.001, 1000.0, .slider, "Full depth band that remains acceptably sharp"))),
-            ("inputMaxBlurRadius", ParameterPort(parameter: FloatParameter("Max Blur Radius", 18.0, 0.0, 32.0, .slider, "Maximum circle-of-confusion radius in full-resolution pixels"))),
-            ("inputResolutionScale", ParameterPort(parameter: FloatParameter("Resolution Scale", 0.5, 0.25, 1.0, .slider, "Internal processing resolution relative to the input image"))),
-            ("inputBlend", ParameterPort(parameter: FloatParameter("Blend", 1.0, 0.0, 4.0, .slider, "Blend multiplier applied to the near and far compositing ramps"))),
-            ("outputImage", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Depth-of-field processed image")),
-        ]
-    }
+    public let inputImage = NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input color image to blur")
+    public let inputDepthImage = NodePort<FabricImage>(name: "Depth Image", kind: .Inlet, description: "Input depth image for focus reconstruction")
+    public let inputFocusDistance = ParameterPort(parameter: FloatParameter("Focus Distance", 4.0, 0.001, 1000.0, .slider, "Distance from the camera that stays sharp"))
+    public let inputFocusRange = ParameterPort(parameter: FloatParameter("Focus Range", 1.5, 0.001, 1000.0, .slider, "Full depth band that remains acceptably sharp"))
+    public let inputMaxBlurRadius = ParameterPort(parameter: FloatParameter("Max Blur Radius", 18.0, 0.0, 32.0, .slider, "Maximum circle-of-confusion radius in full-resolution pixels"))
+    public let inputResolutionScale = ParameterPort(parameter: FloatParameter("Resolution Scale", 0.5, 0.25, 1.0, .slider, "Internal processing resolution relative to the input image"))
+    public let inputBlend = ParameterPort(parameter: FloatParameter("Blend", 1.0, 0.0, 4.0, .slider, "Blend multiplier applied to the near and far compositing ramps"))
+    public let outputImage = NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Depth-of-field processed image")
 
-    public var inputImage: NodePort<FabricImage> { _inputImage }
-    private var _inputImage: NodePort<FabricImage>!
-    public var inputDepthImage: NodePort<FabricImage> { _inputDepthImage }
-    private var _inputDepthImage: NodePort<FabricImage>!
-    public var inputFocusDistance: ParameterPort<Float> { _inputFocusDistance }
-    private var _inputFocusDistance: ParameterPort<Float>!
-    public var inputFocusRange: ParameterPort<Float> { _inputFocusRange }
-    private var _inputFocusRange: ParameterPort<Float>!
-    public var inputMaxBlurRadius: ParameterPort<Float> { _inputMaxBlurRadius }
-    private var _inputMaxBlurRadius: ParameterPort<Float>!
-    public var inputResolutionScale: ParameterPort<Float> { _inputResolutionScale }
-    private var _inputResolutionScale: ParameterPort<Float>!
-    public var inputBlend: ParameterPort<Float> { _inputBlend }
-    private var _inputBlend: ParameterPort<Float>!
-    public var outputImage: NodePort<FabricImage> { _outputImage }
-    private var _outputImage: NodePort<FabricImage>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputImage = findPort(named: "inputImage")
-        self._inputDepthImage = findPort(named: "inputDepthImage")
-        self._inputFocusDistance = findPort(named: "inputFocusDistance")
-        self._inputFocusRange = findPort(named: "inputFocusRange")
-        self._inputMaxBlurRadius = findPort(named: "inputMaxBlurRadius")
-        self._inputResolutionScale = findPort(named: "inputResolutionScale")
-        self._inputBlend = findPort(named: "inputBlend")
-        self._outputImage = findPort(named: "outputImage")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputImage", port: self.inputImage),
+            PortDeclaration(key: "inputDepthImage", port: self.inputDepthImage),
+            PortDeclaration(key: "inputFocusDistance", port: self.inputFocusDistance),
+            PortDeclaration(key: "inputFocusRange", port: self.inputFocusRange),
+            PortDeclaration(key: "inputMaxBlurRadius", port: self.inputMaxBlurRadius),
+            PortDeclaration(key: "inputResolutionScale", port: self.inputResolutionScale),
+            PortDeclaration(key: "inputBlend", port: self.inputBlend),
+            PortDeclaration(key: "outputImage", port: self.outputImage),
+        ]
     }
 
     private let postProcessor: BokehDepthOfFieldPostProcessEncoder

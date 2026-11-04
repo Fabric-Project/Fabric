@@ -47,85 +47,55 @@ public final class ImageResampleNode: Node
         "Resizes an image using nearest, bilinear, bicubic, Lanczos, or area filtering."
     }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    public let inputImage = NodePort<FabricImage>(
+        name: "Image",
+        kind: .Inlet,
+        description: "Image to resize"
+    )
+    public let inputWidth = ParameterPort(
+        parameter: IntParameter(
+            "Width",
+            0,
+            0,
+            16_384,
+            .inputfield,
+            "Output width in pixels; zero preserves the input width"
+        )
+    )
+    public let inputHeight = ParameterPort(
+        parameter: IntParameter(
+            "Height",
+            0,
+            0,
+            16_384,
+            .inputfield,
+            "Output height in pixels; zero preserves the input height"
+        )
+    )
+    public let inputMethod = ParameterPort(
+        parameter: StringParameter(
+            "Method",
+            ResamplingMethod.bilinear.rawValue,
+            ResamplingMethod.allCases.map(\.rawValue),
+            .dropdown,
+            "Reconstruction filter used while resizing"
+        )
+    )
+    public let outputImage = NodePort<FabricImage>(
+        name: "Image",
+        kind: .Outlet,
+        description: "Resampled image"
+    )
+
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.registerPorts(context: context) + [
-            (
-                "inputImage",
-                NodePort<FabricImage>(
-                    name: "Image",
-                    kind: .Inlet,
-                    description: "Image to resize"
-                )
-            ),
-            (
-                "inputWidth",
-                ParameterPort(
-                    parameter: IntParameter(
-                        "Width",
-                        0,
-                        0,
-                        16_384,
-                        .inputfield,
-                        "Output width in pixels; zero preserves the input width"
-                    )
-                )
-            ),
-            (
-                "inputHeight",
-                ParameterPort(
-                    parameter: IntParameter(
-                        "Height",
-                        0,
-                        0,
-                        16_384,
-                        .inputfield,
-                        "Output height in pixels; zero preserves the input height"
-                    )
-                )
-            ),
-            (
-                "inputMethod",
-                ParameterPort(
-                    parameter: StringParameter(
-                        "Method",
-                        ResamplingMethod.bilinear.rawValue,
-                        ResamplingMethod.allCases.map(\.rawValue),
-                        .dropdown,
-                        "Reconstruction filter used while resizing"
-                    )
-                )
-            ),
-            (
-                "outputImage",
-                NodePort<FabricImage>(
-                    name: "Image",
-                    kind: .Outlet,
-                    description: "Resampled image"
-                )
-            ),
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputImage", port: self.inputImage),
+            PortDeclaration(key: "inputWidth", port: self.inputWidth),
+            PortDeclaration(key: "inputHeight", port: self.inputHeight),
+            PortDeclaration(key: "inputMethod", port: self.inputMethod),
+            PortDeclaration(key: "outputImage", port: self.outputImage),
         ]
-    }
-
-    public var inputImage: NodePort<FabricImage> { _inputImage }
-    private var _inputImage: NodePort<FabricImage>!
-    public var inputWidth: ParameterPort<Int> { _inputWidth }
-    private var _inputWidth: ParameterPort<Int>!
-    public var inputHeight: ParameterPort<Int> { _inputHeight }
-    private var _inputHeight: ParameterPort<Int>!
-    public var inputMethod: ParameterPort<String> { _inputMethod }
-    private var _inputMethod: ParameterPort<String>!
-    public var outputImage: NodePort<FabricImage> { _outputImage }
-    private var _outputImage: NodePort<FabricImage>!
-
-    override public func bindPorts()
-    {
-        super.bindPorts()
-        self._inputImage = findPort(named: "inputImage")
-        self._inputWidth = findPort(named: "inputWidth")
-        self._inputHeight = findPort(named: "inputHeight")
-        self._inputMethod = findPort(named: "inputMethod")
-        self._outputImage = findPort(named: "outputImage")
     }
 
     private var nearestPipeline: MTLComputePipelineState?

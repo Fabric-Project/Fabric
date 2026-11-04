@@ -91,22 +91,13 @@ public class BlendNode: BaseImageNode
     ]
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputMode = ParameterPort(parameter: StringParameter("Mode", "Additive", modeNames, .dropdown, "Blend mode"))
 
-        return [
-            ("Mode", ParameterPort(parameter: StringParameter("Mode", "Additive", modeNames, .dropdown, "Blend mode"))),
-        ] + ports
-    }
-
-    // Port Proxy
-    public var inputMode: ParameterPort<String> { _inputMode }
-    private var _inputMode: ParameterPort<String>!
-
-    override public func bindPorts()
+    override public func fixedPortDeclarations() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputMode = findPort(named: "Mode")
+        [
+            PortDeclaration(key: "Mode", port: self.inputMode),
+        ] + super.fixedPortDeclarations()
     }
 
     private func shaderURL(for modeName: String) -> URL? {

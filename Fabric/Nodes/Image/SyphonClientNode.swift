@@ -23,34 +23,19 @@ public class SyphonClientNode : Node
     override public class var nodeDescription: String { "Connect to a Syphon Server, providing an stream of output Images"}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputEnabled = ParameterPort(parameter: BoolParameter("Enabled", true, .toggle, "Connect to a server. Off receives nothing; empty names select the most recently announced server"))
+    public let inputServerName = ParameterPort(parameter: StringParameter("Server Name", "", [String](), .inputfield, "Name of the Syphon server to connect to. Empty takes the most recently announced matching server"))
+    public let inputServerAppName = ParameterPort(parameter: StringParameter("Application Name", "", [String](), .inputfield, "Name of the application hosting the Syphon server. Empty takes any application"))
+    public let outputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Received Syphon frame")
 
-        return ports +
-        [
-            ("inputEnabled", ParameterPort(parameter: BoolParameter("Enabled", true, .toggle, "Connect to a server. Off receives nothing; empty names select the most recently announced server"))),
-            ("inputServerName", ParameterPort(parameter: StringParameter("Server Name", "", [String](), .inputfield, "Name of the Syphon server to connect to. Empty takes the most recently announced matching server"))),
-            ("inputServerAppName", ParameterPort(parameter: StringParameter("Application Name", "", [String](), .inputfield, "Name of the application hosting the Syphon server. Empty takes any application"))),
-            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Received Syphon frame")),
-        ]
-    }
-
-    public var inputEnabled: ParameterPort<Bool> { _inputEnabled }
-    private var _inputEnabled: ParameterPort<Bool>!
-    public var inputServerName: ParameterPort<String> { _inputServerName }
-    private var _inputServerName: ParameterPort<String>!
-    public var inputServerAppName: ParameterPort<String> { _inputServerAppName }
-    private var _inputServerAppName: ParameterPort<String>!
-    public var outputTexturePort: NodePort<FabricImage> { _outputTexturePort }
-    private var _outputTexturePort: NodePort<FabricImage>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputEnabled = findPort(named: "inputEnabled")
-        self._inputServerName = findPort(named: "inputServerName")
-        self._inputServerAppName = findPort(named: "inputServerAppName")
-        self._outputTexturePort = findPort(named: "outputTexturePort")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputEnabled", port: self.inputEnabled),
+            PortDeclaration(key: "inputServerName", port: self.inputServerName),
+            PortDeclaration(key: "inputServerAppName", port: self.inputServerAppName),
+            PortDeclaration(key: "outputTexturePort", port: self.outputTexturePort),
+        ]
     }
 
     private var syphonClient:SyphonMetalClient? = nil

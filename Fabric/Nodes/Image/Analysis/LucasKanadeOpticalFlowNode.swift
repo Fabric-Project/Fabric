@@ -31,55 +31,32 @@ public class LucasKanadeOpticalFlowNode: Node
         "Dense GPU optical flow via pyramidal Lucas-Kanade. Outputs RG16Float (R=dX, G=dY) in UV space [-1,1]. Connect inputPrevImage to a delayed/feedback copy of the input for motion estimation."
     }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        return ports + [
-            ("inputImage",
-             NodePort<FabricImage>(name: "Image", kind: .Inlet,
-                                  description: "Current frame")),
-            ("inputPrevImage",
-             NodePort<FabricImage>(name: "Prev Image", kind: .Inlet,
-                                  description: "Previous frame — connect a delayed/feedback copy of inputImage. If unconnected, falls back to inputImage (outputs zero flow).")),
-            ("inputQuality",
-             ParameterPort(parameter: StringParameter(
-                "Quality", "Medium",
-                ["Low", "Medium", "High", "Very High"], .dropdown,
-                "Pyramid depth: Low = 2 LK levels, Medium = 3, High = 4, Very High = 5"))),
-            ("inputPreviousFlow",
-             NodePort<FabricImage>(name: "Previous Flow", kind: .Inlet,
-                                  description: "Optional previous RG flow field used for temporal smoothing")),
-            ("inputTemporalSmoothing",
-             ParameterPort(parameter: FloatParameter(
-                "Temporal Smoothing", 0.0, 0.0, 0.99, .slider,
-                "Previous-flow weight. Zero disables smoothing; 0.9 retains 90% of the previous flow."))),
-            ("outputFlow",
-             NodePort<FabricImage>(name: "Flow", kind: .Outlet,
-                                  description: "RG16Float: R = dX, G = dY in UV space [-1, 1]")),
-        ]
-    }
+    public let inputImage = NodePort<FabricImage>(name: "Image", kind: .Inlet,
+    description: "Current frame")
+    public let inputPrevImage = NodePort<FabricImage>(name: "Prev Image", kind: .Inlet,
+    description: "Previous frame — connect a delayed/feedback copy of inputImage. If unconnected, falls back to inputImage (outputs zero flow).")
+    public let inputQuality: NodePort<String> = ParameterPort(parameter: StringParameter(
+    "Quality", "Medium",
+    ["Low", "Medium", "High", "Very High"], .dropdown,
+    "Pyramid depth: Low = 2 LK levels, Medium = 3, High = 4, Very High = 5"))
+    public let inputPreviousFlow = NodePort<FabricImage>(name: "Previous Flow", kind: .Inlet,
+    description: "Optional previous RG flow field used for temporal smoothing")
+    public let inputTemporalSmoothing: NodePort<Float> = ParameterPort(parameter: FloatParameter(
+    "Temporal Smoothing", 0.0, 0.0, 0.99, .slider,
+    "Previous-flow weight. Zero disables smoothing; 0.9 retains 90% of the previous flow."))
+    public let outputFlow = NodePort<FabricImage>(name: "Flow", kind: .Outlet,
+    description: "RG16Float: R = dX, G = dY in UV space [-1, 1]")
 
-    public var inputImage: NodePort<FabricImage> { _inputImage }
-    private var _inputImage: NodePort<FabricImage>!
-    public var inputPrevImage: NodePort<FabricImage> { _inputPrevImage }
-    private var _inputPrevImage: NodePort<FabricImage>!
-    public var inputQuality: NodePort<String> { _inputQuality }
-    private var _inputQuality: NodePort<String>!
-    public var inputPreviousFlow: NodePort<FabricImage> { _inputPreviousFlow }
-    private var _inputPreviousFlow: NodePort<FabricImage>!
-    public var inputTemporalSmoothing: NodePort<Float> { _inputTemporalSmoothing }
-    private var _inputTemporalSmoothing: NodePort<Float>!
-    public var outputFlow: NodePort<FabricImage> { _outputFlow }
-    private var _outputFlow: NodePort<FabricImage>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputImage = findPort(named: "inputImage")
-        self._inputPrevImage = findPort(named: "inputPrevImage")
-        self._inputQuality = findPort(named: "inputQuality")
-        self._inputPreviousFlow = findPort(named: "inputPreviousFlow")
-        self._inputTemporalSmoothing = findPort(named: "inputTemporalSmoothing")
-        self._outputFlow = findPort(named: "outputFlow")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputImage", port: self.inputImage),
+            PortDeclaration(key: "inputPrevImage", port: self.inputPrevImage),
+            PortDeclaration(key: "inputQuality", port: self.inputQuality),
+            PortDeclaration(key: "inputPreviousFlow", port: self.inputPreviousFlow),
+            PortDeclaration(key: "inputTemporalSmoothing", port: self.inputTemporalSmoothing),
+            PortDeclaration(key: "outputFlow", port: self.outputFlow),
+        ]
     }
 
     // ── Compute pipelines ─────────────────────────────────────────────────

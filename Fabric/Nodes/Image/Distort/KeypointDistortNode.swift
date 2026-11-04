@@ -24,30 +24,17 @@ public class KeypointDistortNode: BaseImageNode {
     public override class var defaultImageInputCountHint: Int? { 1 }
     
     // MARK: - Ports (Registry)
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputReferenceKeyPoints = NodePort<ContiguousArray<simd_float2>>(name: "Reference Key Points", kind: .Inlet)
+    public let inputDisplacedKeyPoints = NodePort<ContiguousArray<simd_float2>>(name: "Displaced Key Points", kind: .Inlet)
 
-        return ports + [
-            ("inputReferenceKeyPoints", NodePort<ContiguousArray<simd_float2>>(name: "Reference Key Points", kind: .Inlet)),
-
-            ("inputDisplacedKeyPoints", NodePort<ContiguousArray<simd_float2>>(name: "Displaced Key Points", kind: .Inlet)),
+    override public func fixedPortDeclarations() -> [PortDeclaration]
+    {
+        super.fixedPortDeclarations() + [
+            PortDeclaration(key: "inputReferenceKeyPoints", port: self.inputReferenceKeyPoints),
+            PortDeclaration(key: "inputDisplacedKeyPoints", port: self.inputDisplacedKeyPoints),
         ]
     }
 
-    // Proxies
-    public var inputReferenceKeyPoints: NodePort<ContiguousArray<simd_float2>> { _inputReferenceKeyPoints }
-    private var _inputReferenceKeyPoints: NodePort<ContiguousArray<simd_float2>>!
-    public var inputDisplacedKeyPoints: NodePort<ContiguousArray<simd_float2>> { _inputDisplacedKeyPoints }
-    private var _inputDisplacedKeyPoints: NodePort<ContiguousArray<simd_float2>>!
-
-    override public func bindPorts()
-    {
-        super.bindPorts()
-        self._inputReferenceKeyPoints = findPort(named: "inputReferenceKeyPoints")
-        self._inputDisplacedKeyPoints = findPort(named: "inputDisplacedKeyPoints")
-    }
-
-    
     private var refKeyPointStructBuffer:StructBuffer<simd_float2>!
     private var disKeyPointStructBuffer:StructBuffer<simd_float2>!
     private var countBuffer:StructBuffer<UInt32>!

@@ -91,28 +91,17 @@ public class CameraProviderNode : Node
     override public class var nodeDescription: String { "Connect to a Camera and stream video, providing Images"}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputCamera", ParameterPort(parameter: StringParameter("Device Name", "", .dropdown, "Camera device to capture video from"))),
-            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Live camera feed")),
+    public let inputCamera = ParameterPort(parameter: StringParameter("Device Name", "", .dropdown, "Camera device to capture video from"))
+    public let outputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Live camera feed")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputCamera", port: self.inputCamera),
+            PortDeclaration(key: "outputTexturePort", port: self.outputTexturePort),
         ]
     }
 
-    public var inputCamera: ParameterPort<String> { _inputCamera }
-    private var _inputCamera: ParameterPort<String>!
-    public var outputTexturePort: NodePort<FabricImage> { _outputTexturePort }
-    private var _outputTexturePort: NodePort<FabricImage>!
-
-    override public func bindPorts()
-    {
-        super.bindPorts()
-        self._inputCamera = findPort(named: "inputCamera")
-        self._outputTexturePort = findPort(named: "outputTexturePort")
-    }
-    
     private let discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInWideAngleCamera, .continuityCamera, .external,], mediaType: nil, position:.unspecified)
     private var device: AVCaptureDevice? = nil
     private var captureSession: AVCaptureSession

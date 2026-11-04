@@ -19,61 +19,33 @@ public class TestCardProviderNode: Node
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Generate a test card with toggleable border, diagonals, circle, grey ramp, and grid" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputWidth = ParameterPort(parameter: IntParameter("Width", 1920, 1, 8192, .inputfield, "Output image width in pixels"))
+    public let inputHeight = ParameterPort(parameter: IntParameter("Height", 1080, 1, 8192, .inputfield, "Output image height in pixels"))
+    public let inputBorder = ParameterPort(parameter: BoolParameter("Border", true, .toggle, "Show 1px border with black inset"))
+    public let inputGreys = ParameterPort(parameter: BoolParameter("Greys", true, .toggle, "Show 5×2 greyscale gradient cells"))
+    public let inputDiagonals = ParameterPort(parameter: BoolParameter("Diagonals", true, .toggle, "Show corner-to-corner diagonal lines"))
+    public let inputCircle = ParameterPort(parameter: BoolParameter("Circle", true, .toggle, "Show centred circle"))
+    public let inputGrid = ParameterPort(parameter: BoolParameter("Grid", true, .toggle, "Show 1px grid lines"))
+    public let inputGridSpacing = ParameterPort(parameter: IntParameter("Grid Spacing", 40, 2, 4096, .inputfield, "Grid line spacing in pixels"))
+    public let inputText = ParameterPort(parameter: BoolParameter("Text", true, .toggle, "Show centred text label"))
+    public let inputTextString = ParameterPort(parameter: StringParameter("Label", "Fabric", .inputfield, "Text to display on the test card"))
+    public let outputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Generated test card image")
 
-        return ports + [
-            ("inputWidth", ParameterPort(parameter: IntParameter("Width", 1920, 1, 8192, .inputfield, "Output image width in pixels"))),
-            ("inputHeight", ParameterPort(parameter: IntParameter("Height", 1080, 1, 8192, .inputfield, "Output image height in pixels"))),
-            ("inputBorder", ParameterPort(parameter: BoolParameter("Border", true, .toggle, "Show 1px border with black inset"))),
-            ("inputGreys", ParameterPort(parameter: BoolParameter("Greys", true, .toggle, "Show 5×2 greyscale gradient cells"))),
-            ("inputDiagonals", ParameterPort(parameter: BoolParameter("Diagonals", true, .toggle, "Show corner-to-corner diagonal lines"))),
-            ("inputCircle", ParameterPort(parameter: BoolParameter("Circle", true, .toggle, "Show centred circle"))),
-            ("inputGrid", ParameterPort(parameter: BoolParameter("Grid", true, .toggle, "Show 1px grid lines"))),
-            ("inputGridSpacing", ParameterPort(parameter: IntParameter("Grid Spacing", 40, 2, 4096, .inputfield, "Grid line spacing in pixels"))),
-            ("inputText", ParameterPort(parameter: BoolParameter("Text", true, .toggle, "Show centred text label"))),
-            ("inputTextString", ParameterPort(parameter: StringParameter("Label", "Fabric", .inputfield, "Text to display on the test card"))),
-            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Generated test card image")),
-        ]
-    }
-
-    public var inputWidth: ParameterPort<Int> { _inputWidth }
-    private var _inputWidth: ParameterPort<Int>!
-    public var inputHeight: ParameterPort<Int> { _inputHeight }
-    private var _inputHeight: ParameterPort<Int>!
-    public var inputBorder: ParameterPort<Bool> { _inputBorder }
-    private var _inputBorder: ParameterPort<Bool>!
-    public var inputGreys: ParameterPort<Bool> { _inputGreys }
-    private var _inputGreys: ParameterPort<Bool>!
-    public var inputDiagonals: ParameterPort<Bool> { _inputDiagonals }
-    private var _inputDiagonals: ParameterPort<Bool>!
-    public var inputCircle: ParameterPort<Bool> { _inputCircle }
-    private var _inputCircle: ParameterPort<Bool>!
-    public var inputGrid: ParameterPort<Bool> { _inputGrid }
-    private var _inputGrid: ParameterPort<Bool>!
-    public var inputGridSpacing: ParameterPort<Int> { _inputGridSpacing }
-    private var _inputGridSpacing: ParameterPort<Int>!
-    public var inputText: ParameterPort<Bool> { _inputText }
-    private var _inputText: ParameterPort<Bool>!
-    public var inputTextString: ParameterPort<String> { _inputTextString }
-    private var _inputTextString: ParameterPort<String>!
-    public var outputTexturePort: NodePort<FabricImage> { _outputTexturePort }
-    private var _outputTexturePort: NodePort<FabricImage>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputWidth = findPort(named: "inputWidth")
-        self._inputHeight = findPort(named: "inputHeight")
-        self._inputBorder = findPort(named: "inputBorder")
-        self._inputGreys = findPort(named: "inputGreys")
-        self._inputDiagonals = findPort(named: "inputDiagonals")
-        self._inputCircle = findPort(named: "inputCircle")
-        self._inputGrid = findPort(named: "inputGrid")
-        self._inputGridSpacing = findPort(named: "inputGridSpacing")
-        self._inputText = findPort(named: "inputText")
-        self._inputTextString = findPort(named: "inputTextString")
-        self._outputTexturePort = findPort(named: "outputTexturePort")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputWidth", port: self.inputWidth),
+            PortDeclaration(key: "inputHeight", port: self.inputHeight),
+            PortDeclaration(key: "inputBorder", port: self.inputBorder),
+            PortDeclaration(key: "inputGreys", port: self.inputGreys),
+            PortDeclaration(key: "inputDiagonals", port: self.inputDiagonals),
+            PortDeclaration(key: "inputCircle", port: self.inputCircle),
+            PortDeclaration(key: "inputGrid", port: self.inputGrid),
+            PortDeclaration(key: "inputGridSpacing", port: self.inputGridSpacing),
+            PortDeclaration(key: "inputText", port: self.inputText),
+            PortDeclaration(key: "inputTextString", port: self.inputTextString),
+            PortDeclaration(key: "outputTexturePort", port: self.outputTexturePort),
+        ]
     }
 
     private var computePipeline: MTLComputePipelineState?

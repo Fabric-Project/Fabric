@@ -20,50 +20,26 @@ public final class ImageDimensions: Node
         "Returns an image's width and height in pixels."
     }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
-    {
-        super.registerPorts(context: context) + [
-            (
-                "inputImage",
-                NodePort<FabricImage>(
-                    name: "Image",
-                    kind: .Inlet,
-                    description: "Input image to measure"
-                )
-            ),
-            (
-                "outputWidth",
-                NodePort<Float>(
-                    name: "Width",
-                    kind: .Outlet,
-                    description: "Image width in pixels"
-                )
-            ),
-            (
-                "outputHeight",
-                NodePort<Float>(
-                    name: "Height",
-                    kind: .Outlet,
-                    description: "Image height in pixels"
-                )
-            ),
-        ]
-    }
-
-    public var inputImage: NodePort<FabricImage> { _inputImage }
-    private var _inputImage: NodePort<FabricImage>!
-    public var outputWidth: NodePort<Float> { _outputWidth }
-    private var _outputWidth: NodePort<Float>!
-    public var outputHeight: NodePort<Float> { _outputHeight }
-    private var _outputHeight: NodePort<Float>!
+    public let inputImage = NodePort<FabricImage>(
+        name: "Image",
+        kind: .Inlet,
+        description: "Input image to measure"
+    )
+    public let outputWidth = NodePort<Float>(
+        name: "Width",
+        kind: .Outlet,
+        description: "Image width in pixels"
+    )
+    public let outputHeight = NodePort<Float>(
+        name: "Height",
+        kind: .Outlet,
+        description: "Image height in pixels"
+    )
 
     override public func bindPorts()
     {
         super.bindPorts()
         self.legacyOutputResolution = findPort(named: "legacyOutputResolution")
-        self._inputImage = findPort(named: "inputImage")
-        self._outputWidth = findPort(named: "outputWidth")
-        self._outputHeight = findPort(named: "outputHeight")
     }
 
     private enum CodingKeys: String, CodingKey
@@ -98,8 +74,14 @@ public final class ImageDimensions: Node
 
     override public func declaredPorts() -> [PortDeclaration]
     {
-        guard hasLegacyResolution else { return super.declaredPorts() }
-        return super.declaredPorts() + [
+        let storedPorts = [
+            PortDeclaration(key: "inputImage", port: self.inputImage),
+            PortDeclaration(key: "outputWidth", port: self.outputWidth),
+            PortDeclaration(key: "outputHeight", port: self.outputHeight),
+        ]
+
+        guard hasLegacyResolution else { return super.declaredPorts() + storedPorts }
+        return super.declaredPorts() + storedPorts + [
             PortDeclaration(key: "legacyOutputResolution", port: NodePort<simd_float2>(name: "Resolution", kind: .Outlet)),
         ]
     }

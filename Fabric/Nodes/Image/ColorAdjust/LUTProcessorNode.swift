@@ -30,22 +30,13 @@ public class LUTProcessorNode : BaseImageNode, NodeTakingFile
     }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the .cube LUT file"))),
-        ]
-    }
+    public let inputFilePathParam = ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the .cube LUT file"))
 
-    public var inputFilePathParam: ParameterPort<String> { _inputFilePathParam }
-    private var _inputFilePathParam: ParameterPort<String>!
-
-    override public func bindPorts()
+    override public func fixedPortDeclarations() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputFilePathParam = findPort(named: "inputFilePathParam")
+        super.fixedPortDeclarations() + [
+            PortDeclaration(key: "inputFilePathParam", port: self.inputFilePathParam),
+        ]
     }
 
     private var texture: (any MTLTexture)? = nil

@@ -30,27 +30,9 @@ public class BaseTextureComputeProcessorNode: Node, NodeMadeFromFile
     private var pipelineURL: URL?
     
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to process")),
-            ("outputImage", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Processed output image")),
-        ]
-    }
+    public let inputImage = NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to process")
+    public let outputImage = NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Processed output image")
 
-    public var inputImage: NodePort<FabricImage> { _inputImage }
-    private var _inputImage: NodePort<FabricImage>!
-    public var outputImage: NodePort<FabricImage> { _outputImage }
-    private var _outputImage: NodePort<FabricImage>!
-
-    override public func bindPorts()
-    {
-        super.bindPorts()
-        self._inputImage = findPort(named: "inputImage")
-        self._outputImage = findPort(named: "outputImage")
-    }
     private var url:URL? = nil
 
     private enum CodingKeys: String, CodingKey
@@ -130,7 +112,10 @@ public class BaseTextureComputeProcessorNode: Node, NodeMadeFromFile
     /// parameters, once the shader has been read.
     override public func declaredPorts() -> [PortDeclaration] {
         let parameters = self.compute?.parameters.params ?? []
-        return super.declaredPorts() + parameters.compactMap { parameter in
+        return super.declaredPorts() + [
+            PortDeclaration(key: "inputImage", port: self.inputImage),
+            PortDeclaration(key: "outputImage", port: self.outputImage),
+        ] + parameters.compactMap { parameter in
             PortType.port(for: parameter).map { PortDeclaration(key: $0.name, port: $0) }
         }
     }

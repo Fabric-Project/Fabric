@@ -14,41 +14,23 @@ public class TextureCropNode: Node
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Crops a rectangular region from a texture" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputTexture = NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Source texture to crop")
+    public let inputCropX = ParameterPort(parameter: IntParameter("Crop X", 0, 0, 16384, .inputfield, "X origin of crop region"))
+    public let inputCropY = ParameterPort(parameter: IntParameter("Crop Y", 0, 0, 16384, .inputfield, "Y origin of crop region"))
+    public let inputCropWidth = ParameterPort(parameter: IntParameter("Crop Width", 1920, 1, 16384, .inputfield, "Width of crop region"))
+    public let inputCropHeight = ParameterPort(parameter: IntParameter("Crop Height", 1080, 1, 16384, .inputfield, "Height of crop region"))
+    public let outputTexture = NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Cropped texture")
 
-        return ports + [
-            ("inputTexture", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Source texture to crop")),
-            ("inputCropX", ParameterPort(parameter: IntParameter("Crop X", 0, 0, 16384, .inputfield, "X origin of crop region"))),
-            ("inputCropY", ParameterPort(parameter: IntParameter("Crop Y", 0, 0, 16384, .inputfield, "Y origin of crop region"))),
-            ("inputCropWidth", ParameterPort(parameter: IntParameter("Crop Width", 1920, 1, 16384, .inputfield, "Width of crop region"))),
-            ("inputCropHeight", ParameterPort(parameter: IntParameter("Crop Height", 1080, 1, 16384, .inputfield, "Height of crop region"))),
-            ("outputTexture", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Cropped texture")),
-        ]
-    }
-
-    public var inputTexture: NodePort<FabricImage> { _inputTexture }
-    private var _inputTexture: NodePort<FabricImage>!
-    public var inputCropX: ParameterPort<Int> { _inputCropX }
-    private var _inputCropX: ParameterPort<Int>!
-    public var inputCropY: ParameterPort<Int> { _inputCropY }
-    private var _inputCropY: ParameterPort<Int>!
-    public var inputCropWidth: ParameterPort<Int> { _inputCropWidth }
-    private var _inputCropWidth: ParameterPort<Int>!
-    public var inputCropHeight: ParameterPort<Int> { _inputCropHeight }
-    private var _inputCropHeight: ParameterPort<Int>!
-    public var outputTexture: NodePort<FabricImage> { _outputTexture }
-    private var _outputTexture: NodePort<FabricImage>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputTexture = findPort(named: "inputTexture")
-        self._inputCropX = findPort(named: "inputCropX")
-        self._inputCropY = findPort(named: "inputCropY")
-        self._inputCropWidth = findPort(named: "inputCropWidth")
-        self._inputCropHeight = findPort(named: "inputCropHeight")
-        self._outputTexture = findPort(named: "outputTexture")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputTexture", port: self.inputTexture),
+            PortDeclaration(key: "inputCropX", port: self.inputCropX),
+            PortDeclaration(key: "inputCropY", port: self.inputCropY),
+            PortDeclaration(key: "inputCropWidth", port: self.inputCropWidth),
+            PortDeclaration(key: "inputCropHeight", port: self.inputCropHeight),
+            PortDeclaration(key: "outputTexture", port: self.outputTexture),
+        ]
     }
 
     private struct CropUniforms

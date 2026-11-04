@@ -21,88 +21,39 @@ public class FacePoseAnalysisNode: Node
     override public class var nodeDescription: String { "Detect Face Poses in an Image and outputs in Units" }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to analyze for face landmarks")),
+    public let inputImage = NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to analyze for face landmarks")
+    public let outputFaceContour = NodePort<ContiguousArray<simd_float2>>(name: "Face Contour", kind: .Outlet, description: "Array of points tracing the face outline in unit coordinates")
+    public let outputLeftEye = NodePort<ContiguousArray<simd_float2>>(name: "Left Eye", kind: .Outlet, description: "Array of points tracing the left eye in unit coordinates")
+    public let outputRightEye = NodePort<ContiguousArray<simd_float2>>(name: "Right Eye", kind: .Outlet, description: "Array of points tracing the right eye in unit coordinates")
+    public let outputLeftPupil = NodePort<ContiguousArray<simd_float2>>(name: "Left Pupil", kind: .Outlet, description: "Position of left pupil center in unit coordinates")
+    public let outputRightPupil = NodePort<ContiguousArray<simd_float2>>(name: "Right Pupil", kind: .Outlet, description: "Position of right pupil center in unit coordinates")
+    public let outputLeftEyebrow = NodePort<ContiguousArray<simd_float2>>(name: "Left Eyebrow", kind: .Outlet, description: "Array of points tracing the left eyebrow in unit coordinates")
+    public let outputRightEyebrow = NodePort<ContiguousArray<simd_float2>>(name: "Right Eyebrow", kind: .Outlet, description: "Array of points tracing the right eyebrow in unit coordinates")
+    public let outputNose = NodePort<ContiguousArray<simd_float2>>(name: "Nose", kind: .Outlet, description: "Array of points tracing the nose outline in unit coordinates")
+    public let outputNoseCrest = NodePort<ContiguousArray<simd_float2>>(name: "Nose Crest", kind: .Outlet, description: "Array of points along the nose crest in unit coordinates")
+    public let outputMedianLine = NodePort<ContiguousArray<simd_float2>>(name: "Median Line", kind: .Outlet, description: "Array of points along the face median line in unit coordinates")
+    public let outputInnerLips = NodePort<ContiguousArray<simd_float2>>(name: "Inner Lips", kind: .Outlet, description: "Array of points tracing the inner lip contour in unit coordinates")
+    public let outputOuterLips = NodePort<ContiguousArray<simd_float2>>(name: "Outer Lips", kind: .Outlet, description: "Array of points tracing the outer lip contour in unit coordinates")
 
-            ("outputFaceContour", NodePort<ContiguousArray<simd_float2>>(name: "Face Contour", kind: .Outlet, description: "Array of points tracing the face outline in unit coordinates")),
-
-            ("outputLeftEye", NodePort<ContiguousArray<simd_float2>>(name: "Left Eye", kind: .Outlet, description: "Array of points tracing the left eye in unit coordinates")),
-            ("outputRightEye", NodePort<ContiguousArray<simd_float2>>(name: "Right Eye", kind: .Outlet, description: "Array of points tracing the right eye in unit coordinates")),
-
-            ("outputLeftPupil", NodePort<ContiguousArray<simd_float2>>(name: "Left Pupil", kind: .Outlet, description: "Position of left pupil center in unit coordinates")),
-            ("outputRightPupil", NodePort<ContiguousArray<simd_float2>>(name: "Right Pupil", kind: .Outlet, description: "Position of right pupil center in unit coordinates")),
-
-            ("outputLeftEyebrow", NodePort<ContiguousArray<simd_float2>>(name: "Left Eyebrow", kind: .Outlet, description: "Array of points tracing the left eyebrow in unit coordinates")),
-            ("outputRightEyebrow", NodePort<ContiguousArray<simd_float2>>(name: "Right Eyebrow", kind: .Outlet, description: "Array of points tracing the right eyebrow in unit coordinates")),
-
-            ("outputNose", NodePort<ContiguousArray<simd_float2>>(name: "Nose", kind: .Outlet, description: "Array of points tracing the nose outline in unit coordinates")),
-            ("outputNoseCrest", NodePort<ContiguousArray<simd_float2>>(name: "Nose Crest", kind: .Outlet, description: "Array of points along the nose crest in unit coordinates")),
-
-            ("outputMedianLine", NodePort<ContiguousArray<simd_float2>>(name: "Median Line", kind: .Outlet, description: "Array of points along the face median line in unit coordinates")),
-
-            ("outputInnerLips", NodePort<ContiguousArray<simd_float2>>(name: "Inner Lips", kind: .Outlet, description: "Array of points tracing the inner lip contour in unit coordinates")),
-            ("outputOuterLips", NodePort<ContiguousArray<simd_float2>>(name: "Outer Lips", kind: .Outlet, description: "Array of points tracing the outer lip contour in unit coordinates")),
-
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputImage", port: self.inputImage),
+            PortDeclaration(key: "outputFaceContour", port: self.outputFaceContour),
+            PortDeclaration(key: "outputLeftEye", port: self.outputLeftEye),
+            PortDeclaration(key: "outputRightEye", port: self.outputRightEye),
+            PortDeclaration(key: "outputLeftPupil", port: self.outputLeftPupil),
+            PortDeclaration(key: "outputRightPupil", port: self.outputRightPupil),
+            PortDeclaration(key: "outputLeftEyebrow", port: self.outputLeftEyebrow),
+            PortDeclaration(key: "outputRightEyebrow", port: self.outputRightEyebrow),
+            PortDeclaration(key: "outputNose", port: self.outputNose),
+            PortDeclaration(key: "outputNoseCrest", port: self.outputNoseCrest),
+            PortDeclaration(key: "outputMedianLine", port: self.outputMedianLine),
+            PortDeclaration(key: "outputInnerLips", port: self.outputInnerLips),
+            PortDeclaration(key: "outputOuterLips", port: self.outputOuterLips),
         ]
     }
 
-    public var inputImage: NodePort<FabricImage> { _inputImage }
-    private var _inputImage: NodePort<FabricImage>!
-
-    public var outputFaceContour: NodePort<ContiguousArray<simd_float2>> { _outputFaceContour }
-    private var _outputFaceContour: NodePort<ContiguousArray<simd_float2>>!
-    
-    public var outputLeftEye: NodePort<ContiguousArray<simd_float2>> { _outputLeftEye }
-    private var _outputLeftEye: NodePort<ContiguousArray<simd_float2>>!
-    public var outputRightEye: NodePort<ContiguousArray<simd_float2>> { _outputRightEye }
-    private var _outputRightEye: NodePort<ContiguousArray<simd_float2>>!
-
-    public var outputLeftPupil: NodePort<ContiguousArray<simd_float2>> { _outputLeftPupil }
-    private var _outputLeftPupil: NodePort<ContiguousArray<simd_float2>>!
-    public var outputRightPupil: NodePort<ContiguousArray<simd_float2>> { _outputRightPupil }
-    private var _outputRightPupil: NodePort<ContiguousArray<simd_float2>>!
-
-    public var outputLeftEyebrow: NodePort<ContiguousArray<simd_float2>> { _outputLeftEyebrow }
-    private var _outputLeftEyebrow: NodePort<ContiguousArray<simd_float2>>!
-    public var outputRightEyebrow: NodePort<ContiguousArray<simd_float2>> { _outputRightEyebrow }
-    private var _outputRightEyebrow: NodePort<ContiguousArray<simd_float2>>!
-
-    public var outputNose: NodePort<ContiguousArray<simd_float2>> { _outputNose }
-    private var _outputNose: NodePort<ContiguousArray<simd_float2>>!
-    public var outputNoseCrest: NodePort<ContiguousArray<simd_float2>> { _outputNoseCrest }
-    private var _outputNoseCrest: NodePort<ContiguousArray<simd_float2>>!
-
-    public var outputMedianLine: NodePort<ContiguousArray<simd_float2>> { _outputMedianLine }
-    private var _outputMedianLine: NodePort<ContiguousArray<simd_float2>>!
-
-    public var outputInnerLips: NodePort<ContiguousArray<simd_float2>> { _outputInnerLips }
-    private var _outputInnerLips: NodePort<ContiguousArray<simd_float2>>!
-    public var outputOuterLips: NodePort<ContiguousArray<simd_float2>> { _outputOuterLips }
-    private var _outputOuterLips: NodePort<ContiguousArray<simd_float2>>!
-
-    override public func bindPorts()
-    {
-        super.bindPorts()
-        self._inputImage = findPort(named: "inputImage")
-        self._outputFaceContour = findPort(named: "outputFaceContour")
-        self._outputLeftEye = findPort(named: "outputLeftEye")
-        self._outputRightEye = findPort(named: "outputRightEye")
-        self._outputLeftPupil = findPort(named: "outputLeftPupil")
-        self._outputRightPupil = findPort(named: "outputRightPupil")
-        self._outputLeftEyebrow = findPort(named: "outputLeftEyebrow")
-        self._outputRightEyebrow = findPort(named: "outputRightEyebrow")
-        self._outputNose = findPort(named: "outputNose")
-        self._outputNoseCrest = findPort(named: "outputNoseCrest")
-        self._outputMedianLine = findPort(named: "outputMedianLine")
-        self._outputInnerLips = findPort(named: "outputInnerLips")
-        self._outputOuterLips = findPort(named: "outputOuterLips")
-    }
-
-    
     private var ciContext:CIContext!
     
     override public func startExecution(renderer:GraphRenderer) throws

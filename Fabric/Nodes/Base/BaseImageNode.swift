@@ -69,11 +69,15 @@ open class BaseImageNode: Node, NodeMadeFromFile
     }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    private let outputImage0 = NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Output image")
 
-        return ports + [
-            ("outputImage0", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Output image")),
+    /// The ports every node of the class has, whatever its shader: the image
+    /// outlet, and any a subclass holds. A subclass overrides this rather than
+    /// declaredPorts(), adding its own stored ports to super's; declaredPorts()
+    /// places them among the shader's.
+    open func fixedPortDeclarations() -> [PortDeclaration] {
+        [
+            PortDeclaration(key: "outputImage0", port: self.outputImage0),
         ]
     }
 
@@ -270,7 +274,7 @@ open class BaseImageNode: Node, NodeMadeFromFile
     /// generator's Width and Height among them; then the shader's uniforms;
     /// then the outlets.
     override open func declaredPorts() -> [PortDeclaration] {
-        let registered = super.declaredPorts()
+        let registered = super.declaredPorts() + self.fixedPortDeclarations()
         guard let shaderInterface else { return registered }
 
         let isImageInlet: (PortDeclaration) -> Bool = { $0.kind == .Inlet && $0.portType == .Image && $0.control == nil }
@@ -446,7 +450,8 @@ open class BaseImageNode: Node, NodeMadeFromFile
     }
 
     private func offLimitsLabels() -> Set<String> {
-        let declared = Self.registerPorts(context: self.context).compactMap { $0.port.parameter?.label }
+        // A parameter port's name is its parameter's label.
+        let declared = self.fixedPortDeclarations().compactMap { $0.control == nil ? nil : $0.name }
         let baseManaged = Self.generatorResolutionPorts.map { $0.label }
         return Set(declared).union(baseManaged)
     }

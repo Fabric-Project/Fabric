@@ -73,29 +73,17 @@ public class ScreenCaptureProviderNode: Node
     override public class var nodeTimeMode: Node.TimeMode { .TimeBase }
     override public class var nodeDescription: String { "Capture a display, window, or application and provide output Images" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputCaptureType = ParameterPort(parameter: StringParameter("Capture Type", CaptureKind.display.rawValue, [CaptureKind.display.rawValue, CaptureKind.window.rawValue, CaptureKind.application.rawValue], .dropdown, "Screen capture source type"))
+    public let inputCaptureSource = ParameterPort(parameter: StringParameter("Capture Source", "", [String](), .dropdown, "Display, window, or application to capture"))
+    public let outputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Current screen capture frame")
 
-        return ports + [
-            ("inputCaptureType", ParameterPort(parameter: StringParameter("Capture Type", CaptureKind.display.rawValue, [CaptureKind.display.rawValue, CaptureKind.window.rawValue, CaptureKind.application.rawValue], .dropdown, "Screen capture source type"))),
-            ("inputCaptureSource", ParameterPort(parameter: StringParameter("Capture Source", "", [String](), .dropdown, "Display, window, or application to capture"))),
-            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Current screen capture frame")),
-        ]
-    }
-
-    public var inputCaptureType: ParameterPort<String> { _inputCaptureType }
-    private var _inputCaptureType: ParameterPort<String>!
-    public var inputCaptureSource: ParameterPort<String> { _inputCaptureSource }
-    private var _inputCaptureSource: ParameterPort<String>!
-    public var outputTexturePort: NodePort<FabricImage> { _outputTexturePort }
-    private var _outputTexturePort: NodePort<FabricImage>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputCaptureType = findPort(named: "inputCaptureType")
-        self._inputCaptureSource = findPort(named: "inputCaptureSource")
-        self._outputTexturePort = findPort(named: "outputTexturePort")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputCaptureType", port: self.inputCaptureType),
+            PortDeclaration(key: "inputCaptureSource", port: self.inputCaptureSource),
+            PortDeclaration(key: "outputTexturePort", port: self.outputTexturePort),
+        ]
     }
 
     private let streamDelegate = StreamDelegate()

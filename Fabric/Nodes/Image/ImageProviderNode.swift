@@ -27,26 +27,15 @@ public class ImageProviderNode : Node, NodeTakingFile
     override public class var nodeDescription: String { "Load an image file from disk, providing an output Image"}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the image file to load"))),
-            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "The loaded image")),
-        ]
-    }
+    public let inputFilePathParam = ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the image file to load"))
+    public let outputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "The loaded image")
 
-    public var inputFilePathParam: ParameterPort<String> { _inputFilePathParam }
-    private var _inputFilePathParam: ParameterPort<String>!
-    public var outputTexturePort: NodePort<FabricImage> { _outputTexturePort }
-    private var _outputTexturePort: NodePort<FabricImage>!
-
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputFilePathParam = findPort(named: "inputFilePathParam")
-        self._outputTexturePort = findPort(named: "outputTexturePort")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputFilePathParam", port: self.inputFilePathParam),
+            PortDeclaration(key: "outputTexturePort", port: self.outputTexturePort),
+        ]
     }
 
     private var image: FabricImage? = nil
