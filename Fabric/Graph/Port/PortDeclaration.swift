@@ -20,6 +20,12 @@ public struct PortDeclaration
     /// Non-nil for a parameter inlet. See PortControl.
     public let control: PortControl?
 
+    /// Whether a port already under this key still stands for this
+    /// declaration, where its kind, type and control agreeing is not enough:
+    /// a proxy must wrap this inner port, not another under the same key. Nil
+    /// accepts any. One that does not is replaced as a retyped port is.
+    public let stillDescribes: ((Port) -> Bool)?
+
     /// Makes the port. A retyped port is made under the runtime id of the one
     /// it replaces, so views keyed on it follow; a new port under nil, a fresh
     /// id. The registry gives the port the id either way, so a factory that
@@ -32,6 +38,7 @@ public struct PortDeclaration
                 name: String,
                 description: String = "",
                 control: PortControl?,
+                stillDescribes: ((Port) -> Bool)? = nil,
                 makePort: @escaping (_ id: UUID?) -> Port)
     {
         self.key = key
@@ -40,6 +47,7 @@ public struct PortDeclaration
         self.name = name
         self.description = description
         self.control = control
+        self.stillDescribes = stillDescribes
         self.makePort = makePort
     }
 

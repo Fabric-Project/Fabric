@@ -84,6 +84,7 @@ final class PortRegistry
             if existing.kind == declaration.kind
                 && existing.portType == declaration.portType
                 && (existing.parameter != nil) == (declaration.control != nil)
+                && declaration.stillDescribes?(existing) != false
             {
                 reconciled.append((key, existing, declaration.control))
                 continue
