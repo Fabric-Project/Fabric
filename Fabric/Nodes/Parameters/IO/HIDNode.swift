@@ -986,6 +986,16 @@ public class HIDNode: Node
     // Cache for current port names mapping
     @ObservationIgnored private var currentPortNames: [String: String] = [:]
 
+    /// The outlets the device's elements ask for, which the ports follow.
+    @ObservationIgnored private var outputPortDescriptors: [DeviceOutputPortDescriptor] = []
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + Self.deviceOutputPortDeclarations(for: outputPortDescriptors,
+                                                                  buttonDescription: "HID button state (true when pressed)",
+                                                                  axisDescription: "HID axis value normalized from 0 to 1")
+    }
+
     private func rebuildPorts()
     {
         // Build unique port names, adding suffix only when needed for duplicates
@@ -996,9 +1006,9 @@ public class HIDNode: Node
             return DeviceOutputPortDescriptor(name: portName, isButton: element.isButton)
         }
 
-        let created = synchronizeDeviceOutputPorts(to: descriptors,
-                                                   buttonDescription: "HID button state (true when pressed)",
-                                                   axisDescription: "HID axis value normalized from 0 to 1")
+        let created = deviceOutputDescriptorsNeedingPorts(descriptors)
+        outputPortDescriptors = descriptors
+        reconcilePorts()
 
         for descriptor in created
         {

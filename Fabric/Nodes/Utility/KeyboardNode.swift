@@ -176,13 +176,11 @@ public class KeyboardNode : Node
 
     public required init(from decoder: any Decoder) throws
     {
-        try super.init(from: decoder)
-
+        // Decoded before super.init, which declares a port per binding.
         let container = try decoder.container(keyedBy: KeyboardCodingKeys.self)
-        let decodedBindings = try container.decodeIfPresent([KeyBinding?].self, forKey: .keyBindings)
+        self.keyBindings = try container.decodeIfPresent([KeyBinding?].self, forKey: .keyBindings) ?? [nil]
 
-        self.keyBindings = decodedBindings ?? [nil]
-        self.rebuildPorts()
+        try super.init(from: decoder)
     }
 
     override public var settings: (any NodeSettings)? { KeyboardSettings(keyBindings: keyBindings) }
@@ -244,7 +242,7 @@ public class KeyboardNode : Node
     {
         didSet
         {
-            self.rebuildPorts()
+            self.reconcilePorts()
             self.performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
         }
     }
@@ -302,30 +300,13 @@ public class KeyboardNode : Node
 
     // MARK: - Internal
 
-    private func rebuildPorts()
+    /// A Bool outlet per bound key, in binding order.
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        let portNamesWeNeed = self.keyBindings.compactMap { self.portNameForKeyBinding($0) }
-        let existingPortNames = self.outputPorts().map { $0.name }
-
-        let portNamesToRemove = Set(existingPortNames).subtracting(Set(portNamesWeNeed))
-        let portNamesToAdd = Set(portNamesWeNeed).subtracting(portNamesToRemove)
-
-        for portName in portNamesToRemove
-        {
-            if let port = self.findPort(named: portName) as? NodePort<Bool>
-            {
-                self.removePort(port)
-            }
-        }
-
-        for portName in portNamesToAdd
-        {
-            if self.findPort(named: portName) == nil
-            {
-                let port = NodePort<Bool>(name: portName, kind: .Outlet,
-                                         description: "True when key '\(portName)' is pressed")
-                self.addDynamicPort(port)
-            }
+        super.declaredPorts() + self.keyBindings.compactMap { self.portNameForKeyBinding($0) }.map { portName in
+            PortDeclaration(key: portName,
+                            port: NodePort<Bool>(name: portName, kind: .Outlet,
+                                                 description: "True when key '\(portName)' is pressed"))
         }
     }
 

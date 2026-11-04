@@ -23,46 +23,30 @@ public struct DeviceOutputPortDescriptor: Codable, Equatable, Sendable
 
 extension Node
 {
-    /// Reconciles this node's output ports against what its device currently
-    /// offers. A port whose descriptor still matches is kept: replacing it
-    /// would take its wires, restored from the document or drawn before the
-    /// device unplugged. A port whose descriptor is gone, or whose type no
-    /// longer matches it, is removed: an element that turned from an axis
-    /// into a button cannot keep carrying its value through a Float port.
-    /// Returns the descriptors that had to be created.
-    ///
-    /// Every outlet a device node has comes from its device, so this owns the
-    /// node's whole outlet set.
-    @discardableResult
-    internal func synchronizeDeviceOutputPorts(to descriptors: [DeviceOutputPortDescriptor],
-                                               buttonDescription: String,
-                                               axisDescription: String) -> [DeviceOutputPortDescriptor]
+    /// The outlets a device offers, in its order: a Bool outlet for a button,
+    /// a Float outlet for an axis, under the descriptor's name. Declared, a
+    /// port whose descriptor still matches is kept, wires and all, whether the
+    /// document or a device that has since unplugged made it; one whose
+    /// element turned from an axis into a button is retyped, keeping no wire
+    /// the new type cannot take.
+    internal static func deviceOutputPortDeclarations(for descriptors: [DeviceOutputPortDescriptor],
+                                                      buttonDescription: String,
+                                                      axisDescription: String) -> [PortDeclaration]
     {
-        let descriptorsByName = Dictionary(descriptors.map { ($0.name, $0) },
-                                           uniquingKeysWith: { first, _ in first })
-
-        for port in self.outputPorts()
-        {
-            let descriptor = descriptorsByName[port.name]
-
-            if descriptor?.isButton != (port is NodePort<Bool>)
-            {
-                self.removePort(port)
-            }
+        descriptors.map { descriptor in
+            descriptor.isButton
+                ? PortDeclaration(key: descriptor.name, port: NodePort<Bool>(name: descriptor.name, kind: .Outlet, description: buttonDescription))
+                : PortDeclaration(key: descriptor.name, port: NodePort<Float>(name: descriptor.name, kind: .Outlet, description: axisDescription))
         }
+    }
 
-        var created: [DeviceOutputPortDescriptor] = []
-
-        for descriptor in descriptors where (self.findPort(named: descriptor.name) as Port?) == nil
-        {
-            let port: Port = descriptor.isButton
-                ? NodePort<Bool>(name: descriptor.name, kind: .Outlet, description: buttonDescription)
-                : NodePort<Float>(name: descriptor.name, kind: .Outlet, description: axisDescription)
-
-            self.addDynamicPort(port)
-            created.append(descriptor)
+    /// The descriptors that have no port of their kind yet: those a reconcile
+    /// to them will make.
+    internal func deviceOutputDescriptorsNeedingPorts(_ descriptors: [DeviceOutputPortDescriptor]) -> [DeviceOutputPortDescriptor]
+    {
+        descriptors.filter { descriptor in
+            guard let port: Port = self.findPort(named: descriptor.name) else { return true }
+            return (port is NodePort<Bool>) != descriptor.isButton
         }
-
-        return created
     }
 }

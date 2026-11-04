@@ -550,55 +550,11 @@ public class OSCReceiveNode: Node
 
     // MARK: - Port Management
 
-    private func rebuildPorts()
+    /// An outlet per address binding, in binding order, typed by its data type.
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        let portNamesWeNeed = addressBindings.map { portNameForAddress($0.address) }
-        let existingPortNames = self.outputPorts().map { $0.name }
-
-        let portsNamesToRemove = Set(existingPortNames).subtracting(Set(portNamesWeNeed))
-
-        // Remove ports that are no longer needed
-        for portName in portsNamesToRemove
-        {
-            if let port = self.findPort(named: portName)
-            {
-                self.removePort(port)
-            }
-        }
-
-        // Add or update ports
-        for binding in addressBindings
-        {
+        super.declaredPorts() + addressBindings.map { binding in
             let portName = portNameForAddress(binding.address)
-
-            // Remove existing port if type changed
-            if let existingPort = self.findPort(named: portName)
-            {
-                // Check if type matches, if not remove and recreate
-                let typeMatches: Bool
-                switch binding.dataType
-                {
-                case .float:
-                    typeMatches = existingPort is NodePort<Float>
-                case .int:
-                    typeMatches = existingPort is NodePort<Int>
-                case .string:
-                    typeMatches = existingPort is NodePort<String>
-                case .bool:
-                    typeMatches = existingPort is NodePort<Bool>
-                }
-
-                if !typeMatches
-                {
-                    self.removePort(existingPort)
-                }
-                else
-                {
-                    continue // Port exists and type matches
-                }
-            }
-
-            // Create new port
             let port: Port
             switch binding.dataType
             {
@@ -611,10 +567,13 @@ public class OSCReceiveNode: Node
             case .bool:
                 port = NodePort<Bool>(name: portName, kind: .Outlet, description: "OSC boolean value received at \(binding.address)")
             }
-
-            self.addDynamicPort(port)
-            print("Added OSC port: \(portName)")
+            return PortDeclaration(key: portName, port: port)
         }
+    }
+
+    private func rebuildPorts()
+    {
+        self.reconcilePorts()
     }
 
     private func portNameForAddress(_ address: String) -> String

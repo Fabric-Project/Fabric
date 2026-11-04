@@ -772,8 +772,6 @@ public class TimelineNode: Node
         self.tracks = Self.tracksOrDefault(try container.decodeIfPresent([TimelineTrack].self, forKey: .tracks) ?? [],
                                            duration: duration)
 
-        // Use sync instead of rebuild to preserve ports decoded by super.init
-        // This maintains connection IDs across serialization
         syncPortsToTracks()
     }
 
@@ -807,7 +805,6 @@ public class TimelineNode: Node
         self.duration = settings.duration
         self.tracks = Self.tracksOrDefault(settings.tracks, duration: settings.duration)
         self.syncPortsToTracks()
-        self.reorderPorts(self.inputPorts() + self.tracks.compactMap { self.findPort(named: $0.name) as Port? })
         self.markDirty()
         super.apply(settings)
     }
@@ -936,32 +933,20 @@ public class TimelineNode: Node
 
     // MARK: - Ports
 
-    /// Synchronize ports to tracks, preserving existing ports when possible
-    /// This is important for maintaining connections across serialization
+    /// A Float outlet per track, in track order, under the track's name: a
+    /// track keeps its port and wires while its name stands, and a rename is
+    /// a new port.
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + tracks.map { track in
+            PortDeclaration(key: track.name,
+                            port: NodePort<Float>(name: track.name, kind: .Outlet, description: "Animated value from timeline track"))
+        }
+    }
+
     fileprivate func syncPortsToTracks()
     {
-        let trackNames = Set(tracks.map { $0.name })
-        let existingOutputs = outputPorts()
-        let existingPortNames = Set(existingOutputs.map { $0.name })
-
-        // Remove ports that no longer have matching tracks
-        for port in existingOutputs
-        {
-            if !trackNames.contains(port.name)
-            {
-                removePort(port)
-            }
-        }
-
-        // Add ports for tracks that don't have matching ports
-        for track in tracks
-        {
-            if !existingPortNames.contains(track.name)
-            {
-                let port = NodePort<Float>(name: track.name, kind: .Outlet, description: "Animated value from timeline track")
-                addDynamicPort(port)
-            }
-        }
+        reconcilePorts()
     }
 
     // MARK: - Track Management

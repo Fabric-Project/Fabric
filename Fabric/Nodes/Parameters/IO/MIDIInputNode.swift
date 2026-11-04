@@ -1088,15 +1088,25 @@ public class MIDIInputNode: Node
 
     // MARK: - Port Management
 
+    /// The outlets the configured inputs ask for, which the ports follow.
+    private var outputPortDescriptors: [DeviceOutputPortDescriptor] = []
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + Self.deviceOutputPortDeclarations(for: outputPortDescriptors,
+                                                                  buttonDescription: "MIDI note gate (true while note is held)",
+                                                                  axisDescription: "MIDI value normalized from 0 to 1")
+    }
+
     private func rebuildPorts()
     {
         let descriptors = configuredInputs.map {
             DeviceOutputPortDescriptor(name: $0.portName, isButton: $0.type == .noteGate)
         }
 
-        let created = Set(synchronizeDeviceOutputPorts(to: descriptors,
-                                                       buttonDescription: "MIDI note gate (true while note is held)",
-                                                       axisDescription: "MIDI value normalized from 0 to 1").map(\.name))
+        let created = Set(deviceOutputDescriptorsNeedingPorts(descriptors).map(\.name))
+        outputPortDescriptors = descriptors
+        reconcilePorts()
 
         // Values are keyed by control identity rather than port name, so the
         // seeding cannot ride along inside the sync.

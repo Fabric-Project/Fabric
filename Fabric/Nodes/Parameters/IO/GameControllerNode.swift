@@ -697,6 +697,16 @@ public class GameControllerNode: Node
 
     // MARK: - Port Creation
 
+    /// The outlets the controller's profile asks for, which the ports follow.
+    private var outputPortDescriptors: [DeviceOutputPortDescriptor] = []
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + Self.deviceOutputPortDeclarations(for: outputPortDescriptors,
+                                                                  buttonDescription: "Controller button state (true when pressed)",
+                                                                  axisDescription: "Controller axis value normalized from -1 to 1")
+    }
+
     /// The persisted projection of the port set: encode derives it from the
     /// live ports rather than storing a parallel list that could drift.
     private func currentPortDescriptors() -> [DeviceOutputPortDescriptor]
@@ -708,9 +718,8 @@ public class GameControllerNode: Node
 
     private func synchronizePorts(to descriptors: [DeviceOutputPortDescriptor])
     {
-        synchronizeDeviceOutputPorts(to: descriptors,
-                                     buttonDescription: "Controller button state (true when pressed)",
-                                     axisDescription: "Controller axis value normalized from -1 to 1")
+        outputPortDescriptors = descriptors
+        reconcilePorts()
 
         controllerValues.withLock { values in
             for descriptor in descriptors
