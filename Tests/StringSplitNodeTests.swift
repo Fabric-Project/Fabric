@@ -35,11 +35,11 @@ struct StringSplitNodeTests
         #expect(node.splitMode == .custom)
         #expect(node.inputSeparator != nil)
 
-        node.strategy = StringSplitMode.newline.rawValue
+        node.setStrategy(StringSplitMode.newline.rawValue)
         #expect(node.splitMode == .newline)
         #expect(node.inputSeparator == nil)
 
-        node.strategy = StringSplitMode.custom.rawValue
+        node.setStrategy(StringSplitMode.custom.rawValue)
         #expect(node.inputSeparator != nil)
     }
 
@@ -51,10 +51,10 @@ struct StringSplitNodeTests
         let node = StringSplitNode(context: harness.context, strategy: StringSplitMode.custom)
         try #require(node.inputSeparator).value = #"\t"#
 
-        node.strategy = StringSplitMode.comma.rawValue
+        node.setStrategy(StringSplitMode.comma.rawValue)
         #expect(node.customSeparator == #"\t"#)
 
-        node.strategy = StringSplitMode.custom.rawValue
+        node.setStrategy(StringSplitMode.custom.rawValue)
         #expect(node.inputSeparator?.value == #"\t"#)
     }
 

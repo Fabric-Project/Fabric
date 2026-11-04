@@ -1,4 +1,6 @@
 import Foundation
+import Satin
+import SwiftUI
 internal import HuggingFace
 internal import MLX
 internal import MLXLLM
@@ -684,5 +686,93 @@ actor LocalModelContainerCache {
         if self.stateObservers[cacheKey]?.isEmpty == true {
             self.stateObservers.removeValue(forKey: cacheKey)
         }
+    }
+}
+
+/// The settings of a local model node. `Owner` is that node's type: the two
+/// nodes hold the same fields, but each one's model IDs name its own registry,
+/// so one's value is another node's settings type to the other.
+public struct LocalModelSettings<Owner>: NodeSettings
+{
+    public var selectedModelID: String
+    public var temperature: Float
+    public var updateIntervalSeconds: Float
+    public var systemPromptOverride: String
+    public var chatModeEnabled: Bool
+    public var desiredMaxContextTokens: Int
+
+    public init(selectedModelID: String,
+                temperature: Float,
+                updateIntervalSeconds: Float,
+                systemPromptOverride: String,
+                chatModeEnabled: Bool,
+                desiredMaxContextTokens: Int)
+    {
+        self.selectedModelID = selectedModelID
+        self.temperature = temperature
+        self.updateIntervalSeconds = updateIntervalSeconds
+        self.systemPromptOverride = systemPromptOverride
+        self.chatModeEnabled = chatModeEnabled
+        self.desiredMaxContextTokens = desiredMaxContextTokens
+    }
+}
+
+public typealias LocalLLMSettings = LocalModelSettings<LocalLLMNode>
+public typealias LocalVLMSettings = LocalModelSettings<LocalVLMNode>
+
+/// A local model node, LLM or VLM, holding its LocalModelSettings as stored
+/// properties.
+protocol LocalModelSettingsMirroring: Node
+{
+    var selectedModelID: String { get set }
+    var temperature: Float { get set }
+    var updateIntervalSeconds: Float { get set }
+    var systemPromptOverride: String { get set }
+    var chatModeEnabled: Bool { get set }
+    var desiredMaxContextTokens: Int { get set }
+}
+
+extension LocalModelSettingsMirroring
+{
+    func localModelSettings<Owner>() -> LocalModelSettings<Owner>
+    {
+        LocalModelSettings(selectedModelID: self.selectedModelID,
+                           temperature: self.temperature,
+                           updateIntervalSeconds: self.updateIntervalSeconds,
+                           systemPromptOverride: self.systemPromptOverride,
+                           chatModeEnabled: self.chatModeEnabled,
+                           desiredMaxContextTokens: self.desiredMaxContextTokens)
+    }
+
+    /// Assigns every property and returns what changed, for the node to act
+    /// on once: a model change reloads the model, any other change clears the
+    /// conversation.
+    func setLocalModelSettings<Owner>(_ settings: LocalModelSettings<Owner>) -> (modelChanged: Bool, inferenceChanged: Bool)
+    {
+        var before: LocalModelSettings<Owner> = self.localModelSettings()
+        let modelChanged = before.selectedModelID != settings.selectedModelID
+        before.selectedModelID = settings.selectedModelID
+        let inferenceChanged = before != settings
+
+        self.selectedModelID = settings.selectedModelID
+        self.temperature = settings.temperature
+        self.updateIntervalSeconds = settings.updateIntervalSeconds
+        self.systemPromptOverride = settings.systemPromptOverride
+        self.chatModeEnabled = settings.chatModeEnabled
+        self.desiredMaxContextTokens = settings.desiredMaxContextTokens
+        return (modelChanged, inferenceChanged)
+    }
+
+    /// A settings view's binding to one field, writing through setSettings.
+    func settingBinding<Owner, Value>(_ field: WritableKeyPath<LocalModelSettings<Owner>, Value>) -> Binding<Value>
+    {
+        Binding(
+            get: { (self.localModelSettings() as LocalModelSettings<Owner>)[keyPath: field] },
+            set: { newValue in
+                var settings: LocalModelSettings<Owner> = self.localModelSettings()
+                settings[keyPath: field] = newValue
+                self.setSettings(settings)
+            }
+        )
     }
 }

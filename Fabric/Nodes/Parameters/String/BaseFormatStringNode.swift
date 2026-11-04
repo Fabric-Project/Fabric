@@ -42,6 +42,15 @@ struct FormatStringSettingsView: View {
     }
 }
 
+/// The settings of a format-string node.
+public struct FormatStringSettings: NodeSettings {
+    public var formatString: String
+
+    public init(formatString: String) {
+        self.formatString = formatString
+    }
+}
+
 // MARK: - Base Format String Node
 
 public class BaseFormatStringNode: Node {
@@ -78,14 +87,16 @@ public class BaseFormatStringNode: Node {
         didSet {
             self.updatePorts()
             self.subtitleSubject.send()
+            self.performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
         }
     }
 
-    /// Sets the format string from outside the Settings view — the procedural
-    /// equivalent of typing in the inspector.
-    public func setFormatString(_ formatString: String) {
-        guard formatString != self.formatString else { return }
-        self.formatString = formatString
+    override public var settings: (any NodeSettings)? { FormatStringSettings(formatString: self.formatString) }
+
+    override public func apply(_ settings: any NodeSettings) {
+        guard let settings = settings as? FormatStringSettings else { return }
+        if settings.formatString != self.formatString { self.formatString = settings.formatString }
+        super.apply(settings)
     }
 
     /// The current format string, parsed. Rebuilt only when it changes.
@@ -114,6 +125,10 @@ public class BaseFormatStringNode: Node {
         self.updatePorts()
     }
 
+    public convenience init(context: Context, settings: FormatStringSettings) {
+        self.init(context: context, formatString: settings.formatString)
+    }
+
     public required init(from decoder: any Decoder) throws {
         self.formatString = Self.defaultFormatString
 
@@ -130,21 +145,18 @@ public class BaseFormatStringNode: Node {
         self.updatePorts()
     }
 
-    public override func encode(to encoder: Encoder) throws {
-        try super.encode(to: encoder)
-
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.formatString, forKey: .formatString)
-    }
-
     // MARK: - Settings
 
     override public func providesSettingsView() -> Bool { true }
 
     override public func settingsView() -> AnyView {
-        AnyView(FormatStringSettingsView(model: _settingsModel, guidance: Self.settingsGuidance))
+        performOnMainSync {
+            if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
+            return AnyView(FormatStringSettingsView(model: _settingsModelStorage!, guidance: Self.settingsGuidance))
+        }
     }
 
+    @MainActor
     @Observable final class SettingsModel
     {
         var formatString: String
@@ -152,7 +164,7 @@ public class BaseFormatStringNode: Node {
             didSet
             {
                 guard formatString != node?.formatString else { return }
-                node?.formatString = formatString
+                node?.setSettings(FormatStringSettings(formatString: formatString))
             }
         }
         private weak var node: BaseFormatStringNode?
@@ -162,9 +174,16 @@ public class BaseFormatStringNode: Node {
             self.node = node
             self.formatString = node.formatString
         }
+
+        func refreshFromNode()
+        {
+            guard let node, formatString != node.formatString else { return }
+            formatString = node.formatString
+        }
     }
 
-    private lazy var _settingsModel = SettingsModel(node: self)
+    /// Nil until a settings view asks for it.
+    private var _settingsModelStorage: SettingsModel?
 
     // MARK: - Dynamic Port Management
 

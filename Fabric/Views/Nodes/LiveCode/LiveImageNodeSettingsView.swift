@@ -23,12 +23,15 @@ import LanguageSupport
     var content: String
     private weak var node: LiveImageNode?
     private var saveTimer: Timer?
+    /// What the node held at the last flush: the editor writes only what was edited since.
+    private var savedContent: String
     var messages: Set<TextLocated<Message>> = Set()
     var diagnostics: [ShaderDiagnostic] = []
 
     init(node: LiveImageNode) {
         self.node = node
         self.content = node.shaderSource
+        self.savedContent = node.shaderSource
     }
 
     func scheduleSave() {
@@ -41,9 +44,26 @@ import LanguageSupport
         }
     }
 
+    /// Writes what was edited since the last flush and nothing else, so an
+    /// editor closed unedited keeps settings applied to the node meanwhile.
     func flush() {
         guard let node else { return }
-        node.updateShaderSource(self.content)
+        if self.content != self.savedContent {
+            node.setSettings(LiveImageSettings(shaderSource: self.content))
+            self.savedContent = node.shaderSource
+        }
+        self.refreshErrorMessagesIfPossible()
+    }
+
+    /// Takes the node's source where it changed under the editor, as a value
+    /// applied to the node or the file on disk read on save; an edit not yet
+    /// flushed goes.
+    func refreshFromNode() {
+        guard let node else { return }
+        if node.shaderSource != self.savedContent {
+            self.savedContent = node.shaderSource
+            self.content = node.shaderSource
+        }
         self.refreshErrorMessagesIfPossible()
     }
 
@@ -167,11 +187,11 @@ import LanguageSupport
 
 struct LiveImageNodeSettingsView: View
 {
-    @State private var editorModel: LiveImageNodeEditorModel
+    @Bindable var editorModel: LiveImageNodeEditorModel
     @State private var position: CodeEditor.Position = .init()
 
-    init(node: LiveImageNode) {
-        _editorModel = State(initialValue: LiveImageNodeEditorModel(node: node))
+    init(editorModel: LiveImageNodeEditorModel) {
+        self.editorModel = editorModel
     }
 
     var body: some View {

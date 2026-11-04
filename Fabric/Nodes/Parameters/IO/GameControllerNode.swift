@@ -102,6 +102,20 @@ struct GameControllerNodeView: View
 
 // MARK: - Game Controller Node
 
+/// The settings of a Game Controller node: the controller selected and the
+/// ports its profile gives, which stand for it while it is unplugged.
+public struct GameControllerSettings: NodeSettings
+{
+    public var selectedControllerID: String?
+    public var portDescriptors: [DeviceOutputPortDescriptor]
+
+    public init(selectedControllerID: String?, portDescriptors: [DeviceOutputPortDescriptor])
+    {
+        self.selectedControllerID = selectedControllerID
+        self.portDescriptors = portDescriptors
+    }
+}
+
 public class GameControllerNode: Node
 {
     fileprivate static let log = Logger(subsystem: "graphics.fabric", category: "GameControllerNode")
@@ -156,9 +170,6 @@ public class GameControllerNode: Node
         try super.encode(to: encoder)
 
         var container = encoder.container(keyedBy: GameControllerCodingKeys.self)
-        try container.encodeIfPresent(self.selectedControllerID, forKey: .selectedControllerID)
-        try container.encode(self.currentPortDescriptors(), forKey: .portDescriptors)
-
         // The reconnect record has to outlive the hardware: saving with the
         // controller unplugged — or before enableExecution has ever discovered
         // one — must not erase what the document already knew.
@@ -171,9 +182,45 @@ public class GameControllerNode: Node
         super.init(context: context)
     }
 
+    public convenience init(context: Context, settings: GameControllerSettings)
+    {
+        self.init(context: context)
+        self.apply(settings)
+    }
+
+    // MARK: - Settings
+
+    override public var settings: (any NodeSettings)?
+    {
+        GameControllerSettings(selectedControllerID: selectedControllerID, portDescriptors: currentPortDescriptors())
+    }
+
+    /// The saved port set stands in only for an unplugged controller; a
+    /// plugged-in one gives its own ports, as it does on decode.
+    override public func apply(_ settings: any NodeSettings)
+    {
+        guard let settings = settings as? GameControllerSettings else { return }
+        if settings.selectedControllerID != selectedControllerID
+        {
+            // Sync to the saved set directly: passing through an empty set would
+            // drop the ports' connections.
+            portDescriptorsForAbsentController = settings.portDescriptors
+            defer { portDescriptorsForAbsentController = nil }
+            selectedControllerID = settings.selectedControllerID
+        }
+        else if currentController == nil
+        {
+            synchronizePorts(to: settings.portDescriptors)
+        }
+        performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+        super.apply(settings)
+    }
+
     // MARK: - Properties
 
     private var savedControllerInfo: GameControllerInfo?
+    /// Set while apply(_:) changes the selection: the ports setupController() gives when the selected controller is absent.
+    private var portDescriptorsForAbsentController: [DeviceOutputPortDescriptor]?
     // Controller state is main-thread state: the controller's handler, the
     // notifications and the settings view all use main. Lifecycle calls, which
     // can run on the render thread, hand over to main with performOnMainAsync,
@@ -189,11 +236,7 @@ public class GameControllerNode: Node
         didSet
         {
             setupController()
-            performOnMainSync
-            {
-                _settingsModelStorage?.selectedControllerID = selectedControllerID
-                _settingsModelStorage?.outputPortCount = outputPorts().count
-            }
+            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
             // `subtitle` is derived from the selected controller; notify so the title refreshes.
             self.subtitleSubject.send()
         }
@@ -242,7 +285,8 @@ public class GameControllerNode: Node
             didSet
             {
                 guard selectedControllerID != node?.selectedControllerID else { return }
-                node?.selectedControllerID = selectedControllerID
+                // No saved ports: a plugged-in controller gives its own, an unplugged one none.
+                node?.setSettings(GameControllerSettings(selectedControllerID: selectedControllerID, portDescriptors: []))
             }
         }
         var availableControllers: [GameControllerInfo] = []
@@ -259,6 +303,13 @@ public class GameControllerNode: Node
             self.availableControllers = node.availableControllers
             self.outputPortCount = node.outputPorts().count
             self.controllerStatus = node.controllerStatus
+        }
+
+        func refreshFromNode()
+        {
+            guard let node else { return }
+            if selectedControllerID != node.selectedControllerID { selectedControllerID = node.selectedControllerID }
+            outputPortCount = node.outputPorts().count
         }
 
         func refreshControllers() { node?.refreshControllers() }
@@ -419,8 +470,8 @@ public class GameControllerNode: Node
             {
                 savedControllerInfo = nil
             }
-            self.synchronizePorts(to: [])
-            performOnMainSync { _settingsModelStorage?.outputPortCount = outputPorts().count }
+            self.synchronizePorts(to: portDescriptorsForAbsentController ?? [])
+            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
             updateSubscription()
             updateControllerStatus()
             return
@@ -446,7 +497,7 @@ public class GameControllerNode: Node
         }
 
         self.synchronizePorts(to: descriptors)
-        performOnMainSync { _settingsModelStorage?.outputPortCount = outputPorts().count }
+        performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
         updateSubscription()
         updateControllerStatus()
     }

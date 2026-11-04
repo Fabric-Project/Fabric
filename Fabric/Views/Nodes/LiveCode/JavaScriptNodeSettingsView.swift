@@ -19,12 +19,17 @@ import LanguageSupport
 
     private weak var node: JavaScriptNode?
     private var saveTimer: Timer?
+    /// What the node held at the last flush: the editor writes only what was edited since.
+    private var savedContent: String
+    private var savedTimeMode: Node.TimeMode
 
     init(node: JavaScriptNode)
     {
         self.node = node
         self.content = node.scriptSource
         self.selectedTimeMode = node.selectedTimeMode
+        self.savedContent = node.scriptSource
+        self.savedTimeMode = node.selectedTimeMode
         self.languageService = JavaScriptLanguageService()
         self.refreshMessages()
     }
@@ -50,11 +55,21 @@ import LanguageSupport
         }
     }
 
+    /// Writes what was edited since the last flush and nothing else, so an
+    /// editor closed unedited keeps settings applied to the node meanwhile.
     func flush()
     {
         guard let node else { return }
-        node.updateScriptSource(self.content)
-        node.updateTimeMode(self.selectedTimeMode)
+        if self.content != self.savedContent || self.selectedTimeMode != self.savedTimeMode
+        {
+            node.setSettings(JavaScriptSettings(scriptSource: self.content, selectedTimeMode: self.selectedTimeMode))
+        }
+        self.savedContent = node.scriptSource
+        self.savedTimeMode = node.selectedTimeMode
+        if node.selectedTimeMode != self.selectedTimeMode
+        {
+            self.selectedTimeMode = node.selectedTimeMode
+        }
 
         // A script written in the annotated form is kept as the TypeScript it
         // was read as. Taking that back is what puts the rewrite in front of the
@@ -65,6 +80,24 @@ import LanguageSupport
             self.content = node.scriptSource
         }
 
+        self.refreshMessages()
+    }
+
+    /// Takes the node's source and time mode where they changed under the
+    /// editor, as a value applied to the node; an edit not yet flushed goes.
+    func refreshFromNode()
+    {
+        guard let node else { return }
+        if node.scriptSource != self.savedContent
+        {
+            self.savedContent = node.scriptSource
+            self.content = node.scriptSource
+        }
+        if node.selectedTimeMode != self.savedTimeMode
+        {
+            self.savedTimeMode = node.selectedTimeMode
+            self.selectedTimeMode = node.selectedTimeMode
+        }
         self.refreshMessages()
     }
 
@@ -84,12 +117,12 @@ import LanguageSupport
 
 struct JavaScriptNodeSettingsView: View
 {
-    @State private var editorModel: JavaScriptNodeEditorModel
+    @Bindable var editorModel: JavaScriptNodeEditorModel
     @State private var position: CodeEditor.Position = .init()
 
-    init(node: JavaScriptNode)
+    init(editorModel: JavaScriptNodeEditorModel)
     {
-        _editorModel = State(initialValue: JavaScriptNodeEditorModel(node: node))
+        self.editorModel = editorModel
     }
 
     var body: some View

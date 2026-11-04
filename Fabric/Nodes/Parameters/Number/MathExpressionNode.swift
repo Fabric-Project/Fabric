@@ -172,6 +172,18 @@ struct MathExpressionView: View
     }
 }
 
+// MARK: - Settings
+
+public struct MathExpressionSettings: NodeSettings
+{
+    public var stringExpression: String
+
+    public init(stringExpression: String)
+    {
+        self.stringExpression = stringExpression
+    }
+}
+
 // MARK: - Node
 
 public class MathExpressionNode: Node
@@ -315,6 +327,9 @@ public class MathExpressionNode: Node
     /// The last compile. Recomputed only when `stringExpression` changes.
     private var compiled: CompileResult?
 
+    /// The last compile's diagnostics.
+    var compileDiagnostics: [Diagnostic] { compiled?.diagnostics ?? [] }
+
     /// The interface the current ports were built from — the last *valid*
     /// compile. A transiently invalid edit (e.g. `sin(`) keeps the existing
     /// ports and wires rather than churning them.
@@ -337,11 +352,13 @@ public class MathExpressionNode: Node
         self.compileAndSync()
     }
 
-    public override func encode(to encoder: Encoder) throws
+    override public var settings: (any NodeSettings)? { MathExpressionSettings(stringExpression: self.stringExpression) }
+
+    override public func apply(_ settings: any NodeSettings)
     {
-        try super.encode(to: encoder)
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.stringExpression, forKey: .stringExpression)
+        guard let settings = settings as? MathExpressionSettings else { return }
+        self.stringExpression = settings.stringExpression
+        super.apply(settings)
     }
 
     public required init(context: Context)
@@ -359,8 +376,14 @@ public class MathExpressionNode: Node
         self.compileAndSync()
     }
 
+    public convenience init(context: Context, settings: MathExpressionSettings)
+    {
+        self.init(context: context, expression: settings.stringExpression)
+    }
+
     // MARK: - Settings
 
+    @MainActor
     @Observable final class SettingsModel
     {
         var stringExpression: String
@@ -368,7 +391,7 @@ public class MathExpressionNode: Node
             didSet
             {
                 guard stringExpression != node?.stringExpression else { return }
-                node?.stringExpression = stringExpression
+                node?.setSettings(MathExpressionSettings(stringExpression: stringExpression))
             }
         }
 
@@ -392,18 +415,37 @@ public class MathExpressionNode: Node
         {
             self.node = node
             self.stringExpression = node.stringExpression
-            self.diagnostics = node.compiled?.diagnostics ?? []
+            self.diagnostics = node.compileDiagnostics
+        }
+
+        func refreshFromNode()
+        {
+            guard let node else { return }
+            if stringExpression != node.stringExpression { stringExpression = node.stringExpression }
+            diagnostics = node.compileDiagnostics
         }
     }
 
-    internal lazy var _settingsModel: SettingsModel = SettingsModel(node: self)
+    /// Nil until a settings view, or settingsSize, asks for it.
+    private var _settingsModelStorage: SettingsModel?
+
+    internal var _settingsModel: SettingsModel
+    {
+        performOnMainSync
+        {
+            if let model = _settingsModelStorage { return model }
+            let model = SettingsModel(node: self)
+            _settingsModelStorage = model
+            return model
+        }
+    }
 
     override public func providesSettingsView() -> Bool { true }
-    override public func settingsView() -> AnyView { AnyView(MathExpressionView(model: _settingsModel)) }
+    override public func settingsView() -> AnyView { performOnMainSync { AnyView(MathExpressionView(model: _settingsModel)) } }
     override public var settingsSize: SettingsViewSize
     {
         // Compact for the single-line field; wide + tall for the code editor.
-        _settingsModel.showsCode
+        performOnMainSync { _settingsModel.showsCode }
             ? .Custom(size: CGSize(width: 760, height: 540))
             : .Custom(size: CGSize(width: 480, height: 210))
     }
@@ -438,13 +480,7 @@ public class MathExpressionNode: Node
                      ? Self.invalidExpressionMessage
                      : errors.map(\.message).joined(separator: "\n"))
 
-        // Keep the settings model mirroring the node, not just model → node.
-        // Its didSet guards on equality, so this cannot loop.
-        if self._settingsModel.stringExpression != self.stringExpression
-        {
-            self._settingsModel.stringExpression = self.stringExpression
-        }
-        self._settingsModel.diagnostics = result.diagnostics
+        self.performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
         self.subtitleSubject.send()
     }
 

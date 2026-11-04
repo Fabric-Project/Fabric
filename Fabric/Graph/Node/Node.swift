@@ -289,6 +289,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         try container.encode(self.offset, forKey: .nodeOffset)
         try container.encode(self.registry.encode(), forKey: .ports)
         try container.encodeIfPresent(self.userName, forKey: .userName)
+        try self.settings?.encode(to: encoder)
     }
 
     public required init(context:Context)
@@ -704,6 +705,49 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     }
 
     open var settingsSize:SettingsViewSize { .Small }
+
+    /// The node's settings, nil for a node without. See NodeSettings.
+    open var settings: (any NodeSettings)? { nil }
+
+    /// Override only; setSettings(_:) and init(context:settings:) call it.
+    /// Brings the node, its ports included, to `settings`. A port whose
+    /// registry key survives the change keeps its identity. A subclass takes
+    /// its own type out of the existential, treats a value of any other type
+    /// as no change, and calls super with the same value.
+    ///
+    /// Threads: called on the thread that edits the graph, which a host can
+    /// keep off main, and on the render thread as a NumericTypeAgnosticNode
+    /// specialises from execute(). A node whose settings reach main-thread
+    /// state waits for main, so it is applied only from main. A change reaches
+    /// an open settings view's model through performOnMainAsync, from the
+    /// observer of the stored setting.
+    open func apply(_ settings: any NodeSettings)
+    {
+    }
+
+    /// The one way a node's settings change: from a settings view, the
+    /// procedural API and undo. Brings the node to `settings` unless it holds
+    /// them already; a value of another node's settings type is no change.
+    public final func setSettings(_ settings: any NodeSettings)
+    {
+        guard let current = self.settings,
+              type(of: current) == type(of: settings),
+              !current.isEqual(to: settings)
+        else { return }
+        self.apply(settings)
+        self.recordSettingsChange(from: current)
+    }
+
+    /// Override only; setSettings(_:) calls it after apply(_:), with the value
+    /// the node held before. A subclass registers the undo step for the
+    /// change here, not in apply(_:), which undo itself goes through.
+    ///
+    /// Temporary. It carries the one settings undo step that predates
+    /// NodeSettings, StrategyNode's, until undo records every settings change
+    /// around setSettings(_:); that rework removes this hook and its override.
+    open func recordSettingsChange(from previous: any NodeSettings)
+    {
+    }
 
     // MARK: - Helpers
 

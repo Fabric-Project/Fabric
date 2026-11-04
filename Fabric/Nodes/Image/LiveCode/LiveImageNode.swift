@@ -10,6 +10,38 @@ import Metal
 import Satin
 import SwiftUI
 
+/// The settings of a Live Image node: its shader source.
+public struct LiveImageSettings: NodeSettings
+{
+    public var shaderSource: String
+
+    public init(shaderSource: String)
+    {
+        self.shaderSource = shaderSource
+    }
+
+    private enum CodingKeys: String, CodingKey
+    {
+        case shaderSource
+        case shaderSchemaVersion
+    }
+
+    private static let shaderSchemaVersion = 1
+
+    public init(from decoder: Decoder) throws
+    {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.shaderSource = try container.decode(String.self, forKey: .shaderSource)
+    }
+
+    public func encode(to encoder: Encoder) throws
+    {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(self.shaderSource, forKey: .shaderSource)
+        try container.encode(Self.shaderSchemaVersion, forKey: .shaderSchemaVersion)
+    }
+}
+
 public class LiveImageNode: BaseImageNode
 {
     override public class var name: String { "Live Image" }
@@ -23,14 +55,14 @@ public class LiveImageNode: BaseImageNode
 
     enum CodingKeys: String, CodingKey {
         case shaderSource
-        case shaderSchemaVersion
     }
-
-    private static let shaderSchemaVersion = 1
     private static let rootWorkspaceURL = URL(filePath: "/tmp/fabric-live-shaders", directoryHint: .isDirectory)
     private static let staleWorkspaceTTL: TimeInterval = 24 * 60 * 60
 
     private(set) var shaderSource: String = LiveImageNode.defaultShaderSource()
+    {
+        didSet { self.performOnMainAsync { [weak self] in self?._editorModelStorage?.refreshFromNode() } }
+    }
 
     // A decoded copy of a node carries the document and node UUIDs of the
     // original, so keying the workspace on those alone puts two live instances
@@ -57,6 +89,12 @@ public class LiveImageNode: BaseImageNode
     }
 
     required init(context: Context) {
+        super.init(context: context)
+        self.postInit()
+    }
+
+    public init(context: Context, settings: LiveImageSettings) {
+        self.shaderSource = settings.shaderSource
         super.init(context: context)
         self.postInit()
     }
@@ -96,10 +134,20 @@ public class LiveImageNode: BaseImageNode
     override public func encode(to encoder: Encoder) throws {
         try self.captureShaderSourceFromDiskIfAvailable()
         try super.encode(to: encoder)
+    }
 
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.shaderSource, forKey: .shaderSource)
-        try container.encode(Self.shaderSchemaVersion, forKey: .shaderSchemaVersion)
+    override public var settings: (any NodeSettings)? {
+        LiveImageSettings(shaderSource: self.shaderSource)
+    }
+
+    override public func apply(_ settings: any NodeSettings) {
+        guard let settings = settings as? LiveImageSettings else { return }
+        // An equal source would rewrite the file, recompile and resync ports for nothing.
+        self.performOnMainSync {
+            guard settings.shaderSource != self.shaderSource else { return }
+            self.updateShaderSource(settings.shaderSource)
+        }
+        super.apply(settings)
     }
 
     override public func providesSettingsView() -> Bool {
@@ -107,15 +155,28 @@ public class LiveImageNode: BaseImageNode
     }
 
     override public func settingsView() -> AnyView {
-        AnyView(LiveImageNodeSettingsView(node: self))
+        performOnMainSync { AnyView(LiveImageNodeSettingsView(editorModel: editorModel)) }
     }
+
+    /// The editor's model, made on main when a view first asks for it and
+    /// kept, so a value applied under an open editor reaches it.
+    var editorModel: LiveImageNodeEditorModel {
+        performOnMainSync {
+            if let model = _editorModelStorage { return model }
+            let model = LiveImageNodeEditorModel(node: self)
+            _editorModelStorage = model
+            return model
+        }
+    }
+
+    private var _editorModelStorage: LiveImageNodeEditorModel?
 
     override public var settingsSize: SettingsViewSize {
         .Custom(size: CGSize(width: 900, height: 620))
     }
 
     @MainActor
-    public func updateShaderSource(_ source: String) {
+    func updateShaderSource(_ source: String) {
         self.shaderSource = source
         guard let shaderFileURL else { return }
 

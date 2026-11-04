@@ -50,6 +50,22 @@ struct MathExpressionParametricView: View
     }
 }
 
+// MARK: - Settings
+
+public struct ParametricExpressionSettings: NodeSettings
+{
+    public var expressionX: String
+    public var expressionY: String
+    public var expressionZ: String
+
+    public init(expressionX: String, expressionY: String, expressionZ: String)
+    {
+        self.expressionX = expressionX
+        self.expressionY = expressionY
+        self.expressionZ = expressionZ
+    }
+}
+
 // MARK: - Node
 
 public class MathExpressionParametricGeometryNode: BaseGeometryNode
@@ -83,36 +99,37 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
 
     // MARK: - Settings Model
 
+    @MainActor
     @Observable final class SettingsModel
     {
         var expressionX: String
         {
             didSet
             {
-                guard expressionX != node?.expressionX else { return }
-                node?.expressionX = expressionX
+                guard let node, expressionX != node.expressionX else { return }
+                node.setSettings(ParametricExpressionSettings(expressionX: expressionX, expressionY: node.expressionY, expressionZ: node.expressionZ))
             }
         }
         var expressionY: String
         {
             didSet
             {
-                guard expressionY != node?.expressionY else { return }
-                node?.expressionY = expressionY
+                guard let node, expressionY != node.expressionY else { return }
+                node.setSettings(ParametricExpressionSettings(expressionX: node.expressionX, expressionY: expressionY, expressionZ: node.expressionZ))
             }
         }
         var expressionZ: String
         {
             didSet
             {
-                guard expressionZ != node?.expressionZ else { return }
-                node?.expressionZ = expressionZ
+                guard let node, expressionZ != node.expressionZ else { return }
+                node.setSettings(ParametricExpressionSettings(expressionX: node.expressionX, expressionY: node.expressionY, expressionZ: expressionZ))
             }
         }
 
-        var statusX: Bool = true
-        var statusY: Bool = true
-        var statusZ: Bool = true
+        var statusX: Bool
+        var statusY: Bool
+        var statusZ: Bool
 
         private weak var node: MathExpressionParametricGeometryNode?
 
@@ -122,10 +139,38 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
             self.expressionX = node.expressionX
             self.expressionY = node.expressionY
             self.expressionZ = node.expressionZ
+            let axes = node.validAxes
+            self.statusX = axes.x
+            self.statusY = axes.y
+            self.statusZ = axes.z
+        }
+
+        func refreshFromNode()
+        {
+            guard let node else { return }
+            if expressionX != node.expressionX { expressionX = node.expressionX }
+            if expressionY != node.expressionY { expressionY = node.expressionY }
+            if expressionZ != node.expressionZ { expressionZ = node.expressionZ }
+            let axes = node.validAxes
+            statusX = axes.x
+            statusY = axes.y
+            statusZ = axes.z
         }
     }
 
-    internal lazy var _settingsModel: SettingsModel = SettingsModel(node: self)
+    /// Nil until a settings view asks for it.
+    private var _settingsModelStorage: SettingsModel?
+
+    var settingsModel: SettingsModel
+    {
+        performOnMainSync
+        {
+            if let model = _settingsModelStorage { return model }
+            let model = SettingsModel(node: self)
+            _settingsModelStorage = model
+            return model
+        }
+    }
 
     // MARK: - Codable
 
@@ -144,20 +189,40 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
         parseExpressions()
     }
 
-    public override func encode(to encoder: any Encoder) throws
+    override public var settings: (any NodeSettings)?
     {
-        try super.encode(to: encoder)
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(expressionX, forKey: .expressionX)
-        try container.encode(expressionY, forKey: .expressionY)
-        try container.encode(expressionZ, forKey: .expressionZ)
+        ParametricExpressionSettings(expressionX: expressionX, expressionY: expressionY, expressionZ: expressionZ)
     }
+
+    /// Parses once for the three axes, so a variable moving between axes keeps its port.
+    override public func apply(_ settings: any NodeSettings)
+    {
+        guard let settings = settings as? ParametricExpressionSettings else { return }
+        self.isApplyingSettings = true
+        self.expressionX = settings.expressionX
+        self.expressionY = settings.expressionY
+        self.expressionZ = settings.expressionZ
+        self.isApplyingSettings = false
+        self.parseExpressions()
+        super.apply(settings)
+    }
+
+    private var isApplyingSettings = false
 
     public required init(context: Context)
     {
         self.expressionX = Self.defaultExpressionX
         self.expressionY = Self.defaultExpressionY
         self.expressionZ = Self.defaultExpressionZ
+        super.init(context: context)
+        parseExpressions()
+    }
+
+    public init(context: Context, settings: ParametricExpressionSettings)
+    {
+        self.expressionX = settings.expressionX
+        self.expressionY = settings.expressionY
+        self.expressionZ = settings.expressionZ
         super.init(context: context)
         parseExpressions()
     }
@@ -202,7 +267,7 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
     {
         didSet
         {
-            guard oldValue != expressionX else { return }
+            guard oldValue != expressionX, !isApplyingSettings else { return }
             parseExpressions()
         }
     }
@@ -210,7 +275,7 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
     {
         didSet
         {
-            guard oldValue != expressionY else { return }
+            guard oldValue != expressionY, !isApplyingSettings else { return }
             parseExpressions()
         }
     }
@@ -218,7 +283,7 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
     {
         didSet
         {
-            guard oldValue != expressionZ else { return }
+            guard oldValue != expressionZ, !isApplyingSettings else { return }
             parseExpressions()
         }
     }
@@ -248,26 +313,19 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
 
     private func parseExpressions()
     {
-        // Keep the settings model mirroring the node, not just model → node.
-        // Its didSets guard on equality, so this cannot loop.
-        if _settingsModel.expressionX != expressionX { _settingsModel.expressionX = expressionX }
-        if _settingsModel.expressionY != expressionY { _settingsModel.expressionY = expressionY }
-        if _settingsModel.expressionZ != expressionZ { _settingsModel.expressionZ = expressionZ }
-
         evalX = axisExpression(from: expressionX)
-        _settingsModel.statusX = evalX != nil
-
         evalY = axisExpression(from: expressionY)
-        _settingsModel.statusY = evalY != nil
-
         evalZ = axisExpression(from: expressionZ)
-        _settingsModel.statusZ = evalZ != nil
 
         updateCompileErrorStatus()
         syncVariablePorts()
         _expressionsDirty = true
         subtitleSubject.send()
+        performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
     }
+
+    /// Which axes compile.
+    var validAxes: (x: Bool, y: Bool, z: Bool) { (evalX != nil, evalY != nil, evalZ != nil) }
 
     /// Blank everywhere is a node not yet written rather than one that fails,
     /// and reports nothing, as deriveSubtitle() also has it. Such a node still
@@ -341,7 +399,7 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
 
     override public func settingsView() -> AnyView
     {
-        AnyView(MathExpressionParametricView(model: _settingsModel))
+        performOnMainSync { AnyView(MathExpressionParametricView(model: settingsModel)) }
     }
 
     override public var settingsSize: SettingsViewSize { .Medium }

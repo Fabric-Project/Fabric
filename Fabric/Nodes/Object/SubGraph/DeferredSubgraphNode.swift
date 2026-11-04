@@ -27,6 +27,18 @@ private struct DeferredSubgraphNodeSettingsView: View
     }
 }
 
+/// The settings of a Render To Image and Depth node: whether it hands out the
+/// deferred render targets as well.
+public struct DeferredSubgraphSettings: NodeSettings
+{
+    public var deferredMRTEnabled: Bool
+
+    public init(deferredMRTEnabled: Bool)
+    {
+        self.deferredMRTEnabled = deferredMRTEnabled
+    }
+}
+
 public class DeferredSubgraphNode: SubgraphNode
 {
     private struct AuxiliaryOutputPortDescriptor
@@ -41,11 +53,12 @@ public class DeferredSubgraphNode: SubgraphNode
         case deferredMRTEnabled
     }
 
+    @MainActor
     @Observable final class SettingsModel {
         var deferredMRTEnabled: Bool {
             didSet {
                 guard deferredMRTEnabled != node?.deferredMRTEnabled else { return }
-                node?.deferredMRTEnabled = deferredMRTEnabled
+                node?.setSettings(DeferredSubgraphSettings(deferredMRTEnabled: deferredMRTEnabled))
             }
         }
         private weak var node: DeferredSubgraphNode?
@@ -53,9 +66,15 @@ public class DeferredSubgraphNode: SubgraphNode
             self.node = node
             self.deferredMRTEnabled = node.deferredMRTEnabled
         }
+
+        func refreshFromNode() {
+            guard let node, deferredMRTEnabled != node.deferredMRTEnabled else { return }
+            deferredMRTEnabled = node.deferredMRTEnabled
+        }
     }
 
-    private lazy var _settingsModel = SettingsModel(node: self)
+    /// Nil until a settings view asks for it.
+    private var _settingsModelStorage: SettingsModel?
 
     private static let deferredOutputs: RendererOutputs = [.color, .albedo, .normals, .pbr, .velocity, .emissive]
     private static let auxiliaryOutputPorts: [AuxiliaryOutputPortDescriptor] = [
@@ -97,12 +116,13 @@ public class DeferredSubgraphNode: SubgraphNode
     lazy var graphRenderer:GraphRenderer = self.makeGraphRenderer()
     internal override var childGraphRenderer: GraphRenderer? { self.graphRenderer }
 
-    public var deferredMRTEnabled: Bool = false
+    public internal(set) var deferredMRTEnabled: Bool = false
     {
         didSet
         {
             guard oldValue != deferredMRTEnabled else { return }
             self.synchronizeDeferredConfiguration()
+            self.performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
         }
     }
 
@@ -127,14 +147,21 @@ public class DeferredSubgraphNode: SubgraphNode
         self.synchronizeDeferredConfiguration()
     }
 
-    public override func encode(to encoder: Encoder) throws
+    public convenience init(context: Context, settings: DeferredSubgraphSettings)
     {
-        try super.encode(to: encoder)
-
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.deferredMRTEnabled, forKey: .deferredMRTEnabled)
+        self.init(context: context)
+        self.apply(settings)
     }
-    
+
+    override public var settings: (any NodeSettings)? { DeferredSubgraphSettings(deferredMRTEnabled: deferredMRTEnabled) }
+
+    override public func apply(_ settings: any NodeSettings)
+    {
+        guard let settings = settings as? DeferredSubgraphSettings else { return }
+        self.deferredMRTEnabled = settings.deferredMRTEnabled
+        super.apply(settings)
+    }
+
     private func setupRenderer()
     {
         self.graphRenderer.renderEncoder.label = "Deferred Subgraph"
@@ -376,7 +403,11 @@ public class DeferredSubgraphNode: SubgraphNode
 
     override public func settingsView() -> AnyView
     {
-        AnyView(DeferredSubgraphNodeSettingsView(model: _settingsModel))
+        performOnMainSync
+        {
+            if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
+            return AnyView(DeferredSubgraphNodeSettingsView(model: _settingsModelStorage!))
+        }
     }
 
     override public var settingsSize: SettingsViewSize

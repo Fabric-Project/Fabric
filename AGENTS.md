@@ -102,6 +102,12 @@ For all development:
   - Nodes may opt into a QC like ’Settings View’
   - Any Node whose execution logic would change the  type, or number of ports should have only have that logic fire via changing a Setting, NOT at runtime
   - Settings should have a custom Init override, and be exposed as a enum or struct that can be set via the procedural Node / Graph API. This avoids UI only configuration.
+  - The settings are one `NodeSettings` value: what the settings view edits and the ports do not hold. Two node types share a value type only where each can take the other's value. A node gives it through `settings`, takes it through `apply(_:)`, and offers `init(context:settings:)`. A `StrategyNode` subclass's value conforms to `StrategySettings`.
+  - Override `apply(_:)`; never call it. `setSettings(_:)` is the final entry for views, the procedural API and undo. A public setter is a wrapper over it that changes part of a value of several fields, as `setStrategy` and `setRouteCount` are. The value's initialiser takes no default arguments, so a caller cannot reset a field by leaving it out. In `apply`, cast the existential to your own type and return on any other, bring the ports in line so a port whose registry key survives keeps its identity, then call super.
+  - The value saves flattened into the node's container, so its coding keys must not be `Node.CodingKeys`. Decode it in `init(from:)`, before `super.init` where the ports depend on it. What the view does not edit, such as a device's reconnect record, stays out of the value.
+  - A setting's side effects live in the stored property's observer, or in `apply` where several settings share them, so they run once: the port rebuild, `subtitleSubject`, and the settings model's `refreshFromNode()` through `performOnMainAsync`. Settings models are `@MainActor`.
+  - `apply` runs on the thread that edits the graph, which a host can keep off main, and on the render thread as a `NumericTypeAgnosticNode` specialises from `execute`. A node whose settings reach main-thread state is applied from main only.
+  - `NodeSettingsTests` checks every registered node with settings at its default value. A new node also needs a case with non-default values in `nonDefaultSettingsSaveAndOpen`, as a misnamed key falls back to the default and passes unseen otherwise.
 
 - Important Node subclasses
   - StrategyNode / TypeAgnosticNode - useful for Nodes that can change their port type on demand
@@ -211,7 +217,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 - [ ] Serialization via registry + UUID
 - [ ] If Node dynamically changes port count or type, we should only trigger via Setting in Settings View, not within the graph
 - [ ] If we have a Settings View, we should have a custom initializer so procedural graph creation has an entry to settings.
-- [ ] If we have a Settings View and a custom initializer, use a custom struct or enum for the settings
+- [ ] A node with settings exposes them as one `NodeSettings` value through `settings` and `apply(_:)`, and offers `init(context:settings:)` (`NodeSettingsTests` checks that every core node applies and gives back its own value with its ports, and saves and opens it unchanged)
 - [ ] If the Node overrides `deriveSubtitle()`, every mutation of the state it derives from fires `subtitleSubject.send()` (StrategyNode’s `strategy` already does)
 - [ ] New Nodes should live in an appropriate spot in the NodeRegistry
 

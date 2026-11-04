@@ -99,7 +99,7 @@ public class NumericTypeAgnosticNode: StrategyNode
               Self.supportedPortTypes.contains(connectedType)
         else { return false }
 
-        strategy = connectedType.rawValue
+        setStrategy(connectedType.rawValue)
         return true
     }
 

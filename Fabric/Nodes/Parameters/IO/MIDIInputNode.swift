@@ -17,7 +17,7 @@ import os
 // MARK: - Detected MIDI Input
 
 /// Represents a detected MIDI input during learn mode
-public struct DetectedMIDIInput: Codable, Equatable, Identifiable, Hashable
+public struct DetectedMIDIInput: Codable, Equatable, Identifiable, Hashable, Sendable
 {
     public let id: UUID
     public var type: DetectedMIDIType
@@ -79,7 +79,7 @@ public struct DetectedMIDIInput: Codable, Equatable, Identifiable, Hashable
     }
 }
 
-public enum DetectedMIDIType: String, Codable, CaseIterable
+public enum DetectedMIDIType: String, Codable, CaseIterable, Sendable
 {
     case noteGate = "Note Gate"
     case noteVelocity = "Note Velocity"
@@ -313,6 +313,22 @@ struct DetectedInputRow: View
     }
 }
 
+// MARK: - Settings
+
+/// The settings of a MIDI Input node: the source selected and the controls
+/// learned from it, one output each.
+public struct MIDIInputSettings: NodeSettings
+{
+    public var selectedInputID: String?
+    public var configuredInputs: [DetectedMIDIInput]
+
+    public init(selectedInputID: String?, configuredInputs: [DetectedMIDIInput])
+    {
+        self.selectedInputID = selectedInputID
+        self.configuredInputs = configuredInputs
+    }
+}
+
 // MARK: - MIDI Input Node
 
 public class MIDIInputNode: Node
@@ -363,17 +379,33 @@ public class MIDIInputNode: Node
         try super.encode(to: encoder)
 
         var container = encoder.container(keyedBy: MIDICodingKeys.self)
-        try container.encodeIfPresent(self.selectedInputID, forKey: .selectedInputID)
 
         // Saving with the input unplugged must not forget it.
         try container.encodeIfPresent(self.liveInputInfo() ?? self.savedInputInfo, forKey: .savedInputInfo)
+    }
 
-        try container.encode(self.configuredInputs, forKey: .configuredInputs)
+    override public var settings: (any NodeSettings)?
+    {
+        MIDIInputSettings(selectedInputID: selectedInputID, configuredInputs: configuredInputs)
+    }
+
+    override public func apply(_ settings: any NodeSettings)
+    {
+        guard let settings = settings as? MIDIInputSettings else { return }
+        if selectedInputID != settings.selectedInputID { selectedInputID = settings.selectedInputID }
+        if configuredInputs != settings.configuredInputs { configuredInputs = settings.configuredInputs }
+        super.apply(settings)
     }
 
     public required init(context: Context)
     {
         super.init(context: context)
+    }
+
+    public convenience init(context: Context, settings: MIDIInputSettings)
+    {
+        self.init(context: context)
+        self.apply(settings)
     }
 
     // MARK: - Properties
@@ -432,7 +464,7 @@ public class MIDIInputNode: Node
             // Choosing none forgets the input, so an input appearing does not bring it back.
             savedInputInfo = selectedInputID == nil ? nil : liveInputInfo() ?? savedInputInfo
             updateMIDIConnection()
-            performOnMainSync { _settingsModelStorage?.selectedInputID = selectedInputID }
+            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
             // `subtitle` is derived from the selected input; notify so the title refreshes.
             self.subtitleSubject.send()
         }
@@ -451,7 +483,7 @@ public class MIDIInputNode: Node
         didSet
         {
             rebuildPorts()
-            performOnMainSync { _settingsModelStorage?.configuredInputs = configuredInputs }
+            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
         }
     }
 
@@ -487,8 +519,8 @@ public class MIDIInputNode: Node
         {
             didSet
             {
-                guard selectedInputID != node?.selectedInputID else { return }
-                node?.selectedInputID = selectedInputID
+                guard let node, selectedInputID != node.selectedInputID else { return }
+                node.setSettings(MIDIInputSettings(selectedInputID: selectedInputID, configuredInputs: node.configuredInputs))
             }
         }
         var availableInputs: [MIDIInputInfo] = []
@@ -509,6 +541,13 @@ public class MIDIInputNode: Node
             self.isListening = node.isListening
             self.detectedInputs = node.detectedInputs
             self.configuredInputs = node.configuredInputs
+        }
+
+        func refreshFromNode()
+        {
+            guard let node else { return }
+            if selectedInputID != node.selectedInputID { selectedInputID = node.selectedInputID }
+            if configuredInputs != node.configuredInputs { configuredInputs = node.configuredInputs }
         }
 
         func startListening() { node?.startListening() }
@@ -799,12 +838,13 @@ public class MIDIInputNode: Node
         print("[MIDI] Stopping learn mode. Detected \(detectedInputs.count) inputs")
         isListening = false
 
+        var learnedInputs = configuredInputs
         for detected in detectedInputs
         {
             print("[MIDI] Processing detected: \(detected.portName)")
-            if !configuredInputs.contains(where: { $0.uniqueKey == detected.uniqueKey })
+            if !learnedInputs.contains(where: { $0.uniqueKey == detected.uniqueKey })
             {
-                configuredInputs.append(detected)
+                learnedInputs.append(detected)
                 print("[MIDI] Added to configured: \(detected.portName)")
             }
             else
@@ -812,6 +852,8 @@ public class MIDIInputNode: Node
                 print("[MIDI] Already configured: \(detected.portName)")
             }
         }
+
+        setSettings(MIDIInputSettings(selectedInputID: selectedInputID, configuredInputs: learnedInputs))
 
         detectedInputs.removeAll()
         performOnMainSync { _settingsModelStorage?.isListening = false }
@@ -826,12 +868,12 @@ public class MIDIInputNode: Node
 
     fileprivate func clearConfigured()
     {
-        configuredInputs.removeAll()
+        setSettings(MIDIInputSettings(selectedInputID: selectedInputID, configuredInputs: []))
     }
 
     fileprivate func removeConfiguredInput(id: UUID)
     {
-        configuredInputs.removeAll(where: { $0.id == id })
+        setSettings(MIDIInputSettings(selectedInputID: selectedInputID, configuredInputs: configuredInputs.filter { $0.id != id }))
     }
 
     // MARK: - MIDI Event Handling
