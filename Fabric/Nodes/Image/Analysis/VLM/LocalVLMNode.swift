@@ -15,17 +15,17 @@ internal import MLXVLM
 internal import MLXLMCommon
 
 struct LocalVLMNodeSettingsView: View {
-    @Bindable var node: LocalVLMNode
+    let node: LocalVLMNode
 
     var body: some View {
         LocalModelNodeSettingsPanel(
             curatedModels: self.node.availableModels,
-            selectedModelID: self.$node.selectedModelID,
-            temperature: self.$node.temperature,
-            updateIntervalSeconds: self.$node.updateIntervalSeconds,
-            systemPromptOverride: self.$node.systemPromptOverride,
-            chatModeEnabled: self.$node.chatModeEnabled,
-            desiredMaxContextTokens: self.$node.desiredMaxContextTokens,
+            selectedModelID: self.node.settingBinding(\LocalVLMSettings.selectedModelID),
+            temperature: self.node.settingBinding(\LocalVLMSettings.temperature),
+            updateIntervalSeconds: self.node.settingBinding(\LocalVLMSettings.updateIntervalSeconds),
+            systemPromptOverride: self.node.settingBinding(\LocalVLMSettings.systemPromptOverride),
+            chatModeEnabled: self.node.settingBinding(\LocalVLMSettings.chatModeEnabled),
+            desiredMaxContextTokens: self.node.settingBinding(\LocalVLMSettings.desiredMaxContextTokens),
             effectiveMaxContextTokens: self.node.effectiveMaxContextTokens,
             runtimeState: self.node.modelRuntimeState,
             supportsImageInput: true,
@@ -70,41 +70,17 @@ struct LocalVLMNodeSettingsView: View {
         case desiredMaxContextTokens
     }
 
-    public var selectedModelID = VLMRegistry.smolvlm.name {
-        didSet {
-            self.didUpdateModelSettings()
-        }
-    }
+    public internal(set) var selectedModelID = VLMRegistry.smolvlm.name
 
-    public var temperature: Float = 0.6 {
-        didSet {
-            self.didUpdateInferenceSettings()
-        }
-    }
+    public internal(set) var temperature: Float = 0.6
 
-    public var updateIntervalSeconds: Float = 0.25 {
-        didSet {
-            self.didUpdateInferenceSettings()
-        }
-    }
+    public internal(set) var updateIntervalSeconds: Float = 0.25
 
-    public var systemPromptOverride = "" {
-        didSet {
-            self.didUpdateInferenceSettings()
-        }
-    }
+    public internal(set) var systemPromptOverride = ""
 
-    public var chatModeEnabled = true {
-        didSet {
-            self.didUpdateInferenceSettings()
-        }
-    }
+    public internal(set) var chatModeEnabled = true
 
-    public var desiredMaxContextTokens = 4_096 {
-        didSet {
-            self.didUpdateInferenceSettings()
-        }
-    }
+    public internal(set) var desiredMaxContextTokens = 4_096
 
     public var activityText = ""
     public var isGenerating = false
@@ -112,7 +88,6 @@ struct LocalVLMNodeSettingsView: View {
     private var generationError: String?
     var availableModels: [LocalModelCatalogEntry] = []
 
-    @ObservationIgnored private var suppressSettingSideEffects = false
     @ObservationIgnored private let vlmEvaluator = VLMEvaluator()
     @ObservationIgnored private var catalogMetadataTask: Task<Void, Never>?
     @ObservationIgnored private var modelStateObservationTask: Task<Void, Never>?
@@ -149,14 +124,12 @@ struct LocalVLMNodeSettingsView: View {
         try super.init(from: decoder)
 
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.suppressSettingSideEffects = true
         self.selectedModelID = try container.decodeIfPresent(String.self, forKey: .selectedModelID) ?? VLMRegistry.smolvlm.name
         self.temperature = try container.decodeIfPresent(Float.self, forKey: .temperature) ?? 0.6
         self.updateIntervalSeconds = try container.decodeIfPresent(Float.self, forKey: .updateIntervalSeconds) ?? 0.25
         self.systemPromptOverride = try container.decodeIfPresent(String.self, forKey: .systemPromptOverride) ?? ""
         self.chatModeEnabled = try container.decodeIfPresent(Bool.self, forKey: .chatModeEnabled) ?? true
         self.desiredMaxContextTokens = try container.decodeIfPresent(Int.self, forKey: .desiredMaxContextTokens) ?? 4_096
-        self.suppressSettingSideEffects = false
 
         self.configureEvaluatorBindings()
         self.applyEvaluatorConfiguration()
@@ -169,13 +142,16 @@ struct LocalVLMNodeSettingsView: View {
         self.modelStateObservationTask?.cancel()
     }
 
-    override public var settings: (any NodeSettings)? { self.localModelSettings }
+    public convenience init(context: Context, settings: LocalVLMSettings) {
+        self.init(context: context)
+        self.apply(settings)
+    }
+
+    override public var settings: (any NodeSettings)? { self.localModelSettings() as LocalVLMSettings }
 
     override public func apply(_ settings: any NodeSettings) {
-        guard let settings = settings as? LocalModelSettings else { return }
-        self.suppressSettingSideEffects = true
+        guard let settings = settings as? LocalVLMSettings else { return }
         let change = self.setLocalModelSettings(settings)
-        self.suppressSettingSideEffects = false
 
         if change.modelChanged { self.vlmEvaluator.resetSessionState() }
         if change.modelChanged || change.inferenceChanged { self.applyEvaluatorConfiguration() }
@@ -242,7 +218,9 @@ struct LocalVLMNodeSettingsView: View {
     func loadModel(_ modelID: String) {
         if self.selectedModelID != modelID {
             self.vlmEvaluator.cancelModelOperation()
-            self.selectedModelID = modelID
+            var settings: LocalVLMSettings = self.localModelSettings()
+            settings.selectedModelID = modelID
+            self.setSettings(settings)
         }
         self.vlmEvaluator.prepareModel()
     }
@@ -273,19 +251,6 @@ struct LocalVLMNodeSettingsView: View {
         self.activityText = self.vlmEvaluator.activityText
         self.isGenerating = self.vlmEvaluator.running
         self.generationError = self.vlmEvaluator.generationError
-    }
-
-    private func didUpdateModelSettings() {
-        guard self.suppressSettingSideEffects == false else { return }
-        self.vlmEvaluator.resetSessionState()
-        self.applyEvaluatorConfiguration()
-        self.observeSelectedModelState()
-    }
-
-    private func didUpdateInferenceSettings() {
-        guard self.suppressSettingSideEffects == false else { return }
-        self.applyEvaluatorConfiguration()
-        self.vlmEvaluator.clearConversation()
     }
 
     private func applyEvaluatorConfiguration() {

@@ -130,7 +130,10 @@ struct NodeSettingsTests
         """
         let element = HIDElementInfo(id: "axis-x", cookie: 1, usagePage: 1, usage: 0x30,
                                      displayName: "X", min: 0, max: 255, isRelative: false)
-        let modelID = LocalLLMNode(context: context).selectedModelID
+        let llm = LocalLLMSettings(selectedModelID: LocalLLMNode(context: context).selectedModelID, temperature: 0.3, updateIntervalSeconds: 0.25,
+                                   systemPromptOverride: "", chatModeEnabled: true, desiredMaxContextTokens: 4_096)
+        let vlm = LocalVLMSettings(selectedModelID: LocalVLMNode(context: context).selectedModelID, temperature: 0.3, updateIntervalSeconds: 0.25,
+                                   systemPromptOverride: "", chatModeEnabled: true, desiredMaxContextTokens: 4_096)
         let timeline = TimelineSettings(duration: 2, tracks: [TimelineTrack(name: "A", duration: 2), TimelineTrack(name: "B", duration: 2)])
         let osc = OSCReceiveSettings(listenPort: 9100, addressBindings: [OSCAddressBinding(address: "/x", dataType: .float)])
         let midi = MIDIInputSettings(selectedInputID: nil, configuredInputs: [DetectedMIDIInput(type: .controlChange, channel: 0, number: 7)])
@@ -192,9 +195,13 @@ struct NodeSettingsTests
              DeferredSubgraphNode(context: context),
              DeferredSubgraphSettings(deferredMRTEnabled: true)),
             ("Local LLM",
-             LocalLLMNode(context: context, settings: LocalModelSettings(selectedModelID: modelID, temperature: 0.3)),
+             LocalLLMNode(context: context, settings: llm),
              LocalLLMNode(context: context),
-             LocalModelSettings(selectedModelID: modelID, temperature: 0.3)),
+             llm),
+            ("Local VLM",
+             LocalVLMNode(context: context, settings: vlm),
+             LocalVLMNode(context: context),
+             vlm),
         ]
 
         func shape(_ node: Node) -> [String] { node.ports.map { "\($0.name): \($0.portType)" } }
@@ -206,7 +213,7 @@ struct NodeSettingsTests
             #expect(fresh.settings?.isEqual(to: settings) == true, "\(name): applied settings")
             #expect(shape(built) == shape(fresh), "\(name): ports")
             // A local model's settings shape no ports.
-            #expect(shape(built) != freshShape || built is LocalLLMNode, "\(name): the settings shape the ports")
+            #expect(shape(built) != freshShape || built is LocalModelSettingsMirroring, "\(name): the settings shape the ports")
         }
     }
 

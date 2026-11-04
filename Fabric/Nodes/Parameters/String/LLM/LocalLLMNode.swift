@@ -14,17 +14,17 @@ internal import MLXLLM
 internal import MLXLMCommon
 
 struct LocalLLMNodeSettingsView: View {
-    @Bindable var node: LocalLLMNode
+    let node: LocalLLMNode
 
     var body: some View {
         LocalModelNodeSettingsPanel(
             curatedModels: self.node.availableModels,
-            selectedModelID: self.$node.selectedModelID,
-            temperature: self.$node.temperature,
-            updateIntervalSeconds: self.$node.updateIntervalSeconds,
-            systemPromptOverride: self.$node.systemPromptOverride,
-            chatModeEnabled: self.$node.chatModeEnabled,
-            desiredMaxContextTokens: self.$node.desiredMaxContextTokens,
+            selectedModelID: self.node.settingBinding(\LocalLLMSettings.selectedModelID),
+            temperature: self.node.settingBinding(\LocalLLMSettings.temperature),
+            updateIntervalSeconds: self.node.settingBinding(\LocalLLMSettings.updateIntervalSeconds),
+            systemPromptOverride: self.node.settingBinding(\LocalLLMSettings.systemPromptOverride),
+            chatModeEnabled: self.node.settingBinding(\LocalLLMSettings.chatModeEnabled),
+            desiredMaxContextTokens: self.node.settingBinding(\LocalLLMSettings.desiredMaxContextTokens),
             effectiveMaxContextTokens: self.node.effectiveMaxContextTokens,
             runtimeState: self.node.modelRuntimeState,
             supportsImageInput: false,
@@ -67,41 +67,17 @@ struct LocalLLMNodeSettingsView: View {
         case desiredMaxContextTokens
     }
 
-    public var selectedModelID = LLMRegistry.qwen3_1_7b_4bit.name {
-        didSet {
-            self.didUpdateModelSettings()
-        }
-    }
+    public internal(set) var selectedModelID = LLMRegistry.qwen3_1_7b_4bit.name
 
-    public var temperature: Float = 0.6 {
-        didSet {
-            self.didUpdateInferenceSettings()
-        }
-    }
+    public internal(set) var temperature: Float = 0.6
 
-    public var updateIntervalSeconds: Float = 0.25 {
-        didSet {
-            self.didUpdateInferenceSettings()
-        }
-    }
+    public internal(set) var updateIntervalSeconds: Float = 0.25
 
-    public var systemPromptOverride = "" {
-        didSet {
-            self.didUpdateInferenceSettings()
-        }
-    }
+    public internal(set) var systemPromptOverride = ""
 
-    public var chatModeEnabled = true {
-        didSet {
-            self.didUpdateInferenceSettings()
-        }
-    }
+    public internal(set) var chatModeEnabled = true
 
-    public var desiredMaxContextTokens = 4_096 {
-        didSet {
-            self.didUpdateInferenceSettings()
-        }
-    }
+    public internal(set) var desiredMaxContextTokens = 4_096
 
     public var activityText = ""
     public var isGenerating = false
@@ -109,7 +85,6 @@ struct LocalLLMNodeSettingsView: View {
     private var generationError: String?
     var availableModels: [LocalModelCatalogEntry] = []
 
-    @ObservationIgnored private var suppressSettingSideEffects = false
     @ObservationIgnored private let llmEvaluator = LLMEvaluator()
     @ObservationIgnored private var catalogMetadataTask: Task<Void, Never>?
     @ObservationIgnored private var modelStateObservationTask: Task<Void, Never>?
@@ -146,14 +121,12 @@ struct LocalLLMNodeSettingsView: View {
         try super.init(from: decoder)
 
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.suppressSettingSideEffects = true
         self.selectedModelID = try container.decodeIfPresent(String.self, forKey: .selectedModelID) ?? LLMRegistry.qwen3_1_7b_4bit.name
         self.temperature = try container.decodeIfPresent(Float.self, forKey: .temperature) ?? 0.6
         self.updateIntervalSeconds = try container.decodeIfPresent(Float.self, forKey: .updateIntervalSeconds) ?? 0.25
         self.systemPromptOverride = try container.decodeIfPresent(String.self, forKey: .systemPromptOverride) ?? ""
         self.chatModeEnabled = try container.decodeIfPresent(Bool.self, forKey: .chatModeEnabled) ?? true
         self.desiredMaxContextTokens = try container.decodeIfPresent(Int.self, forKey: .desiredMaxContextTokens) ?? 4_096
-        self.suppressSettingSideEffects = false
 
         self.configureEvaluatorBindings()
         self.applyEvaluatorConfiguration()
@@ -166,13 +139,16 @@ struct LocalLLMNodeSettingsView: View {
         self.modelStateObservationTask?.cancel()
     }
 
-    override public var settings: (any NodeSettings)? { self.localModelSettings }
+    public convenience init(context: Context, settings: LocalLLMSettings) {
+        self.init(context: context)
+        self.apply(settings)
+    }
+
+    override public var settings: (any NodeSettings)? { self.localModelSettings() as LocalLLMSettings }
 
     override public func apply(_ settings: any NodeSettings) {
-        guard let settings = settings as? LocalModelSettings else { return }
-        self.suppressSettingSideEffects = true
+        guard let settings = settings as? LocalLLMSettings else { return }
         let change = self.setLocalModelSettings(settings)
-        self.suppressSettingSideEffects = false
 
         if change.modelChanged { self.llmEvaluator.resetSessionState() }
         if change.modelChanged || change.inferenceChanged { self.applyEvaluatorConfiguration() }
@@ -238,7 +214,9 @@ struct LocalLLMNodeSettingsView: View {
     func loadModel(_ modelID: String) {
         if self.selectedModelID != modelID {
             self.llmEvaluator.cancelModelOperation()
-            self.selectedModelID = modelID
+            var settings: LocalLLMSettings = self.localModelSettings()
+            settings.selectedModelID = modelID
+            self.setSettings(settings)
         }
         self.llmEvaluator.prepareModel()
     }
@@ -269,19 +247,6 @@ struct LocalLLMNodeSettingsView: View {
         self.activityText = self.llmEvaluator.activityText
         self.isGenerating = self.llmEvaluator.running
         self.generationError = self.llmEvaluator.generationError
-    }
-
-    private func didUpdateModelSettings() {
-        guard self.suppressSettingSideEffects == false else { return }
-        self.llmEvaluator.resetSessionState()
-        self.applyEvaluatorConfiguration()
-        self.observeSelectedModelState()
-    }
-
-    private func didUpdateInferenceSettings() {
-        guard self.suppressSettingSideEffects == false else { return }
-        self.applyEvaluatorConfiguration()
-        self.llmEvaluator.clearConversation()
     }
 
     private func applyEvaluatorConfiguration() {

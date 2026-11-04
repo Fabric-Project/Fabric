@@ -1,5 +1,6 @@
 import Foundation
 import Satin
+import SwiftUI
 internal import HuggingFace
 internal import MLX
 internal import MLXLLM
@@ -688,9 +689,10 @@ actor LocalModelContainerCache {
     }
 }
 
-/// The settings of a local model node, LLM or VLM alike: the model and how it
-/// is prompted.
-public struct LocalModelSettings: NodeSettings
+/// The settings of a local model node. `Owner` is that node's type: the two
+/// nodes hold the same fields, but each one's model IDs name its own registry,
+/// so one's value is another node's settings type to the other.
+public struct LocalModelSettings<Owner>: NodeSettings
 {
     public var selectedModelID: String
     public var temperature: Float
@@ -700,11 +702,11 @@ public struct LocalModelSettings: NodeSettings
     public var desiredMaxContextTokens: Int
 
     public init(selectedModelID: String,
-                temperature: Float = 0.6,
-                updateIntervalSeconds: Float = 0.25,
-                systemPromptOverride: String = "",
-                chatModeEnabled: Bool = true,
-                desiredMaxContextTokens: Int = 4_096)
+                temperature: Float,
+                updateIntervalSeconds: Float,
+                systemPromptOverride: String,
+                chatModeEnabled: Bool,
+                desiredMaxContextTokens: Int)
     {
         self.selectedModelID = selectedModelID
         self.temperature = temperature
@@ -715,10 +717,12 @@ public struct LocalModelSettings: NodeSettings
     }
 }
 
+public typealias LocalLLMSettings = LocalModelSettings<LocalLLMNode>
+public typealias LocalVLMSettings = LocalModelSettings<LocalVLMNode>
+
 /// A local model node, LLM or VLM, holding its LocalModelSettings as stored
-/// properties. The settings value and setLocalModelSettings are shared
-/// through this protocol.
-public protocol LocalModelSettingsMirroring: Node
+/// properties.
+protocol LocalModelSettingsMirroring: Node
 {
     var selectedModelID: String { get set }
     var temperature: Float { get set }
@@ -730,7 +734,7 @@ public protocol LocalModelSettingsMirroring: Node
 
 extension LocalModelSettingsMirroring
 {
-    public var localModelSettings: LocalModelSettings
+    func localModelSettings<Owner>() -> LocalModelSettings<Owner>
     {
         LocalModelSettings(selectedModelID: self.selectedModelID,
                            temperature: self.temperature,
@@ -740,12 +744,12 @@ extension LocalModelSettingsMirroring
                            desiredMaxContextTokens: self.desiredMaxContextTokens)
     }
 
-    /// Assigns every property with the setters' side effects held off, and
-    /// returns what changed so the node runs them once: a model change
-    /// reloads the model, any other change clears the conversation.
-    func setLocalModelSettings(_ settings: LocalModelSettings) -> (modelChanged: Bool, inferenceChanged: Bool)
+    /// Assigns every property and returns what changed, for the node to act
+    /// on once: a model change reloads the model, any other change clears the
+    /// conversation.
+    func setLocalModelSettings<Owner>(_ settings: LocalModelSettings<Owner>) -> (modelChanged: Bool, inferenceChanged: Bool)
     {
-        var before = self.localModelSettings
+        var before: LocalModelSettings<Owner> = self.localModelSettings()
         let modelChanged = before.selectedModelID != settings.selectedModelID
         before.selectedModelID = settings.selectedModelID
         let inferenceChanged = before != settings
@@ -759,9 +763,16 @@ extension LocalModelSettingsMirroring
         return (modelChanged, inferenceChanged)
     }
 
-    public init(context: Context, settings: LocalModelSettings)
+    /// A settings view's binding to one field, writing through setSettings.
+    func settingBinding<Owner, Value>(_ field: WritableKeyPath<LocalModelSettings<Owner>, Value>) -> Binding<Value>
     {
-        self.init(context: context)
-        self.apply(settings)
+        Binding(
+            get: { (self.localModelSettings() as LocalModelSettings<Owner>)[keyPath: field] },
+            set: { newValue in
+                var settings: LocalModelSettings<Owner> = self.localModelSettings()
+                settings[keyPath: field] = newValue
+                self.setSettings(settings)
+            }
+        )
     }
 }
