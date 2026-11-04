@@ -10,7 +10,7 @@ import Metal
 import simd
 import UniformTypeIdentifiers
 
-public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
+public class BaseTextureComputeProcessorNode: Node, NodeMadeFromFile
 {
     public static var supportedContentTypes: [UTType] { [] }
     

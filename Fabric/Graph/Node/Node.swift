@@ -815,21 +815,43 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
 }
 
-/// Nodes that are constructed from a file (e.g. Metal shader effect nodes),
-/// or accept a user-dropped file via a file-path parameter port. Conformers
-/// declare which UTTypes they handle and receive the URL after normal
-/// construction via ``setFileURL(_:)``.
+/// A node the canvas can make from a dropped file, found by the file's content
+/// type. `init(context:fileURL:)` makes the node from the file, which means one
+/// of two things: see NodeMadeFromFile and NodeTakingFile.
 ///
-/// For conformers that expose a user-editable file-path parameter, decoding
-/// restores the saved reference but does not load it. Runtime assets load
-/// during execution, so a missing or invalid external file cannot prevent the
-/// node itself from deserializing.
+/// Decoding restores a saved file reference but does not load it. Runtime
+/// assets load during execution, so a missing or invalid external file cannot
+/// prevent the node itself from deserializing.
 public protocol NodeFileLoadingProtocol : Node
 {
     init(context:Context, fileURL:URL) throws
-    func setFileURL(_ url: URL)
 
     static var supportedContentTypes: [UTType] { get }
+}
+
+/// A node whose file is part of what it is, such as a shader effect: the
+/// file decides its interface, and the node saves its path itself. Changing
+/// the file with `setFileURL(_:)` is a change to the node's settings.
+public protocol NodeMadeFromFile : NodeFileLoadingProtocol
+{
+    func setFileURL(_ url: URL)
+}
+
+/// A node that takes a file through a file-picker inlet, such as an image or
+/// movie loader. The file is that inlet's value: a dropped file becomes it.
+public protocol NodeTakingFile : NodeFileLoadingProtocol
+{
+    var fileInlet: ParameterPort<String> { get }
+}
+
+public extension NodeTakingFile
+{
+    /// Puts `url` on the file inlet, relative to the document's folder where
+    /// the node's graph has one.
+    func takeFile(_ url: URL)
+    {
+        self.fileInlet.value = url.fileReference(relativeTo: self.graph?.fileReferenceBaseURL)
+    }
 }
 
 public extension NodeFileLoadingProtocol

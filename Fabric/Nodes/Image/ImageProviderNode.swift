@@ -14,7 +14,7 @@ import ImageIO
 import CoreGraphics
 import UniformTypeIdentifiers
 
-public class ImageProviderNode : Node, NodeFileLoadingProtocol
+public class ImageProviderNode : Node, NodeTakingFile
 {
     public static var supportedContentTypes: [UTType] {
         (CGImageSourceCopyTypeIdentifiers() as! [String]).compactMap { UTType($0) }
@@ -53,9 +53,7 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
     private var textureLoader:MTKTextureLoader
     private var url: URL? = nil
     
-    public func setFileURL(_ url: URL) {
-        self.inputFilePathParam.value = url.fileReference(relativeTo: self.graph?.fileReferenceBaseURL)
-    }
+    public var fileInlet: ParameterPort<String> { self.inputFilePathParam }
     
     public required init(context:Context)
     {
@@ -70,7 +68,7 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
     {
         self.textureLoader = MTKTextureLoader(device: context.device)
         super.init(context: context)
-        self.setFileURL(fileURL)
+        self.takeFile(fileURL)
         try self.loadTextureFromInputValue()
     }
     

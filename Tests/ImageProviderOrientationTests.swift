@@ -31,7 +31,7 @@ struct ImageProviderOrientationTests
                                        [kCGImagePropertyOrientation: orientation] as CFDictionary)
             #expect(CGImageDestinationFinalize(destination))
 
-            node.setFileURL(url)
+            node.takeFile(url)
             try harness.execute(node)
             let image = try #require(node.outputTexturePort.value)
             // Core Image is an independent reference here; the provider builds

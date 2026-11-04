@@ -12,7 +12,7 @@ import Metal
 import MetalKit
 import UniformTypeIdentifiers
 
-public final class TextFileLoaderNode : Node, NodeFileLoadingProtocol
+public final class TextFileLoaderNode : Node, NodeTakingFile
 {
     public static var supportedContentTypes: [UTType]
     {
@@ -56,12 +56,10 @@ public final class TextFileLoaderNode : Node, NodeFileLoadingProtocol
     {
         self.init(context: context)
         
-        self.setFileURL(fileURL)
+        self.takeFile(fileURL)
     }
     
-    public func setFileURL(_ url: URL) {
-        self.inputFilePathParam.value = url.fileReference(relativeTo: self.graph?.fileReferenceBaseURL)
-    }
+    public var fileInlet: ParameterPort<String> { self.inputFilePathParam }
 
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,

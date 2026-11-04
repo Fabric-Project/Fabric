@@ -5,7 +5,7 @@ import Satin
 import simd
 import UniformTypeIdentifiers
 
-open class BaseImageNode: Node, NodeFileLoadingProtocol
+open class BaseImageNode: Node, NodeMadeFromFile
 {
     open class var supportedContentTypes: [UTType] { [] }
     

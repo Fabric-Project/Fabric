@@ -33,7 +33,7 @@ private let MovieProviderNodeInitializer: Void = {
 
 }()
 
-public class MovieProviderNode : Node, NodeFileLoadingProtocol
+public class MovieProviderNode : Node, NodeTakingFile
 {
     fileprivate static let log = Logger(subsystem: "graphics.fabric", category: "MovieProviderNode")
 
@@ -48,9 +48,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
             .filter { $0.conforms(to: .movie) || $0.conforms(to: .video) }
     }
 
-    public func setFileURL(_ url: URL) {
-        self.inputFilePathParam.value = url.fileReference(relativeTo: self.graph?.fileReferenceBaseURL)
-    }
+    public var fileInlet: ParameterPort<String> { self.inputFilePathParam }
 
     override public class var name:String { "Movie Provider" }
     override public class var nodeType:Node.NodeType { Node.NodeType.Image(imageType: .Loader) }
@@ -389,7 +387,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
 
         super.init(context: context)
 
-        self.setFileURL(fileURL)
+        self.takeFile(fileURL)
     }
 
 

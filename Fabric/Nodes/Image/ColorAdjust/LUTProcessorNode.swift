@@ -12,7 +12,7 @@ import Metal
 import MetalKit
 import UniformTypeIdentifiers
 
-public class LUTProcessorNode : BaseImageNode
+public class LUTProcessorNode : BaseImageNode, NodeTakingFile
 {
     public override class var name:String { "Color LUT Correction" }
     public override class var nodeType:Node.NodeType { Node.NodeType.Image(imageType: .ColorAdjust) }
@@ -51,16 +51,13 @@ public class LUTProcessorNode : BaseImageNode
     private var texture: (any MTLTexture)? = nil
     private var url: URL? = nil
 
-    override public func setFileURL(_ url: URL)
-    {
-        self.inputFilePathParam.value = url.fileReference(relativeTo: self.graph?.fileReferenceBaseURL)
-    }
+    public var fileInlet: ParameterPort<String> { self.inputFilePathParam }
     
     public required init(context: Context, fileURL: URL) throws
     {
         super.init(context: context)
 
-        self.setFileURL(fileURL)
+        self.takeFile(fileURL)
         try self.loadLUTFromInputValue()
     }
     
