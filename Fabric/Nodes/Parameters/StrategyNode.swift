@@ -261,8 +261,10 @@ open class StrategyNode: Node
 
     public required init(context: Context)
     {
-        self.strategyName = Self.defaultStrategy?.rawValue ?? ""
-        self.strategy = Self.defaultStrategy
+        // Resolved by name, as every other entry point resolves it.
+        let name = Self.defaultStrategy?.rawValue ?? ""
+        self.strategyName = name
+        self.strategy = Self.strategyOption(named: name)
         super.init(context: context)
         self.rebuildPorts(forStrategy: self.strategy)
     }
