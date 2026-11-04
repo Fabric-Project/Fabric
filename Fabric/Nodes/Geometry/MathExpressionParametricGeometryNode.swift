@@ -99,36 +99,37 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
 
     // MARK: - Settings Model
 
+    @MainActor
     @Observable final class SettingsModel
     {
         var expressionX: String
         {
             didSet
             {
-                guard expressionX != node?.expressionX else { return }
-                node?.expressionX = expressionX
+                guard let node, expressionX != node.expressionX else { return }
+                node.setSettings(ParametricExpressionSettings(expressionX: expressionX, expressionY: node.expressionY, expressionZ: node.expressionZ))
             }
         }
         var expressionY: String
         {
             didSet
             {
-                guard expressionY != node?.expressionY else { return }
-                node?.expressionY = expressionY
+                guard let node, expressionY != node.expressionY else { return }
+                node.setSettings(ParametricExpressionSettings(expressionX: node.expressionX, expressionY: expressionY, expressionZ: node.expressionZ))
             }
         }
         var expressionZ: String
         {
             didSet
             {
-                guard expressionZ != node?.expressionZ else { return }
-                node?.expressionZ = expressionZ
+                guard let node, expressionZ != node.expressionZ else { return }
+                node.setSettings(ParametricExpressionSettings(expressionX: node.expressionX, expressionY: node.expressionY, expressionZ: expressionZ))
             }
         }
 
-        var statusX: Bool = true
-        var statusY: Bool = true
-        var statusZ: Bool = true
+        var statusX: Bool
+        var statusY: Bool
+        var statusZ: Bool
 
         private weak var node: MathExpressionParametricGeometryNode?
 
@@ -138,10 +139,38 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
             self.expressionX = node.expressionX
             self.expressionY = node.expressionY
             self.expressionZ = node.expressionZ
+            let axes = node.validAxes
+            self.statusX = axes.x
+            self.statusY = axes.y
+            self.statusZ = axes.z
+        }
+
+        func refreshFromNode()
+        {
+            guard let node else { return }
+            if expressionX != node.expressionX { expressionX = node.expressionX }
+            if expressionY != node.expressionY { expressionY = node.expressionY }
+            if expressionZ != node.expressionZ { expressionZ = node.expressionZ }
+            let axes = node.validAxes
+            statusX = axes.x
+            statusY = axes.y
+            statusZ = axes.z
         }
     }
 
-    internal lazy var _settingsModel: SettingsModel = SettingsModel(node: self)
+    /// Nil until a settings view asks for it.
+    private var _settingsModelStorage: SettingsModel?
+
+    private var settingsModel: SettingsModel
+    {
+        performOnMainSync
+        {
+            if let model = _settingsModelStorage { return model }
+            let model = SettingsModel(node: self)
+            _settingsModelStorage = model
+            return model
+        }
+    }
 
     // MARK: - Codable
 
@@ -284,26 +313,19 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
 
     private func parseExpressions()
     {
-        // Keep the settings model mirroring the node, not just model → node.
-        // Its didSets guard on equality, so this cannot loop.
-        if _settingsModel.expressionX != expressionX { _settingsModel.expressionX = expressionX }
-        if _settingsModel.expressionY != expressionY { _settingsModel.expressionY = expressionY }
-        if _settingsModel.expressionZ != expressionZ { _settingsModel.expressionZ = expressionZ }
-
         evalX = axisExpression(from: expressionX)
-        _settingsModel.statusX = evalX != nil
-
         evalY = axisExpression(from: expressionY)
-        _settingsModel.statusY = evalY != nil
-
         evalZ = axisExpression(from: expressionZ)
-        _settingsModel.statusZ = evalZ != nil
 
         updateCompileErrorStatus()
         syncVariablePorts()
         _expressionsDirty = true
         subtitleSubject.send()
+        performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
     }
+
+    /// Which axes compile.
+    var validAxes: (x: Bool, y: Bool, z: Bool) { (evalX != nil, evalY != nil, evalZ != nil) }
 
     /// Blank everywhere is a node not yet written rather than one that fails,
     /// and reports nothing, as deriveSubtitle() also has it. Such a node still
@@ -377,7 +399,7 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
 
     override public func settingsView() -> AnyView
     {
-        AnyView(MathExpressionParametricView(model: _settingsModel))
+        performOnMainSync { AnyView(MathExpressionParametricView(model: settingsModel)) }
     }
 
     override public var settingsSize: SettingsViewSize { .Medium }

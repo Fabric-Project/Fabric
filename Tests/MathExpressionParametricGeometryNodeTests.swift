@@ -28,9 +28,9 @@ import Satin
         guard let context = makeContext() else { return }
         let node = MathExpressionParametricGeometryNode(context: context)
 
-        #expect(node._settingsModel.statusX)
-        #expect(node._settingsModel.statusY)
-        #expect(node._settingsModel.statusZ)
+        #expect(node.validAxes.x)
+        #expect(node.validAxes.y)
+        #expect(node.validAxes.z)
         #expect(node.findPort(named: "u", as: Fabric.Port.self) == nil)
         #expect(node.findPort(named: "v", as: Fabric.Port.self) == nil)
     }
@@ -78,9 +78,9 @@ import Satin
 
         node.expressionX = "sin("
 
-        #expect(!node._settingsModel.statusX)
-        #expect(node._settingsModel.statusY)
-        #expect(node._settingsModel.statusZ)
+        #expect(!node.validAxes.x)
+        #expect(node.validAxes.y)
+        #expect(node.validAxes.z)
 
         evaluate(node)
 
@@ -96,11 +96,11 @@ import Satin
         let node = MathExpressionParametricGeometryNode(context: context)
 
         node.expressionX = "in p: vec3; out result = p"
-        #expect(!node._settingsModel.statusX)
+        #expect(!node.validAxes.x)
         #expect(node.findPort(named: "p", as: Fabric.Port.self) == nil)
 
         node.expressionX = "out a = u; out b = v"
-        #expect(!node._settingsModel.statusX)
+        #expect(!node.validAxes.x)
     }
 
     /// An axis that fails to compile is flagged by the title icon, naming the
