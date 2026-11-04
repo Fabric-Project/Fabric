@@ -470,12 +470,10 @@ public class GraphRenderer : ViewRenderer
 
             do
             {
-                try Node.runAsExecution {
-                    try node.execute(renderer: self,
-                                     executionInfo: executionInfo,
-                                     renderPassDescriptor: renderPassDescriptor,
-                                     commandBuffer: commandBuffer)
-                }
+                try node.execute(renderer: self,
+                                 executionInfo: executionInfo,
+                                 renderPassDescriptor: renderPassDescriptor,
+                                 commandBuffer: commandBuffer)
             }
             catch
             {

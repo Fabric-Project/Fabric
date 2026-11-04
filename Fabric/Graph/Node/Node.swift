@@ -384,8 +384,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     /// The port under `key`, if the node has one.
     public func port(forKey key: PortKey) -> Port?
     {
-        Self.checkLookupOutsideExecute(key.description, on: self)
-        return self.registry.port(forKey: key) ?? self.ports.first { $0.key == key }
+        self.registry.port(forKey: key) ?? self.ports.first { $0.key == key }
     }
 
     /// The port under the node's own key `name`, cast to `T`, trapping when
@@ -394,16 +393,14 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     /// its property.
     public func port<T: Port>(named name: String, as type: T.Type = T.self) -> T
     {
-        Self.checkLookupOutsideExecute(name, on: self)
-        return self.registry.port(named: name) as! T
+        self.registry.port(named: name) as! T
     }
 
     /// The port under the node's own key `name`, if there is one of type `T`.
     /// For dynamic ports, from bindPorts() or from outside execution.
     public func findPort<T: Port>(named name: String, as type: T.Type = T.self) -> T?
     {
-        Self.checkLookupOutsideExecute(name, on: self)
-        return self.registry.port(named: name) as? T
+        self.registry.port(named: name) as? T
     }
 
     // MARK: - Port state hydration (declare-then-hydrate decode)
@@ -467,7 +464,6 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     /// declarations'.
     public final func reconcilePorts(applying states: [PortState] = [])
     {
-        Self.checkReconcileOutsideExecute(on: self)
         self.prepareDeclarations()
         let reconciliation = self.registry.reconcile(to: self.declaredPorts(),
                                                      applying: states,

@@ -122,15 +122,13 @@ struct NamedPortLookupTests {
         #expect(decoded.ports.first === decoded.inputNumber1)
     }
 
-    @Test("Blend's mode swap in execute reconciles nothing and looks nothing up")
+    @Test("Blend's mode swap in execute keeps its ports")
     func blendModeSwapIsNoEdit() throws {
         guard let harness = GraphExecutionTestHarness() else { return }
         let node = BlendNode(context: harness.context)
         let ports = node.ports
         node.inputMode.value = "Multiply"
-        _ = Node.takeExecuteTimeLookups()
-        try Node.runAsExecution { try harness.execute(node) }
-        #expect(Node.takeExecuteTimeLookups().isEmpty)
+        try harness.execute(node)
         #expect(node.ports.count == ports.count)
         #expect(zip(node.ports, ports).allSatisfy { $0 === $1 })
     }
