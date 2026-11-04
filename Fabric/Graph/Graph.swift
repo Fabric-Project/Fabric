@@ -472,7 +472,7 @@ internal import AnyCodable
         {
             var hasFileReference = false
 
-            for port in node.ports where port.parameter?.controlType == .filepicker
+            for port in node.ports where port.control == .filePicker
             {
                 port.valueDidChange = true
                 hasFileReference = true
@@ -501,7 +501,7 @@ internal import AnyCodable
             for port in node.ports
             {
                 guard let filePort = port as? ParameterPort<String>,
-                      filePort.parameter?.controlType == .filepicker,
+                      filePort.control == .filePicker,
                       filePort.connectedOutlets.isEmpty,
                       let reference = filePort.value,
                       // Without a directory, only absolute references resolve.
