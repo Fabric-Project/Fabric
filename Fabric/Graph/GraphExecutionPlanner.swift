@@ -113,7 +113,7 @@ internal final class GraphExecutionPlanner {
 
     @discardableResult
     private func pull(_ node: Node, requestedOutputPort: Port?, ordered: inout [Node]) -> Bool {
-        let response = node.respondToPull(requestedOutputPort: requestedOutputPort)
+        let response = Node.runAsExecution { node.respondToPull(requestedOutputPort: requestedOutputPort) }
         let slot = slot(for: node)
         switch response {
         case .declined(let keepAlivePorts):

@@ -338,19 +338,22 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     /// The port under `key`, if the node has one.
     public func port(forKey key: PortKey) -> Port?
     {
-        self.registry.port(forKey: key) ?? self.ports.first { $0.key == key }
+        Self.checkLookupOutsideExecute(key.description, on: self)
+        return self.registry.port(forKey: key) ?? self.ports.first { $0.key == key }
     }
 
     // Convenience for subclasses: typed lookup (so computed props stay nice)
     public func port<T: Port>(named name: String, as type: T.Type = T.self) -> T
     {
-        self.registry.port(named: name) as! T
+        Self.checkLookupOutsideExecute(name, on: self)
+        return self.registry.port(named: name) as! T
     }
 
     // Convenience for subclasses: typed lookup (so computed props stay nice)
     public func findPort<T: Port>(named name: String, as type: T.Type = T.self) -> T?
     {
-        self.registry.port(named: name) as? T
+        Self.checkLookupOutsideExecute(name, on: self)
+        return self.registry.port(named: name) as? T
     }
 
     // MARK: - Port state hydration (declare-then-hydrate decode)
@@ -422,12 +425,13 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     /// declarations'.
     public final func reconcilePorts(applying states: [PortState] = [])
     {
+        self.prepareDeclarations()
         let reconciliation = self.registry.reconcile(to: self.declaredPorts() + self.undeclaredSnapshotPorts,
                                                      applying: states,
                                                      owner: self,
                                                      hydrating: self.portHydrationSession,
                                                      fileReferenceBase: self.graph?.fileReferenceBaseURL)
-        guard !reconciliation.isEmpty else { return }
+        guard !reconciliation.isEmpty else { self.bindPorts(); return }
 
         let graph = self.graph
 
@@ -452,12 +456,24 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
         self.invalidatePortCaches()
         self.rebuildParameterGroup()
+        self.bindPorts()
 
         if !reconciliation.retyped.isEmpty || !reconciliation.added.isEmpty { graph?.rebuildPublishedParameterGroup() }
 
         graph?.markConnectionsChanged()
         self.portsDidChange()
     }
+
+    /// Runs before every reconcile, before declaredPorts(): resolve here any
+    /// state the declarations and execute read, once, rather than per read.
+    open func prepareDeclarations() { }
+
+    /// Resolves the node's stored port references once its ports have changed.
+    /// The one place a node looks its ports up by key: execute reads the
+    /// references this leaves, never the registry. An override calls super,
+    /// then assigns its own with port(named:), whose cast traps on a
+    /// declaration that disagrees with the property, a programming error.
+    open func bindPorts() { }
 
     /// The parameters of the node's ports, in port order.
     private func rebuildParameterGroup()

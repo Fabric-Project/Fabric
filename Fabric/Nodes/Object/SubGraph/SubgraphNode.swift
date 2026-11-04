@@ -83,7 +83,8 @@ open class SubgraphNode: BaseObjectNode
         self.synchronizeParameters()
 
         self.invalidatePortCaches()
-        self.graph?.markConnectionsChanged()
+        // The graph around may publish a proxy this rebuild remade.
+        self.graph?.rebuildPublishedParameterGroup()
         self.portsDidChange()
     }
 

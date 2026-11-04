@@ -1113,11 +1113,15 @@ internal import AnyCodable
         }
     }
 
-    /// All ports in this graph that have been published, in publishing order.
+    /// All ports in this graph that have been published, in publishing order,
+    /// resolved from their addresses when publishing or the ports change, so
+    /// a frame reads them without a lookup.
     public func getPublishedPorts() -> [Port]
     {
-        self.publishedPortEntries.compactMap { self.port(at: $0.address) }
+        self.resolvedPublishedPorts
     }
+
+    @ObservationIgnored private var resolvedPublishedPorts: [Port] = []
 
     public func publishedInputPorts() -> [Port]
     {
@@ -1138,6 +1142,8 @@ internal import AnyCodable
 
     public func rebuildPublishedParameterGroup()
     {
+        self.resolvedPublishedPorts = self.publishedPortEntries.compactMap { self.port(at: $0.address) }
+        self.cachedPublishedOutputPortsRevision = nil
         self.publishedParameterGroup.clear()
         self.publishedParameterGroup.append(self.getPublishedPorts().compactMap(\.parameter))
 
@@ -1161,9 +1167,7 @@ internal import AnyCodable
 
     internal func publishedPorts(of node: Node) -> [Port]
     {
-        self.publishedPortEntries.compactMap { entry in
-            entry.address.node == node.id ? node.port(forKey: entry.address.key) : nil
-        }
+        self.resolvedPublishedPorts.filter { $0.node === node }
     }
 
     // MARK: - Rendering Helpers
