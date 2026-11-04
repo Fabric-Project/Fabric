@@ -16,7 +16,14 @@ struct IteratorRecordTests
         override class var nodeTimeMode: Node.TimeMode { .None }
         override class var nodeDescription: String { "Collects each iteration's image for tests" }
         var images: [FabricImage] = []
-        var inputImage: NodePort<FabricImage> { port(named: "inputImage") }
+        var inputImage: NodePort<FabricImage> { _inputImage }
+        private var _inputImage: NodePort<FabricImage>!
+
+        override func bindPorts()
+        {
+            super.bindPorts()
+            self._inputImage = findPort(named: "inputImage")
+        }
         override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)] {
             super.registerPorts(context: context) + [
                 ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet))
@@ -104,7 +111,14 @@ struct IteratorRecordTests
                 ("outputImage", NodePort<FabricImage>(name: "Image", kind: .Outlet))
             ]
         }
-        var outputImage: NodePort<FabricImage> { port(named: "outputImage") }
+        var outputImage: NodePort<FabricImage> { _outputImage }
+        private var _outputImage: NodePort<FabricImage>!
+
+        override func bindPorts()
+        {
+            super.bindPorts()
+            self._outputImage = findPort(named: "outputImage")
+        }
         override func execute(renderer: GraphRenderer, executionInfo: GraphExecutionInfo,
                               renderPassDescriptor: MTLRenderPassDescriptor,
                               commandBuffer: MTLCommandBuffer) throws {

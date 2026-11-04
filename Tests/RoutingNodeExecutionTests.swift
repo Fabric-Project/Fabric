@@ -28,7 +28,14 @@ private final class CountingProviderNode<PayloadValue: PortValueRepresentable & 
     var value: PayloadValue
     var executionCount = 0
 
-    var output: NodePort<PayloadValue> { port(named: "output") }
+    var output: NodePort<PayloadValue> { _output }
+    private var _output: NodePort<PayloadValue>!
+
+    override func bindPorts()
+    {
+        super.bindPorts()
+        self._output = findPort(named: "output")
+    }
 
     init(context: Context, value: PayloadValue)
     {
@@ -80,7 +87,14 @@ private final class CountingFloatConsumerNode: Node
     var executionCount = 0
     var lastValue: Float?
 
-    var input: NodePort<Float> { port(named: "input") }
+    var input: NodePort<Float> { _input }
+    private var _input: NodePort<Float>!
+
+    override func bindPorts()
+    {
+        super.bindPorts()
+        self._input = findPort(named: "input")
+    }
 
     override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
     {
@@ -111,8 +125,17 @@ private final class CountingTwoInputConsumerNode: Node
     var lastA: Float?
     var lastB: Float?
 
-    var inputA: NodePort<Float> { port(named: "inputA") }
-    var inputB: NodePort<Float> { port(named: "inputB") }
+    var inputA: NodePort<Float> { _inputA }
+    private var _inputA: NodePort<Float>!
+    var inputB: NodePort<Float> { _inputB }
+    private var _inputB: NodePort<Float>!
+
+    override func bindPorts()
+    {
+        super.bindPorts()
+        self._inputA = findPort(named: "inputA")
+        self._inputB = findPort(named: "inputB")
+    }
 
     override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
     {
@@ -141,9 +164,20 @@ private final class AccumulatingFloatNode: Node
     override class var nodeTimeMode: Node.TimeMode { .None }
     override class var nodeDescription: String { "Test processor that adds its feedback inlet to its increment inlet." }
 
-    var inputIncrement: NodePort<Float> { port(named: "inputIncrement") }
-    var inputFeedback: NodePort<Float> { port(named: "inputFeedback") }
-    var output: NodePort<Float> { port(named: "output") }
+    var inputIncrement: NodePort<Float> { _inputIncrement }
+    private var _inputIncrement: NodePort<Float>!
+    var inputFeedback: NodePort<Float> { _inputFeedback }
+    private var _inputFeedback: NodePort<Float>!
+    var output: NodePort<Float> { _output }
+    private var _output: NodePort<Float>!
+
+    override func bindPorts()
+    {
+        super.bindPorts()
+        self._inputIncrement = findPort(named: "inputIncrement")
+        self._inputFeedback = findPort(named: "inputFeedback")
+        self._output = findPort(named: "output")
+    }
 
     override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
     {

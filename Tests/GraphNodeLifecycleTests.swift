@@ -20,8 +20,17 @@ private class LifecycleRecordingNode: Node
         ]
     }
 
-    var input: NodePort<Float> { port(named: "input") }
-    var output: NodePort<Float> { port(named: "output") }
+    var input: NodePort<Float> { _input }
+    private var _input: NodePort<Float>!
+    var output: NodePort<Float> { _output }
+    private var _output: NodePort<Float>!
+
+    override func bindPorts()
+    {
+        super.bindPorts()
+        self._input = findPort(named: "input")
+        self._output = findPort(named: "output")
+    }
 
     private(set) var lifecycleCalls: [String] = []
     private(set) var executeCount = 0

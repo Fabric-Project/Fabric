@@ -15,9 +15,20 @@ private final class PlanningTestNode: Node {
     var declines = false
     var keepControlAlive = false
     var onPull: (() -> Void)?
-    var first: NodePort<Float> { port(named: "first") }
-    var second: NodePort<Float> { port(named: "second") }
-    var output: NodePort<Float> { port(named: "output") }
+    var first: NodePort<Float> { _first }
+    private var _first: NodePort<Float>!
+    var second: NodePort<Float> { _second }
+    private var _second: NodePort<Float>!
+    var output: NodePort<Float> { _output }
+    private var _output: NodePort<Float>!
+
+    override func bindPorts()
+    {
+        super.bindPorts()
+        self._first = findPort(named: "first")
+        self._second = findPort(named: "second")
+        self._output = findPort(named: "output")
+    }
 
     override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)] {
         super.registerPorts(context: context) + [

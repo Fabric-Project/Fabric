@@ -81,7 +81,14 @@ private class DeferredProbeNode: Node {
     override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)] {
         [("output", NodePort<Int>(name: "Output", kind: .Outlet))]
     }
-    var output: NodePort<Int> { port(named: "output") }
+    var output: NodePort<Int> { _output }
+    private var _output: NodePort<Int>!
+
+    override func bindPorts()
+    {
+        super.bindPorts()
+        self._output = findPort(named: "output")
+    }
     var observed: [Int?] = []
     var requestCount = 0
     var continueAfterRequest = false

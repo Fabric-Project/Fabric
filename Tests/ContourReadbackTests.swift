@@ -17,7 +17,14 @@ struct ContourReadbackTests {
                 ("input", NodePort<ContiguousArray<SIMD2<Float>>>(name: "Contour", kind: .Inlet))
             ]
         }
-        var input: NodePort<ContiguousArray<SIMD2<Float>>> { port(named: "input") }
+        var input: NodePort<ContiguousArray<SIMD2<Float>>> { _input }
+        private var _input: NodePort<ContiguousArray<SIMD2<Float>>>!
+
+        override func bindPorts()
+        {
+            super.bindPorts()
+            self._input = findPort(named: "input")
+        }
         var pointCount = 0
         var observedCenters: [Float?] = []
         override func execute(renderer: GraphRenderer, executionInfo: GraphExecutionInfo,
@@ -40,7 +47,14 @@ struct ContourReadbackTests {
         override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)] {
             super.registerPorts(context: context) + [("output", NodePort<FabricImage>(name: "Mask", kind: .Outlet))]
         }
-        var output: NodePort<FabricImage> { port(named: "output") }
+        var output: NodePort<FabricImage> { _output }
+        private var _output: NodePort<FabricImage>!
+
+        override func bindPorts()
+        {
+            super.bindPorts()
+            self._output = findPort(named: "output")
+        }
         var masks: [FabricImage] = []
         override func execute(renderer: GraphRenderer, executionInfo: GraphExecutionInfo,
                               renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws {

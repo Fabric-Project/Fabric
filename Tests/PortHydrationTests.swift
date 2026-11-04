@@ -901,7 +901,14 @@ private final class RecreatingPortNode: Node
     override class var nodeTimeMode: Node.TimeMode { .None }
     override class var nodeDescription: String { "Test node that rebuilds a declared port during decode." }
 
-    var value: NodePort<Float> { port(named: "value") }
+    var value: NodePort<Float> { _value }
+    private var _value: NodePort<Float>!
+
+    override func bindPorts()
+    {
+        super.bindPorts()
+        self._value = findPort(named: "value")
+    }
     private var declaresValue = true
 
     override func declaredPorts() -> [PortDeclaration]
@@ -933,7 +940,14 @@ private final class RenamedKeyPortNode: Node
     override class var nodeTimeMode: Node.TimeMode { .None }
     override class var nodeDescription: String { "Test node with a renamed port key." }
 
-    var input: NodePort<Float> { port(named: "input") }
+    var input: NodePort<Float> { _input }
+    private var _input: NodePort<Float>!
+
+    override func bindPorts()
+    {
+        super.bindPorts()
+        self._input = findPort(named: "input")
+    }
 
     override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
     {
@@ -953,7 +967,14 @@ private final class TransformParameterPortNode: Node
     override class var nodeTimeMode: Node.TimeMode { .None }
     override class var nodeDescription: String { "Test node with a Transform parameter port." }
 
-    var input: ParameterPort<simd_float4x4> { port(named: "inputTransform") }
+    var input: ParameterPort<simd_float4x4> { _input }
+    private var _input: ParameterPort<simd_float4x4>!
+
+    override func bindPorts()
+    {
+        super.bindPorts()
+        self._input = findPort(named: "inputTransform")
+    }
 
     override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
     {
