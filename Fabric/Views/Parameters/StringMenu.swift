@@ -19,11 +19,12 @@ struct StringMenu: View
 
     @State private var selectedOption: String? = nil
 
-    init(parameter: StringParameter)
+    init(parameter: StringParameter, port: NodePort<String>? = nil)
     {
-        self.vm = ParameterObservableModel(label: parameter.label,
-                                           get: { parameter.value },
-                                           set: { parameter.value = $0 },
+        let value = ControlValue(parameter: parameter, port: port)
+        self.vm = ParameterObservableModel(label: value.label,
+                                           get: value.get,
+                                           set: value.set,
                                            publisher: parameter.valuePublisher )
         
         self.optionsVm = ParameterObservableModel(label: parameter.label,

@@ -26,11 +26,10 @@ public struct NodeSelectionInspector: View
         {
             InspectorSection("Published")
             {
-                ParameterGroupView(parameterGroup:currentGraph.publishedParameterGroup)
-                    // publishedParameterGroup is a plain class rebuilt in
-                    // place, invisible to observation — but every rebuild
-                    // bumps connectionRevision, so re-identify just this
-                    // view (not the whole inspector) to pick up the new params.
+                ParameterGroupView(ports: currentGraph.getPublishedPorts())
+                    // The published ports are resolved when publishing
+                    // changes, which bumps connectionRevision: re-identify
+                    // just this view (not the whole inspector) to pick them up.
                     .id(currentGraph.connectionRevision)
             }
 
@@ -85,11 +84,11 @@ private struct SelectedNodeCard: View
                         .padding(.horizontal, 5)
                 }
 
-                if nodeViewModel.parameterGroup.params.contains(where: ParameterGroupView.hasEditor) {
+                if nodeViewModel.ports.contains(where: ParameterGroupView.hasEditor) {
 
                     Divider()
 
-                    ParameterGroupView(parameterGroup: nodeViewModel.parameterGroup,
+                    ParameterGroupView(ports: nodeViewModel.ports,
                                        fileContentTypes: fileContentTypes)
                         .id(portSignature)
                 }

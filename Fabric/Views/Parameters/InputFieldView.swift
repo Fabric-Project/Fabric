@@ -72,14 +72,15 @@ struct InputFieldView: View
 
     @Bindable var vm: ParameterObservableModel<String>
 
-    init(param:StringParameter)
+    init(param: StringParameter, port: NodePort<String>? = nil)
     {
         // The whole value, however much of it the field can show. This read is
         // what an edit is compared and written back against, so shortening it
         // here commits the shortening as soon as a rebuilt field is typed into.
-        self.vm = ParameterObservableModel(label: param.label,
-                                           get: { param.value },
-                                           set: { param.value = $0 },
+        let value = ControlValue(parameter: param, port: port)
+        self.vm = ParameterObservableModel(label: value.label,
+                                           get: value.get,
+                                           set: value.set,
                                            publisher:param.valuePublisher)
     }
     
@@ -129,11 +130,12 @@ struct FloatInputFieldView: View
     @Bindable var vm: ParameterObservableModel<Float>
     let step: Float
 
-    init(param:GenericParameter<Float>)
+    init(param: GenericParameter<Float>, port: NodePort<Float>? = nil)
     {
-        self.vm = ParameterObservableModel(label: param.label,
-                                           get: { param.value },
-                                           set: { param.value = $0 },
+        let value = ControlValue(parameter: param, port: port)
+        self.vm = ParameterObservableModel(label: value.label,
+                                           get: value.get,
+                                           set: value.set,
                                            publisher:param.valuePublisher )
         self.step = ParameterFieldStep.step(for: param, fractionDigits: floatFractionDigits)
     }
@@ -151,11 +153,12 @@ struct Float2InputFieldView: View
     @Bindable var vm: ParameterObservableModel<simd_float2>
     let steps: [Float]
 
-    init(param:GenericParameter<simd_float2>)
+    init(param: GenericParameter<simd_float2>, port: NodePort<simd_float2>? = nil)
     {
-        self.vm = ParameterObservableModel(label: param.label,
-                                           get: { param.value },
-                                           set: { param.value = $0 },
+        let value = ControlValue(parameter: param, port: port)
+        self.vm = ParameterObservableModel(label: value.label,
+                                           get: value.get,
+                                           set: value.set,
                                            publisher:param.valuePublisher )
         self.steps = ParameterFieldStep.steps(for: param, fractionDigits: floatFractionDigits)
     }
@@ -175,11 +178,12 @@ struct Float3InputFieldView: View
     @Bindable var vm: ParameterObservableModel<simd_float3>
     let steps: [Float]
 
-    init(param:GenericParameter<simd_float3>)
+    init(param: GenericParameter<simd_float3>, port: NodePort<simd_float3>? = nil)
     {
-        self.vm = ParameterObservableModel(label: param.label,
-                                           get: { param.value },
-                                           set: { param.value = $0 },
+        let value = ControlValue(parameter: param, port: port)
+        self.vm = ParameterObservableModel(label: value.label,
+                                           get: value.get,
+                                           set: value.set,
                                            publisher:param.valuePublisher )
         self.steps = ParameterFieldStep.steps(for: param, fractionDigits: floatFractionDigits)
     }
@@ -200,11 +204,12 @@ struct Float4InputFieldView: View
     @Bindable var vm: ParameterObservableModel<simd_float4>
     let steps: [Float]
 
-    init(param:GenericParameter<simd_float4>)
+    init(param: GenericParameter<simd_float4>, port: NodePort<simd_float4>? = nil)
     {
-        self.vm = ParameterObservableModel(label: param.label,
-                                           get: { param.value },
-                                           set: { param.value = $0 },
+        let value = ControlValue(parameter: param, port: port)
+        self.vm = ParameterObservableModel(label: value.label,
+                                           get: value.get,
+                                           set: value.set,
                                            publisher:param.valuePublisher )
         self.steps = ParameterFieldStep.steps(for: param, fractionDigits: floatFractionDigits)
     }
@@ -226,11 +231,12 @@ struct IntInputFieldView: View
     @Bindable var vm: ParameterObservableModel<Int>
     let step: Int
 
-    init(param:GenericParameter<Int>)
+    init(param: GenericParameter<Int>, port: NodePort<Int>? = nil)
     {
-        self.vm = ParameterObservableModel(label: param.label,
-                                           get: { param.value },
-                                           set: { param.value = $0 },
+        let value = ControlValue(parameter: param, port: port)
+        self.vm = ParameterObservableModel(label: value.label,
+                                           get: value.get,
+                                           set: value.set,
                                            publisher:param.valuePublisher )
         self.step = ParameterFieldStep.step(for: param)
     }

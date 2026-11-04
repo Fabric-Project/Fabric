@@ -82,11 +82,12 @@ struct IntSlider: View, Equatable
     @Bindable var vmMin: ParameterObservableModel<Int>
     @Bindable var vmMax: ParameterObservableModel<Int>
 
-    init(param: IntParameter)
+    init(param: IntParameter, port: NodePort<Int>? = nil)
     {
-        self.vm = ParameterObservableModel(label: param.label,
-                                           get: { param.value },
-                                           set: { param.value = $0 },
+        let value = ControlValue(parameter: param, port: port)
+        self.vm = ParameterObservableModel(label: value.label,
+                                           get: value.get,
+                                           set: value.set,
                                            publisher:param.valuePublisher )
         
         self.vmMin = ParameterObservableModel(label: param.label,

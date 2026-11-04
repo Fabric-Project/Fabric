@@ -17,12 +17,13 @@ struct Color4ParameterView: View, Equatable
 
     @State var color = Color.white
     
-    init(parameter: Float4Parameter)
+    init(parameter: Float4Parameter, port: NodePort<simd_float4>? = nil)
     {
         
-        self.vm = ParameterObservableModel(label: parameter.label,
-                                           get: { parameter.value },
-                                           set: { parameter.value = $0 },
+        let value = ControlValue(parameter: parameter, port: port)
+        self.vm = ParameterObservableModel(label: value.label,
+                                           get: value.get,
+                                           set: value.set,
                                            publisher:parameter.valuePublisher )
     
     }
@@ -59,11 +60,12 @@ struct Color3ParameterView: View, Equatable
     
     @Bindable var vm: ParameterObservableModel<simd_float3>
 
-    init(parameter: Float3Parameter)
+    init(parameter: Float3Parameter, port: NodePort<simd_float3>? = nil)
     {
-        self.vm = ParameterObservableModel(label: parameter.label,
-                                           get: { parameter.value },
-                                           set: { parameter.value = $0 },
+        let value = ControlValue(parameter: parameter, port: port)
+        self.vm = ParameterObservableModel(label: value.label,
+                                           get: value.get,
+                                           set: value.set,
                                            publisher:parameter.valuePublisher )
     }
     

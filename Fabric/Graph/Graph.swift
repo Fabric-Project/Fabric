@@ -767,6 +767,14 @@ internal import AnyCodable
         self.markConnectionTopologyChanged()
     }
 
+    /// A control's edit of a port's value. The one way a control writes a
+    /// port: the edit context attaches here to record value edits.
+    public func setControlValue<Value>(_ value: Value, on port: NodePort<Value>)
+    {
+        guard port.node?.graph === self else { return }
+        port.value = value
+    }
+
     @discardableResult
     public func setConnection(_ connection: Connection, active: Bool) -> Bool
     {
