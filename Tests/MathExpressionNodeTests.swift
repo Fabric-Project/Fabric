@@ -136,7 +136,7 @@ import MathExpressionEngine
 
         node.stringExpression = "sin("
         #expect(names(node.inputPorts()) == ["x", "y"]) // unchanged
-        let diagnostic = try #require(node._settingsModel.diagnostics.first { $0.severity == .error })
+        let diagnostic = try #require(node.compileDiagnostics.first { $0.severity == .error })
         guard case .error(let message)? = node.status else { Issue.record("expected an error status"); return }
         #expect(message.contains(diagnostic.message))
         #expect(node.subtitle?.contains("⚠") == false)
