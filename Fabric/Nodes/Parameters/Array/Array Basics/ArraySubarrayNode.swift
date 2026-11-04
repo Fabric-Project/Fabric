@@ -16,37 +16,30 @@ public class ArraySubarrayNode: TypeAgnosticNode
     override public class var nodeDescription: String { "Extracts a subset of an array by offset and count. No new elements are synthesized; if offset is beyond the array bounds the output is empty. Choose element type in Settings." }
     override public class var includesArrayTypesInStrategy: Bool { false }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
-    {
-        super.registerPorts(context: context) + [
-            ("inputOffset", ParameterPort(parameter: IntParameter("Offset", 0, .inputfield, "Starting index in the input array"))),
-            ("inputCount",  ParameterPort(parameter: IntParameter("Count",  0, .inputfield, "Maximum number of elements to extract"))),
-        ]
-    }
-
-    public var inputOffset: ParameterPort<Int> { _inputOffset }
-    private var _inputOffset: ParameterPort<Int>!
-    public var inputCount: ParameterPort<Int> { _inputCount }
-    private var _inputCount: ParameterPort<Int>!
+    public let inputOffset = ParameterPort(parameter: IntParameter("Offset", 0, .inputfield, "Starting index in the input array"))
+    public let inputCount = ParameterPort(parameter: IntParameter("Count",  0, .inputfield, "Maximum number of elements to extract"))
 
     override public func bindPorts()
     {
         super.bindPorts()
         self.boundInputPort = findPort(named: "inputPort")
         self.boundOutputPort = findPort(named: "outputPort")
-        self._inputOffset = findPort(named: "inputOffset")
-        self._inputCount = findPort(named: "inputCount")
     }
 
     public override func declaredPorts() -> [PortDeclaration]
     {
-        guard let elementType = strategy as? PortType else { return super.declaredPorts() }
+        let storedPorts = [
+            PortDeclaration(key: "inputOffset", port: self.inputOffset),
+            PortDeclaration(key: "inputCount", port: self.inputCount),
+        ]
+
+        guard let elementType = strategy as? PortType else { return super.declaredPorts() + storedPorts }
 
         let arrayType: PortType = .Array(portType: elementType)
 
         return [
             PortDeclaration(key: "inputPort", portType: arrayType, kind: .Inlet, name: "Array", description: "Input array to subsample"),
-        ] + super.declaredPorts() + [
+        ] + super.declaredPorts() + storedPorts + [
             PortDeclaration(key: "outputPort", portType: arrayType, kind: .Outlet, name: "Array", description: "Subarray extracted from the input"),
         ]
     }

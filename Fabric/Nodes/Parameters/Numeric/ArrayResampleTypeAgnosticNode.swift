@@ -15,22 +15,13 @@ public final class ArrayResampleTypeAgnosticNode: NumericTypeAgnosticNode
     override public class var nodeDescription: String { "Resamples a numeric array to a new count using type-appropriate interpolation." }
     public override class var supportedPortTypes: [PortType] { interpolatableArrayTypes }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
-    {
-        super.registerPorts(context: context) + [
-            ("inputCount", ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Desired output element count")))
-        ]
-    }
-
-    public var inputCount: ParameterPort<Int> { _inputCount }
-    private var _inputCount: ParameterPort<Int>!
+    public let inputCount = ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Desired output element count"))
 
     override public func bindPorts()
     {
         super.bindPorts()
         self.boundInputArray = findPort(named: "inputArray")
         self.boundOutputArray = findPort(named: "outputArray")
-        self._inputCount = findPort(named: "inputCount")
     }
 
     public override func declaredPorts() -> [PortDeclaration]
@@ -40,6 +31,7 @@ public final class ArrayResampleTypeAgnosticNode: NumericTypeAgnosticNode
         return [
             PortDeclaration(key: "inputArray", portType: portType, kind: .Inlet, name: "Array", description: "Source array"),
         ] + super.declaredPorts() + [
+            PortDeclaration(key: "inputCount", port: self.inputCount),
             PortDeclaration(key: "outputArray", portType: portType, kind: .Outlet, name: "Array", description: "Resampled array"),
         ]
     }

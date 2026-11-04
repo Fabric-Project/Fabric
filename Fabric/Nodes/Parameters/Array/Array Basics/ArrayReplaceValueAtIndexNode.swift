@@ -16,15 +16,7 @@ public class ArrayReplaceValueAtIndexNode: TypeAgnosticNode
     override public class var nodeDescription: String { "Replaces the element at the specified index with a new value. Choose element type in Settings." }
     override public class var includesArrayTypesInStrategy: Bool { false }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
-    {
-        super.registerPorts(context: context) + [
-            ("inputIndexParam", ParameterPort(parameter: IntParameter("Index", 0, .inputfield, "Array index where the value will be replaced"))),
-        ]
-    }
-
-    public var inputIndexParam: ParameterPort<Int> { _inputIndexParam }
-    private var _inputIndexParam: ParameterPort<Int>!
+    public let inputIndexParam = ParameterPort(parameter: IntParameter("Index", 0, .inputfield, "Array index where the value will be replaced"))
 
     override public func bindPorts()
     {
@@ -32,18 +24,21 @@ public class ArrayReplaceValueAtIndexNode: TypeAgnosticNode
         self.boundInputPort = findPort(named: "inputPort")
         self.boundInputValue = findPort(named: "inputValue")
         self.boundOutputPort = findPort(named: "outputPort")
-        self._inputIndexParam = findPort(named: "inputIndexParam")
     }
 
     public override func declaredPorts() -> [PortDeclaration]
     {
-        guard let elementType = strategy as? PortType else { return super.declaredPorts() }
+        let storedPorts = [
+            PortDeclaration(key: "inputIndexParam", port: self.inputIndexParam),
+        ]
+
+        guard let elementType = strategy as? PortType else { return super.declaredPorts() + storedPorts }
 
         let arrayType: PortType = .Array(portType: elementType)
 
         return [
             PortDeclaration(key: "inputPort", portType: arrayType, kind: .Inlet, name: "Array", description: "Input array to modify"),
-        ] + super.declaredPorts() + [
+        ] + super.declaredPorts() + storedPorts + [
             PortDeclaration(key: "inputValue", portType: elementType, kind: .Inlet, name: "Value", description: "New value to insert at the specified index"),
             PortDeclaration(key: "outputPort", portType: arrayType, kind: .Outlet, name: "Array", description: "Array with the value replaced at the specified index"),
         ]

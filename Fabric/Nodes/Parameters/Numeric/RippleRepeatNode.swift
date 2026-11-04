@@ -22,26 +22,14 @@ public final class RippleRepeatNode: NumericTypeAgnosticNode
     private var oldest: Record?
     private var lastTime: TimeInterval?
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
-    {
-        super.registerPorts(context: context) + [
-            ("inputCount", ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Number of elements"))),
-            ("inputDelaySecs", ParameterPort(parameter: FloatParameter("Delay (secs)", 1.0, 0.0, 60.0, .inputfield, "Delay window in seconds")))
-        ]
-    }
-
-    public var inputCount: ParameterPort<Int> { _inputCount }
-    private var _inputCount: ParameterPort<Int>!
-    public var inputDelaySecs: ParameterPort<Float> { _inputDelaySecs }
-    private var _inputDelaySecs: ParameterPort<Float>!
+    public let inputCount = ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Number of elements"))
+    public let inputDelaySecs = ParameterPort(parameter: FloatParameter("Delay (secs)", 1.0, 0.0, 60.0, .inputfield, "Delay window in seconds"))
 
     override public func bindPorts()
     {
         super.bindPorts()
         self.boundInputValue = findPort(named: "inputValue")
         self.boundOutputArray = findPort(named: "outputArray")
-        self._inputCount = findPort(named: "inputCount")
-        self._inputDelaySecs = findPort(named: "inputDelaySecs")
     }
 
     public override func declaredPorts() -> [PortDeclaration]
@@ -52,6 +40,8 @@ public final class RippleRepeatNode: NumericTypeAgnosticNode
         return [
             PortDeclaration(key: "inputValue", portType: valueType, kind: .Inlet, name: "Value", description: "Animated value to stagger"),
         ] + super.declaredPorts() + [
+            PortDeclaration(key: "inputCount", port: self.inputCount),
+            PortDeclaration(key: "inputDelaySecs", port: self.inputDelaySecs),
             PortDeclaration(key: "outputArray", portType: arrayType, kind: .Outlet, name: "Array", description: "Rippled repeated values"),
         ]
     }

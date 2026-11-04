@@ -18,38 +18,31 @@ public class SampleAndHoldNode: TypeAgnosticNode
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Samples any value type when enabled and holds it until reset. Choose the value type in Settings." }
 
-    public var inputSample: ParameterPort<Bool> { _inputSample }
-    private var _inputSample: ParameterPort<Bool>!
-    public var inputReset: ParameterPort<Bool> { _inputReset }
-    private var _inputReset: ParameterPort<Bool>!
-
     override public func bindPorts()
     {
         super.bindPorts()
         self.boundInputValue = findPort(named: "inputValue")
         self.boundOutputValue = findPort(named: "outputValue")
-        self._inputSample = findPort(named: "inputSample")
-        self._inputReset = findPort(named: "inputReset")
     }
 
     private var heldValue: PortValue?
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
-    {
-        super.registerPorts(context: context) + [
-            ("inputSample", ParameterPort(parameter: BoolParameter("Sample", true,  .button, "When enabled, samples and holds the input value"))),
-            ("inputReset",  ParameterPort(parameter: BoolParameter("Reset",  false, .button, "Reset the held value to nil"))),
-        ]
-    }
+    public let inputSample = ParameterPort(parameter: BoolParameter("Sample", true,  .button, "When enabled, samples and holds the input value"))
+    public let inputReset = ParameterPort(parameter: BoolParameter("Reset",  false, .button, "Reset the held value to nil"))
 
     public override func declaredPorts() -> [PortDeclaration]
     {
-        guard let portType = strategy as? PortType else { return super.declaredPorts() }
+        let storedPorts = [
+            PortDeclaration(key: "inputSample", port: self.inputSample),
+            PortDeclaration(key: "inputReset", port: self.inputReset),
+        ]
+
+        guard let portType = strategy as? PortType else { return super.declaredPorts() + storedPorts }
 
         return [
             PortDeclaration(key: "inputValue",  portType: portType, kind: .Inlet,  name: "Value", description: "Value to sample and hold"),
             PortDeclaration(key: "outputValue", portType: portType, kind: .Outlet, name: "Value", description: "The last sampled value"),
-        ] + super.declaredPorts()
+        ] + super.declaredPorts() + storedPorts
     }
 
     public override func apply(_ settings: any NodeSettings)

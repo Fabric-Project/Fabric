@@ -20,26 +20,14 @@ public class ArrayQueueNode: TypeAgnosticNode
     override public class var nodeDescription: String { "Inserts items into the beginning of an array queue. Choose element type in Settings." }
     override public class var includesArrayTypesInStrategy: Bool { false }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
-    {
-        super.registerPorts(context: context) + [
-            ("inputSizeParam", ParameterPort(parameter: IntParameter("Size", 0, .inputfield, "Maximum number of elements to keep in the queue"))),
-            ("resetPort",     ParameterPort(parameter: BoolParameter("Reset", false, .button,  "When true, drops all queued items while maintaining capacity")))
-        ]
-    }
-
-    public var inputSizeParam: ParameterPort<Int> { _inputSizeParam }
-    private var _inputSizeParam: ParameterPort<Int>!
-    public var resetPort: NodePort<Bool> { _resetPort }
-    private var _resetPort: NodePort<Bool>!
+    public let inputSizeParam = ParameterPort(parameter: IntParameter("Size", 0, .inputfield, "Maximum number of elements to keep in the queue"))
+    public let resetPort: NodePort<Bool> = ParameterPort(parameter: BoolParameter("Reset", false, .button,  "When true, drops all queued items while maintaining capacity"))
 
     override public func bindPorts()
     {
         super.bindPorts()
         self.boundInputPort = findPort(named: "inputPort")
         self.boundOutputPort = findPort(named: "outputPort")
-        self._inputSizeParam = findPort(named: "inputSizeParam")
-        self._resetPort = findPort(named: "resetPort")
     }
 
     // Type-agnostic queue; PortValue boxing lets this work identically for Virtual and typed ports.
@@ -47,13 +35,18 @@ public class ArrayQueueNode: TypeAgnosticNode
 
     public override func declaredPorts() -> [PortDeclaration]
     {
-        guard let elementType = strategy as? PortType else { return super.declaredPorts() }
+        let storedPorts = [
+            PortDeclaration(key: "inputSizeParam", port: self.inputSizeParam),
+            PortDeclaration(key: "resetPort", port: self.resetPort),
+        ]
+
+        guard let elementType = strategy as? PortType else { return super.declaredPorts() + storedPorts }
 
         let arrayType: PortType = .Array(portType: elementType)
 
         return [
             PortDeclaration(key: "inputPort", portType: elementType, kind: .Inlet, name: "Value", description: "Value to insert at the front of the queue"),
-        ] + super.declaredPorts() + [
+        ] + super.declaredPorts() + storedPorts + [
             PortDeclaration(key: "outputPort", portType: arrayType, kind: .Outlet, name: "Array", description: "Array containing the queued values"),
         ]
     }

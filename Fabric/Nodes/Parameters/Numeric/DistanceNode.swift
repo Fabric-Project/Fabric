@@ -15,26 +15,14 @@ public final class DistanceNode: NumericTypeAgnosticNode
     override public class var nodeDescription: String { "Computes a domain-aware distance between two numeric values. Choose the value type in Settings." }
     public override class var supportedPortTypes: [PortType] { singleNumericTypes }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
-    {
-        super.registerPorts(context: context) + [
-            ("inputMetric", metricParameter("Distance calculation method")),
-            ("outputDistance", NodePort<Float>(name: "Distance", kind: .Outlet, description: "Calculated distance"))
-        ]
-    }
-
-    public var inputMetric: ParameterPort<String> { _inputMetric }
-    private var _inputMetric: ParameterPort<String>!
-    public var outputDistance: NodePort<Float> { _outputDistance }
-    private var _outputDistance: NodePort<Float>!
+    public let inputMetric: ParameterPort<String> = metricParameter("Distance calculation method")
+    public let outputDistance = NodePort<Float>(name: "Distance", kind: .Outlet, description: "Calculated distance")
 
     override public func bindPorts()
     {
         super.bindPorts()
         self.boundInputA = findPort(named: "inputA")
         self.boundInputB = findPort(named: "inputB")
-        self._inputMetric = findPort(named: "inputMetric")
-        self._outputDistance = findPort(named: "outputDistance")
     }
 
     public override func declaredPorts() -> [PortDeclaration]
@@ -44,7 +32,10 @@ public final class DistanceNode: NumericTypeAgnosticNode
         return [
             PortDeclaration(key: "inputA", portType: portType, kind: .Inlet, name: "A", description: "First value"),
             PortDeclaration(key: "inputB", portType: portType, kind: .Inlet, name: "B", description: "Second value"),
-        ] + super.declaredPorts()
+        ] + super.declaredPorts() + [
+            PortDeclaration(key: "inputMetric", port: self.inputMetric),
+            PortDeclaration(key: "outputDistance", port: self.outputDistance),
+        ]
     }
 
     private var boundInputA: Port?

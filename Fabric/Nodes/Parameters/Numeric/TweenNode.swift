@@ -20,18 +20,9 @@ public final class TweenNode: NumericTypeAgnosticNode
     private var to: PortValue?
     private var current: PortValue?
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
-    {
-        super.registerPorts(context: context) + [
-            ("inputDuration", ParameterPort(parameter: FloatParameter("Duration", 1.0, .inputfield, "Tween duration in seconds"))),
-            ("inputEasing", ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing curve"))),
-        ]
-    }
+    public let inputDuration = ParameterPort(parameter: FloatParameter("Duration", 1.0, .inputfield, "Tween duration in seconds"))
+    public let inputEasing = ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing curve"))
 
-    public var inputDuration: ParameterPort<Float> { _inputDuration }
-    private var _inputDuration: ParameterPort<Float>!
-    public var inputEasing: ParameterPort<String> { _inputEasing }
-    private var _inputEasing: ParameterPort<String>!
     public var outputProgress: NodePort<Float> { _outputProgress }
     private var _outputProgress: NodePort<Float>!
 
@@ -40,8 +31,6 @@ public final class TweenNode: NumericTypeAgnosticNode
         super.bindPorts()
         self.boundInputTarget = findPort(named: "inputTarget")
         self.boundOutputValue = findPort(named: "outputValue")
-        self._inputDuration = findPort(named: "inputDuration")
-        self._inputEasing = findPort(named: "inputEasing")
         self._outputProgress = findPort(named: "outputProgress")
     }
 
@@ -52,6 +41,8 @@ public final class TweenNode: NumericTypeAgnosticNode
         return [
             PortDeclaration(key: "inputTarget", portType: portType, kind: .Inlet, name: "Target", description: "Target value"),
         ] + super.declaredPorts() + [
+            PortDeclaration(key: "inputDuration", port: self.inputDuration),
+            PortDeclaration(key: "inputEasing", port: self.inputEasing),
             PortDeclaration(key: "outputValue", portType: portType, kind: .Outlet, name: "Value", description: "Current tweened value"),
             PortDeclaration(key: "outputProgress", port: NodePort<Float>(name: "Progress", kind: .Outlet, description: "Tween progress (0-1)")),
         ]

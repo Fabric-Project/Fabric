@@ -15,18 +15,8 @@ public final class ArrayRangeInterpolateNode: NumericTypeAgnosticNode
     override public class var nodeDescription: String { "Generates an array interpolated from From to To using the selected easing function." }
     public override class var supportedPortTypes: [PortType] { interpolatableSingleTypes }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
-    {
-        super.registerPorts(context: context) + [
-            ("inputCount", ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Number of elements to generate"))),
-            ("inputEasing", ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing function applied to the interpolation")))
-        ]
-    }
-
-    public var inputCount: ParameterPort<Int> { _inputCount }
-    private var _inputCount: ParameterPort<Int>!
-    public var inputEasing: ParameterPort<String> { _inputEasing }
-    private var _inputEasing: ParameterPort<String>!
+    public let inputCount = ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Number of elements to generate"))
+    public let inputEasing = ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing function applied to the interpolation"))
 
     override public func bindPorts()
     {
@@ -34,8 +24,6 @@ public final class ArrayRangeInterpolateNode: NumericTypeAgnosticNode
         self.boundInputFrom = findPort(named: "inputFrom")
         self.boundInputTo = findPort(named: "inputTo")
         self.boundOutputArray = findPort(named: "outputArray")
-        self._inputCount = findPort(named: "inputCount")
-        self._inputEasing = findPort(named: "inputEasing")
     }
 
     public override func declaredPorts() -> [PortDeclaration]
@@ -47,6 +35,8 @@ public final class ArrayRangeInterpolateNode: NumericTypeAgnosticNode
             PortDeclaration(key: "inputFrom", portType: valueType, kind: .Inlet, name: "From", description: "Start value"),
             PortDeclaration(key: "inputTo", portType: valueType, kind: .Inlet, name: "To", description: "End value"),
         ] + super.declaredPorts() + [
+            PortDeclaration(key: "inputCount", port: self.inputCount),
+            PortDeclaration(key: "inputEasing", port: self.inputEasing),
             PortDeclaration(key: "outputArray", portType: arrayType, kind: .Outlet, name: "Array", description: "Generated interpolated values"),
         ]
     }

@@ -181,13 +181,18 @@ public class RoutingNodeBase: TypeAgnosticNode
 /// outputs). For per-input routing to independent outputs see [[MatrixSwitchNode]].
 public class RoutingNode: RoutingNodeBase
 {
-    public var inputIndex: ParameterPort<Int> { _inputIndex }
-    private var _inputIndex: ParameterPort<Int>!
+    public let inputIndex = ParameterPort(parameter: IntParameter("Index",
+    0,
+    0,
+    routingNodeMinimumRouteCount - 1,
+    .inputfield,
+    "Selected route index"))
 
-    override public func bindPorts()
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._inputIndex = findPort(named: "inputIndex")
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputIndex", port: self.inputIndex),
+        ]
     }
 
     public required init(context: Context)
@@ -206,18 +211,6 @@ public class RoutingNode: RoutingNodeBase
     {
         try super.init(from: decoder)
         updateIndexRange()
-    }
-
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
-    {
-        super.registerPorts(context: context) + [
-            ("inputIndex", ParameterPort(parameter: IntParameter("Index",
-                                                                 0,
-                                                                 0,
-                                                                 routingNodeMinimumRouteCount - 1,
-                                                                 .inputfield,
-                                                                 "Selected route index"))),
-        ]
     }
 
     /// The Index range follows the route count.

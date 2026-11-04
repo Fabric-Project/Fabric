@@ -743,24 +743,12 @@ public class TimelineNode: Node
     override public class var nodeDescription: String { "Multi-track timeline with keyframe animation" }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-
-        return ports +
-        [
-            ("inputTime", ParameterPort(parameter: FloatParameter("Time", 0.0, .inputfield, "Current playback time for evaluating the timeline"))),
-        ]
-    }
-
-    // Port Proxy
-    public var inputTime: ParameterPort<Float> { _inputTime }
-    private var _inputTime: ParameterPort<Float>!
+    public let inputTime = ParameterPort(parameter: FloatParameter("Time", 0.0, .inputfield, "Current playback time for evaluating the timeline"))
 
     override public func bindPorts()
     {
         super.bindPorts()
         self.trackOutlets = tracks.map { findPort(named: $0.name) }
-        self._inputTime = findPort(named: "inputTime")
     }
 
     // MARK: - Codable
@@ -952,7 +940,9 @@ public class TimelineNode: Node
     /// a new port.
     override public func declaredPorts() -> [PortDeclaration]
     {
-        super.declaredPorts() + tracks.map { track in
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputTime", port: self.inputTime),
+        ] + tracks.map { track in
             PortDeclaration(key: track.name,
                             port: NodePort<Float>(name: track.name, kind: .Outlet, description: "Animated value from timeline track"))
         }

@@ -113,28 +113,14 @@ public class StringSplitNode: StrategyNode
     }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-
-        return ports + [
-            ("inputPort", ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to split"))),
-            ("outputPort", NodePort<ContiguousArray<String>>(name: "Strings", kind: .Outlet, description: "Array of string components")),
-        ]
-    }
-
-    // Port proxies
-    public var inputPort: ParameterPort<String> { _inputPort }
-    private var _inputPort: ParameterPort<String>!
-    public var outputPort: NodePort<ContiguousArray<String>> { _outputPort }
-    private var _outputPort: NodePort<ContiguousArray<String>>!
+    public let inputPort = ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to split"))
+    public let outputPort = NodePort<ContiguousArray<String>>(name: "Strings", kind: .Outlet, description: "Array of string components")
 
     override public func bindPorts()
     {
         super.bindPorts()
         self.inputSeparator = findPort(named: "inputSeparator")
         self.boundInputPort = findPort(named: "inputPort")
-        self._inputPort = findPort(named: "inputPort")
-        self._outputPort = findPort(named: "outputPort")
     }
     /// Present only in Custom mode.
     public private(set) var inputSeparator: ParameterPort<String>?
@@ -143,9 +129,14 @@ public class StringSplitNode: StrategyNode
     /// separator in the mode itself.
     override public func declaredPorts() -> [PortDeclaration]
     {
-        guard splitMode == .custom else { return super.declaredPorts() }
+        let storedPorts = [
+            PortDeclaration(key: "inputPort", port: self.inputPort),
+            PortDeclaration(key: "outputPort", port: self.outputPort),
+        ]
 
-        return super.declaredPorts() + [
+        guard splitMode == .custom else { return super.declaredPorts() + storedPorts }
+
+        return super.declaredPorts() + storedPorts + [
             PortDeclaration(key: "inputSeparator",
                             port: ParameterPort(parameter: StringParameter("Separator", customSeparator, .inputfield, #"Separator string to split on. Supports \n, \r, \t, and \\ escape sequences"#))),
         ]

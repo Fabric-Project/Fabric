@@ -31,21 +31,8 @@ public class GeometryToTransformArrayNode : StrategyNode
     // The Geometry and Transform inputs are constant across output formats, so
     // they live as static ports and never churn when the format changes — only
     // the outputs are rebuilt by the strategy.
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-
-        return ports +
-        [
-            ("inputPort", NodePort<Geometry>(name: "Geometry", kind: .Inlet, description: "Source geometry to extract vertex positions and normals from")),
-            ("inputTransform", PortType.Transform.makeFreshPort(name: "Transform", kind: .Inlet, description: "Transform to apply to each point")),
-        ]
-    }
-
-    // Port Proxy
-    public var inputPort: NodePort<Geometry> { _inputPort }
-    private var _inputPort: NodePort<Geometry>!
-    public var inputTransform: NodePort<simd_float4x4> { _inputTransform }
-    private var _inputTransform: NodePort<simd_float4x4>!
+    public let inputPort = NodePort<Geometry>(name: "Geometry", kind: .Inlet, description: "Source geometry to extract vertex positions and normals from")
+    public let inputTransform = NodePort<simd_float4x4>.makeFresh(name: "Transform", kind: .Inlet, description: "Transform to apply to each point")
 
     override public func bindPorts()
     {
@@ -54,8 +41,6 @@ public class GeometryToTransformArrayNode : StrategyNode
         self.boundOutputPositions = findPort(named: "outputPositions")
         self.boundOutputOrientations = findPort(named: "outputOrientations")
         self.boundOutputUVs = findPort(named: "outputUVs")
-        self._inputPort = findPort(named: "inputPort")
-        self._inputTransform = findPort(named: "inputTransform")
     }
 
     /// `strategy`, typed before each reconcile, so execute switches on it without a cast.
@@ -90,7 +75,10 @@ public class GeometryToTransformArrayNode : StrategyNode
             wanted = []
         }
 
-        return super.declaredPorts() + wanted.map { PortDeclaration(key: $0.name, port: $0.port) }
+        return super.declaredPorts() + [
+            PortDeclaration(key: "inputPort", port: self.inputPort),
+            PortDeclaration(key: "inputTransform", port: self.inputTransform),
+        ] + wanted.map { PortDeclaration(key: $0.name, port: $0.port) }
     }
 
     private var boundOutputTransforms: NodePort<ContiguousArray<simd_float4x4>>?

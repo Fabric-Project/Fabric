@@ -40,8 +40,9 @@ public final class MatrixSwitchNode: RoutingNodeBase
 
     private static func outputPortName(_ index: Int) -> String { "output\(index)" }
 
-    public var inputMap: NodePort<[String: Int]> { _inputMap }
-    private var _inputMap: NodePort<[String: Int]>!
+    public let inputMap = NodePort<[String: Int]>(name: "Index Map",
+                                                  kind: .Inlet,
+                                                  description: "Input index → output index. Omit a key to leave that input unrouted.")
 
     /// The route ports, by route index.
     private var routeInputs: [Port] = []
@@ -50,23 +51,14 @@ public final class MatrixSwitchNode: RoutingNodeBase
     override public func bindPorts()
     {
         super.bindPorts()
-        self._inputMap = findPort(named: Self.indexMapPortName)
         self.routeInputs = (0..<routeCount).compactMap { findPort(named: Self.inputPortName($0)) }
         self.routeOutputs = (0..<routeCount).compactMap { findPort(named: Self.outputPortName($0)) }
-    }
-
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
-    {
-        super.registerPorts(context: context) + [
-            (Self.indexMapPortName, NodePort<[String: Int]>(name: "Index Map",
-                                                            kind: .Inlet,
-                                                            description: "Input index → output index. Omit a key to leave that input unrouted.")),
-        ]
     }
 
     public override func declaredPorts() -> [PortDeclaration]
     {
         super.declaredPorts()
+            + [PortDeclaration(key: Self.indexMapPortName, port: self.inputMap)]
             + (0..<routeCount).map { index in
                 routePortDeclaration(key: Self.inputPortName(index),
                                      name: "Input \(index)",

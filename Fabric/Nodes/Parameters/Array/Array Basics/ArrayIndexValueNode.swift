@@ -16,33 +16,28 @@ public class ArrayIndexValueNode: TypeAgnosticNode
     override public class var nodeDescription: String { "Returns the element at the specified index. Choose element type in Settings." }
     override public class var includesArrayTypesInStrategy: Bool { false }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
-    {
-        super.registerPorts(context: context) + [
-            ("inputIndexParam", ParameterPort(parameter: IntParameter("Index", 0, .inputfield, "Array index to retrieve the value from"))),
-        ]
-    }
-
-    public var inputIndexParam: ParameterPort<Int> { _inputIndexParam }
-    private var _inputIndexParam: ParameterPort<Int>!
+    public let inputIndexParam = ParameterPort(parameter: IntParameter("Index", 0, .inputfield, "Array index to retrieve the value from"))
 
     override public func bindPorts()
     {
         super.bindPorts()
         self.boundInputPort = findPort(named: "inputPort")
         self.boundOutputPort = findPort(named: "outputPort")
-        self._inputIndexParam = findPort(named: "inputIndexParam")
     }
 
     public override func declaredPorts() -> [PortDeclaration]
     {
-        guard let elementType = strategy as? PortType else { return super.declaredPorts() }
+        let storedPorts = [
+            PortDeclaration(key: "inputIndexParam", port: self.inputIndexParam),
+        ]
+
+        guard let elementType = strategy as? PortType else { return super.declaredPorts() + storedPorts }
 
         let arrayType: PortType = .Array(portType: elementType)
 
         return [
             PortDeclaration(key: "inputPort", portType: arrayType, kind: .Inlet, name: "Array", description: "Input array to index into"),
-        ] + super.declaredPorts() + [
+        ] + super.declaredPorts() + storedPorts + [
             PortDeclaration(key: "outputPort", portType: elementType, kind: .Outlet, name: "Value", description: "Element at the specified index"),
         ]
     }

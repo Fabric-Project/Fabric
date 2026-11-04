@@ -18,15 +18,7 @@ public final class ValueBlendNode: NumericTypeAgnosticNode
     override public class var nodeDescription: String { "Blends Source toward Target by Blend Amount: 0 is Source, 1 is Target, and values outside 0-1 extrapolate. Orientations slerp and Transforms blend as translation, rotation and scale. Arrays blend per element, as long as the shorter input. Choose the value type in Settings." }
     public override class var supportedPortTypes: [PortType] { interpolatableSingleTypes + interpolatableArrayTypes }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
-    {
-        super.registerPorts(context: context) + [
-            ("inputBlendAmount", ParameterPort(parameter: FloatParameter("Blend Amount", 0.5, .inputfield, "0 is Source, 1 is Target; not clamped")))
-        ]
-    }
-
-    public var inputBlendAmount: ParameterPort<Float> { _inputBlendAmount }
-    private var _inputBlendAmount: ParameterPort<Float>!
+    public let inputBlendAmount = ParameterPort(parameter: FloatParameter("Blend Amount", 0.5, .inputfield, "0 is Source, 1 is Target; not clamped"))
 
     override public func bindPorts()
     {
@@ -34,7 +26,6 @@ public final class ValueBlendNode: NumericTypeAgnosticNode
         self.boundInputSource = findPort(named: "inputSource")
         self.boundInputTarget = findPort(named: "inputTarget")
         self.boundOutputValue = findPort(named: "outputValue")
-        self._inputBlendAmount = findPort(named: "inputBlendAmount")
     }
 
     public override func declaredPorts() -> [PortDeclaration]
@@ -45,6 +36,7 @@ public final class ValueBlendNode: NumericTypeAgnosticNode
             PortDeclaration(key: "inputSource", portType: portType, kind: .Inlet, name: "Source", description: "The value at Blend Amount 0"),
             PortDeclaration(key: "inputTarget", portType: portType, kind: .Inlet, name: "Target", description: "The value at Blend Amount 1"),
         ] + super.declaredPorts() + [
+            PortDeclaration(key: "inputBlendAmount", port: self.inputBlendAmount),
             PortDeclaration(key: "outputValue", portType: portType, kind: .Outlet, name: "Value", description: "The blended value"),
         ]
     }

@@ -15,22 +15,13 @@ public final class RepeatNode: NumericTypeAgnosticNode
     override public class var nodeDescription: String { "Repeats one numeric value into an array. Choose the value type in Settings." }
     public override class var supportedPortTypes: [PortType] { singleNumericTypes }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
-    {
-        super.registerPorts(context: context) + [
-            ("inputCount", ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Number of elements")))
-        ]
-    }
-
-    public var inputCount: ParameterPort<Int> { _inputCount }
-    private var _inputCount: ParameterPort<Int>!
+    public let inputCount = ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Number of elements"))
 
     override public func bindPorts()
     {
         super.bindPorts()
         self.boundInputValue = findPort(named: "inputValue")
         self.boundOutputArray = findPort(named: "outputArray")
-        self._inputCount = findPort(named: "inputCount")
     }
 
     public override func declaredPorts() -> [PortDeclaration]
@@ -41,6 +32,7 @@ public final class RepeatNode: NumericTypeAgnosticNode
         return [
             PortDeclaration(key: "inputValue", portType: valueType, kind: .Inlet, name: "Value", description: "Value to repeat"),
         ] + super.declaredPorts() + [
+            PortDeclaration(key: "inputCount", port: self.inputCount),
             PortDeclaration(key: "outputArray", portType: arrayType, kind: .Outlet, name: "Array", description: "Repeated values"),
         ]
     }

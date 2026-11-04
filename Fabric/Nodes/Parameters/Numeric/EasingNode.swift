@@ -15,18 +15,8 @@ public final class EasingNode: NumericTypeAgnosticNode
     override public class var nodeDescription: String { "Interpolates between two numeric values using a manually driven easing progress." }
     public override class var supportedPortTypes: [PortType] { interpolatableSingleTypes + interpolatableArrayTypes }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
-    {
-        super.registerPorts(context: context) + [
-            ("inputProgress", ParameterPort(parameter: FloatParameter("Progress", 0.0, 0.0, 1.0, .inputfield, "Manual interpolation progress"))),
-            ("inputEasing", ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing curve")))
-        ]
-    }
-
-    public var inputProgress: ParameterPort<Float> { _inputProgress }
-    private var _inputProgress: ParameterPort<Float>!
-    public var inputEasing: ParameterPort<String> { _inputEasing }
-    private var _inputEasing: ParameterPort<String>!
+    public let inputProgress = ParameterPort(parameter: FloatParameter("Progress", 0.0, 0.0, 1.0, .inputfield, "Manual interpolation progress"))
+    public let inputEasing = ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing curve"))
 
     override public func bindPorts()
     {
@@ -34,8 +24,6 @@ public final class EasingNode: NumericTypeAgnosticNode
         self.boundInputFrom = findPort(named: "inputFrom")
         self.boundInputTo = findPort(named: "inputTo")
         self.boundOutputValue = findPort(named: "outputValue")
-        self._inputProgress = findPort(named: "inputProgress")
-        self._inputEasing = findPort(named: "inputEasing")
     }
 
     public override func declaredPorts() -> [PortDeclaration]
@@ -46,6 +34,8 @@ public final class EasingNode: NumericTypeAgnosticNode
             PortDeclaration(key: "inputFrom", portType: portType, kind: .Inlet, name: "From", description: "Start value"),
             PortDeclaration(key: "inputTo", portType: portType, kind: .Inlet, name: "To", description: "End value"),
         ] + super.declaredPorts() + [
+            PortDeclaration(key: "inputProgress", port: self.inputProgress),
+            PortDeclaration(key: "inputEasing", port: self.inputEasing),
             PortDeclaration(key: "outputValue", portType: portType, kind: .Outlet, name: "Value", description: "Interpolated value"),
         ]
     }

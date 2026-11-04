@@ -12,22 +12,13 @@ public final class DictionaryHasKeyNode: DictionaryTypeAgnosticNode
     public override class var name: String { "Dictionary Has Key" }
     override public class var nodeDescription: String { "Outputs whether a dictionary contains a string key. Choose value type in Settings." }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
-    {
-        super.registerPorts(context: context) + [
-            ("inputKey", ParameterPort(parameter: StringParameter("Key", "", .inputfield, "Dictionary key to test"))),
-        ]
-    }
-
-    private var inputKey: ParameterPort<String> { _inputKey }
-    private var _inputKey: ParameterPort<String>!
+    private let inputKey = ParameterPort(parameter: StringParameter("Key", "", .inputfield, "Dictionary key to test"))
 
     override public func bindPorts()
     {
         super.bindPorts()
         self.boundInputDictionary = findPort(named: "inputDictionary")
         self.boundOutputContainsKey = findPort(named: "outputContainsKey")
-        self._inputKey = findPort(named: "inputKey")
     }
 
     public override func declaredPorts() -> [PortDeclaration]
@@ -35,6 +26,7 @@ public final class DictionaryHasKeyNode: DictionaryTypeAgnosticNode
         return [
             PortDeclaration(key: "inputDictionary", portType: dictionaryType, kind: .Inlet, name: "Dictionary", description: "Dictionary to test"),
         ] + super.declaredPorts() + [
+            PortDeclaration(key: "inputKey", port: self.inputKey),
             PortDeclaration(key: "outputContainsKey", portType: .Bool, kind: .Outlet, name: "Contains Key", description: "Whether the key exists"),
         ]
     }

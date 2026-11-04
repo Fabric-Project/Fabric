@@ -12,15 +12,7 @@ public final class DictionarySetValueForKeyNode: DictionaryTypeAgnosticNode
     public override class var name: String { "Dictionary Set Value For Key" }
     override public class var nodeDescription: String { "Sets a value for a string key. Choose value type in Settings." }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
-    {
-        super.registerPorts(context: context) + [
-            ("inputKey", ParameterPort(parameter: StringParameter("Key", "", .inputfield, "Dictionary key to set"))),
-        ]
-    }
-
-    private var inputKey: ParameterPort<String> { _inputKey }
-    private var _inputKey: ParameterPort<String>!
+    private let inputKey = ParameterPort(parameter: StringParameter("Key", "", .inputfield, "Dictionary key to set"))
 
     override public func bindPorts()
     {
@@ -28,7 +20,6 @@ public final class DictionarySetValueForKeyNode: DictionaryTypeAgnosticNode
         self.boundInputDictionary = findPort(named: "inputDictionary")
         self.boundInputValue = findPort(named: "inputValue")
         self.boundOutputDictionary = findPort(named: "outputDictionary")
-        self._inputKey = findPort(named: "inputKey")
     }
 
     public override func declaredPorts() -> [PortDeclaration]
@@ -36,6 +27,7 @@ public final class DictionarySetValueForKeyNode: DictionaryTypeAgnosticNode
         return [
             PortDeclaration(key: "inputDictionary", portType: dictionaryType, kind: .Inlet, name: "Dictionary", description: "Dictionary to modify"),
         ] + super.declaredPorts() + [
+            PortDeclaration(key: "inputKey", port: self.inputKey),
             PortDeclaration(key: "inputValue", portType: valueType, kind: .Inlet, name: "Value", description: "Value to set"),
             PortDeclaration(key: "outputDictionary", portType: dictionaryType, kind: .Outlet, name: "Dictionary", description: "Modified dictionary"),
         ]

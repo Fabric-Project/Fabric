@@ -16,32 +16,27 @@ public class ArrayCountNode: TypeAgnosticNode
     override public class var nodeDescription: String { "Returns the number of elements in an array. Choose element type in Settings." }
     override public class var includesArrayTypesInStrategy: Bool { false }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
-    {
-        super.registerPorts(context: context) + [
-            ("outputPort", NodePort<Int>(name: "Count", kind: .Outlet, description: "Number of elements in the array")),
-        ]
-    }
-
-    public var outputPort: NodePort<Int> { _outputPort }
-    private var _outputPort: NodePort<Int>!
+    public let outputPort = NodePort<Int>(name: "Count", kind: .Outlet, description: "Number of elements in the array")
 
     override public func bindPorts()
     {
         super.bindPorts()
         self.boundInputPort = findPort(named: "inputPort")
-        self._outputPort = findPort(named: "outputPort")
     }
 
     public override func declaredPorts() -> [PortDeclaration]
     {
-        guard let elementType = strategy as? PortType else { return super.declaredPorts() }
+        let storedPorts = [
+            PortDeclaration(key: "outputPort", port: self.outputPort),
+        ]
+
+        guard let elementType = strategy as? PortType else { return super.declaredPorts() + storedPorts }
 
         let arrayType: PortType = .Array(portType: elementType)
 
         return [
             PortDeclaration(key: "inputPort", portType: arrayType, kind: .Inlet, name: "Array", description: "Input array to count elements"),
-        ] + super.declaredPorts()
+        ] + super.declaredPorts() + storedPorts
     }
 
     private var boundInputPort: Port?

@@ -16,15 +16,7 @@ public class ArraySplitAtIndexNode: TypeAgnosticNode
     override public class var nodeDescription: String { "Splits an array at Index into two: elements before the index and elements from the index onward. Choose element type in Settings." }
     override public class var includesArrayTypesInStrategy: Bool { false }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
-    {
-        super.registerPorts(context: context) + [
-            ("inputIndex", ParameterPort(parameter: IntParameter("Index", 0, .inputfield, "Split position; elements before this index go to Before, elements from this index onward go to From"))),
-        ]
-    }
-
-    public var inputIndex: ParameterPort<Int> { _inputIndex }
-    private var _inputIndex: ParameterPort<Int>!
+    public let inputIndex = ParameterPort(parameter: IntParameter("Index", 0, .inputfield, "Split position; elements before this index go to Before, elements from this index onward go to From"))
 
     override public func bindPorts()
     {
@@ -32,18 +24,21 @@ public class ArraySplitAtIndexNode: TypeAgnosticNode
         self.boundInputPort = findPort(named: "inputPort")
         self.boundOutputBefore = findPort(named: "outputBefore")
         self.boundOutputFrom = findPort(named: "outputFrom")
-        self._inputIndex = findPort(named: "inputIndex")
     }
 
     public override func declaredPorts() -> [PortDeclaration]
     {
-        guard let elementType = strategy as? PortType else { return super.declaredPorts() }
+        let storedPorts = [
+            PortDeclaration(key: "inputIndex", port: self.inputIndex),
+        ]
+
+        guard let elementType = strategy as? PortType else { return super.declaredPorts() + storedPorts }
 
         let arrayType: PortType = .Array(portType: elementType)
 
         return [
             PortDeclaration(key: "inputPort", portType: arrayType, kind: .Inlet, name: "Array", description: "Input array to split"),
-        ] + super.declaredPorts() + [
+        ] + super.declaredPorts() + storedPorts + [
             PortDeclaration(key: "outputBefore", portType: arrayType, kind: .Outlet, name: "Before", description: "Elements at indices 0 ..< Index"),
             PortDeclaration(key: "outputFrom", portType: arrayType, kind: .Outlet, name: "From", description: "Elements at indices Index ..< count"),
         ]
