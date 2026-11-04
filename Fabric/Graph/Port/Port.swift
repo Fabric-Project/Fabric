@@ -77,8 +77,6 @@ public class Port : Identifiable, Hashable, Equatable, Codable, CustomDebugStrin
     public func hash(into hasher: inout Hasher)
     {
         hasher.combine(id)
-        hasher.combine(published)
-        hasher.combine(name)
     }
     
     /// Mutable only via hydrate(from:) during decode, which adopts the
@@ -96,9 +94,11 @@ public class Port : Identifiable, Hashable, Equatable, Codable, CustomDebugStrin
 
     public var portDescription: String = ""
 
-    public var published: Bool = false
+    /// The publishing a document saved on this port, held from decode until
+    /// the graph lifts it into its published relation.
+    internal var decodedPublishing: SavedPublishing?
 
-    public var publishedName: String? = nil
+    internal struct SavedPublishing { let name: String? }
 
     // Kind of lame, but necessary to avoid some type based bullshit.
     // TODO: Figure out a way to hide setting this (seems not good)
@@ -172,8 +172,10 @@ public class Port : Identifiable, Hashable, Equatable, Codable, CustomDebugStrin
         self.name = try container.decode(String.self, forKey: .name)
         self.key = .own(self.name)
         self.kind = try container.decode(PortKind.self, forKey: .kind)
-        self.published = try container.decodeIfPresent(Bool.self, forKey: .published) ?? false
-        self.publishedName = try container.decodeIfPresent(String.self, forKey: .publishedName)
+        if try container.decodeIfPresent(Bool.self, forKey: .published) == true
+        {
+            self.decodedPublishing = SavedPublishing(name: try container.decodeIfPresent(String.self, forKey: .publishedName))
+        }
         self.portDescription = try container.decodeIfPresent(String.self, forKey: .portDescription) ?? ""
         self.color = .clear
         self.backgroundColor = .clear
@@ -185,12 +187,9 @@ public class Port : Identifiable, Hashable, Equatable, Codable, CustomDebugStrin
         try container.encode(id, forKey: .id)
         try container.encode(name, forKey: .name)
         try container.encode(kind, forKey: .kind)
-        try container.encode(published, forKey: .published)
-
-        if let publishedName
-        {
-            try container.encode(publishedName, forKey: .publishedName)
-        }
+        let graph = self.node?.graph
+        try container.encode(graph?.isPublished(self) ?? false, forKey: .published)
+        try container.encodeIfPresent(graph?.publishedName(of: self), forKey: .publishedName)
 
         if !portDescription.isEmpty
         {
@@ -212,9 +211,9 @@ public class Port : Identifiable, Hashable, Equatable, Codable, CustomDebugStrin
 //        print("Deinit Port \(self.id)")
     }
     
-    /// The display name: publishedName if set, otherwise the port's own name.
-    public var displayName: String { publishedName ?? name }
-
+    /// The display name: the name its graph publishes it under, if it was
+    /// given one, otherwise the port's own name.
+    public var displayName: String { self.node?.graph?.publishedName(of: self) ?? name }
 
     public var connectedPorts: [Port]
     {
@@ -259,14 +258,7 @@ public class Port : Identifiable, Hashable, Equatable, Codable, CustomDebugStrin
     internal func hydrateIdentity(from decoded: Port)
     {
         self.adoptID(decoded.id)
-        self.published = decoded.published
-        self.publishedName = decoded.publishedName
-    }
-
-    internal func setPublishing(_ published: Bool, name: String?)
-    {
-        self.published = published
-        self.publishedName = name
+        self.decodedPublishing = decoded.decodedPublishing
     }
 
     /// Takes `id` as the port's runtime identity.

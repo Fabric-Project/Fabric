@@ -53,6 +53,8 @@ struct DictionaryPortTests
         guard let harness = GraphExecutionTestHarness() else { return }
 
         let node = ArrayIndexValueNode(context: harness.context, portType: .Virtual)
+        let graph = Graph(context: harness.context)
+        graph.addNode(node)
         let currentInput: Fabric.Port = node.port(named: "inputPort")
         let legacyID = currentInput.id
 
@@ -67,16 +69,16 @@ struct DictionaryPortTests
         }
         _ = node.registry.reconcile(to: legacyDeclarations, applying: [], owner: node, hydrating: nil)
         #expect(legacyInput.id == legacyID)
-        legacyInput.published = true
-        legacyInput.publishedName = "Legacy Array"
+        legacyInput.publishInGraph(true)
+        legacyInput.renamePublishedInGraph("Legacy Array")
 
         node.reconcilePorts()
 
         let migratedInput: Fabric.Port = node.port(named: "inputPort")
         #expect(migratedInput.id == legacyID)
         #expect(migratedInput.portType == .Array(portType: .Virtual))
-        #expect(migratedInput.published)
-        #expect(migratedInput.publishedName == "Legacy Array")
+        #expect(migratedInput.isPublishedInGraph)
+        #expect(migratedInput.publishedNameInGraph == "Legacy Array")
     }
 
     @Test("Typed dictionaries box and unbox through PortValue")

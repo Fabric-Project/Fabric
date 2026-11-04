@@ -352,6 +352,7 @@ internal import AnyCodable
         // ports added later in the document's life cannot resurrect stale
         // snapshot state.
         self.droppedPortStateDiagnostics = self.makeDroppedPortStateDiagnostics()
+        self.liftDecodedPublishing(of: self.nodes)
 
         let decodedConnections = try container.decodeIfPresent([Connection].self, forKey: .connections)
 
@@ -601,6 +602,7 @@ internal import AnyCodable
         guard nodes.contains(where: { $0 === node }) else { return }
 
         let savedOffset = node.offset
+        let savedPublishing = self.removePublishedEntries(of: node)
         let nodePortIDs = Set(node.ports.map(\.id))
         let savedConnections = connections.filter {
             nodePortIDs.contains($0.outletPortID) || nodePortIDs.contains($0.inletPortID)
@@ -628,7 +630,8 @@ internal import AnyCodable
         self.undoManager?.registerUndo(withTarget: self) { graph in
             graph.restoreDeletedNode(node,
                                      offset: savedOffset,
-                                     connections: savedConnections)
+                                     connections: savedConnections,
+                                     publishing: savedPublishing)
         }
 
         self.undoManager?.setActionName("Delete Node")
@@ -640,10 +643,12 @@ internal import AnyCodable
 
     private func restoreDeletedNode(_ node: Node,
                                     offset: CGSize,
-                                    connections: [Connection])
+                                    connections: [Connection],
+                                    publishing: [PublishedPort])
     {
         withoutUndoRegistration {
             node.offset = offset
+            restorePublishedEntries(publishing)
             nodeViewModels[node.id] = NodeViewModel(node: node)
             nodes.append(node)
             node.graph = self
@@ -971,15 +976,152 @@ internal import AnyCodable
     }
     
     // MARK: - Publish Port API -
-    /// All ports in this graph that have been published.
+
+    /// One published port: where it is, and the name the boundary shows for it,
+    /// nil for the port's own.
+    public struct PublishedPort: Hashable
+    {
+        public let address: PortAddress
+        public let name: String?
+    }
+
+    /// The ports this graph publishes to the graph around it, in the order they
+    /// were published. A relation from address to name, as wires are: the port
+    /// carries none of it.
+    public private(set) var publishedPortEntries: [PublishedPort] = []
+
+    /// Where `port` is in this graph; nil for a port on no node of it.
+    public func address(of port: Port) -> PortAddress?
+    {
+        guard let node = port.node, node.graph === self else { return nil }
+        return PortAddress(node: node.id, key: port.key)
+    }
+
+    /// The port at `address`, if its node is in this graph and declares it.
+    public func port(at address: PortAddress) -> Port?
+    {
+        self.node(forID: address.node)?.port(forKey: address.key)
+    }
+
+    public func isPublished(_ port: Port) -> Bool
+    {
+        guard let address = self.address(of: port) else { return false }
+        return self.publishedPortEntries.contains { $0.address == address }
+    }
+
+    /// The name the boundary shows for `port`, where one was given.
+    public func publishedName(of port: Port) -> String?
+    {
+        guard let address = self.address(of: port) else { return nil }
+        return self.publishedPortEntries.first { $0.address == address }?.name
+    }
+
+    /// Publishes or unpublishes `port`, a port of a node in this graph, as an
+    /// undo step. Publishing gives it `name`; unpublishing forgets its name.
+    public func setPublished(_ published: Bool, port: Port, name: String? = nil)
+    {
+        guard let address = self.address(of: port) else { return }
+        self.setPublished(published, at: address, name: name)
+    }
+
+    /// Renames a published port as an undo step; nil restores its own name.
+    public func setPublishedName(_ name: String?, port: Port)
+    {
+        guard let address = self.address(of: port),
+              let index = self.publishedPortEntries.firstIndex(where: { $0.address == address }),
+              self.publishedPortEntries[index].name != name
+        else { return }
+
+        let previous = self.publishedPortEntries[index].name
+        self.publishedPortEntries[index] = PublishedPort(address: address, name: name)
+        self.rebuildPublishedParameterGroup()
+
+        self.undoManager?.registerUndo(withTarget: self) { graph in
+            guard let port = graph.port(at: address) else { return }
+            graph.setPublishedName(previous, port: port)
+        }
+        self.undoManager?.setActionName("Rename Published Port")
+    }
+
+    private func setPublished(_ published: Bool, at address: PortAddress, name: String?)
+    {
+        let existing = self.publishedPortEntries.firstIndex { $0.address == address }
+        switch (published, existing)
+        {
+        case (true, nil):
+            self.publishedPortEntries.append(PublishedPort(address: address, name: name))
+            self.undoManager?.registerUndo(withTarget: self) { graph in graph.setPublished(false, at: address, name: nil) }
+            self.undoManager?.setActionName("Publish Port")
+        case (false, let index?):
+            let removed = self.publishedPortEntries.remove(at: index)
+            self.undoManager?.registerUndo(withTarget: self) { graph in graph.setPublished(true, at: address, name: removed.name) }
+            self.undoManager?.setActionName("Unpublish Port")
+        default:
+            return
+        }
+        self.rebuildPublishedParameterGroup()
+    }
+
+    /// Publishes the ports decode found saved as published, in node then port
+    /// order, and forgets what the ports held.
+    private func liftDecodedPublishing(of nodes: [Node])
+    {
+        for node in nodes
+        {
+            for port in node.ports
+            {
+                guard let saved = port.decodedPublishing else { continue }
+                port.decodedPublishing = nil
+                if let address = self.address(of: port)
+                {
+                    self.restorePublishedEntries([PublishedPort(address: address, name: saved.name)])
+                }
+            }
+        }
+    }
+
+    /// Publishes, as undo steps of the edit in progress, the ports a pasted or
+    /// duplicated node's encoding had published.
+    private func publishDecodedPublishing(of nodes: [Node])
+    {
+        for node in nodes
+        {
+            for port in node.ports
+            {
+                guard let saved = port.decodedPublishing else { continue }
+                port.decodedPublishing = nil
+                self.setPublished(true, port: port, name: saved.name)
+            }
+        }
+    }
+
+    /// Takes the entries for `node` out of the relation, handing them back in
+    /// order for a restore. Not an undo step: the caller's own step restores.
+    private func removePublishedEntries(of node: Node) -> [PublishedPort]
+    {
+        let removed = self.publishedPortEntries.filter { $0.address.node == node.id }
+        guard !removed.isEmpty else { return [] }
+        self.publishedPortEntries.removeAll { $0.address.node == node.id }
+        return removed
+    }
+
+    private func restorePublishedEntries(_ entries: [PublishedPort])
+    {
+        for entry in entries where !self.publishedPortEntries.contains(where: { $0.address == entry.address })
+        {
+            self.publishedPortEntries.append(entry)
+        }
+    }
+
+    /// All ports in this graph that have been published, in publishing order.
     public func getPublishedPorts() -> [Port]
     {
-        return self.nodes.flatMap { $0.publishedPorts() }
+        self.publishedPortEntries.compactMap { self.port(at: $0.address) }
     }
 
     public func publishedInputPorts() -> [Port]
     {
-        return self.nodesWithPublishedInputs().flatMap { $0.publishedInputPorts() }
+        self.getPublishedPorts().filter { $0.kind == .Inlet }
     }
 
     public func publishedOutputPorts() -> [Port]
@@ -988,7 +1130,7 @@ internal import AnyCodable
             return cachedPublishedOutputPorts
         }
 
-        cachedPublishedOutputPorts = self.nodesWithPublishedOutputs().flatMap { $0.publishedOutputPorts() }
+        cachedPublishedOutputPorts = self.getPublishedPorts().filter { $0.kind == .Outlet }
         cachedPublishedOutputPortsRevision = connectionRevision
 
         return cachedPublishedOutputPorts
@@ -997,22 +1139,7 @@ internal import AnyCodable
     public func rebuildPublishedParameterGroup()
     {
         self.publishedParameterGroup.clear()
-
-        let publishedPorts = self.getPublishedPorts()
-
-        // Sync each parameter's label to its port's displayName so the
-        // inspector reflects renames made via PortRenameAlert. The
-        // parameter is the underlying source of truth for label across
-        // all parameter views (sliders, input fields, color pickers
-        // etc.), and the user's rename was a deliberate naming action.
-        let publishedParams: [any Parameter] = publishedPorts.compactMap { port in
-            guard let param = port.parameter else { return nil }
-            let display = port.displayName
-            if param.label != display { param.label = display }
-            return param
-        }
-
-        self.publishedParameterGroup.append( publishedParams )
+        self.publishedParameterGroup.append(self.getPublishedPorts().compactMap(\.parameter))
 
         // A published port connects its node through the enclosing subgraph node.
         let nodesWithPublishedPorts = Set(self.nodesWithPublishedPorts())
@@ -1025,28 +1152,20 @@ internal import AnyCodable
         self.markConnectionsChanged()
         self.onPublishedPortsChanged?()
     }
-    
+
     internal func nodesWithPublishedPorts() -> [Node]
     {
-        return self.nodes.filter { node in
-            !node.publishedPorts().isEmpty
-        }
+        let nodeIDs = Set(self.publishedPortEntries.map(\.address.node))
+        return self.nodes.filter { nodeIDs.contains($0.id) }
     }
-    
-    internal func nodesWithPublishedInputs() -> [Node]
+
+    internal func publishedPorts(of node: Node) -> [Port]
     {
-        return self.nodes.filter { node in
-            !node.publishedInputPorts().isEmpty
+        self.publishedPortEntries.compactMap { entry in
+            entry.address.node == node.id ? node.port(forKey: entry.address.key) : nil
         }
     }
-    
-    internal func nodesWithPublishedOutputs() -> [Node]
-    {
-        return self.nodes.filter { node in
-            !node.publishedOutputPorts().isEmpty
-        }
-    }
-     
+
     // MARK: - Rendering Helpers
     internal var latestCamera:Camera? = nil
 
@@ -1252,13 +1371,6 @@ internal import AnyCodable
         }
     }
 
-    private struct PublishedPortState
-    {
-        let port: Port
-        let published: Bool
-        let publishedName: String?
-    }
-
     private struct BoundaryConnectionState
     {
         let connection: Connection
@@ -1272,19 +1384,20 @@ internal import AnyCodable
         let subgraphNode: SubgraphNode
         let internalConnections: [Connection]
         var boundaryConnections: [BoundaryConnectionState]
-        let publishedPortStates: [PublishedPortState]
+        /// What the graph around published of the moved nodes, before the move.
+        let outerPublishing: [PublishedPort]
 
         init(nodes: [Node],
              subgraphNode: SubgraphNode,
              internalConnections: [Connection],
              boundaryConnections: [BoundaryConnectionState],
-             publishedPortStates: [PublishedPortState])
+             outerPublishing: [PublishedPort])
         {
             self.nodes = nodes
             self.subgraphNode = subgraphNode
             self.internalConnections = internalConnections
             self.boundaryConnections = boundaryConnections
-            self.publishedPortStates = publishedPortStates
+            self.outerPublishing = outerPublishing
         }
     }
 
@@ -1342,12 +1455,7 @@ internal import AnyCodable
                 }
                 return movedPort.map { BoundaryConnectionState(connection: connection, innerPort: $0) }
             }
-        let publishedPortStates = Dictionary(
-            boundaryConnections.map { ($0.innerPort.id, $0.innerPort) },
-            uniquingKeysWith: { first, _ in first }
-        ).values.map {
-            PublishedPortState(port: $0, published: $0.published, publishedName: $0.publishedName)
-        }
+        let outerPublishing = self.publishedPortEntries.filter { selectedNodeIDs.contains($0.address.node) }
 
         let subgraphNode = subgraphClass.init(context: context)
         subgraphNode.offset = node.offset
@@ -1356,7 +1464,7 @@ internal import AnyCodable
                                           subgraphNode: subgraphNode,
                                           internalConnections: internalConnections,
                                           boundaryConnections: boundaryConnections,
-                                          publishedPortStates: publishedPortStates)
+                                          outerPublishing: outerPublishing)
 
         applyEmbedding(embedding)
         undoManager?.registerUndo(withTarget: self) { graph in
@@ -1381,9 +1489,13 @@ internal import AnyCodable
                         self.transferConnection(connection, to: embedding.subgraphNode.subGraph)
                     }
 
-                    for state in embedding.publishedPortStates {
-                        state.port.published = true
-                    }
+                    // The moved nodes keep what they published, and every port a
+                    // boundary wire ran to is published so a proxy can carry it.
+                    let innerGraph = embedding.subgraphNode.subGraph
+                    innerGraph.restorePublishedEntries(embedding.outerPublishing)
+                    innerGraph.restorePublishedEntries(embedding.boundaryConnections.compactMap { state in
+                        innerGraph.address(of: state.innerPort).map { PublishedPort(address: $0, name: nil) }
+                    })
                     embedding.subgraphNode.subGraph.rebuildPublishedParameterGroup()
 
                     for index in embedding.boundaryConnections.indices {
@@ -1452,10 +1564,8 @@ internal import AnyCodable
                         }
                     }
 
-                    for state in embedding.publishedPortStates {
-                        state.port.published = state.published
-                        state.port.publishedName = state.publishedName
-                    }
+                    self.restorePublishedEntries(embedding.outerPublishing)
+                    self.rebuildPublishedParameterGroup()
                     embedding.subgraphNode.subGraph.rebuildPublishedParameterGroup()
 
                     self.markConnectionTopologyChanged()
@@ -1816,6 +1926,7 @@ internal import AnyCodable
         {
             self.addNode(newNode)
         }
+        self.publishDecodedPublishing(of: newNodes)
 
         // 5. Restore internal connections using remapped port IDs
         for (oldPortID, oldConnectedIDs) in internalConnections
@@ -1980,6 +2091,7 @@ extension Graph
             {
                 self.addNode(newNode)
             }
+            self.publishDecodedPublishing(of: newNodes)
 
             // Restore internal connections using remapped IDs
             for (oldPortIDString, oldConnectedIDStrings) in clipboardData.internalConnectionMap

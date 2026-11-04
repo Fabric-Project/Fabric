@@ -71,6 +71,19 @@ struct PortHydrationTests
         return try decoder.decode(Graph.self, from: try JSONSerialization.data(withJSONObject: object))
     }
 
+    /// Saves a graph holding `node` and opens it again, handing back the node;
+    /// publishing is the graph's, so it round-trips only through one.
+    private func roundTripInGraph<N: Node>(_ node: N, context: Context, publishing: (Graph) -> Void = { _ in }) throws -> (graph: Graph, node: N)
+    {
+        let graph = Graph(context: context)
+        graph.addNode(node)
+        publishing(graph)
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decoded = try decoder.decode(Graph.self, from: JSONEncoder().encode(graph))
+        return (decoded, try #require(decoded.node(forID: node.id) as? N))
+    }
+
     @Test("Round trip preserves port identity, published state and values")
     func roundTripPreservesDocumentOwnedState() throws
     {
@@ -78,17 +91,18 @@ struct PortHydrationTests
 
         let node = NumberBinaryOperator(context: context)
         node.inputNumber1.value = 72
-        node.inputNumber2.published = true
-        node.inputNumber2.publishedName = "Custom Name"
 
         let savedIDs = node.ports.map(\.id)
 
-        let decoded = try roundTrip(node, context: context)
+        let (decodedGraph, decoded) = try roundTripInGraph(node, context: context) { graph in
+            graph.setPublished(true, port: node.inputNumber2, name: "Custom Name")
+        }
+        defer { withExtendedLifetime(decodedGraph) { } }
 
         #expect(decoded.ports.map(\.id) == savedIDs)
         #expect(decoded.inputNumber1.value == 72)
-        #expect(decoded.inputNumber2.published)
-        #expect(decoded.inputNumber2.publishedName == "Custom Name")
+        #expect(decoded.inputNumber2.isPublishedInGraph)
+        #expect(decoded.inputNumber2.publishedNameInGraph == "Custom Name")
         #expect(decoded.droppedPortStateKeys.isEmpty)
     }
 
@@ -282,16 +296,18 @@ struct PortHydrationTests
 
         // The numeric family rebuilds through the same helper.
         let distance = DistanceNode(context: context)
+        let graph = Graph(context: context)
+        graph.addNode(distance)
         distance.setStrategy(PortType.Float)
         let floatA = try #require(distance.findPort(named: "inputA") as ParameterPort<Float>?)
-        floatA.published = true
+        floatA.publishInGraph(true)
         let savedAID = floatA.id
 
         distance.setStrategy(PortType.Vector3.rawValue)
 
         let float3A = try #require(distance.findPort(named: "inputA") as ParameterPort<simd_float3>?)
         #expect(float3A.id == savedAID)
-        #expect(float3A.published)
+        #expect(float3A.isPublishedInGraph)
     }
 
     @Test("A saved quaternion parameter port comes back as a plain port on its id, not a crash")
@@ -322,7 +338,6 @@ struct PortHydrationTests
                                                   simd_float4(0, 0, 1, 0),
                                                   simd_float4(3, 4, 5, 1)))
         node.input.value = translation
-        node.input.published = true
         let savedID = node.input.id
 
         // The port on its own, through the document's port envelope: a parameter
@@ -341,7 +356,6 @@ struct PortHydrationTests
         #expect(decoded.input.id == savedID)
         #expect(decoded.input.value == translation)
         #expect((decoded.input.parameter as? Float4x4Parameter)?.value == translation)
-        #expect(decoded.input.published)
         #expect(decoded.droppedPortStateKeys.isEmpty)
     }
 
@@ -382,14 +396,16 @@ struct PortHydrationTests
 
         let inputPort = try #require(node.findPort(named: "x") as Fabric.Port?)
         let outputPort = try #require(node.findPort(named: "doubled") as Fabric.Port?)
-        inputPort.published = true
         let savedInputID = inputPort.id
         let savedOutputID = outputPort.id
 
-        let decoded = try roundTrip(node, context: context)
+        let (decodedGraph, decoded) = try roundTripInGraph(node, context: context) { graph in
+            graph.setPublished(true, port: inputPort)
+        }
+        defer { withExtendedLifetime(decodedGraph) { } }
 
         #expect((decoded.findPort(named: "x") as Fabric.Port?)?.id == savedInputID)
-        #expect((decoded.findPort(named: "x") as Fabric.Port?)?.published == true)
+        #expect((decoded.findPort(named: "x") as Fabric.Port?)?.isPublishedInGraph == true)
         #expect((decoded.findPort(named: "doubled") as Fabric.Port?)?.id == savedOutputID)
         #expect(decoded.droppedPortStateKeys.isEmpty)
     }
@@ -585,7 +601,7 @@ struct PortHydrationTests
         node.updateShaderSource(shaderSource)
 
         let uniformPort = try #require(node.ports.first { $0.kind == .Inlet && $0.portType == .Transform })
-        uniformPort.published = true
+        uniformPort.publishInGraph(true)
         graph.connect(source.output, to: uniformPort)
         let savedID = uniformPort.id
 
@@ -622,7 +638,7 @@ struct PortHydrationTests
 
         let replaced = try #require(decodedNode.findPort(named: uniformPort.name) as ParameterPort<simd_float4x4>?)
         #expect(replaced.id == savedID)
-        #expect(replaced.published)
+        #expect(replaced.isPublishedInGraph)
         #expect(replaced.connectedPorts.count == 1)
         let materialParameter = try #require(decodedNode.postMaterial.parameters.get(uniformPort.name) as? Float4x4Parameter)
         #expect((replaced.parameter as AnyObject) === materialParameter)

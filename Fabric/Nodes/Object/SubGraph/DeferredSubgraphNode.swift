@@ -257,7 +257,7 @@ public class DeferredSubgraphNode: SubgraphNode
     /// outputs get no image, so nothing is allocated or copied for them.
     private static func isUsed(_ port: Port) -> Bool
     {
-        port.published || !port.connections.isEmpty
+        port.node?.graph?.isPublished(port) == true || !port.connections.isEmpty
     }
 
     /// A fresh depth image the inner scene renders into directly, or nil where the encoder must keep

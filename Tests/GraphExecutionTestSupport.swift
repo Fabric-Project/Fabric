@@ -242,3 +242,20 @@ final class GraphExecutionTestHarness
         )
     }
 }
+
+/// Test shorthand for the publishing relation of the graph a port's node is in.
+extension Fabric.Port
+{
+    var isPublishedInGraph: Bool { self.node?.graph?.isPublished(self) ?? false }
+    var publishedNameInGraph: String? { self.node?.graph?.publishedName(of: self) }
+
+    func publishInGraph(_ published: Bool = true)
+    {
+        self.node?.graph?.setPublished(published, port: self)
+    }
+
+    func renamePublishedInGraph(_ name: String?)
+    {
+        self.node?.graph?.setPublishedName(name, port: self)
+    }
+}

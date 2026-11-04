@@ -13,6 +13,7 @@ import Satin
 protocol ProxyPortProtocol
 {
     var innerPortID: UUID { get }
+    func wraps(_ port: Port) -> Bool
     func forwardFromInner(force:Bool)
 }
 
@@ -39,18 +40,16 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
 
     public var innerPortID: UUID { innerPort.id }
 
+    func wraps(_ port: Port) -> Bool { port === self.innerPort }
+
     override public var portType: PortType { declaredPortType ?? super.portType }
 
-    /// Prefers the proxy's own publishedName (set when renamed in the
-    /// parent graph), falling back to the inner port's displayName (which
-    /// reflects sub-graph level renames).
-    override public var displayName: String { publishedName ?? innerPort.displayName }
+    /// The name the parent graph publishes the proxy under, if it was given
+    /// one, falling back to the inner port's displayName (which reflects
+    /// sub-graph level renames).
+    override public var displayName: String { self.node?.graph?.publishedName(of: self) ?? innerPort.displayName }
 
-    public init(
-        wrapping innerPort: NodePort<Value>,
-        published: Bool = false,
-        publishedName: String? = nil
-    )
+    public init(wrapping innerPort: NodePort<Value>)
     {
         self.innerPort = innerPort
         self.declaredPortType = innerPort.portType
@@ -67,8 +66,14 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
         self.parameter = innerPort.parameter
         self.value = innerPort.value
         innerPort.publishingProxy = self
-        self.published = published
-        self.publishedName = publishedName
+        self.key = Self.proxyKey(for: innerPort)
+    }
+
+    /// A proxy's key is the address of the port it stands for, in its node's
+    /// sub graph.
+    static func proxyKey(for innerPort: Port) -> PortKey
+    {
+        innerPort.node.map { .proxy(node: $0.id, inner: innerPort.key) } ?? innerPort.key
     }
 
     required public init(from decoder: any Decoder) throws
@@ -102,6 +107,7 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
         self.parameter = typedInnerPort.parameter
         self.value = typedInnerPort.value
         typedInnerPort.publishingProxy = self
+        self.key = Self.proxyKey(for: typedInnerPort)
     }
 
     private enum CodingKeys: String, CodingKey

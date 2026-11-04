@@ -527,8 +527,8 @@ struct GraphConnectionOwnershipTests
         undoManager.undo()
         #expect(incoming.inletPort === moved.inputNumber1)
         #expect(outgoing.outletPort === moved.outputNumber)
-        #expect(!moved.inputNumber1.published)
-        #expect(!moved.outputNumber.published)
+        #expect(!moved.inputNumber1.isPublishedInGraph)
+        #expect(!moved.outputNumber.isPublishedInGraph)
         #expect(moved.inputNumber1.connections == [incoming])
         #expect(moved.outputNumber.connections == [outgoing])
 

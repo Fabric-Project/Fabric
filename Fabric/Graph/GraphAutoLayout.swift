@@ -414,18 +414,17 @@ extension Graph {
 
             let existingConnections = port.connectedPorts
 
-            // Transfer published state to the parameter node's input (or outlet if no input)
-            if port.published
-            {
-                port.published = false
-                let savedName = port.publishedName
-                port.publishedName = nil
-
-                paramInlet.published = true
-                paramInlet.publishedName = savedName
-            }
+            let wasPublished = self.isPublished(port)
+            let savedName = self.publishedName(of: port)
 
             self.addNode(paramNode)
+
+            // Transfer published state to the parameter node's input
+            if wasPublished
+            {
+                self.setPublished(false, port: port)
+                self.setPublished(true, port: paramInlet, name: savedName)
+            }
             paramInlet.restoreValue(from: port.snapshotValue())
 
             // Connecting the parameter outlet replaces the original inlet
@@ -443,18 +442,17 @@ extension Graph {
 
             let existingConnections = port.connectedPorts
 
-            // Transfer published state to the parameter node's outlet (or input if no outlet)
-            if port.published
-            {
-                port.published = false
-                let savedName = port.publishedName
-                port.publishedName = nil
-
-                paramOutlet.published = true
-                paramOutlet.publishedName = savedName
-            }
+            let wasPublished = self.isPublished(port)
+            let savedName = self.publishedName(of: port)
 
             self.addNode(paramNode)
+
+            // Transfer published state to the parameter node's outlet
+            if wasPublished
+            {
+                self.setPublished(false, port: port)
+                self.setPublished(true, port: paramOutlet, name: savedName)
+            }
             paramInlet.restoreValue(from: port.snapshotValue())
 
             // Preserve the original outlet first, then replace each downstream

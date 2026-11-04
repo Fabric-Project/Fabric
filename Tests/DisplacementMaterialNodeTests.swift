@@ -58,8 +58,8 @@ struct DisplacementMaterialNodeTests {
         source.inputMinPointSize.value = 4
         source.inputMaxPointSize.value = 8
         source.inputLumaVsRGBAmount.value = 0.5
-        source.inputBrightness.published = true
-        source.inputBrightness.publishedName = "Exposure"
+        source.inputBrightness.publishInGraph(true)
+        source.inputBrightness.renamePublishedInGraph("Exposure")
 
         let decoder = JSONDecoder()
         decoder.context = DecoderContext(documentContext: harness.context)
@@ -69,8 +69,8 @@ struct DisplacementMaterialNodeTests {
 
         for originalPort in source.ports {
             let restoredPort = try #require(restored.ports.first { $0.id == originalPort.id })
-            #expect(restoredPort.published == originalPort.published)
-            #expect(restoredPort.publishedName == originalPort.publishedName)
+            #expect(restoredPort.isPublishedInGraph == originalPort.isPublishedInGraph)
+            #expect(restoredPort.publishedNameInGraph == originalPort.publishedNameInGraph)
             if let originalParameter = originalPort.parameter as? FloatParameter {
                 let restoredParameter = try #require(restoredPort.parameter as? FloatParameter)
                 #expect(restoredParameter.value == originalParameter.value)

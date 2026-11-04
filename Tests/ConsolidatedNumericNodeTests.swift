@@ -7,8 +7,7 @@ import Satin
 
 private func publish(_ port: Fabric.Port, in graph: Graph)
 {
-    port.published = true
-    graph.rebuildPublishedParameterGroup()
+    graph.setPublished(true, port: port)
 }
 
 @Suite("Consolidated Numeric Nodes")

@@ -35,25 +35,38 @@ open class SubgraphNode: BaseObjectNode
         self.invalidatePortCaches()
 
         let innerPorts = self.subGraph.getPublishedPorts()
-        let publishedIDs = Set(innerPorts.map(\.id))
 
-        // Remove proxies whose inner port is no longer published
+        // Remove proxies whose inner port is no longer published, or was
+        // retyped into another object under its key.
+        var retired: [Port] = []
         self.proxyPorts.removeAll { proxy in
-            let isRetired = (proxy as? any ProxyPortProtocol).map { !publishedIDs.contains($0.innerPortID) } ?? true
-            // A retired proxy can outlive this node in views; it must not keep an unowned owner.
-            if isRetired { proxy.node = nil }
+            let isRetired = !innerPorts.contains { inner in (proxy as? any ProxyPortProtocol)?.wraps(inner) == true }
+            if isRetired { retired.append(proxy) }
             return isRetired
         }
 
         // Add proxies for newly published ports
-        let existingInnerIDs = Set(self.proxyPorts.compactMap { ($0 as? any ProxyPortProtocol)?.innerPortID })
-        for innerPort in innerPorts where !existingInnerIDs.contains(innerPort.id)
+        for innerPort in innerPorts where !self.proxyPorts.contains(where: { ($0 as? any ProxyPortProtocol)?.wraps(innerPort) == true })
         {
             if let proxy = Self.makeProxy(for: innerPort)
             {
                 proxy.node = self
                 self.proxyPorts.append(proxy)
             }
+        }
+        self.proxyPorts.sort { lhs, rhs in
+            (innerPorts.firstIndex { (lhs as? any ProxyPortProtocol)?.wraps($0) == true } ?? 0)
+                < (innerPorts.firstIndex { (rhs as? any ProxyPortProtocol)?.wraps($0) == true } ?? 0)
+        }
+
+        // A proxy gone for good leaves the parent's published relation; one
+        // remade under the same key keeps its entry. Either way the retired
+        // object must not keep an unowned owner in views that outlive it.
+        let liveKeys = Set(self.proxyPorts.map(\.key))
+        for proxy in retired
+        {
+            if !liveKeys.contains(proxy.key) { self.graph?.setPublished(false, port: proxy) }
+            proxy.node = nil
         }
         
         // Ensure parameter group is updated

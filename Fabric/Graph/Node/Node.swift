@@ -335,6 +335,12 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     // MARK: - Ports
 
+    /// The port under `key`, if the node has one.
+    public func port(forKey key: PortKey) -> Port?
+    {
+        self.registry.port(forKey: key) ?? self.ports.first { $0.key == key }
+    }
+
     // Convenience for subclasses: typed lookup (so computed props stay nice)
     public func port<T: Port>(named name: String, as type: T.Type = T.self) -> T
     {
@@ -425,14 +431,15 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
         let graph = self.graph
 
+        // A retyped port keeps its key, so its address, so its publishing.
         for port in reconciliation.removed
         {
+            graph?.setPublished(false, port: port)
             graph?.disconnectAll(fromRetired: port)
         }
 
         for (old, new) in reconciliation.retyped
         {
-            new.setPublishing(old.published, name: old.publishedName)
             graph?.rebindWires(from: old, to: new)
         }
 
@@ -446,10 +453,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         self.invalidatePortCaches()
         self.rebuildParameterGroup()
 
-        let publishingChanged = reconciliation.removed.contains(where: \.published)
-            || reconciliation.retyped.contains(where: { $0.old.published || $0.new.published })
-            || reconciliation.added.contains(where: \.published)
-        if publishingChanged { graph?.rebuildPublishedParameterGroup() }
+        if !reconciliation.retyped.isEmpty || !reconciliation.added.isEmpty { graph?.rebuildPublishedParameterGroup() }
 
         graph?.markConnectionsChanged()
         self.portsDidChange()
@@ -511,19 +515,10 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         self.cachedOutputPorts = nil
     }
 
+    /// The node's ports its graph publishes.
     internal func publishedPorts() -> [Port]
     {
-        return self.ports.filter(\.published)
-    }
-
-    internal func publishedInputPorts() -> [Port]
-    {
-        return self.inputPorts().filter(\.published)
-    }
-
-    internal func publishedOutputPorts() -> [Port]
-    {
-        return self.outputPorts().filter(\.published)
+        self.graph?.publishedPorts(of: self) ?? []
     }
 
     // MARK: - Connections
@@ -739,12 +734,14 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         let inputPorts = self.inputPorts()
         let outputPorts = self.outputPorts()
         
+        // The ports' own names: a published name is the graph's, and a view
+        // model reads this size on main while the graph may be edited elsewhere.
         let longestInputPortTitle = inputPorts.reduce(into: "") { maxTitle, port in
-            maxTitle = (maxTitle.count > port.displayName.count) ? maxTitle : port.displayName
+            maxTitle = (maxTitle.count > port.name.count) ? maxTitle : port.name
         }
 
         let longestOutputPortTitle = outputPorts.reduce(into: "") { maxTitle, port in
-            maxTitle = (maxTitle.count > port.displayName.count) ? maxTitle : port.displayName
+            maxTitle = (maxTitle.count > port.name.count) ? maxTitle : port.name
         }
 
         let horizontalMax = max(inputPorts.count, outputPorts.count)

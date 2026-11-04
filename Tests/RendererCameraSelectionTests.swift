@@ -84,7 +84,7 @@ struct RendererCameraSelectionTests
         subgraphNode.subGraph.addNode(cameraNode)
 
         let innerTimeNode = try #require(subgraphNode.subGraph.nodes.first as? CurrentTimeNode)
-        innerTimeNode.outputNumber.published = true
+        innerTimeNode.outputNumber.publishInGraph(true)
         subgraphNode.subGraph.rebuildPublishedParameterGroup()
         try #require(subgraphNode.nodeExecutionMode != .Consumer)
 

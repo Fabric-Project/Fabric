@@ -28,11 +28,13 @@ struct PortContextMenu: View
             }
         }
 
+        let isPublished = graph.isPublished(port)
+
         Button(action: publish) {
-            Text(port.published ? "Unpublish" : "Publish")
+            Text(isPublished ? "Unpublish" : "Publish")
         }
 
-        if port.published {
+        if isPublished {
             Button(action: rename) {
                 Text("Rename…")
             }
@@ -52,9 +54,7 @@ struct PortContextMenu: View
 
     private func publish()
     {
-        port.published.toggle()
-        if !port.published { port.publishedName = nil }
-        graph.rebuildPublishedParameterGroup()
+        graph.setPublished(!graph.isPublished(port), port: port)
     }
 
     private func rename()

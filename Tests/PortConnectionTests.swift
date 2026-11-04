@@ -157,7 +157,7 @@ struct PortConnectionTests {
         let x = try #require(expression.findPort(named: "x", as: ParameterPort<Float>.self))
         let y = try #require(expression.findPort(named: "y", as: ParameterPort<Float>.self))
         let result = try #require(expression.findPort(named: "result", as: NodePort<Float>.self))
-        result.published = true
+        result.publishInGraph(true)
         graph.rebuildPublishedParameterGroup()
 
         source.inputNumber1.value = 4

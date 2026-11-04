@@ -36,7 +36,7 @@ struct SubgraphEmbeddingTests
         let incomingConnection: Connection
         let internalConnection: Connection
         let outgoingConnection: Connection
-        let originalIncomingPublishedName: String
+        let originalIncomingPublishedName: String?
     }
 
     private func makeContext() -> Context?
@@ -73,10 +73,9 @@ struct SubgraphEmbeddingTests
         )
         #expect(graph.setConnection(internalConnection, active: false))
 
-        let originalIncomingPublishedName = "Original Boundary Name"
-        firstMovedNode.inputNumber1.published = false
-        firstMovedNode.inputNumber1.publishedName = originalIncomingPublishedName
-        secondMovedNode.outputNumber.published = false
+        // An unpublished port has no published name: the graph holds names only
+        // for what it publishes, so the boundary publishes under the port's own.
+        let originalIncomingPublishedName: String? = nil
 
         return Fixture(graph: graph,
                        upstream: upstream,
@@ -145,9 +144,9 @@ struct SubgraphEmbeddingTests
         #expect(fixture.secondMovedNode.outputNumber.connections.isEmpty, sourceLocation: sourceLocation)
         #expect(inletProxy.connections == [fixture.incomingConnection], sourceLocation: sourceLocation)
         #expect(outletProxy.connections == [fixture.outgoingConnection], sourceLocation: sourceLocation)
-        #expect(fixture.firstMovedNode.inputNumber1.published, sourceLocation: sourceLocation)
-        #expect(fixture.secondMovedNode.outputNumber.published, sourceLocation: sourceLocation)
-        #expect(fixture.firstMovedNode.inputNumber1.publishedName == fixture.originalIncomingPublishedName,
+        #expect(fixture.firstMovedNode.inputNumber1.isPublishedInGraph, sourceLocation: sourceLocation)
+        #expect(fixture.secondMovedNode.outputNumber.isPublishedInGraph, sourceLocation: sourceLocation)
+        #expect(fixture.firstMovedNode.inputNumber1.publishedNameInGraph == fixture.originalIncomingPublishedName,
                 sourceLocation: sourceLocation)
 
         try expectDeferredPortsRemainIntact(on: container, sourceLocation: sourceLocation)
@@ -200,9 +199,9 @@ struct SubgraphEmbeddingTests
         #expect(fixture.firstMovedNode.outputNumber.connections == [fixture.internalConnection])
         #expect(fixture.secondMovedNode.inputNumber1.connections == [fixture.internalConnection])
         #expect(fixture.secondMovedNode.outputNumber.connections == [fixture.outgoingConnection])
-        #expect(fixture.firstMovedNode.inputNumber1.published == false)
-        #expect(fixture.secondMovedNode.outputNumber.published == false)
-        #expect(fixture.firstMovedNode.inputNumber1.publishedName == fixture.originalIncomingPublishedName)
+        #expect(fixture.firstMovedNode.inputNumber1.isPublishedInGraph == false)
+        #expect(fixture.secondMovedNode.outputNumber.isPublishedInGraph == false)
+        #expect(fixture.firstMovedNode.inputNumber1.publishedNameInGraph == fixture.originalIncomingPublishedName)
         try expectDeferredPortsRemainIntact(on: container)
 
         undoManager.redo()
@@ -277,9 +276,9 @@ struct SubgraphEmbeddingTests
             #expect(decodedOutletProxy.connections == [decodedOutgoingConnection])
             #expect(decodedFirstMovedNode.inputNumber1.connections.isEmpty)
             #expect(decodedSecondMovedNode.outputNumber.connections.isEmpty)
-            #expect(decodedFirstMovedNode.inputNumber1.published)
-            #expect(decodedSecondMovedNode.outputNumber.published)
-            #expect(decodedFirstMovedNode.inputNumber1.publishedName == fixture.originalIncomingPublishedName)
+            #expect(decodedFirstMovedNode.inputNumber1.isPublishedInGraph)
+            #expect(decodedSecondMovedNode.outputNumber.isPublishedInGraph)
+            #expect(decodedFirstMovedNode.inputNumber1.publishedNameInGraph == fixture.originalIncomingPublishedName)
             #expect(decodedGraph.droppedConnectionDiagnostics.isEmpty)
             #expect(decodedContainer.subGraph.droppedConnectionDiagnostics.isEmpty)
             try expectDeferredPortsRemainIntact(on: decodedContainer)

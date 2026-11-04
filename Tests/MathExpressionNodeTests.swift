@@ -240,14 +240,16 @@ import MathExpressionEngine
     {
         guard let context = makeContext() else { return }
         let node = MathExpressionNode(context: context, expression: "x + 1")
+        let graph = Graph(context: context)
+        graph.addNode(node)
         let x = try #require(node.findPort(named: "x", as: Fabric.Port.self))
         #expect(x.portType == .Float)
-        x.published = true
+        x.publishInGraph(true)
 
         node.stringExpression = "in x: vec3; out o = x + vec3(1)"
         let retyped = try #require(node.findPort(named: "x", as: Fabric.Port.self))
         #expect(retyped.portType == .Vector3)
         #expect(retyped.id == x.id)
-        #expect(retyped.published)
+        #expect(retyped.isPublishedInGraph)
     }
 }

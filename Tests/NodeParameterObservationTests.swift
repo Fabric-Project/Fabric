@@ -70,7 +70,7 @@ struct NodeParameterObservationTests {
         let innerGraph = Graph(context: context)
         let inner = NumberBinaryOperator(context: context)
         innerGraph.addNode(inner)
-        inner.inputNumber1.published = true
+        inner.inputNumber1.publishInGraph(true)
         innerGraph.rebuildPublishedParameterGroup()
         let outer = SubgraphNode(context: context, subGraph: innerGraph)
         #expect(outer.inputParamCancellables.count == 1)

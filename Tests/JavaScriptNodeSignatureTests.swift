@@ -56,10 +56,12 @@ struct JavaScriptNodeSignatureTests
     {
         guard let context = makeContext() else { return }
         let node = JavaScriptNode(context: context)
+        let graph = Graph(context: context)
+        graph.addNode(node)
 
         let a = try #require(node.findPort(named: "a", as: Fabric.Port.self))
         #expect(a.portType == .Float)
-        a.published = true
+        a.publishInGraph(true)
 
         node.updateScriptSource("""
             function main(a: Bool, b: Number, threshold: Number): { sum: Number, thresholdPassed: Bool } {
@@ -70,7 +72,7 @@ struct JavaScriptNodeSignatureTests
         let retyped = try #require(node.findPort(named: "a", as: Fabric.Port.self))
         #expect(retyped.portType == .Bool)
         #expect(retyped.id == a.id)
-        #expect(retyped.published)
+        #expect(retyped.isPublishedInGraph)
     }
 
     // MARK: - Commentary is not code

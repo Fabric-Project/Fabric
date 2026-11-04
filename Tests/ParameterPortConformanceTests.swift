@@ -134,7 +134,7 @@ struct ParameterPortConformanceTests
             // to proxy. Rebuilding the group is what tells it they changed.
             for port in node.ports
             {
-                port.published = true
+                port.publishInGraph(true)
             }
 
             subGraph.rebuildPublishedParameterGroup()
@@ -195,13 +195,15 @@ struct ParameterPortConformanceTests
                   strategyNodeClass.strategies.count > 1,
                   let node = try? wrapper.initializeNode(context: context) as? StrategyNode
             else { continue }
+            let graph = Graph(context: context)
+            graph.addNode(node)
 
             for strategy in strategyNodeClass.strategies
             {
                 let before = Dictionary(uniqueKeysWithValues: node.ports.compactMap { port in
-                    node.registryKey(of: port).map { ($0, (id: port.id, published: port.published)) }
+                    node.registryKey(of: port).map { ($0, (id: port.id, published: port.isPublishedInGraph)) }
                 })
-                for port in node.ports { port.published = true }
+                for port in node.ports { port.publishInGraph(true) }
 
                 node.setStrategy(strategy)
 
@@ -214,7 +216,7 @@ struct ParameterPortConformanceTests
                     {
                         violations.append("\(label(wrapper, strategy: strategy)): \(key) came back on a new id")
                     }
-                    if !port.published
+                    if !port.isPublishedInGraph
                     {
                         violations.append("\(label(wrapper, strategy: strategy)): \(key) came back unpublished")
                     }
@@ -246,7 +248,7 @@ struct ParameterPortConformanceTests
 
             for port in node.ports
             {
-                port.published = true
+                port.publishInGraph(true)
             }
 
             subGraph.rebuildPublishedParameterGroup()
@@ -258,13 +260,16 @@ struct ParameterPortConformanceTests
             // owns — the rebuild on load has nowhere to recover it from.
             for (index, proxy) in proxies.enumerated()
             {
-                proxy.published = true
-                proxy.publishedName = "Parent Rename \(index)"
+                proxy.publishInGraph(true)
+                proxy.renamePublishedInGraph("Parent Rename \(index)")
             }
 
             graph.rebuildPublishedParameterGroup()
 
             let decodedSubgraphNode: SubgraphNode
+            // Held for the checks below: publishing is the decoded graph's.
+            var decodedGraph: Graph?
+            defer { withExtendedLifetime(decodedGraph) { } }
 
             do
             {
@@ -272,6 +277,7 @@ struct ParameterPortConformanceTests
                 let decoder = JSONDecoder()
                 decoder.context = DecoderContext(documentContext: context)
                 let decoded = try decoder.decode(Graph.self, from: data)
+                decodedGraph = decoded
 
                 guard let found = decoded.nodes.compactMap({ $0 as? SubgraphNode }).first
                 else
@@ -312,9 +318,9 @@ struct ParameterPortConformanceTests
                     violations.append("\(nodeLabel): \(proxy.name) decoded as [\(decodedPort.portType.rawValue)], saved as [\(proxy.portType.rawValue)]")
                 }
 
-                if decodedPort.published != proxy.published || decodedPort.publishedName != proxy.publishedName
+                if decodedPort.isPublishedInGraph != proxy.isPublishedInGraph || decodedPort.publishedNameInGraph != proxy.publishedNameInGraph
                 {
-                    violations.append("\(nodeLabel): \(proxy.name) [\(proxy.portType.rawValue)] decoded published=\(decodedPort.published) name=\(decodedPort.publishedName ?? "nil"), saved published=\(proxy.published) name=\(proxy.publishedName ?? "nil")")
+                    violations.append("\(nodeLabel): \(proxy.name) [\(proxy.portType.rawValue)] decoded published=\(decodedPort.isPublishedInGraph) name=\(decodedPort.publishedNameInGraph ?? "nil"), saved published=\(proxy.isPublishedInGraph) name=\(proxy.publishedNameInGraph ?? "nil")")
                 }
             }
         }

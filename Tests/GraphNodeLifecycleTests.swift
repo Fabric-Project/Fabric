@@ -234,12 +234,12 @@ struct GraphNodeLifecycleTests
         graph.addNode(node)
         try renderer.startExecution()
 
-        node.output.published = true
+        node.output.publishInGraph(true)
         graph.rebuildPublishedParameterGroup()
         try renderer.synchronizeLifecycle()
         #expect(node.lifecycleCalls == ["enable", "start"])
 
-        node.output.published = false
+        node.output.publishInGraph(false)
         graph.rebuildPublishedParameterGroup()
         try renderer.synchronizeLifecycle()
         #expect(node.lifecycleCalls == ["enable", "start", "stop"])
