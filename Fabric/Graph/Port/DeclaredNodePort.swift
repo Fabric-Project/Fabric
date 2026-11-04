@@ -14,7 +14,7 @@ public final class DeclaredNodePort<Value: PortValueRepresentable>: NodePort<Val
 {
     private let declaredPortType: PortType
 
-    @ObservationIgnored override public var portType: PortType { declaredPortType }
+    override public var portType: PortType { declaredPortType }
 
     public init(declaredPortType: PortType,
                 name: String,

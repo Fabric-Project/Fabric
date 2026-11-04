@@ -39,7 +39,7 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
 
     public var innerPortID: UUID { innerPort.id }
 
-    @ObservationIgnored override public var portType: PortType { declaredPortType ?? super.portType }
+    override public var portType: PortType { declaredPortType ?? super.portType }
 
     /// Prefers the proxy's own publishedName (set when renamed in the
     /// parent graph), falling back to the inner port's displayName (which

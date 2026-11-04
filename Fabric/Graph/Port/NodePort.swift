@@ -89,7 +89,7 @@ public class NodePort<Value : PortValueRepresentable>: Port
         
     public var valueType: Any.Type { Value.self }
 
-    @ObservationIgnored override public var portType: PortType {
+    override public var portType: PortType {
         Value.portType
     }
     

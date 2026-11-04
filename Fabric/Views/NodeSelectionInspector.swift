@@ -66,10 +66,10 @@ private struct SelectedNodeCard: View
         // Read the port list unconditionally: it is the card's only observable
         // signal that the node's parameters changed (parameterGroup is a plain
         // class rebuilt in place), and it must fire even while the params
-        // branch below is absent. identitySignature (not plain id) so a
-        // Settings-driven type change (e.g. Switch/Gate's Type picker) also
-        // re-identifies the view — see Port.identitySignature.
-        let portSignature = nodeViewModel.ports.map(\.identitySignature)
+        // branch below is absent. Object identity, not id: a Settings-driven
+        // type change (e.g. Switch/Gate's Type picker) makes a new port under
+        // the old id, and must re-identify the view too.
+        let portSignature = nodeViewModel.ports.map(ObjectIdentifier.init)
 
         GroupBox
         {

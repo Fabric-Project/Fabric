@@ -32,7 +32,7 @@ struct NodeView : View
 
                 ForEach(inlets) { port in
                     NodeInletView(port: port, editingContext: self.editingContext)
-                        .id(port.identitySignature)
+                        .id(ObjectIdentifier(port))
                 }
                 Spacer(minLength: 0)
             }
@@ -44,7 +44,7 @@ struct NodeView : View
 
                 ForEach(outlets) { port in
                     NodeOutletView(port: port, editingContext: self.editingContext)
-                        .id(port.identitySignature)
+                        .id(ObjectIdentifier(port))
                 }
                 Spacer(minLength: 0)
             }

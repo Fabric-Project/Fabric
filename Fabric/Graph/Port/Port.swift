@@ -67,7 +67,7 @@ extension UTType
 
 
 // Non Generic Base Port Class, dont use directly
-@Observable public class Port : Identifiable, Hashable, Equatable, Codable, CustomDebugStringConvertible
+public class Port : Identifiable, Hashable, Equatable, Codable, CustomDebugStringConvertible
 {
     public static func == (lhs: Port, rhs: Port) -> Bool
     {
@@ -103,12 +103,12 @@ extension UTType
     // Kind of lame, but necessary to avoid some type based bullshit.
     // TODO: Figure out a way to hide setting this (seems not good)
     // unless its a ParameterPort? 
-    @ObservationIgnored public var parameter:(any Parameter)? = nil
+    public var parameter:(any Parameter)? = nil
         
     // Maybe a bit too verbose?
-    @ObservationIgnored public var portType: PortType { fatalError("Must be implemented") }
+    public var portType: PortType { fatalError("Must be implemented") }
     
-    @ObservationIgnored public var valueDidChange:Bool = true
+    public var valueDidChange:Bool = true
 
     /// Runtime-polymorphic read for ports whose concrete type is only known at
     /// runtime — routing nodes' boxed forwarding, Iterator's count resolution,
@@ -126,16 +126,16 @@ extension UTType
     
     // Unowned, not weak: any weak reference gives Node a Swift side table, which
     // slows every retain and release of it. Cleared on registry removal and Node deinit.
-    @ObservationIgnored public unowned var node: Node?
-    @ObservationIgnored internal var deferredSendCapture: GraphDeferredSendCapture?
-    @ObservationIgnored internal var deferredOutputIndex = 0
-    @ObservationIgnored internal var onValueChanged: (() -> Void)?
+    public unowned var node: Node?
+    internal var deferredSendCapture: GraphDeferredSendCapture?
+    internal var deferredOutputIndex = 0
+    internal var onValueChanged: (() -> Void)?
 
     internal var connections: [Connection] = []
-    @ObservationIgnored public let kind: PortKind
-    @ObservationIgnored public let direction:PortDirection = .Horizontal
-    @ObservationIgnored public var color:Color
-    @ObservationIgnored public var backgroundColor:Color
+    public let kind: PortKind
+    public let direction:PortDirection = .Horizontal
+    public var color:Color
+    public var backgroundColor:Color
 
     public var debugDescription: String
     {
@@ -215,12 +215,6 @@ extension UTType
     /// The display name: publishedName if set, otherwise the port's own name.
     public var displayName: String { publishedName ?? name }
 
-    /// Identity for view code that must re-identify a port view when its type
-    /// changes: `id` alone survives a TypeAgnosticNode Settings-driven type
-    /// swap unchanged (addOrReplaceDynamicPortPreservingIdentity preserves it
-    /// so wires reconnect), so views keyed on `id` alone see no change and
-    /// skip re-rendering the stale type.
-    public var identitySignature: String { "\(id):\(portType.rawValue)" }
 
     public var connectedPorts: [Port]
     {

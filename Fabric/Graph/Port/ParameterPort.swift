@@ -49,7 +49,7 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
     // presentation choices within their type. Ideally ports would declare .Color
     // explicitly and the picker would be derived from that, but until Color has its
     // own value type this is the pragmatic bridge.
-    @ObservationIgnored override public var portType: PortType {
+    override public var portType: PortType {
         if _parameter.controlType == .colorpicker || _parameter.controlType == .colorpalette {
             return .Color
         }
