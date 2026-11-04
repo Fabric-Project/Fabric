@@ -55,6 +55,14 @@ open class BaseImageNode: Node, NodeMadeFromFile
     {
         let imageInputCount: Int
         let materialParameters: [any Parameter]
+
+        /// The same image count and the same parameter objects, in order.
+        func isSame(as other: ShaderInterface) -> Bool
+        {
+            imageInputCount == other.imageInputCount
+                && materialParameters.count == other.materialParameters.count
+                && zip(materialParameters, other.materialParameters).allSatisfy { $0 === $1 }
+        }
     }
     private lazy var inputTextureTransformBuffer = StructBuffer<simd_float4x4>(device: self.context.device,
                                                                                count: 25,
@@ -296,9 +304,15 @@ open class BaseImageNode: Node, NodeMadeFromFile
 
     private func declareShaderInterface(imageInputCount: Int) {
         let offLimits = self.offLimitsLabels()
-        self.shaderInterface = ShaderInterface(imageInputCount: imageInputCount,
-                                               materialParameters: self.postMaterial.parameters.params.filter { !offLimits.contains($0.label) })
+        let interface = ShaderInterface(imageInputCount: imageInputCount,
+                                        materialParameters: self.postMaterial.parameters.params.filter { !offLimits.contains($0.label) })
 
+        // A reload that kept every uniform (Satin keeps a parameter whose
+        // label the new shader still has) and the image count changes no
+        // port, so it is no edit: Blend swaps its shader from execute this way.
+        if let current = self.shaderInterface, current.isSame(as: interface) { return }
+
+        self.shaderInterface = interface
         self.reconcilePorts()
         self.bindMaterialParameters()
     }
