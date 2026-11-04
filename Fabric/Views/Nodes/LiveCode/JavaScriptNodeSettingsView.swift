@@ -19,12 +19,17 @@ import LanguageSupport
 
     private weak var node: JavaScriptNode?
     private var saveTimer: Timer?
+    /// What the node held at the last flush: the editor writes only what was edited since.
+    private var savedContent: String
+    private var savedTimeMode: Node.TimeMode
 
     init(node: JavaScriptNode)
     {
         self.node = node
         self.content = node.scriptSource
         self.selectedTimeMode = node.selectedTimeMode
+        self.savedContent = node.scriptSource
+        self.savedTimeMode = node.selectedTimeMode
         self.languageService = JavaScriptLanguageService()
         self.refreshMessages()
     }
@@ -50,11 +55,19 @@ import LanguageSupport
         }
     }
 
+    /// Writes what was edited since the last flush and nothing else, so an
+    /// editor closed unedited keeps settings applied to the node meanwhile.
     func flush()
     {
         guard let node else { return }
-        node.updateScriptSource(self.content)
-        node.updateTimeMode(self.selectedTimeMode)
+        if self.content != self.savedContent { node.updateScriptSource(self.content) }
+        if self.selectedTimeMode != self.savedTimeMode { node.updateTimeMode(self.selectedTimeMode) }
+        self.savedContent = node.scriptSource
+        self.savedTimeMode = node.selectedTimeMode
+        if node.selectedTimeMode != self.selectedTimeMode
+        {
+            self.selectedTimeMode = node.selectedTimeMode
+        }
 
         // A script written in the annotated form is kept as the TypeScript it
         // was read as. Taking that back is what puts the rewrite in front of the

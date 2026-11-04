@@ -374,6 +374,42 @@ struct NodeSettingsTests
         #expect(model.strategy == PortType.Float.rawValue)
     }
 
+    @Test("A code editor closed unedited keeps the settings applied while it was open, and an edit still wins")
+    func unEditedCodeEditorKeepsAppliedSettings() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = JavaScriptNode(context: context, settings: JavaScriptSettings(scriptSource: """
+        function main(value: Number): { doubled: Number }
+        {
+            return { doubled: value * 2 }
+        }
+        """))
+        let editor = JavaScriptNodeEditorModel(node: node)
+
+        node.setSettings(JavaScriptSettings(scriptSource: """
+        function main(value: Number): { tripled: Number }
+        {
+            return { tripled: value * 3 }
+        }
+        """, selectedTimeMode: .Idle))
+        let applied = node.scriptSource
+        #expect(applied != editor.content)
+
+        editor.flush()
+        #expect(node.scriptSource == applied)
+        #expect(node.selectedTimeMode == .Idle)
+
+        editor.content = """
+        function main(value: Number): { halved: Number }
+        {
+            return { halved: value / 2 }
+        }
+        """
+        editor.flush()
+        #expect(node.scriptSource != applied)
+        #expect(node.findPort(named: "halved") != nil)
+    }
+
     @Test("setSettings with another node's settings type changes nothing")
     func setSettingsIgnoresAnotherSettingsType() throws
     {

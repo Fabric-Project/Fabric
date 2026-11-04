@@ -23,12 +23,15 @@ import LanguageSupport
     var content: String
     private weak var node: LiveImageNode?
     private var saveTimer: Timer?
+    /// What the node held at the last flush: the editor writes only what was edited since.
+    private var savedContent: String
     var messages: Set<TextLocated<Message>> = Set()
     var diagnostics: [ShaderDiagnostic] = []
 
     init(node: LiveImageNode) {
         self.node = node
         self.content = node.shaderSource
+        self.savedContent = node.shaderSource
     }
 
     func scheduleSave() {
@@ -41,9 +44,14 @@ import LanguageSupport
         }
     }
 
+    /// Writes what was edited since the last flush and nothing else, so an
+    /// editor closed unedited keeps settings applied to the node meanwhile.
     func flush() {
         guard let node else { return }
-        node.updateShaderSource(self.content)
+        if self.content != self.savedContent {
+            node.updateShaderSource(self.content)
+            self.savedContent = node.shaderSource
+        }
         self.refreshErrorMessagesIfPossible()
     }
 
