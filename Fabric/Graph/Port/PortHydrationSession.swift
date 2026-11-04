@@ -18,12 +18,48 @@ internal final class PortHydrationSession
 {
     private var pendingByRegistryKey: [String: Port]
     private var consumedByPortID: [UUID: (registryKey: String, snapshot: Port)] = [:]
-    private let documentKeyOrder: [String]
+    private var documentKeyOrder: [String]
 
     init(snapshots: [PortRegistry.Snapshot])
     {
         self.pendingByRegistryKey = snapshots.reduce(into: [:]) { $0[$1.name] = $1.payload.base }
         self.documentKeyOrder = snapshots.map(\.name)
+    }
+
+    /// Documents saved before a node declared its stored-property ports kept
+    /// each one under the node's own coding key, outside the registry's list.
+    /// A declared key the list lacks reads the port saved under it there.
+    func addSnapshotsSavedOutsideRegistry(for declarations: [PortDeclaration], from decoder: any Decoder) throws
+    {
+        let container = try decoder.container(keyedBy: NodeCodingKey.self)
+
+        for declaration in declarations where pendingByRegistryKey[declaration.key] == nil
+        {
+            guard let codingKey = NodeCodingKey(stringValue: declaration.key),
+                  container.contains(codingKey)
+            else { continue }
+
+            let port = declaration.port
+            let saved = (port.parameter != nil
+                            ? try? PortType.portForType(port.portType, isParameterPort: true, decoder: container.superDecoder(forKey: codingKey))
+                            : nil)
+                // A parameter port saved before it had a parameter.
+                ?? (try? PortType.portForType(port.portType, isParameterPort: false, decoder: container.superDecoder(forKey: codingKey)))
+
+            if let saved
+            {
+                pendingByRegistryKey[declaration.key] = saved
+                documentKeyOrder.append(declaration.key)
+            }
+        }
+    }
+
+    private struct NodeCodingKey: CodingKey
+    {
+        let stringValue: String
+        var intValue: Int? { nil }
+        init?(stringValue: String) { self.stringValue = stringValue }
+        init?(intValue: Int) { nil }
     }
 
     /// Registry keys whose state has not landed on any registered port.

@@ -144,8 +144,20 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     public internal(set) weak var graph:Graph?
 
-    // Method to register ports
+    /// The ports every node of the class has, in order, under their registry
+    /// keys. The default declaredPorts().
     open class func registerPorts(context: Context) -> [(name: String, port: Port)] { [] }
+
+    /// The node's interface, in order, under the keys the registry finds each
+    /// port by. By default the class's registerPorts(context:). A node that
+    /// holds a port in a stored property for typed access declares that port
+    /// here, ahead of or after super's, so the registry and the property name
+    /// one object. Called once, from init and decode, after the subclass's
+    /// stored properties are set.
+    open func declaredPorts() -> [PortDeclaration]
+    {
+        Self.registerPorts(context: self.context).map { PortDeclaration(key: $0.name, port: $0.port) }
+    }
     // All port serilization, adding, removing and key value access goes through the port registry
     private let registry = PortRegistry()
 
@@ -256,29 +268,12 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         // never match a declared or rebuilt port surface via
         // droppedPortStateKeys instead of resurrecting retired ports.
         let snaps = try container.decodeIfPresent([PortRegistry.Snapshot].self, forKey: .ports) ?? []
-        self.portHydrationSession = PortHydrationSession(snapshots: snaps)
+        let session = PortHydrationSession(snapshots: snaps)
+        self.portHydrationSession = session
 
-        let declared = Self.registerPorts(context: context)
-
-        for d in declared
-        {
-            self.portHydrationSession?.hydrate(d.port, registryKey: d.name)
-            self.registry.register(d.port, name: d.name, owner: self)
-        }
-
-        for port in self.registry.all()
-        {
-            if let param = port.parameter
-            {
-                self.parameterGroup.append(param)
-            }
-        }
-        self.synchronizeParameters()
-
-        for port in self.ports
-        {
-            port.node = self
-        }
+        let declarations = self.declaredPorts()
+        try session.addSnapshotsSavedOutsideRegistry(for: declarations, from: decoder)
+        self.register(declarations)
     }
 
     open func encode(to encoder:Encoder) throws
@@ -297,9 +292,15 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         self.id = UUID()
         self.context = context
 
-        let declared = Self.registerPorts(context: context)
-        for (name, p) in declared {
-            self.registry.register(p, name: name, owner: self)
+        self.register(self.declaredPorts())
+    }
+
+    private func register(_ declarations: [PortDeclaration])
+    {
+        for declaration in declarations
+        {
+            self.portHydrationSession?.hydrate(declaration.port, registryKey: declaration.key)
+            self.registry.register(declaration.port, name: declaration.key, owner: self)
         }
 
         for port in self.registry.all()
@@ -311,11 +312,6 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         }
 
         self.synchronizeParameters()
-
-        for port in self.ports
-        {
-            port.node = self
-        }
     }
 
     open class func initWithContext(context: Context) throws -> Node
