@@ -10,6 +10,7 @@ import SwiftUI
 import Metal
 import Satin
 import simd
+import Synchronization
 
 // MARK: - Data Model
 
@@ -812,9 +813,25 @@ public class TimelineNode: Node
     }
 
     /// A timeline always has a track.
+    /// One track at least, and no two of one name, as the ports are the
+    /// tracks' names: a later track with an earlier one's name takes the first
+    /// "Track N" past the count not in use, as addTrack does.
     private static func tracksOrDefault(_ tracks: [TimelineTrack], duration: Float) -> [TimelineTrack]
     {
-        tracks.isEmpty ? [TimelineTrack(name: "Track 1", duration: duration)] : tracks
+        guard !tracks.isEmpty else { return [TimelineTrack(name: "Track 1", duration: duration)] }
+        var namesTaken = Set<String>()
+        let namesGiven = Set(tracks.map(\.name))
+        return tracks.map { track in
+            var track = track
+            if namesTaken.contains(track.name)
+            {
+                var number = tracks.count + 1
+                while namesTaken.contains("Track \(number)") || namesGiven.contains("Track \(number)") { number += 1 }
+                track.name = "Track \(number)"
+            }
+            namesTaken.insert(track.name)
+            return track
+        }
     }
 
     // MARK: - Properties
@@ -915,6 +932,7 @@ public class TimelineNode: Node
     }
 
     private var _settingsModelStorage: SettingsModel? = nil
+    private let playheadUpdateQueued = Mutex(false)
 
     // MARK: - Ports
 
@@ -1004,10 +1022,19 @@ public class TimelineNode: Node
 
         // Clamp time for display
         currentTime = max(0, min(duration, time))
-        if _settingsModelStorage != nil
+        // One update in flight at a time: main shows the time the node holds
+        // when it gets there, not every frame's.
+        if _settingsModelStorage != nil, playheadUpdateQueued.withLock({ queued in
+            if queued { return false }
+            queued = true
+            return true
+        })
         {
-            let shownTime = currentTime
-            performOnMainAsync { [weak self] in self?._settingsModelStorage?.currentTime = shownTime }
+            performOnMainAsync { [weak self] in
+                guard let self else { return }
+                self.playheadUpdateQueued.withLock { $0 = false }
+                self._settingsModelStorage?.currentTime = self.currentTime
+            }
         }
 
         // Evaluate each track and send to corresponding port

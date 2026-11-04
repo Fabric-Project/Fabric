@@ -524,6 +524,18 @@ struct NodeSettingsTests
         #expect(node.outputPorts().map(\.name) == tracks.map(\.name))
     }
 
+    @Test("A timeline given two tracks of one name renames the later one, so each has a port")
+    func timelineGivenDuplicateTrackNamesRenamesTheLater() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = TimelineNode(context: context, settings: TimelineSettings(duration: 1, tracks: [TimelineTrack(name: "A", duration: 1),
+                                                                                                    TimelineTrack(name: "A", duration: 1),
+                                                                                                    TimelineTrack(name: "Track 4", duration: 1)]))
+        let tracks = try #require((node.settings as? TimelineSettings)?.tracks)
+        #expect(tracks.map(\.name) == ["A", "Track 5", "Track 4"])
+        #expect(node.outputPorts().map(\.name) == tracks.map(\.name))
+    }
+
     @Test("Saving a Live Image node writes the shader on disk and leaves the node holding it")
     func liveImageSaveCapturesTheShaderOnDisk() throws
     {
