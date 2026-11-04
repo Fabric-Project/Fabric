@@ -225,3 +225,16 @@ extension PortType
         return ParameterPort(parameter: parameter)
     }
 }
+
+extension NodePort
+{
+    /// A port of `Value`'s type as `PortType.makeFreshPort(name:kind:description:id:)`
+    /// makes it, a parameter port where the type can carry one, typed for a
+    /// node that holds it in a stored property.
+    public static func makeFresh(name: String, kind: PortKind, description: String = "") -> NodePort<Value>
+    {
+        // The factory makes a NodePort<Value>, or a subclass of one, for every
+        // PortValueRepresentable type; anything else is a programming error.
+        Value.portType.makeFreshPort(name: name, kind: kind, description: description) as! NodePort<Value>
+    }
+}
