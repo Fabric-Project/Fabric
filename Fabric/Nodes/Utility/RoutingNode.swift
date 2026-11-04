@@ -40,6 +40,13 @@ public class RoutingNodeBase: TypeAgnosticNode
     /// Init/decode paths assign the stored value directly because their port
     /// rebuild happens in StrategyNode's initializer.
     public private(set) var routeCount: Int = routingNodeMinimumRouteCount
+    {
+        didSet
+        {
+            guard oldValue != routeCount else { return }
+            performOnMainAsync { [weak self] in self?._routeCountModelStorage?.refreshFromNode() }
+        }
+    }
 
     private enum RoutingCodingKeys: String, CodingKey
     {
@@ -109,7 +116,47 @@ public class RoutingNodeBase: TypeAgnosticNode
 
     override public func settingsView() -> AnyView
     {
-        AnyView(RoutingNodeSettingsView(node: self))
+        performOnMainSync { AnyView(RoutingNodeSettingsView(node: self, model: routeCountModel)) }
+    }
+
+    @MainActor
+    @Observable final class RouteCountModel
+    {
+        var routeCount: Int
+        {
+            didSet
+            {
+                guard routeCount != node?.routeCount else { return }
+                node?.setRouteCount(routeCount)
+            }
+        }
+        private weak var node: RoutingNodeBase?
+
+        init(node: RoutingNodeBase)
+        {
+            self.node = node
+            self.routeCount = node.routeCount
+        }
+
+        func refreshFromNode()
+        {
+            guard let node, routeCount != node.routeCount else { return }
+            routeCount = node.routeCount
+        }
+    }
+
+    /// Nil until a settings view asks for it.
+    private var _routeCountModelStorage: RouteCountModel?
+
+    var routeCountModel: RouteCountModel
+    {
+        performOnMainSync
+        {
+            if let model = _routeCountModelStorage { return model }
+            let model = RouteCountModel(node: self)
+            _routeCountModelStorage = model
+            return model
+        }
     }
 
     // MARK: - Dynamic routing-port helpers
@@ -219,13 +266,7 @@ public class RoutingNode: RoutingNodeBase
 private struct RoutingNodeSettingsView: View
 {
     let node: RoutingNodeBase
-    @State private var routeCount: Int
-
-    init(node: RoutingNodeBase)
-    {
-        self.node = node
-        self._routeCount = State(initialValue: node.routeCount)
-    }
+    @Bindable var model: RoutingNodeBase.RouteCountModel
 
     var body: some View
     {
@@ -236,15 +277,9 @@ private struct RoutingNodeSettingsView: View
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Stepper(value: Binding(
-                get: { routeCount },
-                set: { newRouteCount in
-                    node.setRouteCount(newRouteCount)
-                    routeCount = node.routeCount
-                }
-            ), in: routingNodeMinimumRouteCount...routingNodeMaximumRouteCount)
+            Stepper(value: $model.routeCount, in: routingNodeMinimumRouteCount...routingNodeMaximumRouteCount)
             {
-                Text("Routes \(routeCount)")
+                Text("Routes \(model.routeCount)")
             }
 
             StrategyPickerView(model: node.strategySettingsModel)
