@@ -569,7 +569,7 @@ Contour Path uses the scoped `commandBuffer.addCompletion` mechanism below for n
 
 Contour Path allocates independently owned counter/segment buffers for each request, caps capacity by the image's possible segment count and the device's buffer limit, and keeps unchanged completed output without re-running GPU analysis. This migration covers Fabric's direct GPU-buffer-to-CPU analyzer. Sight's matching feature branch adopts the shared handoff for MPS numerical inference and calibration; Fabric's Vision-based Face/Hand analysis remains a separate migration.
 
-Plugin processors can override the read-only `Node.isDirty` getter to include pending result delivery, combining it with `super.isDirty`. `markDirty()` and `markClean()` continue to own Fabric's input dirty flag. `Node.reorderPorts(_:)` and `Graph.withoutUndoRegistration(_:)` are public so plugin settings can preserve port identities/order and register one coherent undo operation for a topology change.
+Plugin processors can override the read-only `Node.isDirty` getter to include pending result delivery, combining it with `super.isDirty`. `markDirty()` and `markClean()` continue to own Fabric's input dirty flag. `Graph.withoutUndoRegistration(_:)` is public so plugin settings can register one coherent undo operation for a topology change. A plugin node changes its ports by declaring them (`declaredPorts()`) and calling `reconcilePorts()`; order and identity follow from the declarations' order and keys.
 
 ### Deferred GPU results, including Iterators
 

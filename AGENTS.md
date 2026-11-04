@@ -90,7 +90,7 @@ For all development:
   - `var title` — the normalized result of `deriveTitle()`, falling back to `Self.name` when empty.
   - `var subtitle` — `userName ?? deriveSubtitle()`, normalized so empty values and values equal to `title` read as nil. General consumers read this rather than `userName`.
   - `var debugDescription` — the title plus resolved subtitle, e.g. `Math Expression (My Rename)`. `print(node)` and `"\(node)"` give it; diagnostic labels and traces use it when they need both values.
-- Fire `subtitleSubject.send()` whenever state feeding `deriveTitle()`, `deriveSubtitle()` or `deriveStatuses()` changes; `NodeViewModel` mirrors the node's `title` / `subtitle` / `status` observably and keeps `userName` only for rename editing, clearing, and undo.
+- Call `namingDidChange()` whenever state feeding `deriveTitle()`, `deriveSubtitle()` or `deriveStatuses()` changes, from any thread; `NodeViewModel` mirrors the node's `title` / `subtitle` / `status` observably and keeps `userName` only for rename editing, clearing, and undo.
 - Execution is **pull-based**; one execute per node per pass.
 - `GraphRenderer` (executor and scheduler) today does not use `nodeExecutionMode` or `nodeTimeMode` but will in the future.
 - **Iterator (QC-style)** remains the multi-evaluation macro; refinements allowed, paradigm fixed.
@@ -103,9 +103,9 @@ For all development:
   - Any Node whose execution logic would change the  type, or number of ports should have only have that logic fire via changing a Setting, NOT at runtime
   - Settings should have a custom Init override, and be exposed as a enum or struct that can be set via the procedural Node / Graph API. This avoids UI only configuration.
   - The settings are one `NodeSettings` value: what the settings view edits and the ports do not hold. Two node types share a value type only where each can take the other's value. A node gives it through `settings`, takes it through `apply(_:)`, and offers `init(context:settings:)`. A `StrategyNode` subclass's value conforms to `StrategySettings`.
-  - Override `apply(_:)`; never call it. `setSettings(_:)` is the final entry for views, the procedural API and undo. A public setter is a wrapper over it that changes part of a value of several fields, as `setStrategy` and `setRouteCount` are. The value's initialiser takes no default arguments, so a caller cannot reset a field by leaving it out. In `apply`, cast the existential to your own type and return on any other, bring the ports in line so a port whose registry key survives keeps its identity, then call super.
+  - Override `apply(_:)`; never call it. `setSettings(_:)` is the final entry for views, the procedural API and undo. A public setter is a wrapper over it that changes part of a value of several fields, as `setStrategy` and `setRouteCount` are. The value's initialiser takes no default arguments, so a caller cannot reset a field by leaving it out. In `apply`, cast the existential to your own type and return on any other, change what `declaredPorts()` reads, call `reconcilePorts()`, then call super.
   - The value saves flattened into the node's container, so its coding keys must not be `Node.CodingKeys`. Decode it in `init(from:)`, before `super.init` where the ports depend on it. What the view does not edit, such as a device's reconnect record, stays out of the value.
-  - A setting's side effects live in the stored property's observer, or in `apply` where several settings share them, so they run once: the port rebuild, `subtitleSubject`, and the settings model's `refreshFromNode()` through `performOnMainAsync`. Settings models are `@MainActor`.
+  - A setting's side effects live in the stored property's observer, or in `apply` where several settings share them, so they run once: the reconcile, `namingDidChange()`, and `settingsDidChange()`, which refreshes an open settings model. Settings models are `@MainActor`.
   - `apply` runs on the thread that edits the graph, which a host can keep off main, and on the render thread as a `NumericTypeAgnosticNode` specialises from `execute`. A node whose settings reach main-thread state is applied from main only.
   - `NodeSettingsTests` checks every registered node with settings at its default value. A new node also needs a case with non-default values in `nonDefaultSettingsSaveAndOpen`, as a misnamed key falls back to the default and passes unseen otherwise.
 
@@ -114,10 +114,12 @@ For all development:
     
 
 ### 2.2  Ports & Registration
-- **Registry = source of truth.**  
-- Subclasses implement `class func registerPorts(context:)`, call `super`, preserve order.
-- **Dynamic ports are supported through the Registry.** See TypeAgnosticNode
-- UI and serialization order derive from registration.
+- **Declarations are the source of truth.** A node's interface is `declaredPorts() -> [PortDeclaration]`, a function of its settings and what it reads at runtime (a shader, a script, a device), never of the document. The default declares what `class func registerPorts(context:)` returns; subclasses that register call `super` and preserve order.
+- A declaration names a `PortKey` (the node's own `.own(String)`; a subgraph proxy's `.proxy(node:inner:)`), its kind, type, name, description, and a `control` for a parameter inlet. The key is the port's identity across saves and settings changes: give a dynamic port a key that names it stably.
+- **Ports change only through `reconcilePorts()`.** It brings the registry to the declarations: a port kept under its key and type keeps its wires and value; a retyped one is replaced under the same runtime id and keeps the wires that fit; an undeclared one is retired, wires and publishing removed as graph edits. There is no imperative add, remove, replace or reorder. Call it when settings or a runtime read change the interface, never from `execute`.
+- `prepareDeclarations()` runs before every reconcile (resolve strategy-derived state there); `bindPorts()` runs after, and is the one place a node looks its ports up by key, assigning the stored references execute reads.
+- **No port lookup by name, key or cast in `execute`** (#449). Execute reads references bound in `bindPorts()`; nodes with data-driven ports hold arrays aligned with their records. Debug builds record any `port(named:)`, `findPort(named:)` or `port(forKey:)` made during execution or pull planning, and the sample tests assert there are none.
+- UI and serialization order derive from the declarations' order.
 - `NodeRegistry` should support this as it’s the single source of truth for nodes.
 - **Typed ports only** (for now).  
   Any “virtual” or generic ports must remain type-safe and backward-compatible.
@@ -125,13 +127,15 @@ For all development:
 ### 2.3  Parameters & ParameterPort
 - Input Ports should be backed by Parameters as a Parameter Port if the type is a Parameter
      - ie avoid raw Ports unless type demands it. 
-- Always seed `value` from the backing parameter on init/decode (hydration).
-- Maintain bi-directional sync: parameter ↔ port.
-- Parameter changes mark dirty only; heavy work deferred to `execute`.
+- **The port's value is canonical; the parameter mirrors it, one way.** A value change writes the parameter through its setter; nothing reads the parameter to learn the value, and writing a parameter does not reach its port. The parameter gives a control its range, options and label, and for a material-backed port it is the uniform the material uploads.
+- A port starts at its parameter's value, the declaration's default; a document restores its saved value by key.
+- Controls write a port through `Graph.setControlValue(_:on:)` and follow it through `Port.addValueObserver(_:)`, hopping to main once per turn. Nodes observe no parameters.
+- Value changes mark dirty only; heavy work deferred to `execute`.
 - Published parameter surface mirrors published ports; inlets auto-unpublish on connect.
 
 ### 2.4  Graph, Subgraphs & Rendering
-- Graph owns nodes, connections (by port UUID), and published params.
+- Graph owns nodes, connections and publishing, each naming ports by `PortAddress` (node id and port key). Publishing is a graph relation from address to name; ports do not know whether they are published.
+- A subgraph node's proxies are declarations from what its sub graph publishes, in publishing order; a publishing change inside reconciles the subgraph node.
 - **Subgraphs** inherit `BaseObjectNode`, expose an Satin object.
 - `GraphRenderer` handles traversal, caching, single-execute per frame, resize propagation. 
 - `GraphRenderer` handles discovery of cameras (only one supported now), and if none are found, leverages its own cached camera.
@@ -155,7 +159,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 
 - Default to `PortType.Virtual`, which accepts any connection and requires no configuration.
 - Virtual appears first in the type picker, separated from concrete types.
-- Switching type rebuilds the dynamic ports; port order must be explicit and stable.
+- Switching type reconciles the dynamic ports to the declarations for it; their order is the declarations'.
 - When a concrete type is active, the node's display name reflects it (e.g. `"Sample and Hold Float"`).
 - `snapshotValue()` / `sendBoxed()` are the runtime-polymorphic read/write API for ports whose type is only known at runtime.
 
@@ -172,11 +176,12 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 - Avoid allocations; reuse materials, geometry, textures.
 
 ### 3.2  Ports & Publishing
-- Initialize `ParameterPorts` on init/decode and subscribe once.
+- Publish through `Graph.setPublished(_:port:name:)` and `setPublishedName(_:port:)`; read with `isPublished(_:)` and `publishedName(of:)`.
 
 ### 3.3  Serialization
-- Serialize via registry snapshots; connections by UUID; reconstruct types through `PortType`.
-- Keep decode shims until an official migration step.
+- A node saves only its parameter inlets' values, by key (`"ports": {key: PortValue}`); its interface comes from its declarations on open. Graphs save wires and publishing by address. Port and connection ids are runtime-only.
+- Nodes whose source may not compile on open (Live Image, JavaScript) opt into `savesPortInterface`, saving their interface's shape to declare until the source compiles again.
+- Older documents are read through `GraphFormatMigration`, once at open; keep decode shims until an official migration step.
 
 ### 3.4  Subgraph Behavior
 - Iterator applies per-iteration params before subgraph execute.
@@ -187,12 +192,13 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 ## 4. Common Pitfalls & Preventions
 | Issue | Root Cause | Prevention |
 |-------|-------------|------------|
-| Nothing renders until tweak | Ports not seeded from params | Always set `self.value = param.value` on init/decode |
+| Nothing renders until tweak | Port not given its declared default | Declare the default on the parameter; the port starts at it |
 | Iterator/Processor slow | Excess publisher churn | Dirty-flag only; do heavy work in execute |
 | Topology recomputed each frame | No caching | Recompute only on connect/disconnect |
 | Type-erasure confusion | Mixing `any` with Equatable generics | Stay typed; use Utility/Log node for debug |
-| Serialization drift | Ad-hoc encoders | Always through registry + `PortType` |
-| Stale node title on canvas/inspector | `subtitle` input changed without notifying | Fire `subtitleSubject.send()` in the `didSet` of any state `subtitle` derives from |
+| Serialization drift | Ad-hoc encoders | Ports save only their values, by key; the interface comes from declarations |
+| Stale node title on canvas/inspector | `subtitle` input changed without notifying | Call `namingDidChange()` in the `didSet` of any state `subtitle` derives from |
+| Port lookup in `execute` | Finding ports by name or cast per frame | Bind stored references in `bindPorts()` |
 
 ---
 
@@ -200,25 +206,25 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 - Registration API must be readable and deterministic.
 - Provide var-proxy helpers (`port<Value>("Color")`, `portOrDefault("Scale",1.0)`).
 - Extend `PortType` centrally for new types.
-- Lifecycle: `init → registerPorts → attachParams → decode → subscribe → execute → send`.
+- Lifecycle: `init → declaredPorts → reconcilePorts → bindPorts → (decode: values by key) → execute → send`.
 
 ---
 
 ## 6. Code Review Checklist
 - [ ] Node has semantically correct type, execution mode, and time mode. 
 - [ ] Node metadata present and stable  
-- [ ] `registerPorts(context:)` calls `super`, order intentional  
+- [ ] `registerPorts(context:)` / `declaredPorts()` calls `super`, order intentional, keys stable  
+- [ ] Execute reads ports through references bound in `bindPorts()`, never by name, key or cast
 - [ ] Lifecycle overrides call `super` after their own work; editing code never calls them
-- [ ] ParameterPorts seed and subscribe once  
 - [ ] `execute` idempotent per frame, no allocations  
 - [ ] Outputs use `send(force:true)` appropriately  
 - [ ] No recursive topology recompute
 - [ ] Subgraph nodes discover cameras and apply state before execute
-- [ ] Serialization via registry + UUID
+- [ ] Serialization by port key and address, no port ids
 - [ ] If Node dynamically changes port count or type, we should only trigger via Setting in Settings View, not within the graph
 - [ ] If we have a Settings View, we should have a custom initializer so procedural graph creation has an entry to settings.
 - [ ] A node with settings exposes them as one `NodeSettings` value through `settings` and `apply(_:)`, and offers `init(context:settings:)` (`NodeSettingsTests` checks that every core node applies and gives back its own value with its ports, and saves and opens it unchanged)
-- [ ] If the Node overrides `deriveSubtitle()`, every mutation of the state it derives from fires `subtitleSubject.send()` (StrategyNode’s `strategy` already does)
+- [ ] If the Node overrides `deriveSubtitle()`, every mutation of the state it derives from calls `namingDidChange()` (StrategyNode’s `strategy` already does)
 - [ ] New Nodes should live in an appropriate spot in the NodeRegistry
 
 ---
