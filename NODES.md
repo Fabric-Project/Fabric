@@ -551,6 +551,25 @@ Array nodes are type-agnostic and can work with any compatible Fabric port type 
  
 
 
+### Declaring ports
+
+A node holds each port it always has in a stored property and declares that object in `declaredPorts()`, under the key documents save it by:
+
+```swift
+public let inputAmount = ParameterPort(parameter: FloatParameter("Amount", 0.5, 0, 1, .slider, "How much"))
+public let outputImage = NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Result")
+
+override public func declaredPorts() -> [PortDeclaration]
+{
+    super.declaredPorts() + [
+        PortDeclaration(key: "inputAmount", port: inputAmount),
+        PortDeclaration(key: "outputImage", port: outputImage),
+    ]
+}
+```
+
+`execute` reads the properties. Ports whose type or number follows a setting, a source, a device or records are declared in the same function, made from the state they follow, and the node assigns its references to them in `bindPorts()`, which runs after every reconcile. A shader-backed image node adds its stored ports in `fixedPortDeclarations()` instead, so the base can order them among the shader's.
+
 ### Frame command buffers and image ownership
 
 The display renderer and `GraphRenderer.makeCommandBuffer()` provide an MPS-compatible command buffer. Offscreen hosts should use that factory when nodes may continue a frame across command-buffer segments. Caller-created MPS wrappers are rejected at graph entry because their internal continuations cannot participate in Fabric's image-lifetime tracking. Ordinary Metal command buffers remain usable for graph execution that does not require MPS continuation/readback.

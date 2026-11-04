@@ -114,11 +114,11 @@ For all development:
     
 
 ### 2.2  Ports & Registration
-- **Declarations are the source of truth.** A node's interface is `declaredPorts() -> [PortDeclaration]`, a function of its settings and what it reads at runtime (a shader, a script, a device), never of the document. The default declares what `class func registerPorts(context:)` returns; subclasses that register call `super` and preserve order.
+- **Declarations are the source of truth.** A node's interface is `declaredPorts() -> [PortDeclaration]`, a function of its settings and what it reads at runtime (a shader, a script, a device), never of the document. A port the node always has is a stored property (`public let x = ParameterPort(…)`, made at property initialisation, before `Node.init`) declared as `PortDeclaration(key: "x", port: x)`; overrides call `super` and preserve order.
 - A declaration names a `PortKey` (the node's own `.own(String)`; a subgraph proxy's `.proxy(node:inner:)`), its kind, type, name, description, and a `control` for a parameter inlet. The key is the port's identity across saves and settings changes: give a dynamic port a key that names it stably.
 - **Ports change only through `reconcilePorts()`.** It brings the registry to the declarations: a port kept under its key and type keeps its wires and value; a retyped one is replaced under the same runtime id and keeps the wires that fit; an undeclared one is retired, wires and publishing removed as graph edits. There is no imperative add, remove, replace or reorder. Call it when settings or a runtime read change the interface, never from `execute`.
-- `prepareDeclarations()` runs before every reconcile (resolve strategy-derived state there); `bindPorts()` runs after, and is the one place a node looks its ports up by key, assigning the stored references execute reads.
-- **No port lookup by name, key or cast in `execute`** (#449). Execute reads references bound in `bindPorts()`; nodes with data-driven ports hold arrays aligned with their records. Debug builds record any `port(named:)`, `findPort(named:)` or `port(forKey:)` made during execution or pull planning, and the sample tests assert there are none.
+- `prepareDeclarations()` runs before every reconcile (resolve strategy-derived state there); `bindPorts()` runs after. A node whose ports are all stored properties does not override it; a node with dynamic ports (a strategy, a source, a device, records) assigns its references to them there, the one place a node looks its ports up by key.
+- **No port lookup by name, key or cast in `execute`** (#449). Execute reads stored ports through their properties and dynamic ones through references bound in `bindPorts()`; nodes with data-driven ports hold arrays aligned with their records. Debug builds record any `port(named:)`, `findPort(named:)` or `port(forKey:)` made during execution or pull planning, and the sample tests assert there are none.
 - UI and serialization order derive from the declarations' order.
 - `NodeRegistry` should support this as it’s the single source of truth for nodes.
 - **Typed ports only** (for now).  
@@ -198,13 +198,13 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 | Type-erasure confusion | Mixing `any` with Equatable generics | Stay typed; use Utility/Log node for debug |
 | Serialization drift | Ad-hoc encoders | Ports save only their values, by key; the interface comes from declarations |
 | Stale node title on canvas/inspector | `subtitle` input changed without notifying | Call `namingDidChange()` in the `didSet` of any state `subtitle` derives from |
-| Port lookup in `execute` | Finding ports by name or cast per frame | Bind stored references in `bindPorts()` |
+| Port lookup in `execute` | Finding ports by name or cast per frame | Hold the port in a stored property; bind dynamic ones in `bindPorts()` |
 
 ---
 
 ## 5. Developer & Plugin Ergonomics
 - Registration API must be readable and deterministic.
-- Provide var-proxy helpers (`port<Value>("Color")`, `portOrDefault("Scale",1.0)`).
+- Typed port access is the stored property itself; a node needs no lookup helpers for the ports it always has.
 - Extend `PortType` centrally for new types.
 - Lifecycle: `init → declaredPorts → reconcilePorts → bindPorts → (decode: values by key) → execute → send`.
 
@@ -213,8 +213,8 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 ## 6. Code Review Checklist
 - [ ] Node has semantically correct type, execution mode, and time mode. 
 - [ ] Node metadata present and stable  
-- [ ] `registerPorts(context:)` / `declaredPorts()` calls `super`, order intentional, keys stable  
-- [ ] Execute reads ports through references bound in `bindPorts()`, never by name, key or cast
+- [ ] Fixed ports are stored properties; `declaredPorts()` calls `super`, order intentional, keys stable  
+- [ ] Execute reads ports through stored properties or references bound in `bindPorts()`, never by name, key or cast
 - [ ] Lifecycle overrides call `super` after their own work; editing code never calls them
 - [ ] `execute` idempotent per frame, no allocations  
 - [ ] Outputs use `send(force:true)` appropriately  
