@@ -70,15 +70,12 @@ class FabricDocument: FileDocument
 
         // Spin toggle, published as 'Spin?'
         let spinNode = PassThroughNode<Bool>(context: self.context)
-        spinNode.input.published = true
-        spinNode.input.publishedName = "Spin?"
         spinNode.input.value = true
 
         // Math expression: Amount * Speed, with 'Speed' published
         let mathNode = MathExpressionNode(context: self.context, expression: "Amount * Speed")
 
         let speedPort = mathNode.findPort(named: "Speed", as: ParameterPort<Float>.self)!
-        speedPort.published = true
         speedPort.value = 10
 
         // Smooth the stepped speed into a ramp (springy, slightly bouncy)
@@ -118,6 +115,10 @@ class FabricDocument: FileDocument
         self.editingContext.currentGraph.addNode(materialNode)
         self.editingContext.currentGraph.addNode(meshNode)
         self.editingContext.currentGraph.addNode(directionalLightNode)
+
+        self.editingContext.currentGraph.setPublished(true, on: spinNode.input)
+        self.editingContext.currentGraph.setPublishedName("Spin?", on: spinNode.input)
+        self.editingContext.currentGraph.setPublished(true, on: speedPort)
 
         // Connections — animation chain
         self.editingContext.currentGraph.connect(spinNode.output, to: mathNode.findPort(named: "Amount", as: ParameterPort<Float>.self)!)

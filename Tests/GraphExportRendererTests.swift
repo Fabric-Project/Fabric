@@ -5,8 +5,7 @@ import Metal
 import Satin
 
 private func publishExportPort(_ port: Fabric.Port, in graph: Graph) {
-    port.published = true
-    graph.rebuildPublishedParameterGroup()
+    graph.setPublished(true, on: port)
 }
 
 private func requireExportValue<T>(_ value: T?, _ message: String) throws -> T {

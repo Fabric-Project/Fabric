@@ -78,8 +78,7 @@ struct PortHydrationTests
 
         let node = NumberBinaryOperator(context: context)
         node.inputNumber1.value = 72
-        node.inputNumber2.published = true
-        node.inputNumber2.publishedName = "Custom Name"
+        node.inputNumber2.setPublishing(true, name: "Custom Name")
 
         let savedIDs = node.ports.map(\.id)
 
@@ -284,7 +283,7 @@ struct PortHydrationTests
         let distance = DistanceNode(context: context)
         distance.strategy = PortType.Float.rawValue
         let floatA = try #require(distance.findPort(named: "inputA") as ParameterPort<Float>?)
-        floatA.published = true
+        floatA.setPublishing(true, name: nil)
         let savedAID = floatA.id
 
         distance.strategy = PortType.Vector3.rawValue
@@ -322,7 +321,7 @@ struct PortHydrationTests
                                                   simd_float4(0, 0, 1, 0),
                                                   simd_float4(3, 4, 5, 1)))
         node.input.value = translation
-        node.input.published = true
+        node.input.setPublishing(true, name: nil)
         let savedID = node.input.id
 
         // The port on its own, through the document's port envelope: a parameter
@@ -382,7 +381,7 @@ struct PortHydrationTests
 
         let inputPort = try #require(node.findPort(named: "x") as Fabric.Port?)
         let outputPort = try #require(node.findPort(named: "doubled") as Fabric.Port?)
-        inputPort.published = true
+        inputPort.setPublishing(true, name: nil)
         let savedInputID = inputPort.id
         let savedOutputID = outputPort.id
 
@@ -585,7 +584,7 @@ struct PortHydrationTests
         node.updateShaderSource(shaderSource)
 
         let uniformPort = try #require(node.ports.first { $0.kind == .Inlet && $0.portType == .Transform })
-        uniformPort.published = true
+        graph.setPublished(true, on: uniformPort)
         graph.connect(source.output, to: uniformPort)
         let savedID = uniformPort.id
 

@@ -20,45 +20,174 @@ open class SubgraphNode: BaseObjectNode
 
     public private(set) var subGraph:Graph
 
-    /// ProxyPorts wrapping the sub graph's published ports.
-    /// Each proxy has node = self (the SubgraphNode) and published = false.
-    /// The parent graph independently decides whether to publish them further.
-    /// Lazily rebuilt when the sub graph's published ports change.
+    /// The proxies standing for the sub graph's published ports, one per
+    /// port, as ports of this node in the graph around. Made as the node is
+    /// built (see reconcileProxies()); after that, changed only as the sub
+    /// graph tells this node of each change to its published set.
     private var proxyPorts: [Port] = []
 
     override open var ports:[Port] { self.proxyPorts + super.ports }
 
-    /// Rebuild proxy ports from the sub graph's current published ports.
-    /// Called via callback when the sub graph's published ports change.
-    open func rebuildProxyPorts()
+    private func proxy(over port: Port) -> Port?
+    {
+        self.proxyPorts.first { $0.id == port.id }
+    }
+
+    /// `ports` have joined the sub graph's published set.
+    internal func innerPortsDidPublish(_ ports: [Port])
+    {
+        let proxies = ports.filter { self.proxy(over: $0) == nil }.compactMap { self.makeOwnProxy(over: $0) }
+        guard !proxies.isEmpty else { return }
+
+        self.proxyPorts.append(contentsOf: proxies)
+        self.proxiesDidChange()
+    }
+
+    /// `ports` are about to leave the sub graph's published set. Their proxies
+    /// lose their wires and leave the published set of the graph around, which
+    /// tells its own sub graph node in turn, before they go.
+    internal func innerPortsWillUnpublish(_ ports: [Port])
+    {
+        let proxies = ports.compactMap { self.proxy(over: $0) }
+        guard !proxies.isEmpty else { return }
+
+        self.graph?.disconnectAndUnpublish(proxies, of: self)
+
+        self.proxyPorts.removeAll { proxy in proxies.contains { $0 === proxy } }
+        proxies.forEach { $0.node = nil }
+        self.proxiesDidChange()
+    }
+
+    /// `new` has replaced `old` in the sub graph's published set under the
+    /// same id. A proxy of the same value type and name forwards to `new` in
+    /// place; otherwise the proxy is made again under the same id, published
+    /// as it was. Either way the graph around keeps the wires the proxy can
+    /// still take.
+    internal func innerPort(_ old: Port, wasReplacedBy new: Port)
+    {
+        guard let proxy = self.proxy(over: old) else
+        {
+            self.innerPortsDidPublish([new])
+            return
+        }
+
+        if let retargeted = proxy as? any ProxyPortProtocol, retargeted.retarget(to: new)
+        {
+            self.graph?.rebindWires(from: proxy, to: proxy)
+            self.proxiesDidChange()
+            // The proxy above this one forwards to it, and takes its new parameter.
+            if proxy.published { self.graph?.port(proxy, wasReplacedBy: proxy) }
+            return
+        }
+
+        guard let index = self.proxyPorts.firstIndex(where: { $0 === proxy }),
+              let remade = self.remakeProxy(over: new, carrying: proxy)
+        else
+        {
+            self.innerPortsWillUnpublish([old])
+            return
+        }
+
+        // Assigned before the rebind, so the topology recalculation sees the
+        // remade proxy; the wires still reference the old one.
+        self.proxyPorts[index] = remade
+        self.graph?.rebindWires(from: proxy, to: remade)
+        proxy.node = nil
+        self.proxiesDidChange()
+        if remade.published { self.graph?.port(proxy, wasReplacedBy: remade) }
+    }
+
+    /// A proxy of this node over `port`, published as `proxy` is. `proxy`
+    /// stood over the port `port` replaced. Nil where `port`'s type has no
+    /// proxy.
+    private func remakeProxy(over port: Port, carrying proxy: Port) -> Port?
+    {
+        guard let remade = self.makeOwnProxy(over: port) else { return nil }
+        remade.setPublishing(proxy.published, name: proxy.publishedName)
+        return remade
+    }
+
+    /// A proxy over `port`, as a port of this node; nil where `port`'s type
+    /// has no proxy.
+    private func makeOwnProxy(over port: Port) -> Port?
+    {
+        guard let proxy = Self.makeProxy(for: port) else { return nil }
+        proxy.node = self
+        return proxy
+    }
+
+    /// `new`, published in the sub graph, takes over from `old`, which is
+    /// about to be unpublished: the wires on `old`'s proxy move to `new`'s
+    /// proxy, as does its publishing in the graph around.
+    internal func innerPort(_ old: Port, handsOverTo new: Port)
+    {
+        guard let graph = self.graph,
+              let oldProxy = self.proxy(over: old),
+              let newProxy = self.proxy(over: new)
+        else { return }
+
+        graph.transferWires(from: oldProxy, to: newProxy)
+        graph.transferPublishing(from: oldProxy, to: newProxy)
+    }
+
+    /// `port`, published in the sub graph, has a new published name, which
+    /// its proxy shows unless it has one of its own.
+    internal func innerPortDidRename(_ port: Port)
+    {
+        guard let proxy = self.proxy(over: port) else { return }
+
+        self.proxiesDidChange()
+        if proxy.published { self.graph?.portDidRename(proxy) }
+    }
+
+    /// Brings the proxies to the sub graph's published set, once, as the node
+    /// is built. A decoded proxy is kept where it forwards to the published
+    /// port under its id, made again where that port was replaced, and dropped
+    /// where none is published; a published port with no proxy gets one.
+    private func reconcileProxies()
+    {
+        let innerPorts = self.subGraph.getPublishedPorts()
+        let innerPortsByID = Dictionary(innerPorts.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+
+        var proxies: [Port] = []
+        for proxy in self.proxyPorts
+        {
+            if let innerPort = innerPortsByID[proxy.id],
+               let typed = proxy as? any ProxyPortProtocol
+            {
+                if typed.wraps(innerPort)
+                {
+                    proxy.node = self
+                    proxies.append(proxy)
+                    continue
+                }
+                if let remade = self.remakeProxy(over: innerPort, carrying: proxy)
+                {
+                    proxies.append(remade)
+                }
+            }
+            // Decoding set node on every proxy. A discarded proxy can outlive
+            // this node in views, so it must not keep the unowned reference.
+            proxy.node = nil
+        }
+
+        for innerPort in innerPorts where !proxies.contains(where: { $0.id == innerPort.id })
+        {
+            if let proxy = self.makeOwnProxy(over: innerPort)
+            {
+                proxies.append(proxy)
+            }
+        }
+
+        self.proxyPorts = proxies
+        self.proxiesDidChange()
+    }
+
+    private func proxiesDidChange()
     {
         self.invalidatePortCaches()
 
-        let innerPorts = self.subGraph.getPublishedPorts()
-        let publishedIDs = Set(innerPorts.map(\.id))
-
-        // Remove proxies whose inner port is no longer published
-        self.proxyPorts.removeAll { proxy in
-            let isRetired = (proxy as? any ProxyPortProtocol).map { !publishedIDs.contains($0.innerPortID) } ?? true
-            // A retired proxy can outlive this node in views; it must not keep an unowned owner.
-            if isRetired { proxy.node = nil }
-            return isRetired
-        }
-
-        // Add proxies for newly published ports
-        let existingInnerIDs = Set(self.proxyPorts.compactMap { ($0 as? any ProxyPortProtocol)?.innerPortID })
-        for innerPort in innerPorts where !existingInnerIDs.contains(innerPort.id)
-        {
-            if let proxy = Self.makeProxy(for: innerPort)
-            {
-                proxy.node = self
-                self.proxyPorts.append(proxy)
-            }
-        }
-        
-        // Ensure parameter group is updated
         self.parameterGroup.clear()
-
         for port in self.ports
         {
             if let param = port.parameter
@@ -66,10 +195,8 @@ open class SubgraphNode: BaseObjectNode
                 self.parameterGroup.append(param)
             }
         }
-
         self.synchronizeParameters()
 
-        self.invalidatePortCaches()
         self.graph?.markConnectionsChanged()
         self.portsChangedSubject.send()
     }
@@ -178,7 +305,7 @@ open class SubgraphNode: BaseObjectNode
 
         super.init(context: context)
         self.wireSubGraphCallback()
-        self.rebuildProxyPorts()
+        self.reconcileProxies()
     }
 
     /// Wrap an existing graph as this node's sub graph, for embedders that
@@ -189,7 +316,7 @@ open class SubgraphNode: BaseObjectNode
 
         super.init(context: context)
         self.wireSubGraphCallback()
-        self.rebuildProxyPorts()
+        self.reconcileProxies()
     }
 
     enum CodingKeys : String, CodingKey
@@ -237,8 +364,7 @@ open class SubgraphNode: BaseObjectNode
 
         try super.init(from: decoder)
         self.wireSubGraphCallback()
-        self.proxyPorts.forEach { $0.node = self }
-        self.rebuildProxyPorts()
+        self.reconcileProxies()
     }
 
     private static func decodeProxyPortsIfPossible(from container: KeyedDecodingContainer<CodingKeys>,
@@ -257,9 +383,7 @@ open class SubgraphNode: BaseObjectNode
 
     private func wireSubGraphCallback()
     {
-        self.subGraph.onPublishedPortsChanged = { [weak self] in
-            self?.rebuildProxyPorts()
-        }
+        self.subGraph.ownerNode = self
 
         self.subGraph.onCameraSelectionChanged = { [weak self] in
             guard let self, !(self is DeferredSubgraphNode) else { return }

@@ -59,7 +59,7 @@ struct JavaScriptNodeSignatureTests
 
         let a = try #require(node.findPort(named: "a", as: Fabric.Port.self))
         #expect(a.portType == .Float)
-        a.published = true
+        a.setPublishing(true, name: nil)
 
         node.updateScriptSource("""
             function main(a: Bool, b: Number, threshold: Number): { sum: Number, thresholdPassed: Bool } {
@@ -71,6 +71,32 @@ struct JavaScriptNodeSignatureTests
         #expect(retyped.portType == .Bool)
         #expect(retyped.id == a.id)
         #expect(retyped.published)
+    }
+
+    @Test("An input the script moves to its outputs drops the wire it had, which an outlet cannot take")
+    func inputMovedToOutputsDropsItsWire() throws
+    {
+        guard let context = makeContext() else { return }
+        let graph = Graph(context: context)
+        let node = JavaScriptNode(context: context)
+        let upstream = NumberBinaryOperator(context: context)
+        graph.addNode(node)
+        graph.addNode(upstream)
+        let a = try #require(node.findPort(named: "a", as: Fabric.Port.self))
+        #expect(graph.connect(upstream.outputNumber, to: a) != nil)
+
+        node.updateScriptSource("""
+            function main(b: Number, threshold: Number): { a: Number, sum: Number, thresholdPassed: Bool } {
+              return { a: b, sum: b, thresholdPassed: b > threshold }
+            }
+            """)
+
+        let moved = try #require(node.findPort(named: "a", as: Fabric.Port.self))
+        #expect(moved.kind == .Outlet)
+        #expect(moved.id == a.id)
+        #expect(graph.connections.isEmpty)
+        #expect(moved.connections.isEmpty)
+        #expect(upstream.outputNumber.connections.isEmpty)
     }
 
     // MARK: - Commentary is not code
