@@ -161,7 +161,7 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
     /// Nil until a settings view asks for it.
     private var _settingsModelStorage: SettingsModel?
 
-    private var settingsModel: SettingsModel
+    var settingsModel: SettingsModel
     {
         performOnMainSync
         {

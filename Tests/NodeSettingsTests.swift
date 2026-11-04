@@ -116,6 +116,63 @@ struct NodeSettingsTests
         #expect(failures.isEmpty, "\(failures.joined(separator: "\n"))")
     }
 
+    @Test("Non-default settings of every kind save and open as they were, and the ports keep their ids")
+    func nonDefaultSettingsSaveAndOpen() throws
+    {
+        guard let context = makeContext() else { return }
+        let script = """
+        function main(value: Number): { doubled: Number }
+        {
+            return { doubled: value * 2 }
+        }
+        """
+        let element = HIDElementInfo(id: "axis-x", cookie: 1, usagePage: 1, usage: 0x30,
+                                     displayName: "X", min: 0, max: 255, isRelative: false)
+        let shader = (LiveImageNode(context: context).settings as? LiveImageSettings)?.shaderSource ?? ""
+        let cases: [(name: String, node: Node, settings: any NodeSettings)] = [
+            ("Strategy", SampleAndHoldNode(context: context), StrategyNodeSettings(strategy: PortType.String.rawValue)),
+            ("Routing", SwitchNode(context: context), RoutingSettings(portType: .Int, routeCount: 5)),
+            ("String Formatter", StringFormatterNode(context: context), FormatStringSettings(formatString: "{a} {b}")),
+            ("String Scanner", StringScannerNode(context: context), FormatStringSettings(formatString: "{a:d}")),
+            ("Math Expression", MathExpressionNode(context: context), MathExpressionSettings(stringExpression: "a + b")),
+            ("Parametric Geometry", MathExpressionParametricGeometryNode(context: context),
+             ParametricExpressionSettings(expressionX: "a * u", expressionY: "v", expressionZ: "b")),
+            ("JavaScript", JavaScriptNode(context: context), JavaScriptSettings(scriptSource: script, selectedTimeMode: .TimeBase)),
+            ("Live Image", LiveImageNode(context: context), LiveImageSettings(shaderSource: shader + "\n// edited\n")),
+            ("Timeline", TimelineNode(context: context),
+             TimelineSettings(duration: 2, tracks: [TimelineTrack(name: "A", duration: 2), TimelineTrack(name: "B", duration: 2)])),
+            ("OSC Receive", OSCReceiveNode(context: context),
+             OSCReceiveSettings(listenPort: 9100, addressBindings: [OSCAddressBinding(address: "/x", dataType: .float)])),
+            ("Keyboard", KeyboardNode(context: context),
+             KeyboardSettings(keyBindings: [KeyBinding(characters: "a", keyDescription: "a", modifiersDescription: ""), nil])),
+            ("MIDI Input", MIDIInputNode(context: context),
+             MIDIInputSettings(selectedInputID: "absent", configuredInputs: [DetectedMIDIInput(type: .controlChange, channel: 0, number: 7)])),
+            ("HID", HIDNode(context: context), HIDSettings(selectedDeviceID: "absent", deviceElements: [element])),
+            ("Game Controller", GameControllerNode(context: context),
+             GameControllerSettings(selectedControllerID: "absent", portDescriptors: [DeviceOutputPortDescriptor(name: "A", isButton: true)])),
+            ("Deferred Subgraph", DeferredSubgraphNode(context: context), DeferredSubgraphSettings(deferredMRTEnabled: true)),
+            ("Local LLM", LocalLLMNode(context: context),
+             LocalLLMSettings(selectedModelID: "model", temperature: 0.3, updateIntervalSeconds: 1, systemPromptOverride: "s", chatModeEnabled: false, desiredMaxContextTokens: 1_024)),
+            ("Local VLM", LocalVLMNode(context: context),
+             LocalVLMSettings(selectedModelID: "model", temperature: 0.3, updateIntervalSeconds: 1, systemPromptOverride: "s", chatModeEnabled: false, desiredMaxContextTokens: 1_024)),
+        ]
+        func identities(_ node: Node) -> [String] { node.ports.map { "\($0.name) \($0.id)" }.sorted() }
+
+        for (name, node, settings) in cases
+        {
+            node.setSettings(settings)
+            #expect(node.settings?.isEqual(to: settings) == true, "\(name): holds the value")
+
+            let graph = Graph(context: context)
+            graph.addNode(node)
+            let decoder = JSONDecoder()
+            decoder.context = DecoderContext(documentContext: context)
+            let opened = try decoder.decode(Graph.self, from: JSONEncoder().encode(graph)).node(forID: node.id)
+            #expect(opened?.settings?.isEqual(to: settings) == true, "\(name): opens as saved")
+            #expect(opened.map(identities) == identities(node), "\(name): ports keep their ids")
+        }
+    }
+
     // MARK: - Procedural construction
 
     @Test("init(context:settings:) builds the node that applying the same settings to a fresh one does")
@@ -443,6 +500,61 @@ struct NodeSettingsTests
         #expect(settings.map { node.settings?.isEqual(to: $0) == true } == true)
         #expect(node.ports.map(\.id) == portIDs)
         #expect(undoManager.undoActionName != "Change Node Strategy")
+    }
+
+    @Test("An LLM's settings are no change to a VLM node")
+    func localModelSettingsBelongToTheirNode() throws
+    {
+        guard let context = makeContext() else { return }
+        let llm = LocalLLMNode(context: context)
+        let vlm = LocalVLMNode(context: context)
+        let modelID = vlm.selectedModelID
+        vlm.setSettings(try #require(llm.settings))
+        #expect(vlm.selectedModelID == modelID)
+    }
+
+    @Test("A local model view's binding changes its field and keeps the others")
+    func localModelBindingWritesThroughSetSettings() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = LocalLLMNode(context: context)
+        let modelID = node.selectedModelID
+        node.settingBinding(\LocalLLMSettings.temperature).wrappedValue = 0.1
+        #expect(node.temperature == 0.1)
+        #expect(node.selectedModelID == modelID)
+    }
+
+    @Test("A routing node's settings view shows the route count however it changed")
+    func routeCountModelFollowsTheNode() async throws
+    {
+        guard let context = makeContext() else { return }
+        let node = SwitchNode(context: context, routeCount: 2, portType: .Int)
+        let model = node.routeCountModel
+
+        node.setRouteCount(6)
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(model.routeCount == 6)
+
+        model.routeCount = 3
+        #expect(node.routeCount == 3)
+    }
+
+    @Test("Parametric Geometry's settings model writes one axis and follows the node")
+    func parametricSettingsModelFollowsTheNode() async throws
+    {
+        guard let context = makeContext() else { return }
+        let node = MathExpressionParametricGeometryNode(context: context)
+        let model = node.settingsModel
+
+        model.expressionX = "u + a"
+        #expect(node.expressionX == "u + a")
+        #expect(node.findPort(named: "a", as: Port.self) != nil)
+
+        node.setSettings(ParametricExpressionSettings(expressionX: "sin(", expressionY: "v", expressionZ: "u"))
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(model.expressionY == "v")
+        #expect(!model.statusX)
+        #expect(model.statusY)
     }
 
     @Test("A script that does not compile leaves the ports where they are")
