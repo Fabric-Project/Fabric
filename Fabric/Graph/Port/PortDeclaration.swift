@@ -70,9 +70,9 @@ public struct PortDeclaration
         }
     }
 
-    /// A port already made: one a node holds in a stored property for typed
-    /// access, or one `registerPorts(context:)` made. A node that holds the port
-    /// declares that object, so its property and the registry name one port.
+    /// A port already made, usually one a node holds in a stored property for
+    /// typed access. The node declares that object, so its property and the
+    /// registry name one port.
     public init(key: String, port: Port)
     {
         self.init(key: .own(key), port: port)

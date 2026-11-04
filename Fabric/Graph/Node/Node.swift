@@ -144,20 +144,15 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     public internal(set) weak var graph:Graph?
 
-    /// The ports every node of the class has, in order, under their registry
-    /// keys. The default declaredPorts().
-    open class func registerPorts(context: Context) -> [(name: String, port: Port)] { [] }
-
     /// The node's interface, in order, under the keys the registry finds each
-    /// port by. By default the class's registerPorts(context:). A node that
-    /// holds a port in a stored property for typed access declares that port
-    /// here, ahead of or after super's, so the registry and the property name
-    /// one object. Called once, from init and decode, after the subclass's
-    /// stored properties are set.
-    open func declaredPorts() -> [PortDeclaration]
-    {
-        Self.registerPorts(context: self.context).map { PortDeclaration(key: $0.name, port: $0.port) }
-    }
+    /// port by. A node holds each port it always has in a stored property and
+    /// declares that object here, ahead of or after super's, so the property
+    /// and the registry name one port: `public let x = ParameterPort(…)`, then
+    /// `super.declaredPorts() + [PortDeclaration(key: "x", port: x)]`. Ports
+    /// that follow a setting or a source are declared here too, made from the
+    /// state they follow. Called at every reconcile, from init and decode
+    /// onward, after the subclass's stored properties are set. None by default.
+    open func declaredPorts() -> [PortDeclaration] { [] }
     // All port serilization, adding, removing and key value access goes through the port registry
     internal let registry = PortRegistry()
 
@@ -393,14 +388,18 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         return self.registry.port(forKey: key) ?? self.ports.first { $0.key == key }
     }
 
-    // Convenience for subclasses: typed lookup (so computed props stay nice)
+    /// The port under the node's own key `name`, cast to `T`, trapping when
+    /// there is none or it is another type. For dynamic ports, from
+    /// bindPorts() or from outside execution; a stored port is read through
+    /// its property.
     public func port<T: Port>(named name: String, as type: T.Type = T.self) -> T
     {
         Self.checkLookupOutsideExecute(name, on: self)
         return self.registry.port(named: name) as! T
     }
 
-    // Convenience for subclasses: typed lookup (so computed props stay nice)
+    /// The port under the node's own key `name`, if there is one of type `T`.
+    /// For dynamic ports, from bindPorts() or from outside execution.
     public func findPort<T: Port>(named name: String, as type: T.Type = T.self) -> T?
     {
         Self.checkLookupOutsideExecute(name, on: self)
@@ -546,11 +545,12 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     /// state the declarations and execute read, once, rather than per read.
     open func prepareDeclarations() { }
 
-    /// Resolves the node's stored port references once its ports have changed.
-    /// The one place a node looks its ports up by key: execute reads the
-    /// references this leaves, never the registry. An override calls super,
-    /// then assigns its own with port(named:), whose cast traps on a
-    /// declaration that disagrees with the property, a programming error.
+    /// Resolves references to the node's dynamic ports, those its declarations
+    /// make from a strategy, a source, a device or records, once its ports
+    /// have changed. The one place a node looks its ports up by key: execute
+    /// reads the references this leaves, never the registry. A node whose
+    /// ports are all stored properties does not override it. An override
+    /// calls super, then assigns its own with findPort(named:).
     open func bindPorts() { }
 
     /// The parameters of the node's ports, in port order.

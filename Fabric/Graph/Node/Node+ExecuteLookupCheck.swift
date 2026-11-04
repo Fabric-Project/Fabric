@@ -35,7 +35,7 @@ extension Node
         let recorded = dictionary[lookupsKey] as? NSMutableArray ?? NSMutableArray()
         recorded.add(lookup)
         dictionary[lookupsKey] = recorded
-        print("Fabric: \(lookup) looked up by key during execute; bind it in bindPorts()")
+        print("Fabric: \(lookup) looked up by key during execute; hold it in a stored property, or bind it in bindPorts()")
 #endif
     }
 
