@@ -19,39 +19,19 @@ public class RenderInfoNode : Node
     override public class var nodeDescription: String { "Rendering Destination Info" }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("outputWidth", NodePort<Float>(name: "Width", kind: .Outlet, description: "Render target width in pixels")),
-            ("outputHeight", NodePort<Float>(name: "Height", kind: .Outlet, description: "Render target height in pixels")),
-            ("outputFrameNumber", NodePort<Int>(name: "Frame Number", kind: .Outlet, description: "Current execution frame count")),
+    public let outputWidth = NodePort<Float>(name: "Width", kind: .Outlet, description: "Render target width in pixels")
+    public let outputHeight = NodePort<Float>(name: "Height", kind: .Outlet, description: "Render target height in pixels")
+    public let outputFrameNumber = NodePort<Int>(name: "Frame Number", kind: .Outlet, description: "Current execution frame count")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "outputWidth", port: self.outputWidth),
+            PortDeclaration(key: "outputHeight", port: self.outputHeight),
+            PortDeclaration(key: "outputFrameNumber", port: self.outputFrameNumber),
         ]
     }
-    public var outputWidth: NodePort<Float> { _outputWidth }
-    private var _outputWidth: NodePort<Float>!
-    public var outputHeight: NodePort<Float> { _outputHeight }
-    private var _outputHeight: NodePort<Float>!
-    public var outputFrameNumber: NodePort<Int> { _outputFrameNumber }
-    private var _outputFrameNumber: NodePort<Int>!
 
-    
-    public var inputTexturePort: NodePort<FabricImage> { _inputTexturePort }
-    private var _inputTexturePort: NodePort<FabricImage>!
-    public var outputTexturePort: NodePort<FabricImage> { _outputTexturePort }
-    private var _outputTexturePort: NodePort<FabricImage>!
-
-    override public func bindPorts()
-    {
-        super.bindPorts()
-        self._outputWidth = findPort(named: "outputWidth")
-        self._outputHeight = findPort(named: "outputHeight")
-        self._outputFrameNumber = findPort(named: "outputFrameNumber")
-        self._inputTexturePort = findPort(named: "inputTexturePort")
-        self._outputTexturePort = findPort(named: "outputTexturePort")
-    }
-    
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
