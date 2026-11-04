@@ -888,19 +888,12 @@ private final class RenamedKeyPortNode: Node
     override class var nodeTimeMode: Node.TimeMode { .None }
     override class var nodeDescription: String { "Test node with a renamed port key." }
 
-    var input: ParameterPort<Float> { _input }
-    private var _input: ParameterPort<Float>!
+    let input = ParameterPort(parameter: FloatParameter("Input", 0, .inputfield))
 
-    override func bindPorts()
+    override func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._input = findPort(named: "input")
-    }
-
-    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
-    {
-        super.registerPorts(context: context) + [
-            ("input", ParameterPort(parameter: FloatParameter("Input", 0, .inputfield))),
+        super.declaredPorts() + [
+            PortDeclaration(key: "input", port: self.input),
         ]
     }
 }
@@ -915,20 +908,14 @@ private final class TransformParameterPortNode: Node
     override class var nodeTimeMode: Node.TimeMode { .None }
     override class var nodeDescription: String { "Test node with a Transform parameter port." }
 
-    var input: ParameterPort<simd_float4x4> { _input }
-    private var _input: ParameterPort<simd_float4x4>!
+    let input = ParameterPort(parameter: Float4x4Parameter("Transform", matrix_identity_float4x4, .inputfield, "Transform"))
+    let outputTransform = NodePort<simd_float4x4>(name: "Transform", kind: .Outlet)
 
-    override func bindPorts()
+    override func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._input = findPort(named: "inputTransform")
-    }
-
-    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
-    {
-        super.registerPorts(context: context) + [
-            ("inputTransform", ParameterPort(parameter: Float4x4Parameter("Transform", matrix_identity_float4x4, .inputfield, "Transform"))),
-            ("outputTransform", NodePort<simd_float4x4>(name: "Transform", kind: .Outlet)),
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputTransform", port: self.input),
+            PortDeclaration(key: "outputTransform", port: self.outputTransform),
         ]
     }
 }

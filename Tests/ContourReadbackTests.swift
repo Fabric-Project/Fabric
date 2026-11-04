@@ -12,18 +12,13 @@ struct ContourReadbackTests {
         override class var nodeExecutionMode: Node.ExecutionMode { .Consumer }
         override class var nodeTimeMode: Node.TimeMode { .None }
         override class var nodeDescription: String { "Consumes contour results for tests" }
-        override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)] {
-            super.registerPorts(context: context) + [
-                ("input", NodePort<ContiguousArray<SIMD2<Float>>>(name: "Contour", kind: .Inlet))
-            ]
-        }
-        var input: NodePort<ContiguousArray<SIMD2<Float>>> { _input }
-        private var _input: NodePort<ContiguousArray<SIMD2<Float>>>!
+        let input = NodePort<ContiguousArray<SIMD2<Float>>>(name: "Contour", kind: .Inlet)
 
-        override func bindPorts()
+        override func declaredPorts() -> [PortDeclaration]
         {
-            super.bindPorts()
-            self._input = findPort(named: "input")
+            super.declaredPorts() + [
+                PortDeclaration(key: "input", port: self.input),
+            ]
         }
         var pointCount = 0
         var observedCenters: [Float?] = []
@@ -44,16 +39,13 @@ struct ContourReadbackTests {
         override class var nodeExecutionMode: Node.ExecutionMode { .Provider }
         override class var nodeTimeMode: Node.TimeMode { .None }
         override class var nodeDescription: String { "Supplies a distinct mask for each iteration" }
-        override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)] {
-            super.registerPorts(context: context) + [("output", NodePort<FabricImage>(name: "Mask", kind: .Outlet))]
-        }
-        var output: NodePort<FabricImage> { _output }
-        private var _output: NodePort<FabricImage>!
+        let output = NodePort<FabricImage>(name: "Mask", kind: .Outlet)
 
-        override func bindPorts()
+        override func declaredPorts() -> [PortDeclaration]
         {
-            super.bindPorts()
-            self._output = findPort(named: "output")
+            super.declaredPorts() + [
+                PortDeclaration(key: "output", port: self.output),
+            ]
         }
         var masks: [FabricImage] = []
         override func execute(renderer: GraphRenderer, executionInfo: GraphExecutionInfo,

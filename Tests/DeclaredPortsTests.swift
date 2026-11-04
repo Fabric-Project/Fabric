@@ -36,12 +36,7 @@ private final class DeclaredInterfaceNode: Node
         didSet { self.reconcilePorts() }
     }
 
-    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
-    {
-        super.registerPorts(context: context) + [
-            ("fixed", ParameterPort(parameter: FloatParameter("Fixed", 0.5, 0, 1, .slider, "A port every node of the class has"))),
-        ]
-    }
+    let fixed = ParameterPort(parameter: FloatParameter("Fixed", 0.5, 0, 1, .slider, "A port every node of the class has"))
 
     required init(context: Context)
     {
@@ -64,7 +59,7 @@ private final class DeclaredInterfaceNode: Node
         var declarations = self.interface.entries.map { entry in
             PortDeclaration(key: entry.key, portType: entry.type, kind: entry.isInlet ? .Inlet : .Outlet, name: entry.key)
         }
-        declarations.insert(contentsOf: super.declaredPorts(), at: min(max(0, self.interface.fixedIndex), declarations.count))
+        declarations.insert(contentsOf: super.declaredPorts() + [PortDeclaration(key: "fixed", port: self.fixed)], at: min(max(0, self.interface.fixedIndex), declarations.count))
         return declarations + (picker.map { [PortDeclaration(key: "picker", port: $0)] } ?? [])
     }
 }

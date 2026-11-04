@@ -42,9 +42,12 @@ private final class RecursiveArrayDictionaryPortNode: Node {
 
     static let recursivePortType: PortType = .Array(portType: .Dictionary(valueType: .Array(portType: .Float)))
 
-    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)] {
-        super.registerPorts(context: context) + [
-            ("output", recursivePortType.makeFreshPort(name: "Recursive", kind: .Outlet)),
+    let output = recursivePortType.makeFreshPort(name: "Recursive", kind: .Outlet)
+
+    override func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "output", port: self.output),
         ]
     }
 

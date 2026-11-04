@@ -16,17 +16,12 @@ struct IteratorRecordTests
         override class var nodeTimeMode: Node.TimeMode { .None }
         override class var nodeDescription: String { "Collects each iteration's image for tests" }
         var images: [FabricImage] = []
-        var inputImage: NodePort<FabricImage> { _inputImage }
-        private var _inputImage: NodePort<FabricImage>!
+        let inputImage = NodePort<FabricImage>(name: "Image", kind: .Inlet)
 
-        override func bindPorts()
+        override func declaredPorts() -> [PortDeclaration]
         {
-            super.bindPorts()
-            self._inputImage = findPort(named: "inputImage")
-        }
-        override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)] {
-            super.registerPorts(context: context) + [
-                ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet))
+            super.declaredPorts() + [
+                PortDeclaration(key: "inputImage", port: self.inputImage),
             ]
         }
         override func execute(renderer: GraphRenderer, executionInfo: GraphExecutionInfo,
@@ -106,18 +101,13 @@ struct IteratorRecordTests
         override class var nodeExecutionMode: Node.ExecutionMode { .Provider }
         override class var nodeTimeMode: Node.TimeMode { .None }
         override class var nodeDescription: String { "Produces an occurrence-specific colour image" }
-        override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)] {
-            super.registerPorts(context: context) + [
-                ("outputImage", NodePort<FabricImage>(name: "Image", kind: .Outlet))
-            ]
-        }
-        var outputImage: NodePort<FabricImage> { _outputImage }
-        private var _outputImage: NodePort<FabricImage>!
+        let outputImage = NodePort<FabricImage>(name: "Image", kind: .Outlet)
 
-        override func bindPorts()
+        override func declaredPorts() -> [PortDeclaration]
         {
-            super.bindPorts()
-            self._outputImage = findPort(named: "outputImage")
+            super.declaredPorts() + [
+                PortDeclaration(key: "outputImage", port: self.outputImage),
+            ]
         }
         override func execute(renderer: GraphRenderer, executionInfo: GraphExecutionInfo,
                               renderPassDescriptor: MTLRenderPassDescriptor,

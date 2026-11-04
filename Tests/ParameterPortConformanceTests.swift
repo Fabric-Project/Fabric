@@ -8,7 +8,7 @@ import simd
 /// Two port declarations nothing enforces, swept across every node the
 /// registry offers.
 ///
-/// A node declares its ports by hand in `registerPorts`, and nothing stops it
+/// A node declares its ports by hand in `declaredPorts()`, and nothing stops it
 /// declaring a plain `NodePort<Float>` where a `ParameterPort<Float>` belongs —
 /// the graph still builds, connects and executes, the inlet just has no value
 /// of its own to edit when nothing is wired to it. The declaration is then made

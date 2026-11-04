@@ -78,16 +78,11 @@ private class DeferredProbeNode: Node {
     override class var nodeExecutionMode: Node.ExecutionMode { .Consumer }
     override class var nodeTimeMode: Node.TimeMode { .None }
     override class var nodeDescription: String { "Deferred output test" }
-    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)] {
-        [("output", NodePort<Int>(name: "Output", kind: .Outlet))]
-    }
-    var output: NodePort<Int> { _output }
-    private var _output: NodePort<Int>!
+    let output = NodePort<Int>(name: "Output", kind: .Outlet)
 
-    override func bindPorts()
+    override func declaredPorts() -> [PortDeclaration]
     {
-        super.bindPorts()
-        self._output = findPort(named: "output")
+        [PortDeclaration(key: "output", port: self.output)]
     }
     var observed: [Int?] = []
     var requestCount = 0

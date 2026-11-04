@@ -10,10 +10,14 @@ private final class ExternalPendingResultNode: Node {
     override class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override class var nodeTimeMode: Node.TimeMode { .None }
     override class var nodeDescription: String { "Plugin-style deferred result eligibility" }
-    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)] {
-        super.registerPorts(context: context) + [
-            ("input", NodePort<Float>(name: "Input", kind: .Inlet)),
-            ("output", NodePort<Float>(name: "Output", kind: .Outlet))
+    let input = NodePort<Float>(name: "Input", kind: .Inlet)
+    let output = NodePort<Float>(name: "Output", kind: .Outlet)
+
+    override func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "input", port: self.input),
+            PortDeclaration(key: "output", port: self.output),
         ]
     }
     var hasPendingResult = false

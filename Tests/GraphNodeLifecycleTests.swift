@@ -12,24 +12,15 @@ private class LifecycleRecordingNode: Node
     override class var nodeTimeMode: Node.TimeMode { .None }
     override class var nodeDescription: String { "Records lifecycle calls for tests" }
 
-    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
+    let input = NodePort<Float>(name: "Input", kind: .Inlet)
+    let output = NodePort<Float>(name: "Output", kind: .Outlet)
+
+    override func declaredPorts() -> [PortDeclaration]
     {
-        super.registerPorts(context: context) + [
-            ("input", NodePort<Float>(name: "Input", kind: .Inlet)),
-            ("output", NodePort<Float>(name: "Output", kind: .Outlet)),
+        super.declaredPorts() + [
+            PortDeclaration(key: "input", port: self.input),
+            PortDeclaration(key: "output", port: self.output),
         ]
-    }
-
-    var input: NodePort<Float> { _input }
-    private var _input: NodePort<Float>!
-    var output: NodePort<Float> { _output }
-    private var _output: NodePort<Float>!
-
-    override func bindPorts()
-    {
-        super.bindPorts()
-        self._input = findPort(named: "input")
-        self._output = findPort(named: "output")
     }
 
     private(set) var lifecycleCalls: [String] = []
