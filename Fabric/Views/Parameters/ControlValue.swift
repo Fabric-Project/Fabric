@@ -15,9 +15,11 @@ struct ControlValue<Value: PortValueRepresentable & Codable & Hashable>
     let label: String
     let get: () -> Value
     let set: (Value) -> Void
+    let port: NodePort<Value>?
 
     init(parameter: GenericParameter<Value>, port: NodePort<Value>?)
     {
+        self.port = port
         guard let port else
         {
             self.label = parameter.label

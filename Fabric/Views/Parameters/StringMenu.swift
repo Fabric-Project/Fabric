@@ -21,11 +21,8 @@ struct StringMenu: View
 
     init(parameter: StringParameter, port: NodePort<String>? = nil)
     {
-        let value = ControlValue(parameter: parameter, port: port)
-        self.vm = ParameterObservableModel(label: value.label,
-                                           get: value.get,
-                                           set: value.set,
-                                           publisher: parameter.valuePublisher )
+        self.vm = ParameterObservableModel(control: ControlValue(parameter: parameter, port: port),
+                                           publisher: parameter.valuePublisher)
         
         self.optionsVm = ParameterObservableModel(label: parameter.label,
                                            get: { parameter.options },

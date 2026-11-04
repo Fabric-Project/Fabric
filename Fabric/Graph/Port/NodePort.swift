@@ -66,6 +66,7 @@ public class NodePort<Value : PortValueRepresentable>: Port
             self.valueDidChange = true
             self.node?.markDirty()
             self.onValueChanged?()
+            self.notifyValueObservers()
             self.valueDidSet()
         }
     }

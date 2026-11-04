@@ -20,11 +20,8 @@ struct XYPad: View, Equatable {
 
     init(param: Float2Parameter, port: NodePort<simd_float2>? = nil)
     {
-        let value = ControlValue(parameter: param, port: port)
-        self.vm = ParameterObservableModel(label: value.label,
-                                           get: value.get,
-                                           set: value.set,
-                                           publisher:param.valuePublisher )
+        self.vm = ParameterObservableModel(control: ControlValue(parameter: param, port: port),
+                                           publisher: param.valuePublisher)
 
         self.vmMin = ParameterObservableModel(label: param.label,
                                            get: { param.min },

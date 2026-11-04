@@ -20,11 +20,8 @@ struct Color4ParameterView: View, Equatable
     init(parameter: Float4Parameter, port: NodePort<simd_float4>? = nil)
     {
         
-        let value = ControlValue(parameter: parameter, port: port)
-        self.vm = ParameterObservableModel(label: value.label,
-                                           get: value.get,
-                                           set: value.set,
-                                           publisher:parameter.valuePublisher )
+        self.vm = ParameterObservableModel(control: ControlValue(parameter: parameter, port: port),
+                                           publisher: parameter.valuePublisher)
     
     }
     
@@ -62,11 +59,8 @@ struct Color3ParameterView: View, Equatable
 
     init(parameter: Float3Parameter, port: NodePort<simd_float3>? = nil)
     {
-        let value = ControlValue(parameter: parameter, port: port)
-        self.vm = ParameterObservableModel(label: value.label,
-                                           get: value.get,
-                                           set: value.set,
-                                           publisher:parameter.valuePublisher )
+        self.vm = ParameterObservableModel(control: ControlValue(parameter: parameter, port: port),
+                                           publisher: parameter.valuePublisher)
     }
     
     var body: some View {

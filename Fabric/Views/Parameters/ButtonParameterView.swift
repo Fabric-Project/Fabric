@@ -17,11 +17,8 @@ struct ButtonParameterView: View, Equatable {
     
     init(param: BoolParameter, port: NodePort<Bool>? = nil)
     {
-        let value = ControlValue(parameter: param, port: port)
-        self.vm = ParameterObservableModel(label: value.label,
-                                           get: value.get,
-                                           set: value.set,
-                                           publisher:param.valuePublisher )
+        self.vm = ParameterObservableModel(control: ControlValue(parameter: param, port: port),
+                                           publisher: param.valuePublisher)
     }
     
     var body: some View

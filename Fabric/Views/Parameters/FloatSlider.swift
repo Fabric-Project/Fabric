@@ -84,11 +84,8 @@ struct FloatSlider: View, Equatable
 
     init(param: FloatParameter, port: NodePort<Float>? = nil)
     {
-        let value = ControlValue(parameter: param, port: port)
-        self.vm = ParameterObservableModel(label: value.label,
-                                           get: value.get,
-                                           set: value.set,
-                                           publisher:param.valuePublisher )
+        self.vm = ParameterObservableModel(control: ControlValue(parameter: param, port: port),
+                                           publisher: param.valuePublisher)
         
         self.vmMin = ParameterObservableModel(label: param.label,
                                               get: { param.min },
@@ -118,11 +115,8 @@ struct Float2Slider: View, Equatable
 
     init(param: Float2Parameter, port: NodePort<simd_float2>? = nil)
     {
-        let value = ControlValue(parameter: param, port: port)
-        self.vm = ParameterObservableModel(label: value.label,
-                                           get: value.get,
-                                           set: value.set,
-                                           publisher:param.valuePublisher )
+        self.vm = ParameterObservableModel(control: ControlValue(parameter: param, port: port),
+                                           publisher: param.valuePublisher)
         
         self.vmMin = ParameterObservableModel(label: param.label,
                                               get: { param.min },
@@ -158,11 +152,8 @@ struct Float3Slider: View, Equatable
 
     init(param: Float3Parameter, port: NodePort<simd_float3>? = nil)
     {
-        let value = ControlValue(parameter: param, port: port)
-        self.vm = ParameterObservableModel(label: value.label,
-                                           get: value.get,
-                                           set: value.set,
-                                           publisher:param.valuePublisher )
+        self.vm = ParameterObservableModel(control: ControlValue(parameter: param, port: port),
+                                           publisher: param.valuePublisher)
         
         self.vmMin = ParameterObservableModel(label: param.label,
                                               get: { param.min },
@@ -197,11 +188,8 @@ struct Float4Slider: View, Equatable
 
     init(param: Float4Parameter, port: NodePort<simd_float4>? = nil)
     {
-        let value = ControlValue(parameter: param, port: port)
-        self.vm = ParameterObservableModel(label: value.label,
-                                           get: value.get,
-                                           set: value.set,
-                                           publisher:param.valuePublisher )
+        self.vm = ParameterObservableModel(control: ControlValue(parameter: param, port: port),
+                                           publisher: param.valuePublisher)
         
         self.vmMin = ParameterObservableModel(label: param.label,
                                               get: { param.min },

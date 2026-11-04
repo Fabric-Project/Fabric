@@ -77,11 +77,8 @@ struct InputFieldView: View
         // The whole value, however much of it the field can show. This read is
         // what an edit is compared and written back against, so shortening it
         // here commits the shortening as soon as a rebuilt field is typed into.
-        let value = ControlValue(parameter: param, port: port)
-        self.vm = ParameterObservableModel(label: value.label,
-                                           get: value.get,
-                                           set: value.set,
-                                           publisher:param.valuePublisher)
+        self.vm = ParameterObservableModel(control: ControlValue(parameter: param, port: port),
+                                           publisher: param.valuePublisher)
     }
     
     var body: some View
@@ -132,11 +129,8 @@ struct FloatInputFieldView: View
 
     init(param: GenericParameter<Float>, port: NodePort<Float>? = nil)
     {
-        let value = ControlValue(parameter: param, port: port)
-        self.vm = ParameterObservableModel(label: value.label,
-                                           get: value.get,
-                                           set: value.set,
-                                           publisher:param.valuePublisher )
+        self.vm = ParameterObservableModel(control: ControlValue(parameter: param, port: port),
+                                           publisher: param.valuePublisher)
         self.step = ParameterFieldStep.step(for: param, fractionDigits: floatFractionDigits)
     }
     
@@ -155,11 +149,8 @@ struct Float2InputFieldView: View
 
     init(param: GenericParameter<simd_float2>, port: NodePort<simd_float2>? = nil)
     {
-        let value = ControlValue(parameter: param, port: port)
-        self.vm = ParameterObservableModel(label: value.label,
-                                           get: value.get,
-                                           set: value.set,
-                                           publisher:param.valuePublisher )
+        self.vm = ParameterObservableModel(control: ControlValue(parameter: param, port: port),
+                                           publisher: param.valuePublisher)
         self.steps = ParameterFieldStep.steps(for: param, fractionDigits: floatFractionDigits)
     }
     
@@ -180,11 +171,8 @@ struct Float3InputFieldView: View
 
     init(param: GenericParameter<simd_float3>, port: NodePort<simd_float3>? = nil)
     {
-        let value = ControlValue(parameter: param, port: port)
-        self.vm = ParameterObservableModel(label: value.label,
-                                           get: value.get,
-                                           set: value.set,
-                                           publisher:param.valuePublisher )
+        self.vm = ParameterObservableModel(control: ControlValue(parameter: param, port: port),
+                                           publisher: param.valuePublisher)
         self.steps = ParameterFieldStep.steps(for: param, fractionDigits: floatFractionDigits)
     }
     
@@ -206,11 +194,8 @@ struct Float4InputFieldView: View
 
     init(param: GenericParameter<simd_float4>, port: NodePort<simd_float4>? = nil)
     {
-        let value = ControlValue(parameter: param, port: port)
-        self.vm = ParameterObservableModel(label: value.label,
-                                           get: value.get,
-                                           set: value.set,
-                                           publisher:param.valuePublisher )
+        self.vm = ParameterObservableModel(control: ControlValue(parameter: param, port: port),
+                                           publisher: param.valuePublisher)
         self.steps = ParameterFieldStep.steps(for: param, fractionDigits: floatFractionDigits)
     }
     
@@ -233,11 +218,8 @@ struct IntInputFieldView: View
 
     init(param: GenericParameter<Int>, port: NodePort<Int>? = nil)
     {
-        let value = ControlValue(parameter: param, port: port)
-        self.vm = ParameterObservableModel(label: value.label,
-                                           get: value.get,
-                                           set: value.set,
-                                           publisher:param.valuePublisher )
+        self.vm = ParameterObservableModel(control: ControlValue(parameter: param, port: port),
+                                           publisher: param.valuePublisher)
         self.step = ParameterFieldStep.step(for: param)
     }
     

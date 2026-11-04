@@ -9,6 +9,7 @@ import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
 import Satin
+import Synchronization
 
 public enum PortKind : String, Codable
 {
@@ -124,6 +125,11 @@ public class Port : Identifiable, Hashable, Equatable, CustomDebugStringConverti
     internal var deferredSendCapture: GraphDeferredSendCapture?
     internal var deferredOutputIndex = 0
     internal var onValueChanged: (() -> Void)?
+
+    /// Watchers of the value from outside the graph, such as a control. The
+    /// count lets a send skip the lock while nothing watches.
+    internal let valueObservers = Mutex<[PortValueObservation]>([])
+    internal let valueObserverCount = Atomic<Int>(0)
 
     internal var connections: [Connection] = []
     public let kind: PortKind
