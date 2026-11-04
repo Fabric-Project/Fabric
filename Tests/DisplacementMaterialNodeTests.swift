@@ -26,15 +26,18 @@ struct DisplacementMaterialNodeTests {
         node.inputBrightness.value = 1.5
         #expect(brightness.value == 1.5)
         node.markClean()
-        brightness.value = 0.75
-        #expect(node.inputBrightness.value == 0.75)
+        node.inputBrightness.value = 0.75
+        #expect(brightness.value == 0.75)
         #expect(node.isDirty)
 
         node.material.set("Color Texture Transform", simd_float4x4.textureVerticalFlip)
         node.material.lighting.toggle()
         node.material.setupShader()
 
+        // A shader reload keeps the material's parameter for a uniform it still
+        // has, so the port's mirror needs no re-applying.
         #expect(node.material.get("Brightness", as: FloatParameter.self) === brightness)
+        #expect(node.inputBrightness.parameter === brightness)
         #expect(brightness.value == 0.75)
         let transform = try #require(node.material.get("Color Texture Transform", as: Float4x4Parameter.self))
         #expect(transform.value == .textureVerticalFlip)
@@ -74,7 +77,6 @@ struct DisplacementMaterialNodeTests {
             if let originalParameter = originalPort.parameter as? FloatParameter {
                 let restoredParameter = try #require(restoredPort.parameter as? FloatParameter)
                 #expect(restoredParameter.value == originalParameter.value)
-                #expect(restoredParameter.id == restoredPort.id)
                 // Keyed by the port's name: publishing relabels the parameter to its published name.
                 #expect(restored.material.get(restoredPort.name, as: FloatParameter.self) === restoredParameter)
             }

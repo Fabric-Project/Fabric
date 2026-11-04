@@ -5,7 +5,6 @@
 //  Created by Anton Marini on 10/19/25.
 //
 
-import Combine
 import Foundation
 import Satin
 
@@ -15,18 +14,24 @@ protocol NodeInvalidatingParameterPort: AnyObject {
     var observedParameter: any Parameter { get }
 }
 
-// A Port that wraps a parameter - use for input ports you want to have as a UI
+/// An inlet with a control: it rests at a value of its own when unwired, and
+/// a document saves that value. The port's value is canonical. Its parameter
+/// mirrors it, one way, written through the parameter's setter whenever the
+/// value changes: for a control to draw its range and options from, and, for
+/// a material-backed port, as the uniform the material uploads. Nothing reads
+/// the parameter to learn the port's value.
 public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hashable> : NodePort<ParamValue>, NodeInvalidatingParameterPort
 {
-    private var subscription:AnyCancellable? = nil
     private var _parameter: GenericParameter<ParamValue>
-    private var isUpdatingParameterValue = false
+
+    /// The value the inlet holds when nothing gives it one: its last value.
+    private var restingValue: ParamValue
 
     override internal func restoreValue(from boxed: PortValue?)
     {
         // A parameter-backed port has no valueless state. Resolve its resting
         // value before assigning so restoration reports one final value change.
-        super.restoreValue(from: boxed ?? _parameter.value.toPortValue())
+        super.restoreValue(from: boxed ?? restingValue.toPortValue())
     }
 
     internal var observedParameter: any Parameter { self._parameter }
@@ -56,65 +61,30 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
         return super.portType
     }
 
+    /// Setting another parameter, a material's after a shader reload, has it
+    /// mirror this port's value from then on.
     override public var parameter: (any Parameter)?
     {
         get { return _parameter }
         set {
             if let newParam = newValue as? GenericParameter<ParamValue>
             {
-                self.subscription?.cancel()
-                self.subscription = nil
-                newParam.value = self._parameter.value
-                // A replacement parameter arrives with an id of its own; re-key
-                // it to keep the invariant hydrate(from:) describes.
-                newParam.id = self.id
+                newParam.value = self.value ?? self.restingValue
                 self._parameter = newParam
-                self.value = self._parameter.value
-
-                self.subscribeToParameter()
             }
         }
     }
 
-    /// A port takes its id from its parameter, so a port rebuilt in place of
-    /// another keys the parameter to the id it is taking over.
-    public convenience init(parameter: GenericParameter<ParamValue>, id: UUID)
-    {
-        parameter.id = id
-        self.init(parameter: parameter)
-    }
-
-    public init(parameter: GenericParameter<ParamValue>)
+    /// The port starts at its parameter's value, the declaration's default.
+    public init(parameter: GenericParameter<ParamValue>, id: UUID = UUID())
     {
         self._parameter = parameter
-        super.init(name: parameter.label, kind: .Inlet, id:parameter.id)
+        self.restingValue = parameter.value
+        super.init(name: parameter.label, kind: .Inlet, id: id)
 
-        self.value = self._parameter.value
-
-        self.subscribeToParameter()
+        self.value = parameter.value
     }
 
-
-    
-    
-    private func subscribeToParameter()
-    {
-        // Unowned: this port owns the subscription and cancels it in deinit.
-        self.subscription = self._parameter.valuePublisher.sink { [unowned self] value in
-            // Port edits already uploaded this value. Do not feed the parameter's
-            // synchronous notification back through the port setter a second time.
-            if self.isUpdatingParameterValue, self.value == value { return }
-            self.value = value
-        }
-    }
-
-    deinit
-    {
-        self.subscription?.cancel()
-        self.subscription = nil
-    }
-    
-    
     /// A file picker's absolute reference inside the document's folder becomes
     /// relative to it, as NodeFileLoadingProtocol.normalizeFileReference has a
     /// picked file. A value put on the port from a document or a carried state
@@ -149,12 +119,6 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
         }
     }
 
-    override internal func adoptID(_ id: UUID)
-    {
-        super.adoptID(id)
-        self._parameter.id = id
-    }
-
     private static func clampedComparable(_ value: ParamValue, min minValue: ParamValue, max maxValue: ParamValue) -> ParamValue?
     {
         func clamp<C: Comparable>(_ candidate: C, _ lower: C, _ upper: C) -> C
@@ -178,25 +142,21 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
 
     override internal func valueDidSet()
     {
-        // A parameter-backed inlet has no valueless state: the parameter is
-        // its resting value. Disconnecting an upstream port force-sends nil
-        // downstream so the inlet doesn't keep stale data, which would
-        // otherwise leave this port — and everything reading it — with a
-        // missing value for as long as it stays unwired. Re-seat on the
-        // parameter instead; the re-entrant assignment runs this hook again.
+        // Disconnecting an upstream port force-sends nil downstream so the
+        // inlet doesn't keep stale data; a parameter inlet has no valueless
+        // state, so it goes back to resting at its last value. The re-entrant
+        // assignment runs this hook again.
         guard let value = self.value
         else
         {
-            self.value = self._parameter.value
+            self.value = self.restingValue
             return
         }
 
+        self.restingValue = value
         // Change flags, node invalidation and callbacks belong to NodePort.value.
         if self._parameter.value != value
         {
-            let wasUpdatingParameterValue = self.isUpdatingParameterValue
-            self.isUpdatingParameterValue = true
-            defer { self.isUpdatingParameterValue = wasUpdatingParameterValue }
             self._parameter.value = value
         }
 

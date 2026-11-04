@@ -105,13 +105,13 @@ struct URLFileReferenceTests
         #expect(node.inputFilePathParam.value == "file:///tmp/shared.txt")
         let parameter = try #require(node.inputFilePathParam.parameter as? GenericParameter<String>)
         let pickedURL = directoryURL.appending(path: "Picked #1.txt")
-        parameter.value = pickedURL.absoluteString
-        #expect(node.inputFilePathParam.value == pickedURL.absoluteString)
+        node.inputFilePathParam.value = pickedURL.absoluteString
+        #expect(parameter.value == pickedURL.absoluteString)
         node.normalizeFileReference(node.inputFilePathParam)
         #expect(node.inputFilePathParam.value == "Picked #1.txt")
         #expect(parameter.value == "Picked #1.txt")
-        parameter.value = ""
-        #expect(node.inputFilePathParam.value == "")
+        node.inputFilePathParam.value = ""
+        #expect(parameter.value == "")
     }
 
     @Test("Save As keeps relative references as written throughout nested graphs")

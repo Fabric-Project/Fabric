@@ -27,8 +27,8 @@ struct NodeParameterObservationTests {
         #expect(node.inputParamCancellables.isEmpty)
         let parameter = try #require(node.inputNumber1.parameter as? FloatParameter)
         node.markClean()
-        parameter.value = 3
-        #expect(node.inputNumber1.value == 3)
+        node.inputNumber1.value = 3
+        #expect(parameter.value == 3)
         #expect(node.inputNumber1.valueDidChange)
         #expect(node.isDirty)
 
@@ -76,8 +76,7 @@ struct NodeParameterObservationTests {
         #expect(outer.inputParamCancellables.count == 1)
         inner.markClean()
         outer.markClean()
-        let parameter = try #require(inner.inputNumber1.parameter as? FloatParameter)
-        parameter.value = 6
+        inner.inputNumber1.value = 6
         #expect(inner.isDirty)
         #expect(outer.isDirty)
         #expect((outer.ports.first as? NodePort<Float>)?.value == 6)
@@ -130,9 +129,13 @@ struct NodeParameterObservationTests {
         original.value = 4
         #expect(!node.isDirty)
         node.markClean()
-        replacement.value = 8
+        if parameterBacked {
+            node.inputNumber1.value = 8
+            #expect(replacement.value == 8)
+        } else {
+            replacement.value = 8
+        }
         #expect(node.isDirty)
-        if parameterBacked { #expect(node.inputNumber1.value == 8) }
         #expect(node.inputParamCancellables.count == (parameterBacked ? 0 : 1))
     }
 
@@ -146,8 +149,8 @@ struct NodeParameterObservationTests {
         #expect(node.inputParamCancellables.isEmpty)
         node.markClean()
         let parameter = try #require(node.inputNumber1.parameter as? FloatParameter)
-        parameter.value = 7
+        node.inputNumber1.value = 7
         #expect(node.isDirty)
-        #expect(node.inputNumber1.value == 7)
+        #expect(parameter.value == 7)
     }
 }

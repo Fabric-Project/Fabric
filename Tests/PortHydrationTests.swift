@@ -198,28 +198,6 @@ struct PortHydrationTests
         #expect(decoded.droppedPortStateKeys == ["retiredKey"])
     }
 
-    @Test("Hydration keeps the backing parameter on the port's identity")
-    func hydrationKeepsParameterOnPortIdentity() throws
-    {
-        guard let context = makeContext() else { return }
-
-        let node = NumberBinaryOperator(context: context)
-        #expect(node.inputNumber1.parameter?.id == node.inputNumber1.id)
-
-        let decoded = try roundTrip(node, context: context)
-        let decodedID = decoded.inputNumber1.id
-
-        #expect(decoded.inputNumber1.parameter?.id == decodedID)
-
-        // Material syncs swap the backing parameter wholesale
-        // (Node.replaceParameterOfPort); the invariant has to survive that too.
-        let replacement = FloatParameter("Number 1", 3)
-        decoded.replaceParameterOfPort(decoded.inputNumber1, withParam: replacement)
-
-        #expect(decoded.inputNumber1.id == decodedID)
-        #expect(decoded.inputNumber1.parameter?.id == decodedID)
-    }
-
     @Test("An editable port rebuilt on another's id keeps it, parameter included")
     func editablePortRebuiltOnIdKeepsIt()
     {
@@ -232,7 +210,6 @@ struct PortHydrationTests
             #expect(port.parameter != nil, "\(portType.rawValue) rebuilt without a parameter")
             #expect(port.portType == portType, "\(portType.rawValue) rebuilt as \(port.portType.rawValue)")
             #expect(port.id == takenOverID, "\(portType.rawValue) rebuilt on a new id")
-            #expect(port.parameter?.id == takenOverID, "\(portType.rawValue) parameter keyed to a different id")
         }
 
         // A type with no parameter to offer falls back to a plain port, on the same id.
@@ -622,7 +599,6 @@ struct PortHydrationTests
         #expect(replaced.connectedPorts.count == 1)
         let materialParameter = try #require(decodedNode.postMaterial.parameters.get(uniformPort.name) as? Float4x4Parameter)
         #expect((replaced.parameter as AnyObject) === materialParameter)
-        #expect(materialParameter.id == replaced.id)
     }
 
     @Test("Live Image node rebuilds its saved shader's uniform ports on decode")
