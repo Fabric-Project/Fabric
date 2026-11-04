@@ -5,111 +5,50 @@
 
 import Foundation
 
-/// The document's contribution to a node's ports during decode: snapshots
-/// keyed by registry key, applied onto the code-declared ports as each one
-/// registers (see Node.init(from:) — declare-then-hydrate).
+/// The document's port values for one node's decode, applied onto the
+/// code-declared ports as each is made (see Node.init(from:)).
 ///
 /// The session lives only for the decode pass. Graph finalizes it once node
-/// inits and their dynamic rebuilds are done: whatever remains unconsumed
-/// matched nothing the code declares and is reported dropped, and clearing
-/// the session guarantees a port added later — a user action, a reconnecting
-/// device — can never resurrect stale document state.
+/// inits and their reconciles are done: whatever remains unconsumed matched
+/// nothing the code declares and is reported dropped, and closing the session
+/// means a port declared later can never take stale document state.
 internal final class PortHydrationSession
 {
-    private var pendingByRegistryKey: [String: Port]
-    private var consumedByPortID: [UUID: (registryKey: String, snapshot: Port)] = [:]
-    private var documentKeyOrder: [String]
+    private var pending: [PortKey: PortValue]
+    private var consumed: [ObjectIdentifier: PortState] = [:]
 
-    init(snapshots: [PortRegistry.Snapshot])
+    init(states: [PortState])
     {
-        self.pendingByRegistryKey = snapshots.reduce(into: [:]) { $0[$1.name] = $1.payload.base }
-        self.documentKeyOrder = snapshots.map(\.name)
+        self.pending = Dictionary(states.map { ($0.key, $0.value) }, uniquingKeysWith: { first, _ in first })
     }
 
-    /// Documents saved before a node declared its stored-property ports kept
-    /// each one under the node's own coding key, outside the registry's list.
-    /// A declared key the list lacks reads the port saved under it there.
-    func addSnapshotsSavedOutsideRegistry(for declarations: [PortDeclaration], from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: NodeCodingKey.self)
+    /// Keys whose value has not landed on any port.
+    var unconsumedKeys: [String] { pending.keys.map(\.description).sorted() }
 
-        for declaration in declarations
-        {
-            guard case .own(let key) = declaration.key,
-                  pendingByRegistryKey[key] == nil,
-                  let codingKey = NodeCodingKey(stringValue: key),
-                  container.contains(codingKey)
-            else { continue }
-
-            let saved = (declaration.control != nil
-                            ? try? PortType.portForType(declaration.portType, isParameterPort: true, decoder: container.superDecoder(forKey: codingKey))
-                            : nil)
-                // A parameter port saved before it had a parameter.
-                ?? (try? PortType.portForType(declaration.portType, isParameterPort: false, decoder: container.superDecoder(forKey: codingKey)))
-
-            if let saved
-            {
-                pendingByRegistryKey[key] = saved
-                documentKeyOrder.append(key)
-            }
-        }
-    }
-
-    private struct NodeCodingKey: CodingKey
-    {
-        let stringValue: String
-        var intValue: Int? { nil }
-        init?(stringValue: String) { self.stringValue = stringValue }
-        init?(intValue: Int) { nil }
-    }
-
-    /// Registry keys whose state has not landed on any registered port.
-    var unconsumedKeys: [String] { pendingByRegistryKey.keys.sorted() }
-
-    /// Gives `port` the identity and publishing of the pending snapshot under
-    /// `key`, provided the directions agree, and hands back the snapshot's
-    /// value as a state for the registry to put on it. The match is exact:
-    /// state saved under any other key, a retired port or a renamed one, stays
-    /// pending and is reported dropped at finalize. Must run before the port
-    /// registers.
+    /// Hands back the saved value for `port`'s key as a state to put on it.
+    /// The match is exact: a value saved under any other key, a retired port or
+    /// a renamed one, stays pending and is reported dropped at finalize.
     func hydrate(_ port: Port, key: PortKey) -> PortState?
     {
-        guard case .own(let registryKey) = key,
-              let decoded = pendingByRegistryKey[registryKey],
-              decoded.kind == port.kind
-        else { return nil }
-
-        pendingByRegistryKey.removeValue(forKey: registryKey)
-        port.hydrateIdentity(from: decoded)
-        consumedByPortID[port.id] = (registryKey: registryKey, snapshot: decoded)
-        return decoded.snapshotValue().map { PortState(key: key, value: $0) }
+        guard let value = pending.removeValue(forKey: key) else { return nil }
+        let state = PortState(key: key, value: value)
+        consumed[ObjectIdentifier(port)] = state
+        return state
     }
 
-    /// Empties the pending set and hands back what was in it, in the order the
-    /// document listed it. For a node whose source cannot rebuild the port set
-    /// at decode time — a script that no longer parses, a shader that no longer
-    /// compiles — these decoded instances are all that stands between the
-    /// document and the loss of every port and wire the node had.
-    func drainPendingSnapshots() -> [(registryKey: String, port: Port)]
-    {
-        func take(_ keys: [String]) -> [(registryKey: String, port: Port)]
-        {
-            keys.compactMap { key in
-                pendingByRegistryKey.removeValue(forKey: key).map { (registryKey: key, port: $0) }
-            }
-        }
-
-        return take(documentKeyOrder) + take(pendingByRegistryKey.keys.sorted())
-    }
-
-    /// Returns `port`'s consumed snapshot to the pending set. A node that
-    /// removes and recreates the same registry key inside one decode — the
-    /// image and matrix port branches of BaseImageNode's material sync do this
-    /// across Live Image's two passes — would otherwise mint a fresh identity
-    /// for the replacement and take the document's wires with it.
+    /// Returns a port's consumed value to the pending set, for a node that
+    /// retires a port and declares it again within one decode.
     func relinquish(_ port: Port)
     {
-        guard let consumed = consumedByPortID.removeValue(forKey: port.id) else { return }
-        pendingByRegistryKey[consumed.registryKey] = consumed.snapshot
+        guard let state = consumed.removeValue(forKey: ObjectIdentifier(port)) else { return }
+        pending[state.key] = state.value
     }
+}
+
+/// A saved value that may not decode, a case this build does not know, say;
+/// it is dropped rather than failing the node.
+internal struct LossyPortValue: Decodable
+{
+    let value: PortValue?
+    init(from decoder: any Decoder) throws { self.value = try? PortValue(from: decoder) }
 }

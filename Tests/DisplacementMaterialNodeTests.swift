@@ -68,7 +68,7 @@ struct DisplacementMaterialNodeTests {
         #expect(restoredGraph.droppedPortStateDiagnostics.isEmpty)
 
         for originalPort in source.ports {
-            let restoredPort = try #require(restored.ports.first { $0.id == originalPort.id })
+            let restoredPort = try #require(restored.ports.first { $0.key == originalPort.key })
             #expect(restoredPort.isPublishedInGraph == originalPort.isPublishedInGraph)
             #expect(restoredPort.publishedNameInGraph == originalPort.publishedNameInGraph)
             if let originalParameter = originalPort.parameter as? FloatParameter {

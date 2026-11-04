@@ -93,10 +93,6 @@ public class NodePort<Value : PortValueRepresentable>: Port
         Value.portType
     }
     
-    enum CodingKeys : String, CodingKey
-    {
-        case valueType
-    }
     
     override public init(name: String, kind: PortKind, description: String = "", id:UUID = UUID()) {
         super.init(name: name, kind: kind, description: description, id:id)
@@ -105,13 +101,6 @@ public class NodePort<Value : PortValueRepresentable>: Port
         self.backgroundColor = Self.calcBackgroundColor(forType: Value.self)
     }
     
-    required public init(from decoder: any Decoder) throws
-    {        
-        try super.init(from: decoder)
-
-        self.color = Self.calcColor(forType: Value.self)
-        self.backgroundColor = Self.calcBackgroundColor(forType: Value.self)
-    }
     
     override public func teardown()
     {

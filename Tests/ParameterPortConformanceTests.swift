@@ -294,17 +294,17 @@ struct ParameterPortConformanceTests
                 return
             }
 
-            let decodedPortsByID = Dictionary(decodedSubgraphNode.ports.map { ($0.id, $0) },
-                                              uniquingKeysWith: { first, _ in first })
+            let decodedPortsByKey = Dictionary(decodedSubgraphNode.ports.map { ($0.key, $0) },
+                                               uniquingKeysWith: { first, _ in first })
 
             for proxy in proxies
             {
                 proxiesChecked += 1
 
-                guard let decodedPort = decodedPortsByID[proxy.id]
+                guard let decodedPort = decodedPortsByKey[proxy.key]
                 else
                 {
-                    violations.append("\(nodeLabel): \(proxy.name) [\(proxy.portType.rawValue)] has no port at its id after decode")
+                    violations.append("\(nodeLabel): \(proxy.name) [\(proxy.portType.rawValue)] has no port at its key after decode")
                     continue
                 }
 

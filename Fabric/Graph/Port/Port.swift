@@ -67,7 +67,7 @@ extension UTType
 
 
 // Non Generic Base Port Class, dont use directly
-public class Port : Identifiable, Hashable, Equatable, Codable, CustomDebugStringConvertible
+public class Port : Identifiable, Hashable, Equatable, CustomDebugStringConvertible
 {
     public static func == (lhs: Port, rhs: Port) -> Bool
     {
@@ -93,12 +93,6 @@ public class Port : Identifiable, Hashable, Equatable, Codable, CustomDebugStrin
     public internal(set) var control: PortControl?
 
     public var portDescription: String = ""
-
-    /// The publishing a document saved on this port, held from decode until
-    /// the graph lifts it into its published relation.
-    internal var decodedPublishing: SavedPublishing?
-
-    internal struct SavedPublishing { let name: String? }
 
     // Kind of lame, but necessary to avoid some type based bullshit.
     // TODO: Figure out a way to hide setting this (seems not good)
@@ -153,50 +147,8 @@ public class Port : Identifiable, Hashable, Equatable, Codable, CustomDebugStrin
         self.backgroundColor = .clear
     }
     
-    enum CodingKeys : String, CodingKey
-    {
-        case id
-        case name
-        case kind
-        case direction
-        case published
-        case publishedName
-        case portDescription
-    }
 
-    required public  init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
 
-        self.id = try container.decode(UUID.self, forKey: .id)
-        self.name = try container.decode(String.self, forKey: .name)
-        self.key = .own(self.name)
-        self.kind = try container.decode(PortKind.self, forKey: .kind)
-        if try container.decodeIfPresent(Bool.self, forKey: .published) == true
-        {
-            self.decodedPublishing = SavedPublishing(name: try container.decodeIfPresent(String.self, forKey: .publishedName))
-        }
-        self.portDescription = try container.decodeIfPresent(String.self, forKey: .portDescription) ?? ""
-        self.color = .clear
-        self.backgroundColor = .clear
-    }
-
-    public func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(id, forKey: .id)
-        try container.encode(name, forKey: .name)
-        try container.encode(kind, forKey: .kind)
-        let graph = self.node?.graph
-        try container.encode(graph?.isPublished(self) ?? false, forKey: .published)
-        try container.encodeIfPresent(graph?.publishedName(of: self), forKey: .publishedName)
-
-        if !portDescription.isEmpty
-        {
-            try container.encode(portDescription, forKey: .portDescription)
-        }
-
-    }
     
     deinit
     {
@@ -252,14 +204,6 @@ public class Port : Identifiable, Hashable, Equatable, Codable, CustomDebugStrin
         return "\(head) - \(portType.previewString(for: value))"
     }
 
-    /// Takes the document's saved identity and publishing from a decoded
-    /// snapshot, for wires and published entries that name the port by id.
-    /// Must run before the port is registered.
-    internal func hydrateIdentity(from decoded: Port)
-    {
-        self.adoptID(decoded.id)
-        self.decodedPublishing = decoded.decodedPublishing
-    }
 
     /// Takes `id` as the port's runtime identity.
     internal func adoptID(_ id: UUID)

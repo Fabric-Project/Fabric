@@ -209,64 +209,25 @@ open class SubgraphNode: BaseObjectNode
     enum CodingKeys : String, CodingKey
     {
         case subGraph
-        case proxyPorts
     }
     
+    /// A subgraph node saves only its inner graph: its proxies follow from what
+    /// that graph publishes.
     open override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        
         try container.encode(self.subGraph, forKey: .subGraph)
-        try container.encode(self.proxyPorts.map(AnyPort.init), forKey: .proxyPorts)
-        
         try super.encode(to: encoder)
     }
     
     public required init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-
         self.subGraph = try container.decode(Graph.self, forKey: .subGraph)
-        
-        // We set the current graph to the subgraph
-        // to allow proxy ports and any other decode contexts to work correctly
-        
-        if let decodeContext = decoder.context
-        {
-            let previousGraph = decodeContext.currentGraph
-
-            decodeContext.currentGraph = self.subGraph
-
-            defer
-            {
-                decodeContext.currentGraph = previousGraph
-            }
-
-            self.proxyPorts = Self.decodeProxyPortsIfPossible(from: container, forKey: .proxyPorts)
-        }
-        else
-        {
-            self.proxyPorts = Self.decodeProxyPortsIfPossible(from: container, forKey: .proxyPorts)
-        }
 
         try super.init(from: decoder)
         self.wireSubGraphCallback()
-        self.proxyPorts.forEach { $0.node = self }
         self.rebuildProxyPorts()
-    }
-
-    private static func decodeProxyPortsIfPossible(from container: KeyedDecodingContainer<CodingKeys>,
-                                                   forKey key: CodingKeys) -> [Port]
-    {
-        do
-        {
-            return try container.decodeIfPresent([AnyPort].self, forKey: key)?.map(\.base) ?? []
-        }
-        catch
-        {
-            print("Failed to decode saved subgraph proxy ports: \(error)")
-            return []
-        }
     }
 
     private func wireSubGraphCallback()

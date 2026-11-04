@@ -76,53 +76,8 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
         innerPort.node.map { .proxy(node: $0.id, inner: innerPort.key) } ?? innerPort.key
     }
 
-    required public init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let innerPortID = try container.decode(UUID.self, forKey: .innerPortID)
-        self.declaredPortType = try container.decodeIfPresent(PortType.self, forKey: .declaredPortType)
 
-        guard let decodeContext = decoder.context else {
-            fatalError("Required Decode Context Not set")
-        }
 
-        // A Subgraph Node will have set the decodeContexts graph
-        // to be the actual sub graph
-        // this allows us to look up the correct inner port.
-        let currentGraph = decodeContext.currentGraph
-        let currentGraphNodes = currentGraph?.nodes
-
-        guard let innerPort = currentGraph?.nodePort(forID: innerPortID)
-            ?? currentGraphNodes?.flatMap(\.ports).first(where: { $0.id == innerPortID }) else {
-            throw ProxyPortBindingError.missingInnerPort(innerPortID)
-        }
-
-        guard let typedInnerPort = innerPort as? NodePort<Value> else {
-            throw ProxyPortBindingError.typeMismatch(expected: String(describing: Value.self),
-                                                     actual: String(describing: type(of: innerPort)))
-        }
-
-        self.innerPort = typedInnerPort
-        try super.init(from: decoder)
-        self.parameter = typedInnerPort.parameter
-        self.value = typedInnerPort.value
-        typedInnerPort.publishingProxy = self
-        self.key = Self.proxyKey(for: typedInnerPort)
-    }
-
-    private enum CodingKeys: String, CodingKey
-    {
-        case innerPortID
-        case declaredPortType
-    }
-
-    override public func encode(to encoder: any Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.innerPortID, forKey: .innerPortID)
-        try container.encodeIfPresent(self.declaredPortType, forKey: .declaredPortType)
-        try super.encode(to: encoder)
-    }
 
     // MARK: - Value Forwarding
 

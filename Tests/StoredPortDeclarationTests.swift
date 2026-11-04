@@ -37,50 +37,25 @@ struct StoredPortDeclarationTests
         #expect(units.parameterGroup.params.contains { $0 === units.inputCursorPosition.parameter })
     }
 
-    @Test("A port a document saved under the node's own key keeps its identity and wire")
-    func portSavedOutsideRegistryHydrates() throws
+    @Test("A port a document saved under the node's own key keeps its wire")
+    func portSavedOutsideRegistryKeepsItsWire() throws
     {
         guard let context = makeContext() else { return }
 
-        let graph = Graph(context: context)
-        let number = NumberBinaryOperator(context: context)
-        let units = PixelsToUnitsNode(context: context)
-        graph.addNode(number)
-        graph.addNode(units)
-        graph.connect(number.outputNumber, to: units.inputCursorPosition)
-        units.inputCursorPosition.value = 40
-        let savedInletID = units.inputCursorPosition.id
-        let savedOutletID = units.outputUnitPosition.id
+        // The form the node saved before it declared its ports: each port at
+        // the node's top level, under its coding key, with the inlet a plain
+        // port that never had a parameter.
+        let number = LegacyDocumentFixture.numberBinaryOperator()
+        let inlet = LegacyDocumentFixture.SavedPort(key: "inputCursorPositionPort", type: "Float", name: "Pixel", savedOutsideList: true)
+        let outlet = LegacyDocumentFixture.SavedPort(key: "outputUnitPositionPort", type: "Float", kind: "Outlet", name: "Unit", savedOutsideList: true)
+        let units = LegacyDocumentFixture.SavedNode(type: "PixelsToUnitsNode", ports: [inlet, outlet])
+        let fixture = LegacyDocumentFixture(nodes: [number.node, units], connections: [(number.output.id, inlet.id)])
 
-        // Rewrite the document into the form the node saved before it declared
-        // its ports: each port at the node's top level, under its coding key,
-        // with the inlet a plain port that never had a parameter.
-        let data = try JSONEncoder().encode(graph)
-        var object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
-        var nodeMap = try #require(object["nodeMap"] as? [[String: Any]])
-        let index = try #require(nodeMap.firstIndex { ($0["value"] as? [String: Any])?["id"] as? String == units.id.uuidString })
-        var value = try #require(nodeMap[index]["value"] as? [String: Any])
-        let snapshots = try #require(value["ports"] as? [[String: Any]])
-        for snapshot in snapshots
-        {
-            let key = try #require(snapshot["name"] as? String)
-            let payload = try #require(snapshot["payload"] as? [String: Any])
-            value[key] = payload["base"]
-        }
-        let legacyInlet = NodePort<Float>(name: "Pixel", kind: .Inlet, id: savedInletID)
-        value["inputCursorPositionPort"] = try JSONSerialization.jsonObject(with: JSONEncoder().encode(legacyInlet))
-        value["ports"] = []
-        nodeMap[index]["value"] = value
-        object["nodeMap"] = nodeMap
+        let loaded = try fixture.decode(context: context)
 
-        let decoder = JSONDecoder()
-        decoder.context = DecoderContext(documentContext: context)
-        let loaded = try decoder.decode(Graph.self, from: JSONSerialization.data(withJSONObject: object))
-
+        let loadedNumber = try #require(loaded.node(forID: number.node.id) as? NumberBinaryOperator)
         let loadedUnits = try #require(loaded.node(forID: units.id) as? PixelsToUnitsNode)
-        #expect(loadedUnits.inputCursorPosition.id == savedInletID)
-        #expect(loadedUnits.outputUnitPosition.id == savedOutletID)
-        #expect(loadedUnits.inputCursorPosition.connectedOutlets.map(\.id) == [number.outputNumber.id])
+        #expect(loadedUnits.inputCursorPosition.connectedOutlets.first === loadedNumber.outputNumber)
         #expect(loaded.droppedConnectionDiagnostics.isEmpty)
         #expect(loaded.droppedPortStateDiagnostics.isEmpty)
     }

@@ -741,7 +741,6 @@ struct RoutingNodeExecutionTests
         graph.addNode(switchNode)
 
         graph.connect(upstream.output, to: switchNode.port(named: "input3", as: NodePort<Float>.self))
-        let savedInput3ID = switchNode.port(named: "input3", as: NodePort<Float>.self).id
 
         let data = try JSONEncoder().encode(graph)
         let decoder = JSONDecoder()
@@ -751,12 +750,9 @@ struct RoutingNodeExecutionTests
         let decodedSwitch = try #require(decodedGraph.nodes.first(where: { $0.id == switchNode.id }) as? SwitchNode)
         #expect(decodedSwitch.routeCount == 4)
 
-        // The decode must rebuild ports with the saved route count in place —
-        // otherwise the high-index ports are torn down and recreated with fresh
-        // UUIDs, and the graph's UUID-keyed connection restore silently drops
-        // everything wired to routes >= 2.
+        // The decode must declare ports for the saved route count, or the
+        // wires to routes >= 2 find no port at their address.
         let decodedInput3 = try #require(decodedSwitch.findPort(named: "input3", as: NodePort<Float>.self))
-        #expect(decodedInput3.id == savedInput3ID)
         #expect(decodedInput3.connections.count == 1)
     }
 

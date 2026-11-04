@@ -94,48 +94,8 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
         self.subscribeToParameter()
     }
 
-    enum CodingKeys : String, CodingKey
-    {
-        case parameter
-    }
 
-    /// AnyParameter's own key for the parameter's type.
-    private enum EncodedParameterTypeKey : String, CodingKey
-    {
-        case type
-    }
     
-    required public init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        // A parameter Satin has no type for, a quaternion's say, encodes as
-        // .generic, and Satin's decoder traps on it. Throwing first lets the
-        // port envelope re-read the port as a plain one (see AnyPort).
-        if let typeContainer = try? container.nestedContainer(keyedBy: EncodedParameterTypeKey.self, forKey: .parameter),
-           try typeContainer.decodeIfPresent(ParameterType.self, forKey: .type) == .generic
-        {
-            throw DecodingError.dataCorruptedError(forKey: .parameter, in: container,
-                                                   debugDescription: "A .generic parameter cannot be decoded")
-        }
-
-        // backwards compat for port update
-        if let anyparam = try container.decodeIfPresent(AnyParameter.self, forKey: .parameter),
-           let param = anyparam.base as? GenericParameter<ParamValue>
-        {
-            self._parameter = param
-        }
-        else
-        {
-            self._parameter = try GenericParameter(from: decoder)
-        }
-        
-        try super.init(from: decoder)
-
-        self.value = self._parameter.value
-
-        self.subscribeToParameter()
-    }
     
     private func subscribeToParameter()
     {
@@ -154,13 +114,6 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
         self.subscription = nil
     }
     
-    override public func encode(to encoder: any Encoder) throws {
-
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(AnyParameter(self._parameter), forKey: .parameter)
-
-        try super.encode(to: encoder)
-    }
     
     /// A file picker's absolute reference inside the document's folder becomes
     /// relative to it, as NodeFileLoadingProtocol.normalizeFileReference has a

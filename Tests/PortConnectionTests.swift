@@ -275,7 +275,6 @@ struct PortConnectionTests {
 
         let decodedHold = try #require(decoded.nodes.first { $0.id == holdNode.id })
         let decodedInput = try #require(decodedHold.findPort(named: "inputValue") as Fabric.Port?)
-        #expect(decodedInput.id == holdInput.id)
         #expect(decodedInput.connections.isEmpty)
         #expect(decoded.droppedConnectionDiagnostics.count == 1)
         #expect(decoded.droppedConnectionDiagnostics.first?.reason == .incompatibleTypes)

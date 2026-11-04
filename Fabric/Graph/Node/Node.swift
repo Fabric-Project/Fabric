@@ -243,6 +243,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         case ports
 
         case userName
+        case portInterface
 
         // Depreciated...
         case inputParameters
@@ -268,15 +269,18 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
         // Declare, then hydrate: the port set comes from the code's
         // declarations, here and in any reconcile a subclass makes once it has
-        // read its source, and the document contributes only the state it
-        // owns, applied per key as each port is made. Snapshot keys that never
-        // match a declared port surface via droppedPortStateKeys instead of
-        // resurrecting retired ports. Order is the declarations'.
-        let snaps = try container.decodeIfPresent([PortRegistry.Snapshot].self, forKey: .ports) ?? []
-        let session = PortHydrationSession(snapshots: snaps)
-        self.portHydrationSession = session
-
-        try session.addSnapshotsSavedOutsideRegistry(for: self.declaredPorts(), from: decoder)
+        // read its source, and the document contributes only the values of
+        // its parameter inlets, by key, applied as each port is made. A key
+        // that never matches a declared port surfaces via droppedPortStateKeys.
+        // Order is the declarations'.
+        let saved = try container.decodeIfPresent([String: LossyPortValue].self, forKey: .ports) ?? [:]
+        if Self.savesPortInterface
+        {
+            self.decodedPortInterface = try container.decodeIfPresent([SavedPortShape].self, forKey: .portInterface) ?? []
+        }
+        self.portHydrationSession = PortHydrationSession(states: saved.compactMap { key, saved in
+            saved.value.map { PortState(key: .own(key), value: $0) }
+        })
         self.reconcilePorts()
     }
 
@@ -286,7 +290,14 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
         try container.encode(self.id, forKey: .id)
         try container.encode(self.offset, forKey: .nodeOffset)
-        try container.encode(self.registry.encode(), forKey: .ports)
+        var values: [String: PortValue] = [:]
+        for state in self.registry.states()
+        {
+            guard case .own(let key) = state.key, state.value.hasDocumentForm else { continue }
+            values[key] = state.value
+        }
+        try container.encode(values, forKey: .ports)
+        if Self.savesPortInterface { try container.encode(self.savedPortShapes(), forKey: .portInterface) }
         try container.encodeIfPresent(self.userName, forKey: .userName)
         try self.settings?.encode(to: encoder)
     }
@@ -370,39 +381,66 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     /// decode rather than discarding silently.
     internal var droppedPortStateKeys: [String] { self.portHydrationSession?.unconsumedKeys ?? [] }
 
-    /// Keeps the document's remaining ports, declared after the node's own,
-    /// until the node can declare its interface again. A node whose source
-    /// cannot declare its port set at decode time (an unparseable script, a
-    /// shader that no longer compiles) would otherwise decode with none of the
-    /// ports the document saved, taking every wire with them and making the
-    /// loss permanent at the next save. The decoded instances carry their saved
-    /// identity, value and published state, so once the node declares again a
-    /// declared port under the same key and type is the kept one.
-    ///
-    /// Only ever does anything mid-decode, and must run inside the node's init
-    /// path so Graph still sees the keys as adopted rather than dropped.
-    internal func adoptRemainingSnapshotPortsAsFallback()
+    /// A port's shape, as a node whose source may not compile on open saves
+    /// its interface: enough to declare the port, so the document's wires
+    /// and values hold until the source compiles again.
+    public struct SavedPortShape: Codable, Equatable
     {
-        guard let session = self.portHydrationSession else { return }
+        public let key: String
+        public let name: String
+        public let type: PortType
+        public let isInlet: Bool
+        public let isParameter: Bool
+    }
 
-        for (registryKey, port) in session.drainPendingSnapshots()
-            where self.registry.port(named: registryKey) == nil
-                && !self.undeclaredSnapshotPorts.contains(where: { $0.key == .own(registryKey) })
-        {
-            self.undeclaredSnapshotPorts.append(PortDeclaration(key: registryKey, port: port))
+    /// The shapes of the node's own ports, in order, for its encoding.
+    internal func savedPortShapes() -> [SavedPortShape]
+    {
+        self.ports.compactMap { port in
+            guard case .own(let key) = port.key else { return nil }
+            return SavedPortShape(key: key, name: port.name, type: port.portType,
+                                  isInlet: port.kind == .Inlet, isParameter: port.parameter != nil)
+        }
+    }
+
+    /// Whether the node saves its interface's shape with its document, for a
+    /// node whose source may not compile on open.
+    open class var savesPortInterface: Bool { false }
+
+    /// The interface the document saved, while decoding.
+    private var decodedPortInterface: [SavedPortShape] = []
+
+    /// Declares the interface the document saved, after the node's own ports,
+    /// until the node can declare its interface again. For a node whose source
+    /// does not compile on open (an unparseable script, a shader that no
+    /// longer compiles), which would otherwise open with none of the ports its
+    /// document wired and lose the wires for good at the next save. Does
+    /// nothing outside decode.
+    internal func declareSavedInterfaceWhileDecoding()
+    {
+        guard self.portHydrationSession != nil, !self.decodedPortInterface.isEmpty else { return }
+
+        self.savedInterfaceDeclarations = self.decodedPortInterface.map { shape in
+            let kind: PortKind = shape.isInlet ? .Inlet : .Outlet
+            guard !shape.isParameter, shape.type.freshPortControl(kind: kind) != nil else
+            {
+                return PortDeclaration(key: shape.key, portType: shape.type, kind: kind, name: shape.name)
+            }
+            // A plain port of a type that would otherwise carry a parameter.
+            return PortDeclaration(key: .own(shape.key), kind: kind, portType: shape.type, name: shape.name, control: nil)
+            { id in shape.type.makePlainPort(name: shape.name, kind: kind, id: id ?? UUID()) }
         }
         self.reconcilePorts()
     }
 
-    /// The ports adoptRemainingSnapshotPortsAsFallback() kept.
-    private var undeclaredSnapshotPorts: [PortDeclaration] = []
+    /// What declareSavedInterfaceWhileDecoding() declared.
+    private var savedInterfaceDeclarations: [PortDeclaration] = []
 
-    /// Lets go of the ports kept from the document while the node could not
-    /// declare its interface; the next reconcilePorts() takes those it does
-    /// not declare now.
-    internal func discardUndeclaredSnapshotPorts()
+    /// Lets go of the saved interface once the node declares its own again;
+    /// the next reconcilePorts() takes the ports it does not declare now.
+    internal func discardSavedInterface()
     {
-        self.undeclaredSnapshotPorts.removeAll()
+        self.savedInterfaceDeclarations.removeAll()
     }
 
     /// Ends the decode-time hydration window, returning the registry keys
@@ -426,7 +464,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     public final func reconcilePorts(applying states: [PortState] = [])
     {
         self.prepareDeclarations()
-        let reconciliation = self.registry.reconcile(to: self.declaredPorts() + self.undeclaredSnapshotPorts,
+        let reconciliation = self.registry.reconcile(to: self.declaredPorts() + self.savedInterfaceDeclarations,
                                                      applying: states,
                                                      owner: self,
                                                      hydrating: self.portHydrationSession,

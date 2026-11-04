@@ -9,7 +9,7 @@ import SwiftUI
 import Satin
 internal import AnyCodable
 
-public final class Connection: Codable, Identifiable, Hashable
+public final class Connection: Identifiable, Hashable
 {
     public let id: UUID
     public let outletPortID: UUID
@@ -28,14 +28,6 @@ public final class Connection: Codable, Identifiable, Hashable
     // detach and a port clears its own on deinit.
     internal unowned var outletPortReference: Port?
     internal unowned var inletPortReference: Port?
-
-    private enum CodingKeys: String, CodingKey
-    {
-        case id
-        case outletPortID
-        case inletPortID
-        case active
-    }
 
     public init(id: UUID = UUID(), outletPortID: UUID, inletPortID: UUID, active: Bool = true)
     {

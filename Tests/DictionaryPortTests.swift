@@ -96,18 +96,13 @@ struct DictionaryPortTests
         #expect(Dictionary<String, Float>.fromPortValue(boxed) == dictionary)
     }
 
-    @Test("Nested dictionary ports preserve declared recursive PortType through AnyPort")
-    func nestedDictionaryPortsPreserveDeclaredRecursivePortTypeThroughAnyPort() throws
+    @Test("Nested dictionary ports keep the declared recursive PortType")
+    func nestedDictionaryPortsKeepDeclaredRecursivePortType() throws
     {
         let portType: PortType = .Dictionary(valueType: .Dictionary(valueType: .Float))
         let port = portType.makeFreshPort(name: "Dictionary", kind: .Outlet)
 
         #expect(port.portType == portType)
-
-        let data = try JSONEncoder().encode(AnyPort(port))
-        let decoded = try JSONDecoder().decode(AnyPort.self, from: data).base
-
-        #expect(decoded.portType == portType)
     }
 
     @Test("JSON parser outputs boxed virtual dictionary")

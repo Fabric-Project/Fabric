@@ -30,7 +30,7 @@ struct DeclaredPortsInvariantTests
     {
         var json = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(nodeClass.init(context: context))) as? [String: Any])
         json["strategy"] = strategy
-        json["ports"] = []
+        json["ports"] = [String: Any]()
         let decoder = JSONDecoder()
         decoder.context = DecoderContext(documentContext: context)
         return try decoder.decode(nodeClass, from: JSONSerialization.data(withJSONObject: json))

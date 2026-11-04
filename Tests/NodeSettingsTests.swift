@@ -116,7 +116,7 @@ struct NodeSettingsTests
         #expect(failures.isEmpty, "\(failures.joined(separator: "\n"))")
     }
 
-    @Test("Non-default settings of every kind save and open as they were, and the ports keep their ids")
+    @Test("Non-default settings of every kind save and open as they were, and the ports keep their keys, types and order")
     func nonDefaultSettingsSaveAndOpen() throws
     {
         guard let context = makeContext() else { return }
@@ -156,7 +156,8 @@ struct NodeSettingsTests
             ("Local VLM", LocalVLMNode(context: context),
              LocalVLMSettings(selectedModelID: "model", temperature: 0.3, updateIntervalSeconds: 1, systemPromptOverride: "s", chatModeEnabled: false, desiredMaxContextTokens: 1_024)),
         ]
-        func identities(_ node: Node) -> [String] { node.ports.map { "\($0.name) \($0.id)" }.sorted() }
+        // Port ids are runtime-only; a port is the same port across a save by its key.
+        func identities(_ node: Node) -> [String] { node.ports.map { "\(String(describing: $0.key)) \($0.kind) \($0.portType) \($0.name)" } }
 
         for (name, node, settings) in cases
         {
@@ -169,7 +170,7 @@ struct NodeSettingsTests
             decoder.context = DecoderContext(documentContext: context)
             let opened = try decoder.decode(Graph.self, from: JSONEncoder().encode(graph)).node(forID: node.id)
             #expect(opened?.settings?.isEqual(to: settings) == true, "\(name): opens as saved")
-            #expect(opened.map(identities) == identities(node), "\(name): ports keep their ids")
+            #expect(opened.map(identities) == identities(node), "\(name): ports keep their keys, types and order")
         }
     }
 

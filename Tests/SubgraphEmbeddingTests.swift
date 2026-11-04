@@ -219,11 +219,6 @@ struct SubgraphEmbeddingTests
         let fixture = try makeFixture(context: context)
         let container = try embed(fixture, as: kind)
 
-        let expectedConnectionIDs = Set([
-            fixture.incomingConnection.id,
-            fixture.internalConnection.id,
-            fixture.outgoingConnection.id,
-        ])
         var encodedGraph = try JSONEncoder().encode(fixture.graph)
 
         for _ in 0..<2
@@ -243,11 +238,8 @@ struct SubgraphEmbeddingTests
 
             #expect(decodedGraph.connections.count == 2)
             #expect(decodedContainer.subGraph.connections.count == 1)
-            #expect(Set(decodedGraph.connections.map(\.id))
-                    .union(decodedContainer.subGraph.connections.map(\.id)) == expectedConnectionIDs)
 
             let decodedInternalConnection = try #require(decodedContainer.subGraph.connections.first)
-            #expect(decodedInternalConnection.id == fixture.internalConnection.id)
             #expect(decodedInternalConnection.graph === decodedContainer.subGraph)
             #expect(decodedInternalConnection.active == false)
             #expect(decodedInternalConnection.outletPort === decodedFirstMovedNode.outputNumber)
@@ -259,11 +251,12 @@ struct SubgraphEmbeddingTests
             let decodedOutletProxy = try #require(
                 decodedContainer.ports.first { $0.id == decodedSecondMovedNode.outputNumber.id }
             )
+            // A wire is saved by its endpoints' addresses, not an id of its own.
             let decodedIncomingConnection = try #require(
-                decodedGraph.connections.first { $0.id == fixture.incomingConnection.id }
+                decodedGraph.connections.first { $0.inletPort === decodedInletProxy }
             )
             let decodedOutgoingConnection = try #require(
-                decodedGraph.connections.first { $0.id == fixture.outgoingConnection.id }
+                decodedGraph.connections.first { $0.outletPort === decodedOutletProxy }
             )
 
             #expect(decodedInletProxy is any ProxyPortProtocol)

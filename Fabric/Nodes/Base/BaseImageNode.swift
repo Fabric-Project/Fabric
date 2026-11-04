@@ -252,7 +252,7 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
 
         // The shader declares the node's ports again; any the document kept
         // while it could not go now.
-        self.discardUndeclaredSnapshotPorts()
+        self.discardSavedInterface()
         self.reconcilePorts()
         self.bindMaterialParameters()
     }

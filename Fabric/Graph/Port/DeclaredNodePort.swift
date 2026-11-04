@@ -26,22 +26,6 @@ public final class DeclaredNodePort<Value: PortValueRepresentable>: NodePort<Val
         super.init(name: name, kind: kind, description: description, id: id)
     }
 
-    private enum CodingKeys: String, CodingKey
-    {
-        case declaredPortType
-    }
 
-    required public init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.declaredPortType = try container.decodeIfPresent(PortType.self, forKey: .declaredPortType) ?? Value.portType
-        try super.init(from: decoder)
-    }
 
-    override public func encode(to encoder: any Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.declaredPortType, forKey: .declaredPortType)
-        try super.encode(to: encoder)
-    }
 }

@@ -177,19 +177,5 @@ final class PortRegistry
     // Array API and its copy-on-write snapshot semantics.
     func all() -> [Port] { Array(self.ordered) }
 
-    /// A port's persisted form: registry key plus the encoded port object.
-    /// Decode treats it as a hydration source only — the port instances that
-    /// end up registered always come from the code's declarations (see
-    /// Node.init(from:)); the snapshot contributes document-owned state.
-    struct Snapshot: Codable
-    {
-        var name: String
-        var payload: AnyPort // you already have this for heterogeneous, codable ports
-    }
 
-    func encode() -> [Snapshot] {
-        self.ordered.map { port in
-            Snapshot(name: self.name(of: port) ?? port.name, payload: AnyPort(port))
-        }
-    }
 }
