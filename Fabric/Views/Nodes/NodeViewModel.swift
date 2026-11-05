@@ -143,7 +143,7 @@ import Satin
                 self.nodeSize = node.nodeSize
                 // this forces redraw of a node to pull in changed ports
                 // esp if port type changed and UUID didnt (which can happen)... 
-                self.version += 1
+                self.version &+= 1
             }
             .store(in: &cancellables)
 

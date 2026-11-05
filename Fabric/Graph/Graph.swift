@@ -119,14 +119,14 @@ internal import AnyCodable
             return
         }
 
-        connectionRevision += 1
+        connectionRevision &+= 1
         pendingConnectionSceneSync = true
-        connectionTopologyGeneration += 1
+        connectionTopologyGeneration &+= 1
     }
 
     public func markExecutionTopologyChanged()
     {
-        executionTopologyGeneration += 1
+        executionTopologyGeneration &+= 1
     }
 
     public func markConnectionsChanged()
