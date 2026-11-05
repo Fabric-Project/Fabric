@@ -61,7 +61,7 @@ struct ParameterPortNotificationTests {
         port.onValueChanged = { portChanges += 1 }
         port.valueDidChange = false
 
-        parameter.valuePublisher.send(3)
+        parameter.notifyValueChanged()
 
         #expect(port.valueDidChange)
         #expect(portChanges == 1)
