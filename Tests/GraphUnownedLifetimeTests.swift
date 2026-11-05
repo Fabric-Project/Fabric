@@ -23,7 +23,7 @@ struct GraphUnownedLifetimeTests
     @Test("Nodes and connections that outlive their graph read nil")
     func nodesAndConnectionsOutliveTheirGraph() throws
     {
-        guard let context = makeContext() else { return }
+        let context = try #require(makeContext())
 
         let source = NumberBinaryOperator(context: context)
         let sink = NumberBinaryOperator(context: context)
@@ -48,9 +48,9 @@ struct GraphUnownedLifetimeTests
     }
 
     @Test("A deleted node reads nil once its graph is gone")
-    func deletedNodeOutlivesItsGraph()
+    func deletedNodeOutlivesItsGraph() throws
     {
-        guard let context = makeContext() else { return }
+        let context = try #require(makeContext())
 
         let node = NumberBinaryOperator(context: context)
         weak var releasedGraph: Graph?
@@ -68,9 +68,9 @@ struct GraphUnownedLifetimeTests
     }
 
     @Test("A graph going away leaves a node another graph now holds")
-    func movedNodeKeepsItsNewGraph()
+    func movedNodeKeepsItsNewGraph() throws
     {
-        guard let context = makeContext() else { return }
+        let context = try #require(makeContext())
 
         let node = NumberBinaryOperator(context: context)
         let keptGraph = Graph(context: context)
@@ -91,7 +91,7 @@ struct GraphUnownedLifetimeTests
     @Test("Decoded nodes and connections read nil once their graph is gone")
     func decodedNodesOutliveTheirGraph() throws
     {
-        guard let context = makeContext() else { return }
+        let context = try #require(makeContext())
 
         let original = Graph(context: context)
         let source = NumberBinaryOperator(context: context)
