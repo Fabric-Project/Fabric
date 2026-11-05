@@ -23,7 +23,15 @@ public final class Connection: Codable, Identifiable, Hashable
         }
     }
 
-    internal weak var graph: Graph?
+    /// Unowned so a graph needs no side table; the graph clears it on disconnect and as it
+    /// deinitializes.
+    internal unowned var graph: Graph?
+    {
+        didSet { self.graphIdentifier = self.graph.map(ObjectIdentifier.init) }
+    }
+
+    /// The graph's identity, compared without loading the graph.
+    internal private(set) var graphIdentifier: ObjectIdentifier?
     // Unowned, not weak, so ports avoid Swift side tables. Graph clears these on
     // detach and a port clears its own on deinit.
     internal unowned var outletPortReference: Port?

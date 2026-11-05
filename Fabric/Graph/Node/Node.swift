@@ -142,7 +142,16 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     public private(set) var context:Context
 
-    public internal(set) weak var graph:Graph?
+    /// Unowned, not weak, so a graph needs no side table: every retain of a graph executed 200
+    /// times a frame inside an Iterator would otherwise take the slow path. The graph clears it
+    /// when it removes this node and as it deinitializes.
+    public internal(set) unowned var graph:Graph?
+    {
+        didSet { self.graphIdentifier = self.graph.map(ObjectIdentifier.init) }
+    }
+
+    /// The graph's identity, compared without loading the graph (as a deinitializing graph must).
+    internal private(set) var graphIdentifier: ObjectIdentifier?
 
     // Method to register ports
     open class func registerPorts(context: Context) -> [(name: String, port: Port)] { [] }
@@ -240,6 +249,8 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         
         self.context = decodeContext.documentContext
         self.graph = decodeContext.currentGraph
+        // didSet does not fire during init.
+        self.graphIdentifier = decodeContext.currentGraph.map(ObjectIdentifier.init)
 
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
