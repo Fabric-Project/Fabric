@@ -69,6 +69,15 @@ public class NodePort<Value : PortValueRepresentable>: Port
     /// Overrides call `super` to keep a publishing proxy in step.
     internal func valueDidSet()
     {
+        // Most ports have no proxy. This override point runs unspecialized, and naming
+        // `ProxyPort<Value>?` here would look up its metadata on entry, before any check;
+        // the identifier needs none, so the proxy is only touched out of line.
+        if self.publishingProxyIdentifier != nil { self.mirrorToPublishingProxy() }
+    }
+
+    @inline(never)
+    private func mirrorToPublishingProxy()
+    {
         self.publishingProxy?.mirrorInnerValue(self.value)
     }
 
