@@ -26,14 +26,14 @@ public final class DistanceNode: NumericTypeAgnosticNode
     public var inputMetric: ParameterPort<String> { port(named: "inputMetric") }
     public var outputDistance: NodePort<Float> { port(named: "outputDistance") }
 
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
         let portType = selectedNumericPortType
 
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputA", displayName: "A", portType: portType, kind: .Inlet, description: "First value")
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputB", displayName: "B", portType: portType, kind: .Inlet, description: "Second value")
-        reorderPorts(named: ["inputA", "inputB", "inputMetric", "outputDistance"])
+        return [
+            PortDeclaration(key: "inputA", portType: portType, kind: .Inlet, name: "A", description: "First value"),
+            PortDeclaration(key: "inputB", portType: portType, kind: .Inlet, name: "B", description: "Second value"),
+        ] + super.declaredPorts()
     }
 
     override public func execute(renderer: GraphRenderer,

@@ -51,41 +51,53 @@ public final class MatrixSwitchNode: RoutingNodeBase
         ]
     }
 
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
-        let portType = (strategy as? PortType) ?? .Virtual
+        super.declaredPorts()
+            + (0..<routeCount).map { index in
+                routePortDeclaration(key: Self.inputPortName(index),
+                                     name: "Input \(index)",
+                                     kind: .Inlet,
+                                     description: "Value for input \(index)")
+            }
+            + (0..<routeCount).map { index in
+                routePortDeclaration(key: Self.outputPortName(index),
+                                     name: "Output \(index)",
+                                     kind: .Outlet,
+                                     description: "Value routed to output \(index)")
+            }
+    }
 
-        for index in 0..<routeCount
-        {
-            addOrReplaceDynamicPortPreservingIdentity(name: Self.inputPortName(index),
-                                                      displayName: "Input \(index)",
-                                                      portType: portType,
-                                                      kind: .Inlet,
-                                                      description: "Value for input \(index)")
-        }
+    public required init(context: Context)
+    {
+        super.init(context: context)
+        observeIndexMap()
+    }
 
-        for index in 0..<routeCount
-        {
-            addOrReplaceDynamicPortPreservingIdentity(name: Self.outputPortName(index),
-                                                      displayName: "Output \(index)",
-                                                      portType: portType,
-                                                      kind: .Outlet,
-                                                      description: "Value routed to output \(index)")
-        }
+    public override init(context: Context, routeCount: Int, initialStrategy: String)
+    {
+        super.init(context: context, routeCount: routeCount, initialStrategy: initialStrategy)
+        observeIndexMap()
+    }
 
-        removeRoutingPortsAboveRouteCount(named: Self.inputPortName)
-        removeRoutingPortsAboveRouteCount(named: Self.outputPortName)
+    public required init(from decoder: any Decoder) throws
+    {
+        try super.init(from: decoder)
+        observeIndexMap()
+    }
 
-        let orderedPortNames = [Self.indexMapPortName]
-            + (0..<routeCount).map(Self.inputPortName)
-            + (0..<routeCount).map(Self.outputPortName)
-        applyPortOrder(orderedPortNames)
-
+    private func observeIndexMap()
+    {
         inputMap.onValueChanged = { [weak self] in
             self?.updateConnectionTopology()
         }
+        updateConnectionTopology()
+    }
 
+    /// The routes follow the route count and type.
+    public override func apply(_ settings: any NodeSettings)
+    {
+        super.apply(settings)
         updateConnectionTopology()
     }
 

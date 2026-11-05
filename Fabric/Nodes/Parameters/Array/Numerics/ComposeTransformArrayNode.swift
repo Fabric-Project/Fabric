@@ -18,21 +18,10 @@ public class ComposeTransformArrayNode: StrategyNode
 
     public override class var strategyOptions: [any NodeStrategyOption] { TransformCompositionMode.allCases }
 
-    private static let allDynamicNames: Set<String> = [
-        "inputPositions", "inputOrientations", "inputScales",
-        "inputColumn0s", "inputColumn1s", "inputColumn2s", "inputColumn3s",
-        "outputTransforms",
-    ]
-
-    /// `strategy`, typed once per rebuild, so execute never compares strategy strings.
-    private var typedStrategy: TransformCompositionMode?
-
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        typedStrategy = strategy as? TransformCompositionMode
-
         let wanted: [(name: String, port: Port)]
-        switch typedStrategy
+        switch strategy as? TransformCompositionMode
         {
         case .trs:
             wanted =
@@ -57,15 +46,7 @@ public class ComposeTransformArrayNode: StrategyNode
             wanted = []
         }
 
-        let wantedNames = Set(wanted.map(\.name))
-        for name in Self.allDynamicNames.subtracting(wantedNames)
-        {
-            if let p = findPort(named: name) { removePort(p) }
-        }
-        for (name, p) in wanted where findPort(named: name) == nil
-        {
-            addDynamicPort(p, name: name)
-        }
+        return super.declaredPorts() + wanted.map { PortDeclaration(key: $0.name, port: $0.port) }
     }
 
     public override func execute(renderer: GraphRenderer,
@@ -76,7 +57,7 @@ public class ComposeTransformArrayNode: StrategyNode
     {
         guard let outputTransforms: NodePort<ContiguousArray<simd_float4x4>> = findPort(named: "outputTransforms") else { return }
 
-        switch typedStrategy
+        switch self.strategy as? TransformCompositionMode
         {
         case .trs:
             guard let inputPositions: NodePort<ContiguousArray<simd_float3>> = findPort(named: "inputPositions"),

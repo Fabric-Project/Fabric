@@ -22,30 +22,19 @@ public final class SwitchNode: RoutingNode
 
     public var output: Port { port(named: Self.outputPortName) }
 
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
-        let portType = (strategy as? PortType) ?? .Virtual
-
-        for index in 0..<routeCount
-        {
-            addOrReplaceDynamicPortPreservingIdentity(name: Self.inputPortName(index),
-                                                      displayName: "Input \(index)",
-                                                      portType: portType,
-                                                      kind: .Inlet,
-                                                      description: "Value for route \(index)")
-        }
-
-        removeRoutingPortsAboveRouteCount(named: Self.inputPortName)
-
-        addOrReplaceDynamicPortPreservingIdentity(name: Self.outputPortName,
-                                                  displayName: "Output",
-                                                  portType: portType,
-                                                  kind: .Outlet,
-                                                  description: "Selected input value")
-
-        let orderedPortNames = ["inputIndex"] + (0..<routeCount).map(Self.inputPortName) + [Self.outputPortName]
-        applyPortOrder(orderedPortNames)
+        super.declaredPorts()
+            + (0..<routeCount).map { index in
+                routePortDeclaration(key: Self.inputPortName(index),
+                                     name: "Input \(index)",
+                                     kind: .Inlet,
+                                     description: "Value for route \(index)")
+            }
+            + [routePortDeclaration(key: Self.outputPortName,
+                                    name: "Output",
+                                    kind: .Outlet,
+                                    description: "Selected input value")]
     }
 
     public override func respondToPull(requestedOutputPort: Port?) -> Node.PullResponse

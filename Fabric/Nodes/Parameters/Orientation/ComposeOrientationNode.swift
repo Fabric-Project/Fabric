@@ -18,22 +18,10 @@ public class ComposeOrientationNode: StrategyNode
 
     public override class var strategyOptions: [any NodeStrategyOption] { OrientationCompositionMode.allCases }
 
-    private static let allDynamicNames: Set<String> = [
-        "inputX", "inputY", "inputZ",
-        "inputAngle", "inputAxis",
-        "inputPosition", "inputTarget", "inputUpOrientation", "inputAimOffset",
-        "outputOrientation",
-    ]
-
-    /// `strategy`, typed once per rebuild, so execute never compares strategy strings.
-    private var typedStrategy: OrientationCompositionMode?
-
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        typedStrategy = strategy as? OrientationCompositionMode
-
         let wanted: [(name: String, port: Port)]
-        switch typedStrategy
+        switch strategy as? OrientationCompositionMode
         {
         case .euler:
             wanted =
@@ -65,15 +53,7 @@ public class ComposeOrientationNode: StrategyNode
             wanted = []
         }
 
-        let wantedNames = Set(wanted.map(\.name))
-        for name in Self.allDynamicNames.subtracting(wantedNames)
-        {
-            if let p = findPort(named: name) { removePort(p) }
-        }
-        for (name, p) in wanted where findPort(named: name) == nil
-        {
-            addDynamicPort(p, name: name)
-        }
+        return super.declaredPorts() + wanted.map { PortDeclaration(key: $0.name, port: $0.port) }
     }
 
     public override func execute(renderer: GraphRenderer,
@@ -84,7 +64,7 @@ public class ComposeOrientationNode: StrategyNode
     {
         guard let outputOrientation: NodePort<simd_float4> = findPort(named: "outputOrientation") else { return }
 
-        switch typedStrategy
+        switch self.strategy as? OrientationCompositionMode
         {
         case .euler:
             guard let inputX: ParameterPort<Float> = findPort(named: "inputX"),

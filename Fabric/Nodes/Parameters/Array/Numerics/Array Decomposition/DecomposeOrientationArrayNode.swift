@@ -18,21 +18,10 @@ public class DecomposeOrientationArrayNode: StrategyNode
 
     public override class var strategyOptions: [any NodeStrategyOption] { OrientationDecompositionMode.allCases }
 
-    private static let allDynamicNames: Set<String> = [
-        "inputOrientations",
-        "outputX", "outputY", "outputZ",
-        "outputAxes", "outputAngles",
-    ]
-
-    /// `strategy`, typed once per rebuild, so execute never compares strategy strings.
-    private var typedStrategy: OrientationDecompositionMode?
-
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        typedStrategy = strategy as? OrientationDecompositionMode
-
         let wanted: [(name: String, port: Port)]
-        switch typedStrategy
+        switch strategy as? OrientationDecompositionMode
         {
         case .toEuler:
             wanted =
@@ -55,15 +44,7 @@ public class DecomposeOrientationArrayNode: StrategyNode
             wanted = []
         }
 
-        let wantedNames = Set(wanted.map(\.name))
-        for name in Self.allDynamicNames.subtracting(wantedNames)
-        {
-            if let p = findPort(named: name) { removePort(p) }
-        }
-        for (name, p) in wanted where findPort(named: name) == nil
-        {
-            addDynamicPort(p, name: name)
-        }
+        return super.declaredPorts() + wanted.map { PortDeclaration(key: $0.name, port: $0.port) }
     }
 
     public override func execute(renderer: GraphRenderer,
@@ -79,7 +60,7 @@ public class DecomposeOrientationArrayNode: StrategyNode
         let orientations = inputOrientations.value ?? ContiguousArray<simd_float4>()
         let quats = orientations.map { simd_quatf(safeVector: $0) }
 
-        switch typedStrategy
+        switch self.strategy as? OrientationDecompositionMode
         {
         case .toEuler:
             guard let outputX: NodePort<ContiguousArray<Float>> = findPort(named: "outputX"),

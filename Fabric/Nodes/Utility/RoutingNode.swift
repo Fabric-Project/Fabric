@@ -31,14 +31,13 @@ public struct RoutingSettings: StrategySettings
 
 /// Shared base for the routing / switching node family (Switch, Gate, Matrix
 /// Switch). Owns the route count, the value-type strategy (the Type picker), the
-/// settings pane, and the dynamic-port helpers. It deliberately holds no notion of
+/// settings pane, and the route port declaration. It deliberately holds no notion of
 /// *how* a route is selected — subclasses supply that: a single `Index` for
 /// Switch/Gate ([[RoutingNode]]), an index map for Matrix Switch.
 public class RoutingNodeBase: TypeAgnosticNode
 {
     /// Changed by apply(_:), through setRouteCount(_:) or setSettings(_:).
-    /// Init/decode paths assign the stored value directly because their port
-    /// rebuild happens in StrategyNode's initializer.
+    /// Init and decode assign it before Node's initializer declares the ports.
     public private(set) var routeCount: Int = routingNodeMinimumRouteCount
     {
         didSet
@@ -78,11 +77,9 @@ public class RoutingNodeBase: TypeAgnosticNode
 
     public required init(from decoder: any Decoder) throws
     {
-        // Decode before super.init — StrategyNode.init(from:) dispatches
-        // rebuildPorts to this class, which must see the saved route count or it
-        // removes the decoded high-index ports and recreates them with fresh
-        // UUIDs, breaking the graph's UUID-keyed connection restore. Same
-        // pattern as StrategyNode's own strategy decode.
+        // Decode before super.init: the ports are declared for the saved route
+        // count as Node.init(from:) makes them, so the high-index routes take
+        // their saved state and the wires that name them.
         let container = try decoder.container(keyedBy: RoutingCodingKeys.self)
         routeCount = Self.clampedRouteCount(
             try container.decodeIfPresent(Int.self, forKey: .routeCount) ?? routingNodeMinimumRouteCount
@@ -159,34 +156,12 @@ public class RoutingNodeBase: TypeAgnosticNode
         }
     }
 
-    // MARK: - Dynamic routing-port helpers
+    // MARK: - Route ports
 
-    /// Removes stale dynamic route ports at index `routeCount` and above,
-    /// looked up by their index-derived registry names so removal never depends
-    /// on the human-facing display-name format (which serialization keeps and a
-    /// rename or localization would silently break).
-    func removeRoutingPortsAboveRouteCount(named registryName: (Int) -> String)
+    /// A route port, carrying the node's type.
+    func routePortDeclaration(key: String, name: String, kind: PortKind, description: String) -> PortDeclaration
     {
-        for index in routeCount..<routingNodeMaximumRouteCount
-        {
-            if let port: Port = findPort(named: registryName(index))
-            {
-                removePort(port)
-            }
-        }
-    }
-
-    func applyPortOrder(_ registryNames: [String])
-    {
-        let reordered: [Port] = registryNames.compactMap { name in
-            let port: Port? = findPort(named: name)
-            return port
-        }
-
-        if reordered.count == ports.count
-        {
-            reorderPorts(reordered)
-        }
+        PortDeclaration(key: key, portType: selectedPortType, kind: kind, name: name, description: description)
     }
 
     static func clampedRouteCount(_ count: Int) -> Int
@@ -232,9 +207,10 @@ public class RoutingNode: RoutingNodeBase
         ]
     }
 
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    /// The Index range follows the route count.
+    public override func apply(_ settings: any NodeSettings)
     {
-        super.rebuildPorts(forStrategy: strategy)
+        super.apply(settings)
         updateIndexRange()
     }
 

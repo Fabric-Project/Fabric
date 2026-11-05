@@ -35,30 +35,19 @@ public final class GateNode: RoutingNode
         return .evaluate(pulling: [inputIndex, input])
     }
 
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
-        let portType = (strategy as? PortType) ?? .Virtual
-
-        addOrReplaceDynamicPortPreservingIdentity(name: Self.inputPortName,
-                                                  displayName: "Input",
-                                                  portType: portType,
-                                                  kind: .Inlet,
-                                                  description: "Value to route")
-
-        for index in 0..<routeCount
-        {
-            addOrReplaceDynamicPortPreservingIdentity(name: Self.outputPortName(index),
-                                                      displayName: "Output \(index)",
-                                                      portType: portType,
-                                                      kind: .Outlet,
-                                                      description: "Value when route \(index) is selected")
-        }
-
-        removeRoutingPortsAboveRouteCount(named: Self.outputPortName)
-
-        let orderedPortNames = ["inputIndex", Self.inputPortName] + (0..<routeCount).map(Self.outputPortName)
-        applyPortOrder(orderedPortNames)
+        super.declaredPorts()
+            + [routePortDeclaration(key: Self.inputPortName,
+                                    name: "Input",
+                                    kind: .Inlet,
+                                    description: "Value to route")]
+            + (0..<routeCount).map { index in
+                routePortDeclaration(key: Self.outputPortName(index),
+                                     name: "Output \(index)",
+                                     kind: .Outlet,
+                                     description: "Value when route \(index) is selected")
+            }
     }
 
     override public func execute(renderer: GraphRenderer,

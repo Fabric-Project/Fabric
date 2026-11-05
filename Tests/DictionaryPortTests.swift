@@ -56,19 +56,21 @@ struct DictionaryPortTests
         let currentInput: Fabric.Port = node.port(named: "inputPort")
         let legacyID = currentInput.id
 
-        node.removePort(currentInput)
-
+        // The port an older build declared under the same key.
         let legacyInput = PortType.Virtual.makeFreshPort(
             name: "Array",
             kind: .Inlet,
-            description: "Input array to index into",
-            id: legacyID
+            description: "Input array to index into"
         )
+        let legacyDeclarations = node.declaredPorts().map { declaration in
+            declaration.key == .own("inputPort") ? PortDeclaration(key: "inputPort", port: legacyInput) : declaration
+        }
+        _ = node.registry.reconcile(to: legacyDeclarations, applying: [], owner: node, hydrating: nil)
+        #expect(legacyInput.id == legacyID)
         legacyInput.published = true
         legacyInput.publishedName = "Legacy Array"
-        node.addDynamicPort(legacyInput, name: "inputPort")
 
-        node.rebuildPorts(forStrategy: PortType.Virtual)
+        node.reconcilePorts()
 
         let migratedInput: Fabric.Port = node.port(named: "inputPort")
         #expect(migratedInput.id == legacyID)

@@ -27,14 +27,16 @@ public final class ValueBlendNode: NumericTypeAgnosticNode
 
     public var inputBlendAmount: ParameterPort<Float> { port(named: "inputBlendAmount") }
 
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
         let portType = selectedNumericPortType
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputSource", displayName: "Source", portType: portType, kind: .Inlet, description: "The value at Blend Amount 0")
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputTarget", displayName: "Target", portType: portType, kind: .Inlet, description: "The value at Blend Amount 1")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputValue", displayName: "Value", portType: portType, kind: .Outlet, description: "The blended value")
-        reorderPorts(named: ["inputSource", "inputTarget", "inputBlendAmount", "outputValue"])
+
+        return [
+            PortDeclaration(key: "inputSource", portType: portType, kind: .Inlet, name: "Source", description: "The value at Blend Amount 0"),
+            PortDeclaration(key: "inputTarget", portType: portType, kind: .Inlet, name: "Target", description: "The value at Blend Amount 1"),
+        ] + super.declaredPorts() + [
+            PortDeclaration(key: "outputValue", portType: portType, kind: .Outlet, name: "Value", description: "The blended value"),
+        ]
     }
 
     /// `source` and `target` blended by `amount` with Satin's `Lerpable`; nil when their

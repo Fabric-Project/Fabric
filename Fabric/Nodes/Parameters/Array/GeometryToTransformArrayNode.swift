@@ -45,20 +45,10 @@ public class GeometryToTransformArrayNode : StrategyNode
     public var inputPort:NodePort<Geometry> { port(named: "inputPort") }
     public var inputTransform:NodePort<simd_float4x4> { port(named: "inputTransform") }
 
-    private static let allDynamicNames: Set<String> = [
-        "outputTransforms",
-        "outputPositions", "outputOrientations", "outputUVs",
-    ]
-
-    /// `strategy`, typed once per rebuild, so execute never compares strategy strings.
-    private var typedStrategy: GeometryToTransformMode?
-
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        typedStrategy = strategy as? GeometryToTransformMode
-
         let wanted: [(name: String, port: Port)]
-        switch typedStrategy
+        switch strategy as? GeometryToTransformMode
         {
         case .transform:
             wanted =
@@ -78,15 +68,7 @@ public class GeometryToTransformArrayNode : StrategyNode
             wanted = []
         }
 
-        let wantedNames = Set(wanted.map(\.name))
-        for name in Self.allDynamicNames.subtracting(wantedNames)
-        {
-            if let p = findPort(named: name) { removePort(p) }
-        }
-        for (name, p) in wanted where findPort(named: name) == nil
-        {
-            addDynamicPort(p, name: name)
-        }
+        return super.declaredPorts() + wanted.map { PortDeclaration(key: $0.name, port: $0.port) }
     }
 
     override public func execute(renderer:GraphRenderer,
@@ -122,7 +104,7 @@ public class GeometryToTransformArrayNode : StrategyNode
         let vertexCount = vertices.count
         let inputTransform = self.inputTransform.value ?? matrix_identity_float4x4
 
-        switch typedStrategy
+        switch self.strategy as? GeometryToTransformMode
         {
         case .transform:
             guard let outputTransforms: NodePort<ContiguousArray<simd_float4x4>> = findPort(named: "outputTransforms") else { return }
