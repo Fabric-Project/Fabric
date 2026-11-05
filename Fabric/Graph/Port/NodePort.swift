@@ -134,10 +134,13 @@ public class NodePort<Value : PortValueRepresentable>: Port
         if self.value != v || force
         {
             self.value = v
-            
+
+            // Read once: `id` is observed and stored, so each read is a registrar call and a
+            // checked access, which reading it per connection repeated.
+            let portID = self.id
             for connection in connections
             {
-                guard connection.outletPortID == id,
+                guard connection.outletPortID == portID,
                       let inlet = connection.inletPort
                 else { continue }
 
