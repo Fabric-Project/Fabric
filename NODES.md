@@ -568,7 +568,7 @@ override public func declaredPorts() -> [PortDeclaration]
 }
 ```
 
-`execute` reads the properties. Ports whose type or number follows a setting, a source, a device or records are declared in the same function, made from the state they follow, and the node assigns its references to them in `bindPorts()`, which runs after every reconcile. A shader-backed image node adds its stored ports in `fixedPortDeclarations()` instead, so the base can order them among the shader's.
+`execute` reads the properties. Ports whose type or number follows a setting, a source, a device or records are declared in the same function, made from the state they follow, and the node assigns its references to them in `bindPorts()`, which runs after every reconcile. A setting changes them in the node's `apply(_:)`, which updates what `declaredPorts()` reads and calls `reconcilePorts()`. A shader-backed image node adds its stored ports in `fixedPortDeclarations()` instead, so the base can order them among the shader's.
 
 ### Frame command buffers and image ownership
 
