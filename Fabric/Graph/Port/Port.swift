@@ -83,7 +83,9 @@ extension UTType
     
     /// Mutable only via hydrate(from:) during decode, which adopts the
     /// document's saved identity so UUID-keyed connections can rebind.
-    public private(set) var id:UUID
+    /// Not observed: it changes only while decoding, before any view reads it, and ports read it on
+    /// every send, where observation tracking costs a registrar call each time.
+    @ObservationIgnored public private(set) var id:UUID
 
     public let name: String
 

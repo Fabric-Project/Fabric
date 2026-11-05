@@ -135,8 +135,7 @@ public class NodePort<Value : PortValueRepresentable>: Port
         {
             self.value = v
 
-            // Read once: `id` is observed and stored, so each read is a registrar call and a
-            // checked access, which reading it per connection repeated.
+            // Read once, not once per connection: a stored property read is a checked access.
             let portID = self.id
             for connection in connections
             {
