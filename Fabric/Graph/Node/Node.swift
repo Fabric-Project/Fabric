@@ -241,6 +241,33 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     private let namingRefreshPending = Atomic<Bool>(false)
 
+    /// Call whenever state an open settings view shows changes, its settings
+    /// above all, from any thread. On main the settings model refreshes there
+    /// and then; from elsewhere, on main once for however many calls arrive
+    /// before it gets there, as namingDidChange() does. The hop does not hold
+    /// the node.
+    public final func settingsDidChange()
+    {
+        if Thread.isMainThread
+        {
+            MainActor.assumeIsolated { self.refreshSettingsModel() }
+            return
+        }
+        guard !self.settingsRefreshPending.exchange(true, ordering: .acquiringAndReleasing) else { return }
+        self.performOnMainAsync { [weak self] in
+            guard let self else { return }
+            self.settingsRefreshPending.store(false, ordering: .releasing)
+            self.refreshSettingsModel()
+        }
+    }
+
+    private let settingsRefreshPending = Atomic<Bool>(false)
+
+    /// Override where the node holds a settings model a view made: bring it
+    /// to the node. Called through settingsDidChange(), on main; never call it.
+    @MainActor
+    open func refreshSettingsModel() { }
+
     // Dirty Handling
     private var inputsAreDirty = true
     /// Nested execution defers cleanup until its enclosing graph finishes. Only nodes that
@@ -729,7 +756,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     /// keep off main, and on the render thread as a NumericTypeAgnosticNode
     /// specialises from execute(). A node whose settings reach main-thread
     /// state waits for main, so it is applied only from main. A change reaches
-    /// an open settings view's model through performOnMainAsync, from the
+    /// an open settings view's model through settingsDidChange(), from the
     /// observer of the stored setting.
     open func apply(_ settings: any NodeSettings)
     {

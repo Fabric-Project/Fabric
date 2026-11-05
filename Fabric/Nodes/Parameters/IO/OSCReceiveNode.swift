@@ -274,7 +274,7 @@ public class OSCReceiveNode: Node
         didSet
         {
             updateServer()
-            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+            settingsDidChange()
         }
     }
 
@@ -283,7 +283,7 @@ public class OSCReceiveNode: Node
         didSet
         {
             self.rebuildPorts()
-            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+            settingsDidChange()
         }
     }
 
@@ -370,6 +370,12 @@ public class OSCReceiveNode: Node
     }
 
     private var _settingsModelStorage: SettingsModel? = nil
+
+    override public func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _settingsModelStorage?.refreshFromNode()
+    }
 
     // MARK: - Lifecycle
 

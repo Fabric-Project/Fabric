@@ -212,7 +212,7 @@ public class GameControllerNode: Node
         {
             synchronizePorts(to: settings.portDescriptors)
         }
-        performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+        settingsDidChange()
         super.apply(settings)
     }
 
@@ -236,7 +236,7 @@ public class GameControllerNode: Node
         didSet
         {
             setupController()
-            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+            settingsDidChange()
             // `subtitle` is derived from the selected controller; notify so the title refreshes.
             self.namingDidChange()
         }
@@ -316,6 +316,12 @@ public class GameControllerNode: Node
     }
 
     private var _settingsModelStorage: SettingsModel? = nil
+
+    override public func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _settingsModelStorage?.refreshFromNode()
+    }
 
     // MARK: - Lifecycle
 
@@ -471,7 +477,7 @@ public class GameControllerNode: Node
                 savedControllerInfo = nil
             }
             self.synchronizePorts(to: portDescriptorsForAbsentController ?? [])
-            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+            settingsDidChange()
             updateSubscription()
             updateControllerStatus()
             return
@@ -497,7 +503,7 @@ public class GameControllerNode: Node
         }
 
         self.synchronizePorts(to: descriptors)
-        performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+        settingsDidChange()
         updateSubscription()
         updateControllerStatus()
     }

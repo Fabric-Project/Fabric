@@ -846,7 +846,7 @@ public class TimelineNode: Node
         didSet
         {
             guard oldValue != duration else { return }
-            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+            settingsDidChange()
         }
     }
 
@@ -855,7 +855,7 @@ public class TimelineNode: Node
         didSet
         {
             guard oldValue != tracks else { return }
-            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+            settingsDidChange()
         }
     }
 
@@ -937,6 +937,12 @@ public class TimelineNode: Node
     }
 
     private var _settingsModelStorage: SettingsModel? = nil
+
+    override public func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _settingsModelStorage?.refreshFromNode()
+    }
     private let playheadUpdateQueued = Mutex(false)
 
     // MARK: - Ports

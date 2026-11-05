@@ -64,7 +64,7 @@ public class LiveImageNode: BaseImageNode
 
     private(set) var shaderSource: String = LiveImageNode.defaultShaderSource()
     {
-        didSet { self.performOnMainAsync { [weak self] in self?._editorModelStorage?.refreshFromNode() } }
+        didSet { self.settingsDidChange() }
     }
 
     // A decoded copy of a node carries the document and node UUIDs of the
@@ -173,6 +173,12 @@ public class LiveImageNode: BaseImageNode
     }
 
     private var _editorModelStorage: LiveImageNodeEditorModel?
+
+    override public func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _editorModelStorage?.refreshFromNode()
+    }
 
     override public var settingsSize: SettingsViewSize {
         .Custom(size: CGSize(width: 900, height: 620))

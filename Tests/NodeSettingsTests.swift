@@ -396,7 +396,7 @@ struct NodeSettingsTests
         graph.undoManager = undoManager
         let model = node.strategySettingsModel
 
-        // The model follows the node on a later turn of main.
+        // The model follows the node: at once on main, on main from elsewhere.
         func runMainLoop() async throws { try await Task.sleep(for: .milliseconds(50)) }
 
         undoManager.beginUndoGrouping()
@@ -458,10 +458,8 @@ struct NodeSettingsTests
         }
         """, selectedTimeMode: .Idle))
         let applied = node.scriptSource
-        #expect(applied != editor.content)
 
-        // The editor takes the value on a later turn of main.
-        try await Task.sleep(for: .milliseconds(50))
+        // Applied on main, the value reaches the open editor at once.
         #expect(editor.content == applied)
         #expect(editor.selectedTimeMode == .Idle)
 

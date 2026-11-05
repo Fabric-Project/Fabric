@@ -693,7 +693,7 @@ public class HIDNode: Node
         updateMonitoring()
         updateDeviceStatus()
 
-        performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+        settingsDidChange()
     }
 
     // MARK: - Device Status
@@ -805,6 +805,12 @@ public class HIDNode: Node
     }
 
     private var _settingsModelStorage: SettingsModel? = nil
+
+    override public func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _settingsModelStorage?.refreshFromNode()
+    }
 
     // MARK: - Lifecycle
 

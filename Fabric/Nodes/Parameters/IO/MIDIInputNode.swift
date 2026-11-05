@@ -464,7 +464,7 @@ public class MIDIInputNode: Node
             // Choosing none forgets the input, so an input appearing does not bring it back.
             savedInputInfo = selectedInputID == nil ? nil : liveInputInfo() ?? savedInputInfo
             updateMIDIConnection()
-            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+            settingsDidChange()
             // `subtitle` is derived from the selected input; notify so the title refreshes.
             self.namingDidChange()
         }
@@ -483,7 +483,7 @@ public class MIDIInputNode: Node
         didSet
         {
             rebuildPorts()
-            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+            settingsDidChange()
         }
     }
 
@@ -559,6 +559,12 @@ public class MIDIInputNode: Node
     }
 
     private var _settingsModelStorage: SettingsModel? = nil
+
+    override public func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _settingsModelStorage?.refreshFromNode()
+    }
 
     // MARK: - Lifecycle
 

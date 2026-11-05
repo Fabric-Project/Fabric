@@ -429,6 +429,12 @@ public class MathExpressionNode: Node
     /// Nil until a settings view, or settingsSize, asks for it.
     private var _settingsModelStorage: SettingsModel?
 
+    override public func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _settingsModelStorage?.refreshFromNode()
+    }
+
     internal var _settingsModel: SettingsModel
     {
         performOnMainSync
@@ -480,7 +486,7 @@ public class MathExpressionNode: Node
                      ? Self.invalidExpressionMessage
                      : errors.map(\.message).joined(separator: "\n"))
 
-        self.performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+        self.settingsDidChange()
         self.namingDidChange()
     }
 

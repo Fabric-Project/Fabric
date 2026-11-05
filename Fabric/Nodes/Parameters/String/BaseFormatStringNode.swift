@@ -79,7 +79,7 @@ public class BaseFormatStringNode: Node {
         didSet {
             self.updatePorts()
             self.namingDidChange()
-            self.performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+            self.settingsDidChange()
         }
     }
 
@@ -174,6 +174,12 @@ public class BaseFormatStringNode: Node {
 
     /// Nil until a settings view asks for it.
     private var _settingsModelStorage: SettingsModel?
+
+    override public func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _settingsModelStorage?.refreshFromNode()
+    }
 
     // MARK: - Placeholder ports
 

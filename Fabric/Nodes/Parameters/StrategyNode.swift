@@ -220,7 +220,7 @@ open class StrategyNode: Node
         guard changed else { return }
         // `subtitle` is derived from `strategy`; notify so the title refreshes.
         self.namingDidChange()
-        self.performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+        self.settingsDidChange()
     }
 
     /// A change of strategy in a graph is an undo step that puts back the
@@ -343,6 +343,12 @@ open class StrategyNode: Node
 
     /// Nil until a settings view asks for it.
     private var _settingsModelStorage: SettingsModel?
+
+    override open func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _settingsModelStorage?.refreshFromNode()
+    }
 }
 
 public struct StrategyPickerView: View

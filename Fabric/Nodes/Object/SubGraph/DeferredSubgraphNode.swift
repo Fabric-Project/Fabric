@@ -76,6 +76,12 @@ public class DeferredSubgraphNode: SubgraphNode
     /// Nil until a settings view asks for it.
     private var _settingsModelStorage: SettingsModel?
 
+    override public func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _settingsModelStorage?.refreshFromNode()
+    }
+
     private static let deferredOutputs: RendererOutputs = [.color, .albedo, .normals, .pbr, .velocity, .emissive]
     private static let auxiliaryOutputPorts: [AuxiliaryOutputPortDescriptor] = [
         .init(registryName: "outputAlbedoTexture", displayName: "Albedo Texture", description: "Deferred albedo render target from the subgraph"),
@@ -136,7 +142,7 @@ public class DeferredSubgraphNode: SubgraphNode
         {
             guard oldValue != deferredMRTEnabled else { return }
             self.synchronizeDeferredConfiguration()
-            self.performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+            self.settingsDidChange()
         }
     }
 

@@ -43,7 +43,7 @@ public class RoutingNodeBase: TypeAgnosticNode
         didSet
         {
             guard oldValue != routeCount else { return }
-            performOnMainAsync { [weak self] in self?._routeCountModelStorage?.refreshFromNode() }
+            settingsDidChange()
         }
     }
 
@@ -144,6 +144,12 @@ public class RoutingNodeBase: TypeAgnosticNode
 
     /// Nil until a settings view asks for it.
     private var _routeCountModelStorage: RouteCountModel?
+
+    override public func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _routeCountModelStorage?.refreshFromNode()
+    }
 
     var routeCountModel: RouteCountModel
     {

@@ -235,7 +235,7 @@ public class KeyboardNode : Node
         didSet
         {
             self.reconcilePorts()
-            self.performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+            self.settingsDidChange()
         }
     }
 
@@ -289,6 +289,12 @@ public class KeyboardNode : Node
 
     /// Nil until a settings view asks for it.
     private var _settingsModelStorage: SettingsModel?
+
+    override public func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _settingsModelStorage?.refreshFromNode()
+    }
 
     // MARK: - Internal
 

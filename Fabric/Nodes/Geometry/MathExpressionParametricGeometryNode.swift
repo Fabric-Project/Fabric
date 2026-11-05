@@ -161,6 +161,12 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
     /// Nil until a settings view asks for it.
     private var _settingsModelStorage: SettingsModel?
 
+    override public func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _settingsModelStorage?.refreshFromNode()
+    }
+
     var settingsModel: SettingsModel
     {
         performOnMainSync
@@ -341,7 +347,7 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
         syncVariablePorts()
         _expressionsDirty = true
         namingDidChange()
-        performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+        settingsDidChange()
     }
 
     /// Which axes compile.

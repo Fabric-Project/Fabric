@@ -541,7 +541,7 @@ public final class JavaScriptNode: Node
 
     @ObservationIgnored private(set) var scriptSource: String = JavaScriptNode.defaultScriptSource()
     {
-        didSet { self.performOnMainAsync { [weak self] in self?._editorModelStorage?.refreshFromNode() } }
+        didSet { self.settingsDidChange() }
     }
     @ObservationIgnored private var compiledSignature: JavaScriptNodeSignature?
     @ObservationIgnored private var runtime: JavaScriptNodeRuntime?
@@ -571,7 +571,7 @@ public final class JavaScriptNode: Node
 
     public private(set) var selectedTimeMode: Node.TimeMode = .None
     {
-        didSet { self.performOnMainAsync { [weak self] in self?._editorModelStorage?.refreshFromNode() } }
+        didSet { self.settingsDidChange() }
     }
 
     /// The role the signature puts the node in, on the same reading of it that
@@ -673,6 +673,12 @@ public final class JavaScriptNode: Node
     }
 
     private var _editorModelStorage: JavaScriptNodeEditorModel?
+
+    override public func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _editorModelStorage?.refreshFromNode()
+    }
 
     override public var settingsSize: SettingsViewSize
     {
