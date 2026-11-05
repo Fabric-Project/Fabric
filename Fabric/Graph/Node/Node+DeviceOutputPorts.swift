@@ -21,6 +21,13 @@ public struct DeviceOutputPortDescriptor: Codable, Equatable, Sendable
     }
 }
 
+/// A device outlet, typed by what the element is.
+internal enum DeviceOutlet
+{
+    case button(NodePort<Bool>)
+    case axis(NodePort<Float>)
+}
+
 extension Node
 {
     /// The outlets a device offers, in its order: a Bool outlet for a button,
@@ -38,6 +45,16 @@ extension Node
                 ? PortDeclaration(key: descriptor.name, port: NodePort<Bool>(name: descriptor.name, kind: .Outlet, description: buttonDescription))
                 : PortDeclaration(key: descriptor.name, port: NodePort<Float>(name: descriptor.name, kind: .Outlet, description: axisDescription))
         }
+    }
+
+    /// The outlet a descriptor's port is, typed, for execute to send through
+    /// without a lookup; nil where the node has no port of that kind under
+    /// the name. For bindPorts().
+    internal func deviceOutlet(for descriptor: DeviceOutputPortDescriptor) -> DeviceOutlet?
+    {
+        descriptor.isButton
+            ? (self.findPort(named: descriptor.name) as NodePort<Bool>?).map(DeviceOutlet.button)
+            : (self.findPort(named: descriptor.name) as NodePort<Float>?).map(DeviceOutlet.axis)
     }
 
     /// The descriptors that have no port of their kind yet: those a reconcile

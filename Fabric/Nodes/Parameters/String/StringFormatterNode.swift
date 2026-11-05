@@ -267,7 +267,14 @@ public class StringFormatterNode: BaseFormatStringNode {
         ]
     }
 
-    public var outputString: NodePort<String> { port(named: "outputString") }
+    public var outputString: NodePort<String> { _outputString }
+    private var _outputString: NodePort<String>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._outputString = findPort(named: "outputString")
+    }
 
     // MARK: - Execution
 
@@ -286,45 +293,40 @@ public class StringFormatterNode: BaseFormatStringNode {
         // placeholder is never substituted into a second time.
         var result = ""
 
+        var occurrenceIndex = 0
         for token in parsedFormatString.tokens {
             switch token {
             case .literal(let text):
                 result += text
-            case .placeholder(let placeholder):
-                result += formattedValue(named: placeholder.name)
+            case .placeholder:
+                if occurrenceIndex < boundOccurrences.count {
+                    result += formattedValue(boundOccurrences[occurrenceIndex])
+                }
+                occurrenceIndex += 1
             }
         }
 
         outputString.send(result)
     }
 
-    /// The value on the port `name` owns, rendered with the specifier that built
-    /// that port. Empty when the port is missing or holds no value.
-    private func formattedValue(named name: String) -> String {
-        guard let placeholder = parsedFormatString.placeholder(named: name) else { return "" }
-
-        switch placeholder.portType {
-        case .Float:
-            guard let port = self.findPort(named: name) as? NodePort<Float>,
-                  let value = port.value else { return "" }
-            guard let printfFormat = placeholder.printfFormat else { return String(value) }
+    /// The value on an occurrence's port, rendered with the specifier that
+    /// built that port. Empty when the port is missing or holds no value.
+    private func formattedValue(_ occurrence: (placeholder: FormatPlaceholder, port: PlaceholderPort?)) -> String {
+        switch occurrence.port {
+        case .float(let port)?:
+            guard let value = port.value else { return "" }
+            guard let printfFormat = occurrence.placeholder.printfFormat else { return String(value) }
             return String(format: printfFormat, value)
-
-        case .Int:
-            guard let port = self.findPort(named: name) as? NodePort<Int>,
-                  let value = port.value else { return "" }
-            guard let printfFormat = placeholder.printfFormat else { return String(value) }
+        case .int(let port)?:
+            guard let value = port.value else { return "" }
+            guard let printfFormat = occurrence.placeholder.printfFormat else { return String(value) }
             return String(format: printfFormat, value)
-
-        case .Bool:
-            guard let port = self.findPort(named: name) as? NodePort<Bool>,
-                  let value = port.value else { return "" }
-            return String(value)
-
-        default: // .String
-            guard let port = self.findPort(named: name) as? NodePort<String>,
-                  let value = port.value else { return "" }
-            return value
+        case .bool(let port)?:
+            return port.value.map { String($0) } ?? ""
+        case .string(let port)?:
+            return port.value ?? ""
+        case nil:
+            return ""
         }
     }
 

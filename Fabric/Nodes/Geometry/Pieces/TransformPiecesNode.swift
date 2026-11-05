@@ -30,9 +30,20 @@ public class TransformPiecesNode: Node
         ]
     }
 
-    public var inputGeometry: NodePort<Geometry> { port(named: "inputGeometry") }
-    public var inputTransforms: NodePort<ContiguousArray<simd_float4x4>> { port(named: "inputTransforms") }
-    public var outputGeometry: NodePort<Geometry> { port(named: "outputGeometry") }
+    public var inputGeometry: NodePort<Geometry> { _inputGeometry }
+    private var _inputGeometry: NodePort<Geometry>!
+    public var inputTransforms: NodePort<ContiguousArray<simd_float4x4>> { _inputTransforms }
+    private var _inputTransforms: NodePort<ContiguousArray<simd_float4x4>>!
+    public var outputGeometry: NodePort<Geometry> { _outputGeometry }
+    private var _outputGeometry: NodePort<Geometry>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputGeometry = findPort(named: "inputGeometry")
+        self._inputTransforms = findPort(named: "inputTransforms")
+        self._outputGeometry = findPort(named: "outputGeometry")
+    }
 
     private var posedPieces: PosedPieces?
     private var poseStatuses: [NodeStatus] = []

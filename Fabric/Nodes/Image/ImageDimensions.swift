@@ -50,9 +50,21 @@ public final class ImageDimensions: Node
         ]
     }
 
-    public var inputImage: NodePort<FabricImage> { port(named: "inputImage") }
-    public var outputWidth: NodePort<Float> { port(named: "outputWidth") }
-    public var outputHeight: NodePort<Float> { port(named: "outputHeight") }
+    public var inputImage: NodePort<FabricImage> { _inputImage }
+    private var _inputImage: NodePort<FabricImage>!
+    public var outputWidth: NodePort<Float> { _outputWidth }
+    private var _outputWidth: NodePort<Float>!
+    public var outputHeight: NodePort<Float> { _outputHeight }
+    private var _outputHeight: NodePort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.legacyOutputResolution = findPort(named: "legacyOutputResolution")
+        self._inputImage = findPort(named: "inputImage")
+        self._outputWidth = findPort(named: "outputWidth")
+        self._outputHeight = findPort(named: "outputHeight")
+    }
 
     private enum LegacyCodingKeys: String, CodingKey
     {
@@ -130,7 +142,4 @@ public final class ImageDimensions: Node
     }
 
     private var legacyOutputResolution: NodePort<simd_float2>?
-    {
-        self.findPort(named: "legacyOutputResolution")
-    }
 }

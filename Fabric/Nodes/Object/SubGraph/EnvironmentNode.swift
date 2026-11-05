@@ -29,8 +29,17 @@ public class EnvironmentNode: SubgraphNode
     }
     
     // Port Proxy
-    public var inputEnvironmentTexture:NodePort<FabricImage> { port(named: "inputEnvironmentTexture") }
-    public var inputEnvironmentIntensity:ParameterPort<Float> { port(named: "inputEnvironmentIntensity") }
+    public var inputEnvironmentTexture: NodePort<FabricImage> { _inputEnvironmentTexture }
+    private var _inputEnvironmentTexture: NodePort<FabricImage>!
+    public var inputEnvironmentIntensity: ParameterPort<Float> { _inputEnvironmentIntensity }
+    private var _inputEnvironmentIntensity: ParameterPort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputEnvironmentTexture = findPort(named: "inputEnvironmentTexture")
+        self._inputEnvironmentIntensity = findPort(named: "inputEnvironmentIntensity")
+    }
 //    public var inputBlur:ParameterPort<Float> { port(named: "inputBlur") }
     
     

@@ -31,8 +31,17 @@ public class StringTrimNode : Node
     }
     
     // Port Proxy
-    public var inputPort:ParameterPort<String> { port(named: "inputPort") }
-    public var outputPort:NodePort<String> { port(named: "outputPort") }
+    public var inputPort: ParameterPort<String> { _inputPort }
+    private var _inputPort: ParameterPort<String>!
+    public var outputPort: NodePort<String> { _outputPort }
+    private var _outputPort: NodePort<String>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputPort = findPort(named: "inputPort")
+        self._outputPort = findPort(named: "outputPort")
+    }
 
 
     override public func execute(renderer:GraphRenderer,

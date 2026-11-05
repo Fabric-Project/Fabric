@@ -39,31 +39,44 @@ public class ComposeVectorArrayNode: StrategyNode
             + [PortDeclaration(key: "outputArray", portType: .Array(portType: vt.portType), kind: .Outlet, name: "\(vt.portType.rawValue) Array", description: "Array of \(vt.portType.rawValue) values")]
     }
 
+    private var vectorType: VectorType?
+    private var components: [NodePort<ContiguousArray<Float>>] = []
+    private var output2: NodePort<ContiguousArray<simd_float2>>?
+    private var output3: NodePort<ContiguousArray<simd_float3>>?
+    private var output4: NodePort<ContiguousArray<simd_float4>>?
+
+    override public func prepareDeclarations()
+    {
+        super.prepareDeclarations()
+        self.vectorType = self.strategyOption()
+    }
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.components = (0..<4).compactMap { findPort(named: "inputComponent\($0)") }
+        self.output2 = findPort(named: "outputArray")
+        self.output3 = findPort(named: "outputArray")
+        self.output4 = findPort(named: "outputArray")
+    }
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let vt: VectorType = strategyOption() else { return }
-
-        let compCount = vt.componentLabels.count
-        let anyChanged = (0..<compCount).contains { i in
-            let p: NodePort<ContiguousArray<Float>>? = findPort(named: "inputComponent\(i)")
-            return p?.valueDidChange == true
-        }
-        guard anyChanged else { return }
+        guard let vt = vectorType, components.contains(where: \.valueDidChange) else { return }
 
         func inPort(_ i: Int) -> ContiguousArray<Float>? {
-            let p: NodePort<ContiguousArray<Float>>? = findPort(named: "inputComponent\(i)")
-            return p?.value
+            i < components.count ? components[i].value : nil
         }
 
         let concurrentThreshold = 128
 
         switch vt {
         case .float2:
-            guard let outPort: NodePort<ContiguousArray<simd_float2>> = findPort(named: "outputArray") else { return }
+            guard let outPort = output2 else { return }
             let xs = inPort(0); let ys = inPort(1)
             let count = max(xs?.count ?? 0, ys?.count ?? 0)
             guard count > 0 else { outPort.send(ContiguousArray()); return }
@@ -80,7 +93,7 @@ public class ComposeVectorArrayNode: StrategyNode
             outPort.send(out)
 
         case .float3:
-            guard let outPort: NodePort<ContiguousArray<simd_float3>> = findPort(named: "outputArray") else { return }
+            guard let outPort = output3 else { return }
             let xs = inPort(0); let ys = inPort(1); let zs = inPort(2)
             let count = max(xs?.count ?? 0, ys?.count ?? 0, zs?.count ?? 0)
             guard count > 0 else { outPort.send(ContiguousArray()); return }
@@ -98,7 +111,7 @@ public class ComposeVectorArrayNode: StrategyNode
             outPort.send(out)
 
         case .float4:
-            guard let outPort: NodePort<ContiguousArray<simd_float4>> = findPort(named: "outputArray") else { return }
+            guard let outPort = output4 else { return }
             let xs = inPort(0); let ys = inPort(1); let zs = inPort(2); let ws = inPort(3)
             let count = max(xs?.count ?? 0, ys?.count ?? 0, zs?.count ?? 0, ws?.count ?? 0)
             guard count > 0 else { outPort.send(ContiguousArray()); return }

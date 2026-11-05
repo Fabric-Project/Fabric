@@ -89,16 +89,41 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         ]
     }
 
-    public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
-    public var inputPlayingParam:ParameterPort<Bool>     { port(named: "inputPlayingParam") }
-    public var inputRateParam:ParameterPort<Float>       { port(named: "inputRateParam") }
-    public var inputSeekTimeParam:ParameterPort<Float>   { port(named: "inputSeekTimeParam") }
-    public var inputVolumeParam:ParameterPort<Float>     { port(named: "inputVolumeParam") }
-    public var outputTexturePort:NodePort<FabricImage>   { port(named: "outputTexturePort") }
-    public var outputCurrentTimePort:NodePort<Float>     { port(named: "outputCurrentTimePort") }
-    public var outputDurationPort:NodePort<Float>        { port(named: "outputDurationPort") }
-    public var outputNormalizedTimePort:NodePort<Float>  { port(named: "outputNormalizedTimePort") }
-    public var outputDidPlayToEndPort:NodePort<Bool>     { port(named: "outputDidPlayToEndPort") }
+    public var inputFilePathParam: ParameterPort<String> { _inputFilePathParam }
+    private var _inputFilePathParam: ParameterPort<String>!
+    public var inputPlayingParam: ParameterPort<Bool> { _inputPlayingParam }
+    private var _inputPlayingParam: ParameterPort<Bool>!
+    public var inputRateParam: ParameterPort<Float> { _inputRateParam }
+    private var _inputRateParam: ParameterPort<Float>!
+    public var inputSeekTimeParam: ParameterPort<Float> { _inputSeekTimeParam }
+    private var _inputSeekTimeParam: ParameterPort<Float>!
+    public var inputVolumeParam: ParameterPort<Float> { _inputVolumeParam }
+    private var _inputVolumeParam: ParameterPort<Float>!
+    public var outputTexturePort: NodePort<FabricImage> { _outputTexturePort }
+    private var _outputTexturePort: NodePort<FabricImage>!
+    public var outputCurrentTimePort: NodePort<Float> { _outputCurrentTimePort }
+    private var _outputCurrentTimePort: NodePort<Float>!
+    public var outputDurationPort: NodePort<Float> { _outputDurationPort }
+    private var _outputDurationPort: NodePort<Float>!
+    public var outputNormalizedTimePort: NodePort<Float> { _outputNormalizedTimePort }
+    private var _outputNormalizedTimePort: NodePort<Float>!
+    public var outputDidPlayToEndPort: NodePort<Bool> { _outputDidPlayToEndPort }
+    private var _outputDidPlayToEndPort: NodePort<Bool>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputFilePathParam = findPort(named: "inputFilePathParam")
+        self._inputPlayingParam = findPort(named: "inputPlayingParam")
+        self._inputRateParam = findPort(named: "inputRateParam")
+        self._inputSeekTimeParam = findPort(named: "inputSeekTimeParam")
+        self._inputVolumeParam = findPort(named: "inputVolumeParam")
+        self._outputTexturePort = findPort(named: "outputTexturePort")
+        self._outputCurrentTimePort = findPort(named: "outputCurrentTimePort")
+        self._outputDurationPort = findPort(named: "outputDurationPort")
+        self._outputNormalizedTimePort = findPort(named: "outputNormalizedTimePort")
+        self._outputDidPlayToEndPort = findPort(named: "outputDidPlayToEndPort")
+    }
 
     private var url: URL? = nil
     private var asset:AVURLAsset? = nil

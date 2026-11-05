@@ -28,11 +28,26 @@ public class ConeGeometryNode : BaseGeometryNode
     }
     
     // Proxy Port
-    public var inputRadius:ParameterPort<Float> { port(named: "inputRadius")  }
-    public var inputHeight:ParameterPort<Float> { port(named: "inputHeight")  }
-    public var inputAngularResolution:ParameterPort<Int> { port(named: "inputAngularResolution") }
-    public var inputRadialResolution:ParameterPort<Int> { port(named: "inputRadialResolution")  }
-    public var inputVerticalResolution:ParameterPort<Int> { port(named: "inputVerticalResolution")  }
+    public var inputRadius: ParameterPort<Float> { _inputRadius }
+    private var _inputRadius: ParameterPort<Float>!
+    public var inputHeight: ParameterPort<Float> { _inputHeight }
+    private var _inputHeight: ParameterPort<Float>!
+    public var inputAngularResolution: ParameterPort<Int> { _inputAngularResolution }
+    private var _inputAngularResolution: ParameterPort<Int>!
+    public var inputRadialResolution: ParameterPort<Int> { _inputRadialResolution }
+    private var _inputRadialResolution: ParameterPort<Int>!
+    public var inputVerticalResolution: ParameterPort<Int> { _inputVerticalResolution }
+    private var _inputVerticalResolution: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputRadius = findPort(named: "inputRadius")
+        self._inputHeight = findPort(named: "inputHeight")
+        self._inputAngularResolution = findPort(named: "inputAngularResolution")
+        self._inputRadialResolution = findPort(named: "inputRadialResolution")
+        self._inputVerticalResolution = findPort(named: "inputVerticalResolution")
+    }
 
     public override var geometry: ConeGeometry { _geometry }
 

@@ -20,14 +20,24 @@ public final class DictionaryCountNode: DictionaryTypeAgnosticNode
         ] + super.declaredPorts()
     }
 
+    private var boundInputDictionary: Port?
+    private var boundOutputCount: Port?
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputDictionary = findPort(named: "inputDictionary")
+        self.boundOutputCount = findPort(named: "outputCount")
+    }
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputDictionary: Port = findPort(named: "inputDictionary"),
-              let outputCount: Port = findPort(named: "outputCount"),
+        guard let inputDictionary: Port = self.boundInputDictionary,
+              let outputCount: Port = self.boundOutputCount,
               inputDictionary.valueDidChange else { return }
 
         outputCount.sendBoxed(.Int(inputDictionary.snapshotValue()?.dictionaryValue?.count ?? 0))

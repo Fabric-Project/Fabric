@@ -36,10 +36,23 @@ public class MobiusStripGeometryNode: BaseGeometryNode {
         ] + ports
     }
 
-    public var inputRadius:      ParameterPort<Float> { port(named: "inputRadius") }
-    public var inputWidth:       ParameterPort<Float> { port(named: "inputWidth") }
-    public var inputResolutionU: ParameterPort<Int>   { port(named: "inputResolutionU") }
-    public var inputResolutionV: ParameterPort<Int>   { port(named: "inputResolutionV") }
+    public var inputRadius: ParameterPort<Float> { _inputRadius }
+    private var _inputRadius: ParameterPort<Float>!
+    public var inputWidth: ParameterPort<Float> { _inputWidth }
+    private var _inputWidth: ParameterPort<Float>!
+    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
+    private var _inputResolutionU: ParameterPort<Int>!
+    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
+    private var _inputResolutionV: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputRadius = findPort(named: "inputRadius")
+        self._inputWidth = findPort(named: "inputWidth")
+        self._inputResolutionU = findPort(named: "inputResolutionU")
+        self._inputResolutionV = findPort(named: "inputResolutionV")
+    }
 
     public override var geometry: ParametricGeometry { _geometry }
     private lazy var _geometry: ParametricGeometry = .mobiusStrip(context: self.context)
@@ -86,11 +99,26 @@ public class HelicoidGeometryNode: BaseGeometryNode {
         ] + ports
     }
 
-    public var inputRadius:      ParameterPort<Float> { port(named: "inputRadius") }
-    public var inputPitch:       ParameterPort<Float> { port(named: "inputPitch") }
-    public var inputTurns:       ParameterPort<Float> { port(named: "inputTurns") }
-    public var inputResolutionU: ParameterPort<Int>   { port(named: "inputResolutionU") }
-    public var inputResolutionV: ParameterPort<Int>   { port(named: "inputResolutionV") }
+    public var inputRadius: ParameterPort<Float> { _inputRadius }
+    private var _inputRadius: ParameterPort<Float>!
+    public var inputPitch: ParameterPort<Float> { _inputPitch }
+    private var _inputPitch: ParameterPort<Float>!
+    public var inputTurns: ParameterPort<Float> { _inputTurns }
+    private var _inputTurns: ParameterPort<Float>!
+    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
+    private var _inputResolutionU: ParameterPort<Int>!
+    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
+    private var _inputResolutionV: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputRadius = findPort(named: "inputRadius")
+        self._inputPitch = findPort(named: "inputPitch")
+        self._inputTurns = findPort(named: "inputTurns")
+        self._inputResolutionU = findPort(named: "inputResolutionU")
+        self._inputResolutionV = findPort(named: "inputResolutionV")
+    }
 
     public override var geometry: ParametricGeometry { _geometry }
     private lazy var _geometry: ParametricGeometry = .helicoid(context: self.context)
@@ -135,13 +163,32 @@ public class SuperellipsoidGeometryNode: BaseGeometryNode {
         ] + ports
     }
 
-    public var inputRadiusX:     ParameterPort<Float> { port(named: "inputRadiusX") }
-    public var inputRadiusY:     ParameterPort<Float> { port(named: "inputRadiusY") }
-    public var inputRadiusZ:     ParameterPort<Float> { port(named: "inputRadiusZ") }
-    public var inputExponentU:   ParameterPort<Float> { port(named: "inputExponentU") }
-    public var inputExponentV:   ParameterPort<Float> { port(named: "inputExponentV") }
-    public var inputResolutionU: ParameterPort<Int>   { port(named: "inputResolutionU") }
-    public var inputResolutionV: ParameterPort<Int>   { port(named: "inputResolutionV") }
+    public var inputRadiusX: ParameterPort<Float> { _inputRadiusX }
+    private var _inputRadiusX: ParameterPort<Float>!
+    public var inputRadiusY: ParameterPort<Float> { _inputRadiusY }
+    private var _inputRadiusY: ParameterPort<Float>!
+    public var inputRadiusZ: ParameterPort<Float> { _inputRadiusZ }
+    private var _inputRadiusZ: ParameterPort<Float>!
+    public var inputExponentU: ParameterPort<Float> { _inputExponentU }
+    private var _inputExponentU: ParameterPort<Float>!
+    public var inputExponentV: ParameterPort<Float> { _inputExponentV }
+    private var _inputExponentV: ParameterPort<Float>!
+    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
+    private var _inputResolutionU: ParameterPort<Int>!
+    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
+    private var _inputResolutionV: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputRadiusX = findPort(named: "inputRadiusX")
+        self._inputRadiusY = findPort(named: "inputRadiusY")
+        self._inputRadiusZ = findPort(named: "inputRadiusZ")
+        self._inputExponentU = findPort(named: "inputExponentU")
+        self._inputExponentV = findPort(named: "inputExponentV")
+        self._inputResolutionU = findPort(named: "inputResolutionU")
+        self._inputResolutionV = findPort(named: "inputResolutionV")
+    }
 
     public override var geometry: ParametricGeometry { _geometry }
     private lazy var _geometry: ParametricGeometry = .superellipsoid(context: self.context)
@@ -190,10 +237,23 @@ public class KleinBottleGeometryNode: BaseGeometryNode {
         ] + ports
     }
 
-    public var inputRadius:      ParameterPort<Float> { port(named: "inputRadius") }
-    public var inputTube:        ParameterPort<Float> { port(named: "inputTube") }
-    public var inputResolutionU: ParameterPort<Int>   { port(named: "inputResolutionU") }
-    public var inputResolutionV: ParameterPort<Int>   { port(named: "inputResolutionV") }
+    public var inputRadius: ParameterPort<Float> { _inputRadius }
+    private var _inputRadius: ParameterPort<Float>!
+    public var inputTube: ParameterPort<Float> { _inputTube }
+    private var _inputTube: ParameterPort<Float>!
+    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
+    private var _inputResolutionU: ParameterPort<Int>!
+    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
+    private var _inputResolutionV: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputRadius = findPort(named: "inputRadius")
+        self._inputTube = findPort(named: "inputTube")
+        self._inputResolutionU = findPort(named: "inputResolutionU")
+        self._inputResolutionV = findPort(named: "inputResolutionV")
+    }
 
     public override var geometry: ParametricGeometry { _geometry }
     private lazy var _geometry: ParametricGeometry = .kleinBottle(context: self.context)
@@ -242,10 +302,23 @@ public class CatenoidGeometryNode: BaseGeometryNode {
         ] + ports
     }
 
-    public var inputRadius:      ParameterPort<Float> { port(named: "inputRadius") }
-    public var inputHeight:      ParameterPort<Float> { port(named: "inputHeight") }
-    public var inputResolutionU: ParameterPort<Int>   { port(named: "inputResolutionU") }
-    public var inputResolutionV: ParameterPort<Int>   { port(named: "inputResolutionV") }
+    public var inputRadius: ParameterPort<Float> { _inputRadius }
+    private var _inputRadius: ParameterPort<Float>!
+    public var inputHeight: ParameterPort<Float> { _inputHeight }
+    private var _inputHeight: ParameterPort<Float>!
+    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
+    private var _inputResolutionU: ParameterPort<Int>!
+    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
+    private var _inputResolutionV: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputRadius = findPort(named: "inputRadius")
+        self._inputHeight = findPort(named: "inputHeight")
+        self._inputResolutionU = findPort(named: "inputResolutionU")
+        self._inputResolutionV = findPort(named: "inputResolutionV")
+    }
 
     public override var geometry: ParametricGeometry { _geometry }
     private lazy var _geometry: ParametricGeometry = .catenoid(context: self.context)
@@ -291,11 +364,26 @@ public class ParaboloidGeometryNode: BaseGeometryNode {
         ] + ports
     }
 
-    public var inputRadiusX:     ParameterPort<Float> { port(named: "inputRadiusX") }
-    public var inputRadiusY:     ParameterPort<Float> { port(named: "inputRadiusY") }
-    public var inputHeight:      ParameterPort<Float> { port(named: "inputHeight") }
-    public var inputResolutionU: ParameterPort<Int>   { port(named: "inputResolutionU") }
-    public var inputResolutionV: ParameterPort<Int>   { port(named: "inputResolutionV") }
+    public var inputRadiusX: ParameterPort<Float> { _inputRadiusX }
+    private var _inputRadiusX: ParameterPort<Float>!
+    public var inputRadiusY: ParameterPort<Float> { _inputRadiusY }
+    private var _inputRadiusY: ParameterPort<Float>!
+    public var inputHeight: ParameterPort<Float> { _inputHeight }
+    private var _inputHeight: ParameterPort<Float>!
+    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
+    private var _inputResolutionU: ParameterPort<Int>!
+    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
+    private var _inputResolutionV: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputRadiusX = findPort(named: "inputRadiusX")
+        self._inputRadiusY = findPort(named: "inputRadiusY")
+        self._inputHeight = findPort(named: "inputHeight")
+        self._inputResolutionU = findPort(named: "inputResolutionU")
+        self._inputResolutionV = findPort(named: "inputResolutionV")
+    }
 
     public override var geometry: ParametricGeometry { _geometry }
     private lazy var _geometry: ParametricGeometry = .paraboloid(context: self.context)
@@ -337,10 +425,23 @@ public class EnneperSurfaceGeometryNode: BaseGeometryNode {
         ] + ports
     }
 
-    public var inputScale:       ParameterPort<Float> { port(named: "inputScale") }
-    public var inputExtent:      ParameterPort<Float> { port(named: "inputExtent") }
-    public var inputResolutionU: ParameterPort<Int>   { port(named: "inputResolutionU") }
-    public var inputResolutionV: ParameterPort<Int>   { port(named: "inputResolutionV") }
+    public var inputScale: ParameterPort<Float> { _inputScale }
+    private var _inputScale: ParameterPort<Float>!
+    public var inputExtent: ParameterPort<Float> { _inputExtent }
+    private var _inputExtent: ParameterPort<Float>!
+    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
+    private var _inputResolutionU: ParameterPort<Int>!
+    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
+    private var _inputResolutionV: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputScale = findPort(named: "inputScale")
+        self._inputExtent = findPort(named: "inputExtent")
+        self._inputResolutionU = findPort(named: "inputResolutionU")
+        self._inputResolutionV = findPort(named: "inputResolutionV")
+    }
 
     public override var geometry: ParametricGeometry { _geometry }
     private lazy var _geometry: ParametricGeometry = .enneperSurface(context: self.context)
@@ -386,10 +487,23 @@ public class PseudosphereGeometryNode: BaseGeometryNode {
         ] + ports
     }
 
-    public var inputRadius:       ParameterPort<Float> { port(named: "inputRadius") }
-    public var inputHeightExtent: ParameterPort<Float> { port(named: "inputHeightExtent") }
-    public var inputResolutionU:  ParameterPort<Int>   { port(named: "inputResolutionU") }
-    public var inputResolutionV:  ParameterPort<Int>   { port(named: "inputResolutionV") }
+    public var inputRadius: ParameterPort<Float> { _inputRadius }
+    private var _inputRadius: ParameterPort<Float>!
+    public var inputHeightExtent: ParameterPort<Float> { _inputHeightExtent }
+    private var _inputHeightExtent: ParameterPort<Float>!
+    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
+    private var _inputResolutionU: ParameterPort<Int>!
+    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
+    private var _inputResolutionV: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputRadius = findPort(named: "inputRadius")
+        self._inputHeightExtent = findPort(named: "inputHeightExtent")
+        self._inputResolutionU = findPort(named: "inputResolutionU")
+        self._inputResolutionV = findPort(named: "inputResolutionV")
+    }
 
     public override var geometry: ParametricGeometry { _geometry }
     private lazy var _geometry: ParametricGeometry = .pseudosphere(context: self.context)
@@ -436,12 +550,29 @@ public class DupinCyclideGeometryNode: BaseGeometryNode {
         ] + ports
     }
 
-    public var inputMajorRadius:     ParameterPort<Float> { port(named: "inputMajorRadius") }
-    public var inputMinorRadius:     ParameterPort<Float> { port(named: "inputMinorRadius") }
-    public var inputTorusOffset:     ParameterPort<Float> { port(named: "inputTorusOffset") }
-    public var inputInversionRadius: ParameterPort<Float> { port(named: "inputInversionRadius") }
-    public var inputResolutionU:     ParameterPort<Int>   { port(named: "inputResolutionU") }
-    public var inputResolutionV:     ParameterPort<Int>   { port(named: "inputResolutionV") }
+    public var inputMajorRadius: ParameterPort<Float> { _inputMajorRadius }
+    private var _inputMajorRadius: ParameterPort<Float>!
+    public var inputMinorRadius: ParameterPort<Float> { _inputMinorRadius }
+    private var _inputMinorRadius: ParameterPort<Float>!
+    public var inputTorusOffset: ParameterPort<Float> { _inputTorusOffset }
+    private var _inputTorusOffset: ParameterPort<Float>!
+    public var inputInversionRadius: ParameterPort<Float> { _inputInversionRadius }
+    private var _inputInversionRadius: ParameterPort<Float>!
+    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
+    private var _inputResolutionU: ParameterPort<Int>!
+    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
+    private var _inputResolutionV: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputMajorRadius = findPort(named: "inputMajorRadius")
+        self._inputMinorRadius = findPort(named: "inputMinorRadius")
+        self._inputTorusOffset = findPort(named: "inputTorusOffset")
+        self._inputInversionRadius = findPort(named: "inputInversionRadius")
+        self._inputResolutionU = findPort(named: "inputResolutionU")
+        self._inputResolutionV = findPort(named: "inputResolutionV")
+    }
 
     public override var geometry: ParametricGeometry { _geometry }
     private lazy var _geometry: ParametricGeometry = .dupinCyclide(context: self.context)
@@ -489,9 +620,20 @@ public class RomanSurfaceGeometryNode: BaseGeometryNode {
         ] + ports
     }
 
-    public var inputScale:       ParameterPort<Float> { port(named: "inputScale") }
-    public var inputResolutionU: ParameterPort<Int>   { port(named: "inputResolutionU") }
-    public var inputResolutionV: ParameterPort<Int>   { port(named: "inputResolutionV") }
+    public var inputScale: ParameterPort<Float> { _inputScale }
+    private var _inputScale: ParameterPort<Float>!
+    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
+    private var _inputResolutionU: ParameterPort<Int>!
+    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
+    private var _inputResolutionV: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputScale = findPort(named: "inputScale")
+        self._inputResolutionU = findPort(named: "inputResolutionU")
+        self._inputResolutionV = findPort(named: "inputResolutionV")
+    }
 
     public override var geometry: ParametricGeometry { _geometry }
     private lazy var _geometry: ParametricGeometry = .romanSurface(context: self.context)
@@ -532,9 +674,20 @@ public class CrossCapGeometryNode: BaseGeometryNode {
         ] + ports
     }
 
-    public var inputScale:       ParameterPort<Float> { port(named: "inputScale") }
-    public var inputResolutionU: ParameterPort<Int>   { port(named: "inputResolutionU") }
-    public var inputResolutionV: ParameterPort<Int>   { port(named: "inputResolutionV") }
+    public var inputScale: ParameterPort<Float> { _inputScale }
+    private var _inputScale: ParameterPort<Float>!
+    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
+    private var _inputResolutionU: ParameterPort<Int>!
+    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
+    private var _inputResolutionV: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputScale = findPort(named: "inputScale")
+        self._inputResolutionU = findPort(named: "inputResolutionU")
+        self._inputResolutionV = findPort(named: "inputResolutionV")
+    }
 
     public override var geometry: ParametricGeometry { _geometry }
     private lazy var _geometry: ParametricGeometry = .crossCap(context: self.context)
@@ -579,11 +732,26 @@ public class BourSurfaceGeometryNode: BaseGeometryNode {
         ] + ports
     }
 
-    public var inputRadius:      ParameterPort<Float> { port(named: "inputRadius") }
-    public var inputTurns:       ParameterPort<Float> { port(named: "inputTurns") }
-    public var inputScale:       ParameterPort<Float> { port(named: "inputScale") }
-    public var inputResolutionU: ParameterPort<Int>   { port(named: "inputResolutionU") }
-    public var inputResolutionV: ParameterPort<Int>   { port(named: "inputResolutionV") }
+    public var inputRadius: ParameterPort<Float> { _inputRadius }
+    private var _inputRadius: ParameterPort<Float>!
+    public var inputTurns: ParameterPort<Float> { _inputTurns }
+    private var _inputTurns: ParameterPort<Float>!
+    public var inputScale: ParameterPort<Float> { _inputScale }
+    private var _inputScale: ParameterPort<Float>!
+    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
+    private var _inputResolutionU: ParameterPort<Int>!
+    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
+    private var _inputResolutionV: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputRadius = findPort(named: "inputRadius")
+        self._inputTurns = findPort(named: "inputTurns")
+        self._inputScale = findPort(named: "inputScale")
+        self._inputResolutionU = findPort(named: "inputResolutionU")
+        self._inputResolutionV = findPort(named: "inputResolutionV")
+    }
 
     public override var geometry: ParametricGeometry { _geometry }
     private lazy var _geometry: ParametricGeometry = .bourSurface(context: self.context)
@@ -634,14 +802,35 @@ public class BreatherSurfaceGeometryNode: BaseGeometryNode {
         ] + ports
     }
 
-    public var inputParameterA:  ParameterPort<Float> { port(named: "inputParameterA") }
-    public var inputRangeUMin:   ParameterPort<Float> { port(named: "inputRangeUMin") }
-    public var inputRangeUMax:   ParameterPort<Float> { port(named: "inputRangeUMax") }
-    public var inputRangeVMin:   ParameterPort<Float> { port(named: "inputRangeVMin") }
-    public var inputRangeVMax:   ParameterPort<Float> { port(named: "inputRangeVMax") }
-    public var inputScale:       ParameterPort<Float> { port(named: "inputScale") }
-    public var inputResolutionU: ParameterPort<Int>   { port(named: "inputResolutionU") }
-    public var inputResolutionV: ParameterPort<Int>   { port(named: "inputResolutionV") }
+    public var inputParameterA: ParameterPort<Float> { _inputParameterA }
+    private var _inputParameterA: ParameterPort<Float>!
+    public var inputRangeUMin: ParameterPort<Float> { _inputRangeUMin }
+    private var _inputRangeUMin: ParameterPort<Float>!
+    public var inputRangeUMax: ParameterPort<Float> { _inputRangeUMax }
+    private var _inputRangeUMax: ParameterPort<Float>!
+    public var inputRangeVMin: ParameterPort<Float> { _inputRangeVMin }
+    private var _inputRangeVMin: ParameterPort<Float>!
+    public var inputRangeVMax: ParameterPort<Float> { _inputRangeVMax }
+    private var _inputRangeVMax: ParameterPort<Float>!
+    public var inputScale: ParameterPort<Float> { _inputScale }
+    private var _inputScale: ParameterPort<Float>!
+    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
+    private var _inputResolutionU: ParameterPort<Int>!
+    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
+    private var _inputResolutionV: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputParameterA = findPort(named: "inputParameterA")
+        self._inputRangeUMin = findPort(named: "inputRangeUMin")
+        self._inputRangeUMax = findPort(named: "inputRangeUMax")
+        self._inputRangeVMin = findPort(named: "inputRangeVMin")
+        self._inputRangeVMax = findPort(named: "inputRangeVMax")
+        self._inputScale = findPort(named: "inputScale")
+        self._inputResolutionU = findPort(named: "inputResolutionU")
+        self._inputResolutionV = findPort(named: "inputResolutionV")
+    }
 
     public override var geometry: ParametricGeometry { _geometry }
     private lazy var _geometry: ParametricGeometry = .breatherSurface(context: self.context)
@@ -704,14 +893,35 @@ public class DiniSurfaceGeometryNode: BaseGeometryNode {
         ] + ports
     }
 
-    public var inputRadius:      ParameterPort<Float> { port(named: "inputRadius") }
-    public var inputTwist:       ParameterPort<Float> { port(named: "inputTwist") }
-    public var inputRangeUMin:   ParameterPort<Float> { port(named: "inputRangeUMin") }
-    public var inputRangeUMax:   ParameterPort<Float> { port(named: "inputRangeUMax") }
-    public var inputRangeVMin:   ParameterPort<Float> { port(named: "inputRangeVMin") }
-    public var inputRangeVMax:   ParameterPort<Float> { port(named: "inputRangeVMax") }
-    public var inputResolutionU: ParameterPort<Int>   { port(named: "inputResolutionU") }
-    public var inputResolutionV: ParameterPort<Int>   { port(named: "inputResolutionV") }
+    public var inputRadius: ParameterPort<Float> { _inputRadius }
+    private var _inputRadius: ParameterPort<Float>!
+    public var inputTwist: ParameterPort<Float> { _inputTwist }
+    private var _inputTwist: ParameterPort<Float>!
+    public var inputRangeUMin: ParameterPort<Float> { _inputRangeUMin }
+    private var _inputRangeUMin: ParameterPort<Float>!
+    public var inputRangeUMax: ParameterPort<Float> { _inputRangeUMax }
+    private var _inputRangeUMax: ParameterPort<Float>!
+    public var inputRangeVMin: ParameterPort<Float> { _inputRangeVMin }
+    private var _inputRangeVMin: ParameterPort<Float>!
+    public var inputRangeVMax: ParameterPort<Float> { _inputRangeVMax }
+    private var _inputRangeVMax: ParameterPort<Float>!
+    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
+    private var _inputResolutionU: ParameterPort<Int>!
+    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
+    private var _inputResolutionV: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputRadius = findPort(named: "inputRadius")
+        self._inputTwist = findPort(named: "inputTwist")
+        self._inputRangeUMin = findPort(named: "inputRangeUMin")
+        self._inputRangeUMax = findPort(named: "inputRangeUMax")
+        self._inputRangeVMin = findPort(named: "inputRangeVMin")
+        self._inputRangeVMax = findPort(named: "inputRangeVMax")
+        self._inputResolutionU = findPort(named: "inputResolutionU")
+        self._inputResolutionV = findPort(named: "inputResolutionV")
+    }
 
     public override var geometry: ParametricGeometry { _geometry }
     private lazy var _geometry: ParametricGeometry = .diniSurface(context: self.context)

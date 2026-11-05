@@ -39,39 +39,41 @@ public class ComposeVectorNode: StrategyNode
             + [PortDeclaration(key: "outputVector", portType: vt.portType, kind: .Outlet, name: vt.portType.rawValue, description: "Combined \(vt.portType.rawValue)")]
     }
 
+    private var vectorType: VectorType?
+    private var components: [ParameterPort<Float>] = []
+    private var output2: NodePort<simd_float2>?
+    private var output3: NodePort<simd_float3>?
+    private var output4: NodePort<simd_float4>?
+
+    override public func prepareDeclarations()
+    {
+        super.prepareDeclarations()
+        self.vectorType = self.strategyOption()
+    }
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.components = (0..<4).compactMap { findPort(named: "inputComponent\($0)") }
+        self.output2 = findPort(named: "outputVector")
+        self.output3 = findPort(named: "outputVector")
+        self.output4 = findPort(named: "outputVector")
+    }
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let vt: VectorType = strategyOption() else { return }
+        guard let vectorType, components.contains(where: \.valueDidChange) else { return }
 
-        let compCount = vt.componentLabels.count
-        let anyChanged = (0..<compCount).contains { i in
-            let p: ParameterPort<Float>? = findPort(named: "inputComponent\(i)")
-            return p?.valueDidChange == true
-        }
-        guard anyChanged else { return }
+        func comp(_ i: Int) -> Float { i < components.count ? components[i].value ?? 0 : 0 }
 
-        func comp(_ i: Int) -> Float {
-            let p: ParameterPort<Float>? = findPort(named: "inputComponent\(i)")
-            return p?.value ?? 0
-        }
-
-        switch vt {
-        case .float2:
-            if let out: NodePort<simd_float2> = findPort(named: "outputVector") {
-                out.send(simd_float2(comp(0), comp(1)))
-            }
-        case .float3:
-            if let out: NodePort<simd_float3> = findPort(named: "outputVector") {
-                out.send(simd_float3(comp(0), comp(1), comp(2)))
-            }
-        case .float4:
-            if let out: NodePort<simd_float4> = findPort(named: "outputVector") {
-                out.send(simd_float4(comp(0), comp(1), comp(2), comp(3)))
-            }
+        switch vectorType {
+        case .float2: output2?.send(simd_float2(comp(0), comp(1)))
+        case .float3: output3?.send(simd_float3(comp(0), comp(1), comp(2)))
+        case .float4: output4?.send(simd_float4(comp(0), comp(1), comp(2), comp(3)))
         }
     }
 }

@@ -34,8 +34,17 @@ public class ColorPassThroughNode: Node
     }
 
     // Port Proxy
-    public var input: NodePort<simd_float4> { port(named: "input") }
-    public var output: NodePort<simd_float4> { port(named: "output") }
+    public var input: NodePort<simd_float4> { _input }
+    private var _input: NodePort<simd_float4>!
+    public var output: NodePort<simd_float4> { _output }
+    private var _output: NodePort<simd_float4>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._input = findPort(named: "input")
+        self._output = findPort(named: "output")
+    }
 
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,

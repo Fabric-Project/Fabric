@@ -29,11 +29,26 @@ public class RoundRectGeometryNode : BaseGeometryNode
     }
     
     // Proxy Port
-    public var inputWidth:ParameterPort<Float> { port(named: "inputWidth")  }
-    public var inputHeight:ParameterPort<Float> { port(named: "inputHeight")  }
-    public var inputRadius:ParameterPort<Float> { port(named: "inputRadius")  }
-    public var inputResolutionWidth:ParameterPort<Int> { port(named: "inputResolutionWidth")  }
-    public var inputResolutionHeight:ParameterPort<Int> { port(named: "inputResolutionHeight")  }
+    public var inputWidth: ParameterPort<Float> { _inputWidth }
+    private var _inputWidth: ParameterPort<Float>!
+    public var inputHeight: ParameterPort<Float> { _inputHeight }
+    private var _inputHeight: ParameterPort<Float>!
+    public var inputRadius: ParameterPort<Float> { _inputRadius }
+    private var _inputRadius: ParameterPort<Float>!
+    public var inputResolutionWidth: ParameterPort<Int> { _inputResolutionWidth }
+    private var _inputResolutionWidth: ParameterPort<Int>!
+    public var inputResolutionHeight: ParameterPort<Int> { _inputResolutionHeight }
+    private var _inputResolutionHeight: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputWidth = findPort(named: "inputWidth")
+        self._inputHeight = findPort(named: "inputHeight")
+        self._inputRadius = findPort(named: "inputRadius")
+        self._inputResolutionWidth = findPort(named: "inputResolutionWidth")
+        self._inputResolutionHeight = findPort(named: "inputResolutionHeight")
+    }
     
    
     public override var geometry: RoundedRectGeometry { _geometry }

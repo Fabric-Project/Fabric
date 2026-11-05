@@ -28,11 +28,26 @@ public class StringWrapNode: Node {
     }
 
     // Port proxies
-    public var inputPort: ParameterPort<String> { port(named: "inputPort") }
-    public var inputMode: ParameterPort<String> { port(named: "inputMode") }
-    public var inputLimit: ParameterPort<Int> { port(named: "inputLimit") }
-    public var inputAspect: ParameterPort<Float> { port(named: "inputAspect") }
-    public var outputPort: NodePort<String> { port(named: "outputPort") }
+    public var inputPort: ParameterPort<String> { _inputPort }
+    private var _inputPort: ParameterPort<String>!
+    public var inputMode: ParameterPort<String> { _inputMode }
+    private var _inputMode: ParameterPort<String>!
+    public var inputLimit: ParameterPort<Int> { _inputLimit }
+    private var _inputLimit: ParameterPort<Int>!
+    public var inputAspect: ParameterPort<Float> { _inputAspect }
+    private var _inputAspect: ParameterPort<Float>!
+    public var outputPort: NodePort<String> { _outputPort }
+    private var _outputPort: NodePort<String>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputPort = findPort(named: "inputPort")
+        self._inputMode = findPort(named: "inputMode")
+        self._inputLimit = findPort(named: "inputLimit")
+        self._inputAspect = findPort(named: "inputAspect")
+        self._outputPort = findPort(named: "outputPort")
+    }
 
     private var mode = WrapMode.Characters
 

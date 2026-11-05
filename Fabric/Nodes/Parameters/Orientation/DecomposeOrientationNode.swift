@@ -18,10 +18,19 @@ public class DecomposeOrientationNode: StrategyNode
 
     public override class var strategyOptions: [any NodeStrategyOption] { OrientationDecompositionMode.allCases }
 
+    /// `strategy`, typed before each reconcile, so execute switches on it without a cast.
+    private var typedStrategy: OrientationDecompositionMode?
+
+    override public func prepareDeclarations()
+    {
+        super.prepareDeclarations()
+        typedStrategy = strategyOption(as: OrientationDecompositionMode.self)
+    }
+
     override public func declaredPorts() -> [PortDeclaration]
     {
         let wanted: [(name: String, port: Port)]
-        switch strategy as? OrientationDecompositionMode
+        switch typedStrategy
         {
         case .toEuler:
             wanted =
@@ -47,25 +56,43 @@ public class DecomposeOrientationNode: StrategyNode
         return super.declaredPorts() + wanted.map { PortDeclaration(key: $0.name, port: $0.port) }
     }
 
+    private var boundInputOrientation: ParameterPort<simd_float4>?
+    private var boundOutputX: NodePort<Float>?
+    private var boundOutputY: NodePort<Float>?
+    private var boundOutputZ: NodePort<Float>?
+    private var boundOutputAxis: NodePort<simd_float3>?
+    private var boundOutputAngle: NodePort<Float>?
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputOrientation = findPort(named: "inputOrientation")
+        self.boundOutputX = findPort(named: "outputX")
+        self.boundOutputY = findPort(named: "outputY")
+        self.boundOutputZ = findPort(named: "outputZ")
+        self.boundOutputAxis = findPort(named: "outputAxis")
+        self.boundOutputAngle = findPort(named: "outputAngle")
+    }
+
     public override func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputOrientation: ParameterPort<simd_float4> = findPort(named: "inputOrientation"),
+        guard let inputOrientation: ParameterPort<simd_float4> = self.boundInputOrientation,
               inputOrientation.valueDidChange,
               let orientationVector = inputOrientation.value
         else { return }
 
         let quat = simd_quatf(safeVector: orientationVector)
 
-        switch self.strategy as? OrientationDecompositionMode
+        switch typedStrategy
         {
         case .toEuler:
-            guard let outputX: NodePort<Float> = findPort(named: "outputX"),
-                  let outputY: NodePort<Float> = findPort(named: "outputY"),
-                  let outputZ: NodePort<Float> = findPort(named: "outputZ")
+            guard let outputX: NodePort<Float> = self.boundOutputX,
+                  let outputY: NodePort<Float> = self.boundOutputY,
+                  let outputZ: NodePort<Float> = self.boundOutputZ
             else { return }
 
             let euler = quat.eulerAnglesDegreesXYZ
@@ -74,8 +101,8 @@ public class DecomposeOrientationNode: StrategyNode
             outputZ.send(euler.z)
 
         case .toAxisAngle:
-            guard let outputAxis: NodePort<simd_float3> = findPort(named: "outputAxis"),
-                  let outputAngle: NodePort<Float> = findPort(named: "outputAngle")
+            guard let outputAxis: NodePort<simd_float3> = self.boundOutputAxis,
+                  let outputAngle: NodePort<Float> = self.boundOutputAngle
             else { return }
 
             let (axis, angleDegrees) = quat.axisAngleDegrees

@@ -26,9 +26,20 @@ public class TimestampFormatterNode: Node {
     }
 
     // Port proxies
-    public var inputSeconds: ParameterPort<Int> { port(named: "inputSeconds") }
-    public var inputFormat: ParameterPort<String> { port(named: "inputFormat") }
-    public var outputPort: NodePort<String> { port(named: "outputPort") }
+    public var inputSeconds: ParameterPort<Int> { _inputSeconds }
+    private var _inputSeconds: ParameterPort<Int>!
+    public var inputFormat: ParameterPort<String> { _inputFormat }
+    private var _inputFormat: ParameterPort<String>!
+    public var outputPort: NodePort<String> { _outputPort }
+    private var _outputPort: NodePort<String>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputSeconds = findPort(named: "inputSeconds")
+        self._inputFormat = findPort(named: "inputFormat")
+        self._outputPort = findPort(named: "outputPort")
+    }
 
     private let formatter = DateFormatter()
 

@@ -29,11 +29,26 @@ public class ArrayRangeInterpolationNode<Value: PortValueRepresentable & Lerpabl
         ]
     }
 
-    public var inputFrom:   NodePort<Value>                  { port(named: "inputFrom") }
-    public var inputTo:     NodePort<Value>                  { port(named: "inputTo") }
-    public var inputCount:  ParameterPort<Int>               { port(named: "inputCount") }
-    public var inputEasing: ParameterPort<String>            { port(named: "inputEasing") }
-    public var outputArray: NodePort<ContiguousArray<Value>> { port(named: "outputArray") }
+    public var inputFrom: NodePort<Value> { _inputFrom }
+    private var _inputFrom: NodePort<Value>!
+    public var inputTo: NodePort<Value> { _inputTo }
+    private var _inputTo: NodePort<Value>!
+    public var inputCount: ParameterPort<Int> { _inputCount }
+    private var _inputCount: ParameterPort<Int>!
+    public var inputEasing: ParameterPort<String> { _inputEasing }
+    private var _inputEasing: ParameterPort<String>!
+    public var outputArray: NodePort<ContiguousArray<Value>> { _outputArray }
+    private var _outputArray: NodePort<ContiguousArray<Value>>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputFrom = findPort(named: "inputFrom")
+        self._inputTo = findPort(named: "inputTo")
+        self._inputCount = findPort(named: "inputCount")
+        self._inputEasing = findPort(named: "inputEasing")
+        self._outputArray = findPort(named: "outputArray")
+    }
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,

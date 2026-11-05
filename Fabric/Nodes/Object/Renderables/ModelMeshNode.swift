@@ -34,9 +34,20 @@ public class ModelMeshNode : MeshNode
         ]
     }
 
-    public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
-    public var inputTime:ParameterPort<Float>  { port(named: "inputTime") }
-    public var outputDuration:NodePort<Float>  { port(named: "outputDuration") }
+    public var inputFilePathParam: ParameterPort<String> { _inputFilePathParam }
+    private var _inputFilePathParam: ParameterPort<String>!
+    public var inputTime: ParameterPort<Float> { _inputTime }
+    private var _inputTime: ParameterPort<Float>!
+    public var outputDuration: NodePort<Float> { _outputDuration }
+    private var _outputDuration: NodePort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputFilePathParam = findPort(named: "inputFilePathParam")
+        self._inputTime = findPort(named: "inputTime")
+        self._outputDuration = findPort(named: "outputDuration")
+    }
     
     private let modelLoader = ModelFileLoader()
 

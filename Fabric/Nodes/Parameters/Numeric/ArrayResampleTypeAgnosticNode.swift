@@ -22,7 +22,16 @@ public final class ArrayResampleTypeAgnosticNode: NumericTypeAgnosticNode
         ]
     }
 
-    public var inputCount: ParameterPort<Int> { port(named: "inputCount") }
+    public var inputCount: ParameterPort<Int> { _inputCount }
+    private var _inputCount: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputArray = findPort(named: "inputArray")
+        self.boundOutputArray = findPort(named: "outputArray")
+        self._inputCount = findPort(named: "inputCount")
+    }
 
     public override func declaredPorts() -> [PortDeclaration]
     {
@@ -35,15 +44,18 @@ public final class ArrayResampleTypeAgnosticNode: NumericTypeAgnosticNode
         ]
     }
 
+    private var boundInputArray: Port?
+    private var boundOutputArray: Port?
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputArray") { return }
-        guard let inputArray: Port = findPort(named: "inputArray"),
-              let outputArray: Port = findPort(named: "outputArray"),
+        if specializeFromConnectedPort(self.boundInputArray) { return }
+        guard let inputArray: Port = self.boundInputArray,
+              let outputArray: Port = self.boundOutputArray,
               inputArray.valueDidChange || inputCount.valueDidChange,
               case .Array(let elementType) = selectedNumericPortType,
               let source = NumericValueOperations.arrayValues(from: inputArray.snapshotValue()),

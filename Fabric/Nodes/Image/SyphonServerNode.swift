@@ -32,8 +32,17 @@ public class SyphonServerNode : Node
         ]
     }
 
-    public var inputServerName:ParameterPort<String>  { port(named: "inputServerName") }
-    public var inputTexture:NodePort<FabricImage> { port(named: "inputTexture") }
+    public var inputServerName: ParameterPort<String> { _inputServerName }
+    private var _inputServerName: ParameterPort<String>!
+    public var inputTexture: NodePort<FabricImage> { _inputTexture }
+    private var _inputTexture: NodePort<FabricImage>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputServerName = findPort(named: "inputServerName")
+        self._inputTexture = findPort(named: "inputTexture")
+    }
 
     private var syphonServer: SyphonMetalServer?
     private var needsInitialFrame = false

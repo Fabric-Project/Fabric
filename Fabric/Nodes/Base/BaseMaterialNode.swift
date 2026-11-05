@@ -33,11 +33,26 @@ public class BaseMaterialNode : Node
     }
     
     // Port Proxy
-    public var inputReceivesLighting:ParameterPort<Bool>    { port(named: "inputReceivesLighting") }
-    public var inputWriteDepth:ParameterPort<Bool>          { port(named: "inputWriteDepth") }
-    public var inputDepthTest:ParameterPort<Bool>           { port(named: "inputDepthTest") }
-    public var inputBlending:ParameterPort<String>          { port(named: "inputBlending") }
-    public var outputMaterial:NodePort<Material>            { port(named: "outputMaterial") }
+    public var inputReceivesLighting: ParameterPort<Bool> { _inputReceivesLighting }
+    private var _inputReceivesLighting: ParameterPort<Bool>!
+    public var inputWriteDepth: ParameterPort<Bool> { _inputWriteDepth }
+    private var _inputWriteDepth: ParameterPort<Bool>!
+    public var inputDepthTest: ParameterPort<Bool> { _inputDepthTest }
+    private var _inputDepthTest: ParameterPort<Bool>!
+    public var inputBlending: ParameterPort<String> { _inputBlending }
+    private var _inputBlending: ParameterPort<String>!
+    public var outputMaterial: NodePort<Material> { _outputMaterial }
+    private var _outputMaterial: NodePort<Material>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputReceivesLighting = findPort(named: "inputReceivesLighting")
+        self._inputWriteDepth = findPort(named: "inputWriteDepth")
+        self._inputDepthTest = findPort(named: "inputDepthTest")
+        self._inputBlending = findPort(named: "inputBlending")
+        self._outputMaterial = findPort(named: "outputMaterial")
+    }
     
     open var material: Material {
         fatalError("Subclasses must override material")

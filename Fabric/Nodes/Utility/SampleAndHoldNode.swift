@@ -18,8 +18,19 @@ public class SampleAndHoldNode: TypeAgnosticNode
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Samples any value type when enabled and holds it until reset. Choose the value type in Settings." }
 
-    public var inputSample: ParameterPort<Bool> { port(named: "inputSample") }
-    public var inputReset: ParameterPort<Bool>  { port(named: "inputReset") }
+    public var inputSample: ParameterPort<Bool> { _inputSample }
+    private var _inputSample: ParameterPort<Bool>!
+    public var inputReset: ParameterPort<Bool> { _inputReset }
+    private var _inputReset: ParameterPort<Bool>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputValue = findPort(named: "inputValue")
+        self.boundOutputValue = findPort(named: "outputValue")
+        self._inputSample = findPort(named: "inputSample")
+        self._inputReset = findPort(named: "inputReset")
+    }
 
     private var heldValue: PortValue?
 
@@ -47,14 +58,17 @@ public class SampleAndHoldNode: TypeAgnosticNode
         heldValue = nil
     }
 
+    private var boundInputValue: Port?
+    private var boundOutputValue: Port?
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputValue:  Port = findPort(named: "inputValue"),
-              let outputValue: Port = findPort(named: "outputValue") else { return }
+        guard let inputValue:  Port = self.boundInputValue,
+              let outputValue: Port = self.boundOutputValue else { return }
 
         if inputValue.valueDidChange,
            let sampling = inputSample.value, sampling

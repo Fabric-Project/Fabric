@@ -242,12 +242,32 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
         ] + ports
     }
 
-    public var inputResolutionU: ParameterPort<Int>   { port(named: "inputResolutionU") }
-    public var inputResolutionV: ParameterPort<Int>   { port(named: "inputResolutionV") }
-    public var inputRangeUMin:   ParameterPort<Float> { port(named: "inputRangeUMin") }
-    public var inputRangeUMax:   ParameterPort<Float> { port(named: "inputRangeUMax") }
-    public var inputRangeVMin:   ParameterPort<Float> { port(named: "inputRangeVMin") }
-    public var inputRangeVMax:   ParameterPort<Float> { port(named: "inputRangeVMax") }
+    public var inputResolutionU: ParameterPort<Int> { _inputResolutionU }
+    private var _inputResolutionU: ParameterPort<Int>!
+    public var inputResolutionV: ParameterPort<Int> { _inputResolutionV }
+    private var _inputResolutionV: ParameterPort<Int>!
+    public var inputRangeUMin: ParameterPort<Float> { _inputRangeUMin }
+    private var _inputRangeUMin: ParameterPort<Float>!
+    public var inputRangeUMax: ParameterPort<Float> { _inputRangeUMax }
+    private var _inputRangeUMax: ParameterPort<Float>!
+    public var inputRangeVMin: ParameterPort<Float> { _inputRangeVMin }
+    private var _inputRangeVMin: ParameterPort<Float>!
+    public var inputRangeVMax: ParameterPort<Float> { _inputRangeVMax }
+    private var _inputRangeVMax: ParameterPort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.variablePorts = _dynamicVariablePortNames.sorted().compactMap { name in
+            (findPort(named: name) as ParameterPort<Float>?).map { (name, $0) }
+        }
+        self._inputResolutionU = findPort(named: "inputResolutionU")
+        self._inputResolutionV = findPort(named: "inputResolutionV")
+        self._inputRangeUMin = findPort(named: "inputRangeUMin")
+        self._inputRangeUMax = findPort(named: "inputRangeUMax")
+        self._inputRangeVMin = findPort(named: "inputRangeVMin")
+        self._inputRangeVMax = findPort(named: "inputRangeVMax")
+    }
 
     // MARK: - Geometry
 
@@ -372,6 +392,9 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
         }
     }
 
+    /// Each variable's inlet, in declared order.
+    private var variablePorts: [(name: String, port: ParameterPort<Float>)] = []
+
     private func syncVariablePorts()
     {
         var allVars = Set<String>()
@@ -425,9 +448,7 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
             || inputRangeUMin.valueDidChange || inputRangeUMax.valueDidChange
             || inputRangeVMin.valueDidChange || inputRangeVMax.valueDidChange
 
-        let anyVarChanged = _dynamicVariablePortNames.contains { name in
-            (self.findPort(named: name) as? ParameterPort<Float>)?.valueDidChange == true
-        }
+        let anyVarChanged = variablePorts.contains { $0.port.valueDidChange }
 
         if paramsChanged || _expressionsDirty || anyVarChanged
         {
@@ -444,10 +465,9 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
 
             // Snapshot variable port values so the generator closure is pure.
             var varSnapshot: [String: Float] = [:]
-            for name in _dynamicVariablePortNames
+            for (name, port) in variablePorts
             {
-                let value = (self.findPort(named: name) as? ParameterPort<Float>)?.value ?? 0
-                varSnapshot[name] = value
+                varSnapshot[name] = port.value ?? 0
             }
 
             let eX = evalX, eY = evalY, eZ = evalZ

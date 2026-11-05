@@ -27,12 +27,29 @@ public class TextureCropNode: Node
         ]
     }
 
-    public var inputTexture: NodePort<FabricImage> { port(named: "inputTexture") }
-    public var inputCropX: ParameterPort<Int> { port(named: "inputCropX") }
-    public var inputCropY: ParameterPort<Int> { port(named: "inputCropY") }
-    public var inputCropWidth: ParameterPort<Int> { port(named: "inputCropWidth") }
-    public var inputCropHeight: ParameterPort<Int> { port(named: "inputCropHeight") }
-    public var outputTexture: NodePort<FabricImage> { port(named: "outputTexture") }
+    public var inputTexture: NodePort<FabricImage> { _inputTexture }
+    private var _inputTexture: NodePort<FabricImage>!
+    public var inputCropX: ParameterPort<Int> { _inputCropX }
+    private var _inputCropX: ParameterPort<Int>!
+    public var inputCropY: ParameterPort<Int> { _inputCropY }
+    private var _inputCropY: ParameterPort<Int>!
+    public var inputCropWidth: ParameterPort<Int> { _inputCropWidth }
+    private var _inputCropWidth: ParameterPort<Int>!
+    public var inputCropHeight: ParameterPort<Int> { _inputCropHeight }
+    private var _inputCropHeight: ParameterPort<Int>!
+    public var outputTexture: NodePort<FabricImage> { _outputTexture }
+    private var _outputTexture: NodePort<FabricImage>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputTexture = findPort(named: "inputTexture")
+        self._inputCropX = findPort(named: "inputCropX")
+        self._inputCropY = findPort(named: "inputCropY")
+        self._inputCropWidth = findPort(named: "inputCropWidth")
+        self._inputCropHeight = findPort(named: "inputCropHeight")
+        self._outputTexture = findPort(named: "outputTexture")
+    }
 
     private struct CropUniforms
     {

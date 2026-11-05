@@ -28,9 +28,22 @@ public final class TweenNode: NumericTypeAgnosticNode
         ]
     }
 
-    public var inputDuration: ParameterPort<Float> { port(named: "inputDuration") }
-    public var inputEasing: ParameterPort<String> { port(named: "inputEasing") }
-    public var outputProgress: NodePort<Float> { port(named: "outputProgress") }
+    public var inputDuration: ParameterPort<Float> { _inputDuration }
+    private var _inputDuration: ParameterPort<Float>!
+    public var inputEasing: ParameterPort<String> { _inputEasing }
+    private var _inputEasing: ParameterPort<String>!
+    public var outputProgress: NodePort<Float> { _outputProgress }
+    private var _outputProgress: NodePort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputTarget = findPort(named: "inputTarget")
+        self.boundOutputValue = findPort(named: "outputValue")
+        self._inputDuration = findPort(named: "inputDuration")
+        self._inputEasing = findPort(named: "inputEasing")
+        self._outputProgress = findPort(named: "outputProgress")
+    }
 
     public override func declaredPorts() -> [PortDeclaration]
     {
@@ -53,15 +66,18 @@ public final class TweenNode: NumericTypeAgnosticNode
         tween = TweenState()
     }
 
+    private var boundInputTarget: Port?
+    private var boundOutputValue: Port?
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputTarget") { return }
-        guard let inputTarget: Port = findPort(named: "inputTarget"),
-              let outputValue: Port = findPort(named: "outputValue")
+        if specializeFromConnectedPort(self.boundInputTarget) { return }
+        guard let inputTarget: Port = self.boundInputTarget,
+              let outputValue: Port = self.boundOutputValue
         else { return }
 
         let time = executionInfo.timing.time

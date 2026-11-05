@@ -409,42 +409,49 @@ public class OSCReceiveNode: Node
         let currentValues = latestValues.withLock { $0 }
 
         // Send latest values to ports
-        for binding in addressBindings
+        for (address, outlet) in boundOutlets
         {
-            let portName = portNameForAddress(binding.address)
-            guard let value = currentValues[binding.address] else { continue }
+            guard let value = currentValues[address] else { continue }
 
+            switch outlet
+            {
+            case .float(let port):
+                if let floatValue = value as? Float { port.send(floatValue) }
+            case .int(let port):
+                if let intValue = value as? Int { port.send(intValue) }
+            case .string(let port):
+                if let stringValue = value as? String { port.send(stringValue) }
+            case .bool(let port):
+                if let boolValue = value as? Bool { port.send(boolValue) }
+            }
+        }
+    }
+
+    private enum BoundOutlet
+    {
+        case float(NodePort<Float>)
+        case int(NodePort<Int>)
+        case string(NodePort<String>)
+        case bool(NodePort<Bool>)
+    }
+
+    /// Each binding's outlet, typed, in binding order.
+    private var boundOutlets: [(address: String, outlet: BoundOutlet)] = []
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundOutlets = addressBindings.compactMap { binding in
+            let name = portNameForAddress(binding.address)
+            let outlet: BoundOutlet?
             switch binding.dataType
             {
-            case .float:
-                if let port = self.findPort(named: portName) as? NodePort<Float>,
-                   let floatValue = value as? Float
-                {
-                    port.send(floatValue)
-                }
-
-            case .int:
-                if let port = self.findPort(named: portName) as? NodePort<Int>,
-                   let intValue = value as? Int
-                {
-                    // Convert to Float for now since we commonly use Float ports
-                    port.send(intValue)
-                }
-
-            case .string:
-                if let port = self.findPort(named: portName) as? NodePort<String>,
-                   let stringValue = value as? String
-                {
-                    port.send(stringValue)
-                }
-
-            case .bool:
-                if let port = self.findPort(named: portName) as? NodePort<Bool>,
-                   let boolValue = value as? Bool
-                {
-                    port.send(boolValue)
-                }
+            case .float: outlet = (findPort(named: name) as NodePort<Float>?).map(BoundOutlet.float)
+            case .int: outlet = (findPort(named: name) as NodePort<Int>?).map(BoundOutlet.int)
+            case .string: outlet = (findPort(named: name) as NodePort<String>?).map(BoundOutlet.string)
+            case .bool: outlet = (findPort(named: name) as NodePort<Bool>?).map(BoundOutlet.bool)
             }
+            return outlet.map { (binding.address, $0) }
         }
     }
 

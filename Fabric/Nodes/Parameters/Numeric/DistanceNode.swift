@@ -23,8 +23,19 @@ public final class DistanceNode: NumericTypeAgnosticNode
         ]
     }
 
-    public var inputMetric: ParameterPort<String> { port(named: "inputMetric") }
-    public var outputDistance: NodePort<Float> { port(named: "outputDistance") }
+    public var inputMetric: ParameterPort<String> { _inputMetric }
+    private var _inputMetric: ParameterPort<String>!
+    public var outputDistance: NodePort<Float> { _outputDistance }
+    private var _outputDistance: NodePort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputA = findPort(named: "inputA")
+        self.boundInputB = findPort(named: "inputB")
+        self._inputMetric = findPort(named: "inputMetric")
+        self._outputDistance = findPort(named: "outputDistance")
+    }
 
     public override func declaredPorts() -> [PortDeclaration]
     {
@@ -36,15 +47,18 @@ public final class DistanceNode: NumericTypeAgnosticNode
         ] + super.declaredPorts()
     }
 
+    private var boundInputA: Port?
+    private var boundInputB: Port?
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputA") || specializeFromConnectedPort(named: "inputB") { return }
-        guard let inputA: Port = findPort(named: "inputA"),
-              let inputB: Port = findPort(named: "inputB"),
+        if specializeFromConnectedPort(self.boundInputA) || specializeFromConnectedPort(self.boundInputB) { return }
+        guard let inputA: Port = self.boundInputA,
+              let inputB: Port = self.boundInputB,
               inputA.valueDidChange || inputB.valueDidChange || inputMetric.valueDidChange,
               let valueA = inputA.snapshotValue(),
               let valueB = inputB.snapshotValue()

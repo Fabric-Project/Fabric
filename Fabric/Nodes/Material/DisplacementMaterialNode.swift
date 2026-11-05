@@ -29,14 +29,35 @@ public class DisplacementMaterialNode: BaseMaterialNode
     }
 
     // Proxy Params
-    public var inputTexture:NodePort<FabricImage> { port(named: "inputTexture") }
-    public var inputDisplacementTexture:NodePort<FabricImage> { port(named: "inputDisplacementTexture") }
-    public var inputPointSpriteTexture:NodePort<FabricImage> { port(named: "inputPointSpriteTexture") }
-    public var inputAmount:ParameterPort<Float> { port(named: "Amount") }
-    public var inputLumaVsRGBAmount:ParameterPort<Float> { port(named: "Luma Vs RGB") }
-    public var inputMinPointSize:ParameterPort<Float> { port(named: "Min Point Size") }
-    public var inputMaxPointSize:ParameterPort<Float> { port(named: "Max Point Size") }
-    public var inputBrightness:ParameterPort<Float> { port(named: "Brightness") }
+    public var inputTexture: NodePort<FabricImage> { _inputTexture }
+    private var _inputTexture: NodePort<FabricImage>!
+    public var inputDisplacementTexture: NodePort<FabricImage> { _inputDisplacementTexture }
+    private var _inputDisplacementTexture: NodePort<FabricImage>!
+    public var inputPointSpriteTexture: NodePort<FabricImage> { _inputPointSpriteTexture }
+    private var _inputPointSpriteTexture: NodePort<FabricImage>!
+    public var inputAmount: ParameterPort<Float> { _inputAmount }
+    private var _inputAmount: ParameterPort<Float>!
+    public var inputLumaVsRGBAmount: ParameterPort<Float> { _inputLumaVsRGBAmount }
+    private var _inputLumaVsRGBAmount: ParameterPort<Float>!
+    public var inputMinPointSize: ParameterPort<Float> { _inputMinPointSize }
+    private var _inputMinPointSize: ParameterPort<Float>!
+    public var inputMaxPointSize: ParameterPort<Float> { _inputMaxPointSize }
+    private var _inputMaxPointSize: ParameterPort<Float>!
+    public var inputBrightness: ParameterPort<Float> { _inputBrightness }
+    private var _inputBrightness: ParameterPort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputTexture = findPort(named: "inputTexture")
+        self._inputDisplacementTexture = findPort(named: "inputDisplacementTexture")
+        self._inputPointSpriteTexture = findPort(named: "inputPointSpriteTexture")
+        self._inputAmount = findPort(named: "Amount")
+        self._inputLumaVsRGBAmount = findPort(named: "Luma Vs RGB")
+        self._inputMinPointSize = findPort(named: "Min Point Size")
+        self._inputMaxPointSize = findPort(named: "Max Point Size")
+        self._inputBrightness = findPort(named: "Brightness")
+    }
     
     
     public override var material: DisplacementMaterial {

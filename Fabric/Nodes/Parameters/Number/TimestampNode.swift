@@ -25,8 +25,17 @@ public class TimestampNode: Node {
     }
 
     // Port proxies
-    public var outputSeconds: NodePort<Int> { port(named: "outputSeconds") }
-    public var outputFraction: NodePort<Float> { port(named: "outputFraction") }
+    public var outputSeconds: NodePort<Int> { _outputSeconds }
+    private var _outputSeconds: NodePort<Int>!
+    public var outputFraction: NodePort<Float> { _outputFraction }
+    private var _outputFraction: NodePort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._outputSeconds = findPort(named: "outputSeconds")
+        self._outputFraction = findPort(named: "outputFraction")
+    }
 
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,

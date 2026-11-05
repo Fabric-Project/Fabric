@@ -124,11 +124,26 @@ public class PerspectiveQuadGeometryNode : BaseGeometryNode
     }
 
     // Proxy Ports
-    public var inputTopLeft:     ParameterPort<simd_float2> { port(named: "inputTopLeft") }
-    public var inputTopRight:    ParameterPort<simd_float2> { port(named: "inputTopRight") }
-    public var inputBottomLeft:  ParameterPort<simd_float2> { port(named: "inputBottomLeft") }
-    public var inputBottomRight: ParameterPort<simd_float2> { port(named: "inputBottomRight") }
-    public var inputResolution:  ParameterPort<Int>         { port(named: "inputResolution") }
+    public var inputTopLeft: ParameterPort<simd_float2> { _inputTopLeft }
+    private var _inputTopLeft: ParameterPort<simd_float2>!
+    public var inputTopRight: ParameterPort<simd_float2> { _inputTopRight }
+    private var _inputTopRight: ParameterPort<simd_float2>!
+    public var inputBottomLeft: ParameterPort<simd_float2> { _inputBottomLeft }
+    private var _inputBottomLeft: ParameterPort<simd_float2>!
+    public var inputBottomRight: ParameterPort<simd_float2> { _inputBottomRight }
+    private var _inputBottomRight: ParameterPort<simd_float2>!
+    public var inputResolution: ParameterPort<Int> { _inputResolution }
+    private var _inputResolution: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputTopLeft = findPort(named: "inputTopLeft")
+        self._inputTopRight = findPort(named: "inputTopRight")
+        self._inputBottomLeft = findPort(named: "inputBottomLeft")
+        self._inputBottomRight = findPort(named: "inputBottomRight")
+        self._inputResolution = findPort(named: "inputResolution")
+    }
 
     public override var geometry: SatinGeometry { _geometry }
 

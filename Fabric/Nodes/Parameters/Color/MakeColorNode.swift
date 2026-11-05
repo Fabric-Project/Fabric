@@ -34,11 +34,26 @@ public class MakeColorNode: Node
     }
 
     // Port Proxy
-    public var inputR: ParameterPort<Float> { port(named: "inputR") }
-    public var inputG: ParameterPort<Float> { port(named: "inputG") }
-    public var inputB: ParameterPort<Float> { port(named: "inputB") }
-    public var inputA: ParameterPort<Float> { port(named: "inputA") }
-    public var outputColor: NodePort<simd_float4> { port(named: "outputColor") }
+    public var inputR: ParameterPort<Float> { _inputR }
+    private var _inputR: ParameterPort<Float>!
+    public var inputG: ParameterPort<Float> { _inputG }
+    private var _inputG: ParameterPort<Float>!
+    public var inputB: ParameterPort<Float> { _inputB }
+    private var _inputB: ParameterPort<Float>!
+    public var inputA: ParameterPort<Float> { _inputA }
+    private var _inputA: ParameterPort<Float>!
+    public var outputColor: NodePort<simd_float4> { _outputColor }
+    private var _outputColor: NodePort<simd_float4>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputR = findPort(named: "inputR")
+        self._inputG = findPort(named: "inputG")
+        self._inputB = findPort(named: "inputB")
+        self._inputA = findPort(named: "inputA")
+        self._outputColor = findPort(named: "outputColor")
+    }
 
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,

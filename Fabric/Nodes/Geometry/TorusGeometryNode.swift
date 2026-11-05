@@ -27,10 +27,23 @@ public class TorusGeometryNode : BaseGeometryNode
     }
     
     // Proxy Port
-    public var inputMinorRadius:ParameterPort<Float> { port(named: "inputMinorRadius")  }
-    public var inputMajorRadius:ParameterPort<Float> { port(named: "inputMajorRadius")  }
-    public var inputMinorResolution:ParameterPort<Int> { port(named: "inputMinorResolution") }
-    public var inputMajorResolution:ParameterPort<Int> { port(named: "inputMajorResolution")  }
+    public var inputMinorRadius: ParameterPort<Float> { _inputMinorRadius }
+    private var _inputMinorRadius: ParameterPort<Float>!
+    public var inputMajorRadius: ParameterPort<Float> { _inputMajorRadius }
+    private var _inputMajorRadius: ParameterPort<Float>!
+    public var inputMinorResolution: ParameterPort<Int> { _inputMinorResolution }
+    private var _inputMinorResolution: ParameterPort<Int>!
+    public var inputMajorResolution: ParameterPort<Int> { _inputMajorResolution }
+    private var _inputMajorResolution: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputMinorRadius = findPort(named: "inputMinorRadius")
+        self._inputMajorRadius = findPort(named: "inputMajorRadius")
+        self._inputMinorResolution = findPort(named: "inputMinorResolution")
+        self._inputMajorResolution = findPort(named: "inputMajorResolution")
+    }
 
     public override var geometry: TorusGeometry { _geometry }
 

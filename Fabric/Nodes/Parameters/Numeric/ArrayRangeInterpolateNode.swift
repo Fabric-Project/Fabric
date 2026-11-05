@@ -23,8 +23,20 @@ public final class ArrayRangeInterpolateNode: NumericTypeAgnosticNode
         ]
     }
 
-    public var inputCount: ParameterPort<Int> { port(named: "inputCount") }
-    public var inputEasing: ParameterPort<String> { port(named: "inputEasing") }
+    public var inputCount: ParameterPort<Int> { _inputCount }
+    private var _inputCount: ParameterPort<Int>!
+    public var inputEasing: ParameterPort<String> { _inputEasing }
+    private var _inputEasing: ParameterPort<String>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputFrom = findPort(named: "inputFrom")
+        self.boundInputTo = findPort(named: "inputTo")
+        self.boundOutputArray = findPort(named: "outputArray")
+        self._inputCount = findPort(named: "inputCount")
+        self._inputEasing = findPort(named: "inputEasing")
+    }
 
     public override func declaredPorts() -> [PortDeclaration]
     {
@@ -39,16 +51,20 @@ public final class ArrayRangeInterpolateNode: NumericTypeAgnosticNode
         ]
     }
 
+    private var boundInputFrom: Port?
+    private var boundInputTo: Port?
+    private var boundOutputArray: Port?
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputFrom") || specializeFromConnectedPort(named: "inputTo") { return }
-        guard let inputFrom: Port = findPort(named: "inputFrom"),
-              let inputTo: Port = findPort(named: "inputTo"),
-              let outputArray: Port = findPort(named: "outputArray"),
+        if specializeFromConnectedPort(self.boundInputFrom) || specializeFromConnectedPort(self.boundInputTo) { return }
+        guard let inputFrom: Port = self.boundInputFrom,
+              let inputTo: Port = self.boundInputTo,
+              let outputArray: Port = self.boundOutputArray,
               inputFrom.valueDidChange || inputTo.valueDidChange || inputCount.valueDidChange || inputEasing.valueDidChange,
               let from = inputFrom.snapshotValue(),
               let to = inputTo.snapshotValue(),

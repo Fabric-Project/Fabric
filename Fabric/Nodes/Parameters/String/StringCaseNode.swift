@@ -26,9 +26,20 @@ public class StringCaseNode: Node {
     }
 
     // Port proxies
-    public var inputPort: ParameterPort<String> { port(named: "inputPort") }
-    public var inputCase: ParameterPort<String> { port(named: "inputCase") }
-    public var outputPort: NodePort<String> { port(named: "outputPort") }
+    public var inputPort: ParameterPort<String> { _inputPort }
+    private var _inputPort: ParameterPort<String>!
+    public var inputCase: ParameterPort<String> { _inputCase }
+    private var _inputCase: ParameterPort<String>!
+    public var outputPort: NodePort<String> { _outputPort }
+    private var _outputPort: NodePort<String>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputPort = findPort(named: "inputPort")
+        self._inputCase = findPort(named: "inputCase")
+        self._outputPort = findPort(named: "outputPort")
+    }
 
     private var mode = StringCaseMode.Uppercase
 

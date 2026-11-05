@@ -70,6 +70,14 @@ public class NumberGeneratorNode : StrategyNode
     private var spreadPhase: Float = 0 // raw low-discrepancy phase for Even Spread
     private var previousSignal: Bool? = nil
     private var hasEmitted: Bool = false
+    private var mode: NumberGeneratorMode = .random
+
+    override public func prepareDeclarations()
+    {
+        super.prepareDeclarations()
+        self.mode = self.strategyOption(as: NumberGeneratorMode.self) ?? .random
+    }
+
 
     override public func declaredPorts() -> [PortDeclaration]
     {
@@ -112,7 +120,7 @@ public class NumberGeneratorNode : StrategyNode
     {
         self.previousSignal = nil
         self.hasEmitted = false
-        switch self.strategyOption(as: NumberGeneratorMode.self) ?? .random
+        switch self.mode
         {
         case .random:
             self.value = Float.random(in: 0 ..< 1) // seed a representative value, like Walk / Even Spread
@@ -124,17 +132,33 @@ public class NumberGeneratorNode : StrategyNode
         }
     }
 
+    private var boundInputSignal: ParameterPort<Bool>?
+    private var boundOutputValue: NodePort<Float>?
+    private var boundInputMinChange: ParameterPort<Float>?
+    private var boundInputDistribution: ParameterPort<String>?
+    private var boundInputStepSize: ParameterPort<Float>?
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputSignal = findPort(named: "inputSignal")
+        self.boundOutputValue = findPort(named: "outputValue")
+        self.boundInputMinChange = findPort(named: "inputMinChange")
+        self.boundInputDistribution = findPort(named: "inputDistribution")
+        self.boundInputStepSize = findPort(named: "inputStepSize")
+    }
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputSignal: ParameterPort<Bool> = findPort(named: "inputSignal"),
-              let outputValue: NodePort<Float> = findPort(named: "outputValue")
+        guard let inputSignal: ParameterPort<Bool> = self.boundInputSignal,
+              let outputValue: NodePort<Float> = self.boundOutputValue
         else { return }
 
-        let mode = self.strategyOption(as: NumberGeneratorMode.self) ?? .random
+        let mode = self.mode
         let signal = inputSignal.value ?? false
 
         // Rising edge: previous false, current true. First execute has no
@@ -167,7 +191,7 @@ public class NumberGeneratorNode : StrategyNode
 
     private func drawRandom() -> Float
     {
-        let minChange: Float = (findPort(named: "inputMinChange") as ParameterPort<Float>?)?.value ?? 0
+        let minChange: Float = self.boundInputMinChange?.value ?? 0
         let distribution = self.distributionValue()
 
         // Uniform has an exact windowed draw. Shaped distributions reject draws
@@ -200,12 +224,12 @@ public class NumberGeneratorNode : StrategyNode
 
     private func distributionValue() -> ValueDistribution
     {
-        ValueDistribution(rawValue: (findPort(named: "inputDistribution") as ParameterPort<String>?)?.value ?? "") ?? .uniform
+        ValueDistribution(rawValue: self.boundInputDistribution?.value ?? "") ?? .uniform
     }
 
     private func walkStep(from value: Float) -> Float
     {
-        let stepSize = max(0, (findPort(named: "inputStepSize") as ParameterPort<Float>?)?.value ?? 0)
+        let stepSize = max(0, self.boundInputStepSize?.value ?? 0)
         var next = value + Float.random(in: -stepSize ... stepSize)
         if next < 0 { next = -next }       // reflect off the lower bound
         if next > 1 { next = 2 - next }    // reflect off the upper bound

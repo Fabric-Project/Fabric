@@ -32,9 +32,20 @@ public class StringDifferenceNode : Node
     }
     
     // Port Proxy
-    public var inputPort:NodePort<String>   { port(named: "inputPort") }
-    public var input2Port:NodePort<String>   { port(named: "input2Port") }
-    public var outputPort:NodePort<String>     { port(named: "outputPort") }
+    public var inputPort: NodePort<String> { _inputPort }
+    private var _inputPort: NodePort<String>!
+    public var input2Port: NodePort<String> { _input2Port }
+    private var _input2Port: NodePort<String>!
+    public var outputPort: NodePort<String> { _outputPort }
+    private var _outputPort: NodePort<String>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputPort = findPort(named: "inputPort")
+        self._input2Port = findPort(named: "input2Port")
+        self._outputPort = findPort(named: "outputPort")
+    }
     
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,

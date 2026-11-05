@@ -375,7 +375,7 @@ private final class JavaScriptNodeRuntime
     }
 
     func execute(signature: JavaScriptNodeSignature,
-                 node: JavaScriptNode,
+                 inputPorts: [Port?],
                  executionInfo: GraphExecutionInfo) throws -> [String: PortValue?]
     {
         self.latestDiagnostic = nil
@@ -383,8 +383,8 @@ private final class JavaScriptNodeRuntime
         self.context.exception = nil
         self.context.setObject(JavaScriptExecutionContextValue(executionInfo: executionInfo), forKeyedSubscript: "context" as NSString)
 
-        let arguments = signature.inputs.map { definition in
-            bridge.javaScriptArgument(for: node.findPort(named: definition.name, as: Port.self)?.snapshotValue())
+        let arguments = signature.inputs.indices.map { index in
+            bridge.javaScriptArgument(for: inputPorts.indices.contains(index) ? inputPorts[index]?.snapshotValue() : nil)
         }
 
         let result = self.mainFunction.call(withArguments: arguments)
@@ -713,12 +713,11 @@ public final class JavaScriptNode: Node
         }
 
         do {
-            let outputValues = try runtime.execute(signature: compiledSignature, node: self, executionInfo: executionInfo)
+            let outputValues = try runtime.execute(signature: compiledSignature, inputPorts: self.boundInputs, executionInfo: executionInfo)
             self.diagnostics = runtime.outputDiagnostics
 
-            for definition in compiledSignature.outputs {
-                guard let port = self.findPort(named: definition.name) else { continue }
-                port.sendBoxed(outputValues[definition.name] ?? nil, force: true)
+            for (name, port) in self.boundOutputs {
+                port.sendBoxed(outputValues[name] ?? nil, force: true)
             }
         }
         catch {
@@ -801,6 +800,19 @@ public final class JavaScriptNode: Node
 
     /// The signature of the last script that parsed, which the ports follow.
     private var portSignature: JavaScriptNodeSignature?
+
+    /// The signature's input ports, by argument position, and its outputs'.
+    private var boundInputs: [Port?] = []
+    private var boundOutputs: [(name: String, port: Port)] = []
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputs = (self.portSignature?.inputs ?? []).map { findPort(named: $0.name) }
+        self.boundOutputs = (self.portSignature?.outputs ?? []).compactMap { definition in
+            (findPort(named: definition.name) as Port?).map { (definition.name, $0) }
+        }
+    }
 
     /// The signature's inputs as inlets, then its outputs as outlets, in the
     /// order the script gives them.

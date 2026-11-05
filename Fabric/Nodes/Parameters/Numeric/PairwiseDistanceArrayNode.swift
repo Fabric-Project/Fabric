@@ -23,8 +23,19 @@ public final class PairwiseDistanceArrayNode: NumericTypeAgnosticNode
         ]
     }
 
-    public var inputMetric: ParameterPort<String> { port(named: "inputMetric") }
-    public var outputDistances: NodePort<ContiguousArray<Float>> { port(named: "outputDistances") }
+    public var inputMetric: ParameterPort<String> { _inputMetric }
+    private var _inputMetric: ParameterPort<String>!
+    public var outputDistances: NodePort<ContiguousArray<Float>> { _outputDistances }
+    private var _outputDistances: NodePort<ContiguousArray<Float>>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputA = findPort(named: "inputA")
+        self.boundInputB = findPort(named: "inputB")
+        self._inputMetric = findPort(named: "inputMetric")
+        self._outputDistances = findPort(named: "outputDistances")
+    }
 
     public override func declaredPorts() -> [PortDeclaration]
     {
@@ -36,15 +47,18 @@ public final class PairwiseDistanceArrayNode: NumericTypeAgnosticNode
         ] + super.declaredPorts()
     }
 
+    private var boundInputA: Port?
+    private var boundInputB: Port?
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputA") || specializeFromConnectedPort(named: "inputB") { return }
-        guard let inputA: Port = findPort(named: "inputA"),
-              let inputB: Port = findPort(named: "inputB"),
+        if specializeFromConnectedPort(self.boundInputA) || specializeFromConnectedPort(self.boundInputB) { return }
+        guard let inputA: Port = self.boundInputA,
+              let inputB: Port = self.boundInputB,
               inputA.valueDidChange || inputB.valueDidChange || inputMetric.valueDidChange,
               case .Array(let elementType) = selectedNumericPortType,
               let valuesA = NumericValueOperations.arrayValues(from: inputA.snapshotValue()),

@@ -34,12 +34,29 @@ public class DirectionalLightNode : ObjectNode<DirectionalLight>
     }
     
     // Proxy Port
-    public var inputLookAt:ParameterPort<simd_float3> { port(named: "inputLookAt") }
-    public var inputColor: ParameterPort<simd_float3> { port(named: "inputColor") }
-    public var inputIntensity: ParameterPort<Float> { port(named: "inputIntensity") }
-    public var inputShadowStrength: ParameterPort<Float> { port(named: "inputShadowStrength") }
-    public var inputShadowRadius: ParameterPort<Float> { port(named: "inputShadowRadius") }
-    public var inputShadowBias: ParameterPort<Float> { port(named: "inputShadowBias") }
+    public var inputLookAt: ParameterPort<simd_float3> { _inputLookAt }
+    private var _inputLookAt: ParameterPort<simd_float3>!
+    public var inputColor: ParameterPort<simd_float3> { _inputColor }
+    private var _inputColor: ParameterPort<simd_float3>!
+    public var inputIntensity: ParameterPort<Float> { _inputIntensity }
+    private var _inputIntensity: ParameterPort<Float>!
+    public var inputShadowStrength: ParameterPort<Float> { _inputShadowStrength }
+    private var _inputShadowStrength: ParameterPort<Float>!
+    public var inputShadowRadius: ParameterPort<Float> { _inputShadowRadius }
+    private var _inputShadowRadius: ParameterPort<Float>!
+    public var inputShadowBias: ParameterPort<Float> { _inputShadowBias }
+    private var _inputShadowBias: ParameterPort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputLookAt = findPort(named: "inputLookAt")
+        self._inputColor = findPort(named: "inputColor")
+        self._inputIntensity = findPort(named: "inputIntensity")
+        self._inputShadowStrength = findPort(named: "inputShadowStrength")
+        self._inputShadowRadius = findPort(named: "inputShadowRadius")
+        self._inputShadowBias = findPort(named: "inputShadowBias")
+    }
     
     public override var object: DirectionalLight? {
         return light

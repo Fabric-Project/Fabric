@@ -293,18 +293,40 @@ public class AudioSpectrumNode : Node
         ]
     }
 
-    public var inputAudioDevice:ParameterPort<String> { port(named: "inputAudioDevice") }
+    public var inputAudioDevice: ParameterPort<String> { _inputAudioDevice }
+    private var _inputAudioDevice: ParameterPort<String>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputAudioDevice = findPort(named: "inputAudioDevice")
+        self._inputBands = findPort(named: "inputBands")
+        self._inputSensitivity = findPort(named: "inputSensitivity")
+        self._inputGain = findPort(named: "inputGain")
+        self._inputSmoothing = findPort(named: "inputSmoothing")
+        self._inputAttack = findPort(named: "inputAttack")
+        self._inputRelease = findPort(named: "inputRelease")
+        self._outputSpectrum = findPort(named: "outputSpectrum")
+    }
 
     /// The dropdown entry for the system's default input. An empty name, as
     /// documents saved before it have, means the same.
     fileprivate static let defaultDeviceName = "Default"
-    public var inputBands:ParameterPort<Int> { port(named: "inputBands") }
-    public var inputSensitivity:ParameterPort<Float> { port(named: "inputSensitivity") }
-    public var inputGain:ParameterPort<Float> { port(named: "inputGain") }
-    public var inputSmoothing:ParameterPort<Float> { port(named: "inputSmoothing") }
-    public var inputAttack:ParameterPort<Float> { port(named: "inputAttack") }
-    public var inputRelease:ParameterPort<Float> { port(named: "inputRelease") }
-    public var outputSpectrum:NodePort<ContiguousArray<Float>> { port(named: "outputSpectrum") }
+    public var inputBands: ParameterPort<Int> { _inputBands }
+    private var _inputBands: ParameterPort<Int>!
+    public var inputSensitivity: ParameterPort<Float> { _inputSensitivity }
+    private var _inputSensitivity: ParameterPort<Float>!
+    public var inputGain: ParameterPort<Float> { _inputGain }
+    private var _inputGain: ParameterPort<Float>!
+    public var inputSmoothing: ParameterPort<Float> { _inputSmoothing }
+    private var _inputSmoothing: ParameterPort<Float>!
+    public var inputAttack: ParameterPort<Float> { _inputAttack }
+    private var _inputAttack: ParameterPort<Float>!
+    public var inputRelease: ParameterPort<Float> { _inputRelease }
+    private var _inputRelease: ParameterPort<Float>!
+    public var outputSpectrum: NodePort<ContiguousArray<Float>> { _outputSpectrum }
+    private var _outputSpectrum: NodePort<ContiguousArray<Float>>!
+
 
     // Delegate receives CMSampleBuffers on the capture queue and forwards
     // them into the owner's tripleBuffer. Weak reference breaks the

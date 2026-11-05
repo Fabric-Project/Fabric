@@ -28,11 +28,26 @@ public class DirectoryScannerNode: Node {
     }
 
     // Port proxies
-    public var inputPath: ParameterPort<String> { port(named: "inputPath") }
-    public var inputExtension: ParameterPort<String> { port(named: "inputExtension") }
-    public var inputRescan: ParameterPort<Bool> { port(named: "inputRescan") }
-    public var outputPaths: NodePort<ContiguousArray<String>> { port(named: "outputPaths") }
-    public var outputCount: NodePort<Int> { port(named: "outputCount") }
+    public var inputPath: ParameterPort<String> { _inputPath }
+    private var _inputPath: ParameterPort<String>!
+    public var inputExtension: ParameterPort<String> { _inputExtension }
+    private var _inputExtension: ParameterPort<String>!
+    public var inputRescan: ParameterPort<Bool> { _inputRescan }
+    private var _inputRescan: ParameterPort<Bool>!
+    public var outputPaths: NodePort<ContiguousArray<String>> { _outputPaths }
+    private var _outputPaths: NodePort<ContiguousArray<String>>!
+    public var outputCount: NodePort<Int> { _outputCount }
+    private var _outputCount: NodePort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputPath = findPort(named: "inputPath")
+        self._inputExtension = findPort(named: "inputExtension")
+        self._inputRescan = findPort(named: "inputRescan")
+        self._outputPaths = findPort(named: "outputPaths")
+        self._outputCount = findPort(named: "outputCount")
+    }
 
     private var lastRescan: Bool = false
 

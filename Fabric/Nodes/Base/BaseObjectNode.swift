@@ -41,12 +41,27 @@ open class ObjectNode<ObjectType : Satin.Object> : BaseObjectNode
     }
     
     // Port Proxy
-    public var inputVisible:ParameterPort<Bool>    { port(named: "inputVisible") }
-    public var inputRenderOrder:ParameterPort<Int>          { port(named: "inputRenderOrder") }
+    public var inputVisible: ParameterPort<Bool> { _inputVisible }
+    private var _inputVisible: ParameterPort<Bool>!
+    public var inputRenderOrder: ParameterPort<Int> { _inputRenderOrder }
+    private var _inputRenderOrder: ParameterPort<Int>!
     
-    public var inputPosition:ParameterPort<simd_float3>          { port(named: "inputPosition") }
-    public var inputScale:ParameterPort<simd_float3>          { port(named: "inputScale") }
-    public var inputOrientation:ParameterPort<simd_float4>          { port(named: "inputOrientation") }
+    public var inputPosition: ParameterPort<simd_float3> { _inputPosition }
+    private var _inputPosition: ParameterPort<simd_float3>!
+    public var inputScale: ParameterPort<simd_float3> { _inputScale }
+    private var _inputScale: ParameterPort<simd_float3>!
+    public var inputOrientation: ParameterPort<simd_float4> { _inputOrientation }
+    private var _inputOrientation: ParameterPort<simd_float4>!
+
+    override open func bindPorts()
+    {
+        super.bindPorts()
+        self._inputVisible = findPort(named: "inputVisible")
+        self._inputRenderOrder = findPort(named: "inputRenderOrder")
+        self._inputPosition = findPort(named: "inputPosition")
+        self._inputScale = findPort(named: "inputScale")
+        self._inputOrientation = findPort(named: "inputOrientation")
+    }
     
     override open func getObject() -> Object? {
         return self.object

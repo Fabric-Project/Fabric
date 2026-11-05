@@ -30,12 +30,29 @@ public class GridPointsNode : Node
         ]
     }
 
-    public var inputColumns: ParameterPort<Int> { port(named: "inputColumns") }
-    public var inputRows: ParameterPort<Int> { port(named: "inputRows") }
-    public var inputColumnSpacing: ParameterPort<Float> { port(named: "inputColumnSpacing") }
-    public var inputRowSpacing: ParameterPort<Float> { port(named: "inputRowSpacing") }
-    public var inputOrientation: ParameterPort<simd_float4> { port(named: "inputOrientation") }
-    public var outputPositions: NodePort<ContiguousArray<simd_float3>> { port(named: "outputPositions") }
+    public var inputColumns: ParameterPort<Int> { _inputColumns }
+    private var _inputColumns: ParameterPort<Int>!
+    public var inputRows: ParameterPort<Int> { _inputRows }
+    private var _inputRows: ParameterPort<Int>!
+    public var inputColumnSpacing: ParameterPort<Float> { _inputColumnSpacing }
+    private var _inputColumnSpacing: ParameterPort<Float>!
+    public var inputRowSpacing: ParameterPort<Float> { _inputRowSpacing }
+    private var _inputRowSpacing: ParameterPort<Float>!
+    public var inputOrientation: ParameterPort<simd_float4> { _inputOrientation }
+    private var _inputOrientation: ParameterPort<simd_float4>!
+    public var outputPositions: NodePort<ContiguousArray<simd_float3>> { _outputPositions }
+    private var _outputPositions: NodePort<ContiguousArray<simd_float3>>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputColumns = findPort(named: "inputColumns")
+        self._inputRows = findPort(named: "inputRows")
+        self._inputColumnSpacing = findPort(named: "inputColumnSpacing")
+        self._inputRowSpacing = findPort(named: "inputRowSpacing")
+        self._inputOrientation = findPort(named: "inputOrientation")
+        self._outputPositions = findPort(named: "outputPositions")
+    }
 
     public override func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,

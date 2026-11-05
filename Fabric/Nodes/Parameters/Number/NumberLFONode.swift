@@ -54,10 +54,23 @@ public class NumberLFONode : Node
         ]
     }
 
-    public var inputWaveform: ParameterPort<String> { port(named: "inputWaveform") }
-    public var inputPeriod: ParameterPort<Float> { port(named: "inputPeriod") }
-    public var inputPhase: ParameterPort<Float> { port(named: "inputPhase") }
-    public var outputValue: NodePort<Float> { port(named: "outputValue") }
+    public var inputWaveform: ParameterPort<String> { _inputWaveform }
+    private var _inputWaveform: ParameterPort<String>!
+    public var inputPeriod: ParameterPort<Float> { _inputPeriod }
+    private var _inputPeriod: ParameterPort<Float>!
+    public var inputPhase: ParameterPort<Float> { _inputPhase }
+    private var _inputPhase: ParameterPort<Float>!
+    public var outputValue: NodePort<Float> { _outputValue }
+    private var _outputValue: NodePort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputWaveform = findPort(named: "inputWaveform")
+        self._inputPeriod = findPort(named: "inputPeriod")
+        self._inputPhase = findPort(named: "inputPhase")
+        self._outputValue = findPort(named: "outputValue")
+    }
 
     override public func startExecution(renderer: GraphRenderer) throws {
         self.phase = 0

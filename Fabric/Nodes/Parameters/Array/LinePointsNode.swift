@@ -28,10 +28,23 @@ public class LinePointsNode : Node
         ]
     }
 
-    public var inputCount: ParameterPort<Int> { port(named: "inputCount") }
-    public var inputSpread: ParameterPort<Float> { port(named: "inputSpread") }
-    public var inputOrientation: ParameterPort<simd_float4> { port(named: "inputOrientation") }
-    public var outputPositions: NodePort<ContiguousArray<simd_float3>> { port(named: "outputPositions") }
+    public var inputCount: ParameterPort<Int> { _inputCount }
+    private var _inputCount: ParameterPort<Int>!
+    public var inputSpread: ParameterPort<Float> { _inputSpread }
+    private var _inputSpread: ParameterPort<Float>!
+    public var inputOrientation: ParameterPort<simd_float4> { _inputOrientation }
+    private var _inputOrientation: ParameterPort<simd_float4>!
+    public var outputPositions: NodePort<ContiguousArray<simd_float3>> { _outputPositions }
+    private var _outputPositions: NodePort<ContiguousArray<simd_float3>>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputCount = findPort(named: "inputCount")
+        self._inputSpread = findPort(named: "inputSpread")
+        self._inputOrientation = findPort(named: "inputOrientation")
+        self._outputPositions = findPort(named: "outputPositions")
+    }
 
     public override func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,

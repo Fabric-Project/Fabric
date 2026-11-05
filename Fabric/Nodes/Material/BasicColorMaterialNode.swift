@@ -25,8 +25,17 @@ public class BasicColorMaterialNode : BaseMaterialNode
                 ] + ports
     }
     
-    public var inputColor:ParameterPort<simd_float4> { port(named: "inputColor") }
-    public var inputPointSize:ParameterPort<Float>   { port(named: "inputPointSize") }
+    public var inputColor: ParameterPort<simd_float4> { _inputColor }
+    private var _inputColor: ParameterPort<simd_float4>!
+    public var inputPointSize: ParameterPort<Float> { _inputPointSize }
+    private var _inputPointSize: ParameterPort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputColor = findPort(named: "inputColor")
+        self._inputPointSize = findPort(named: "inputPointSize")
+    }
 
     public override var material: BasicColorMaterial {
         return _material

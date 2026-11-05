@@ -44,8 +44,17 @@ public class PassThroughNode<T: PortValueRepresentable>: Node
     }
     
     // Port Proxy
-    public var input: NodePort<T> { port(named: "input") }
-    public var output: NodePort<T> { port(named: "output") }
+    public var input: NodePort<T> { _input }
+    private var _input: NodePort<T>!
+    public var output: NodePort<T> { _output }
+    private var _output: NodePort<T>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._input = findPort(named: "input")
+        self._output = findPort(named: "output")
+    }
 
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,

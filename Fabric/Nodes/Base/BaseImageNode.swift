@@ -73,24 +73,10 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
         ]
     }
 
+    /// The image outlet: the canonical one, else a legacy one, else the first.
     public var outputTexturePort: NodePort<FabricImage> {
-        if let connected = self.outputImagePorts().first(where: { $0.connections.isEmpty == false }) {
-            return connected
-        }
-
-        if let canonical: NodePort<FabricImage> = self.findPort(named: "outputImage0") {
-            return canonical
-        }
-
-        if let legacy: NodePort<FabricImage> = self.findPort(named: "outputTexturePort") {
-            return legacy
-        }
-
-        if let fallback = self.outputImagePorts().first {
-            return fallback
-        }
-
-        fatalError("BaseImageNode requires at least one image outlet")
+        guard let resolvedOutputTexturePort else { fatalError("BaseImageNode requires at least one image outlet") }
+        return resolvedOutputTexturePort
     }
 
     override public var nodeExecutionMode: ExecutionMode {
@@ -454,6 +440,16 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
         let declared = Self.registerPorts(context: self.context).compactMap { $0.port.parameter?.label }
         let baseManaged = Self.generatorResolutionPorts.map { $0.label }
         return Set(declared).union(baseManaged)
+    }
+
+    private var resolvedOutputTexturePort: NodePort<FabricImage>?
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.resolvedOutputTexturePort = findPort(named: "outputImage0")
+            ?? findPort(named: "outputTexturePort")
+            ?? self.outputImagePorts().first
     }
 
     public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws

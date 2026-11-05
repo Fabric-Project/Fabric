@@ -34,8 +34,17 @@ open class BaseGeometryNode : Node
         ]
     }
     
-    public var inputPrimitiveType: NodePort<String>   { port(named: "inputPrimitiveType") }
-    public var outputGeometry: NodePort<Geometry>   { port(named: "outputGeometry") }
+    public var inputPrimitiveType: NodePort<String> { _inputPrimitiveType }
+    private var _inputPrimitiveType: NodePort<String>!
+    public var outputGeometry: NodePort<Geometry> { _outputGeometry }
+    private var _outputGeometry: NodePort<Geometry>!
+
+    override open func bindPorts()
+    {
+        super.bindPorts()
+        self._inputPrimitiveType = findPort(named: "inputPrimitiveType")
+        self._outputGeometry = findPort(named: "outputGeometry")
+    }
 
     open var geometry: Geometry {
         fatalError("Subclasses must override geometry")

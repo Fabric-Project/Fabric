@@ -36,11 +36,26 @@ public class OrientationTweenNode : Node
     }
 
     // Port Proxies
-    public var inputTarget:ParameterPort<simd_float4> { port(named: "inputTarget") }
-    public var inputDuration:ParameterPort<Float> { port(named: "inputDuration") }
-    public var inputEasing:ParameterPort<String> { port(named: "inputEasing") }
-    public var outputOrientation:NodePort<simd_float4> { port(named: "outputOrientation") }
-    public var outputProgress:NodePort<Float> { port(named: "outputProgress") }
+    public var inputTarget: ParameterPort<simd_float4> { _inputTarget }
+    private var _inputTarget: ParameterPort<simd_float4>!
+    public var inputDuration: ParameterPort<Float> { _inputDuration }
+    private var _inputDuration: ParameterPort<Float>!
+    public var inputEasing: ParameterPort<String> { _inputEasing }
+    private var _inputEasing: ParameterPort<String>!
+    public var outputOrientation: NodePort<simd_float4> { _outputOrientation }
+    private var _outputOrientation: NodePort<simd_float4>!
+    public var outputProgress: NodePort<Float> { _outputProgress }
+    private var _outputProgress: NodePort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputTarget = findPort(named: "inputTarget")
+        self._inputDuration = findPort(named: "inputDuration")
+        self._inputEasing = findPort(named: "inputEasing")
+        self._outputOrientation = findPort(named: "outputOrientation")
+        self._outputProgress = findPort(named: "outputProgress")
+    }
 
     // Quaternions, so the driver slerps; the ports carry them as float4.
     private let driver = TweenDriver<simd_quatf>()

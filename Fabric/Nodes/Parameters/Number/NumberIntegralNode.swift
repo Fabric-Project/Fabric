@@ -36,9 +36,20 @@ public class NumberIntegralNode : Node
     }
     
     // Port Proxy
-    public var inputNumber:ParameterPort<Float> { port(named: "inputNumber") }
-    public var inputReset:ParameterPort<Bool> { port(named: "inputReset") }
-    public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
+    public var inputNumber: ParameterPort<Float> { _inputNumber }
+    private var _inputNumber: ParameterPort<Float>!
+    public var inputReset: ParameterPort<Bool> { _inputReset }
+    private var _inputReset: ParameterPort<Bool>!
+    public var outputNumber: NodePort<Float> { _outputNumber }
+    private var _outputNumber: NodePort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputNumber = findPort(named: "inputNumber")
+        self._inputReset = findPort(named: "inputReset")
+        self._outputNumber = findPort(named: "outputNumber")
+    }
     
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,

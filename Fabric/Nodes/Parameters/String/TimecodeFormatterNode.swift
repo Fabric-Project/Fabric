@@ -26,9 +26,20 @@ public class TimecodeFormatterNode: Node {
     }
 
     // Port proxies
-    public var inputTime: ParameterPort<Float> { port(named: "inputTime") }
-    public var inputFPS: ParameterPort<Int> { port(named: "inputFPS") }
-    public var outputPort: NodePort<String> { port(named: "outputPort") }
+    public var inputTime: ParameterPort<Float> { _inputTime }
+    private var _inputTime: ParameterPort<Float>!
+    public var inputFPS: ParameterPort<Int> { _inputFPS }
+    private var _inputFPS: ParameterPort<Int>!
+    public var outputPort: NodePort<String> { _outputPort }
+    private var _outputPort: NodePort<String>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputTime = findPort(named: "inputTime")
+        self._inputFPS = findPort(named: "inputFPS")
+        self._outputPort = findPort(named: "outputPort")
+    }
 
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,

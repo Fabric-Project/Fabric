@@ -44,14 +44,31 @@ public final class ContourPathNode: Node {
     }
 
     // Proxies
-    public var inputMask: NodePort<FabricImage> { port(named: "inputMask") }
-    public var inputIso:  ParameterPort<Float>       { port(named: "inputIso") }
-    public var inputMaxSegments: ParameterPort<Int>  { port(named: "inputMaxSegments") }
-    public var inputJoinEpsilon: ParameterPort<Float> { port(named: "inputJoinEpsilon") }
+    public var inputMask: NodePort<FabricImage> { _inputMask }
+    private var _inputMask: NodePort<FabricImage>!
+    public var inputIso: ParameterPort<Float> { _inputIso }
+    private var _inputIso: ParameterPort<Float>!
+    public var inputMaxSegments: ParameterPort<Int> { _inputMaxSegments }
+    private var _inputMaxSegments: ParameterPort<Int>!
+    public var inputJoinEpsilon: ParameterPort<Float> { _inputJoinEpsilon }
+    private var _inputJoinEpsilon: ParameterPort<Float>!
 
-    public var outputContour: NodePort<ContiguousArray<simd_float2>>  { port(named: "outputContour") }
+    public var outputContour: NodePort<ContiguousArray<simd_float2>> { _outputContour }
+    private var _outputContour: NodePort<ContiguousArray<simd_float2>>!
 
-    public var inputResultDelivery: ParameterPort<String> { port(named: "inputResultDelivery") }
+    public var inputResultDelivery: ParameterPort<String> { _inputResultDelivery }
+    private var _inputResultDelivery: ParameterPort<String>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputMask = findPort(named: "inputMask")
+        self._inputIso = findPort(named: "inputIso")
+        self._inputMaxSegments = findPort(named: "inputMaxSegments")
+        self._inputJoinEpsilon = findPort(named: "inputJoinEpsilon")
+        self._outputContour = findPort(named: "outputContour")
+        self._inputResultDelivery = findPort(named: "inputResultDelivery")
+    }
     public var resultDeliveryMode: GPUResultDeliveryMode {
         get { GPUResultDeliveryMode(rawValue: inputResultDelivery.value ?? "") ?? .sync }
         set { inputResultDelivery.value = newValue.rawValue }
@@ -152,7 +169,7 @@ public final class ContourPathNode: Node {
         let transform = image.textureTransform
         let storageSize = simd_float2(Float(image.texture.width), Float(image.texture.height))
         let presentationSize = simd_float2(Float(image.presentationSize.width), Float(image.presentationSize.height))
-        let output = outputContour
+        let output: NodePort<ContiguousArray<simd_float2>> = outputContour
         let deliver = {
             let count = min(Int(counter.contents().load(as: UInt32.self)), maxSegments)
             let pointer = segments.contents().assumingMemoryBound(to: simd_float4.self)

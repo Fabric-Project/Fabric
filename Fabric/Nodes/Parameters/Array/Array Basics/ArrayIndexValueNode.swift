@@ -23,7 +23,16 @@ public class ArrayIndexValueNode: TypeAgnosticNode
         ]
     }
 
-    public var inputIndexParam: ParameterPort<Int> { port(named: "inputIndexParam") }
+    public var inputIndexParam: ParameterPort<Int> { _inputIndexParam }
+    private var _inputIndexParam: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputPort = findPort(named: "inputPort")
+        self.boundOutputPort = findPort(named: "outputPort")
+        self._inputIndexParam = findPort(named: "inputIndexParam")
+    }
 
     public override func declaredPorts() -> [PortDeclaration]
     {
@@ -38,14 +47,17 @@ public class ArrayIndexValueNode: TypeAgnosticNode
         ]
     }
 
+    private var boundInputPort: Port?
+    private var boundOutputPort: Port?
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputPort:  Port = findPort(named: "inputPort"),
-              let outputPort: Port = findPort(named: "outputPort") else { return }
+        guard let inputPort:  Port = self.boundInputPort,
+              let outputPort: Port = self.boundOutputPort else { return }
 
         guard inputPort.valueDidChange || inputIndexParam.valueDidChange else { return }
 

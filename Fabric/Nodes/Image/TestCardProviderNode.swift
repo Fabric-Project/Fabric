@@ -37,17 +37,44 @@ public class TestCardProviderNode: Node
         ]
     }
 
-    public var inputWidth: ParameterPort<Int> { port(named: "inputWidth") }
-    public var inputHeight: ParameterPort<Int> { port(named: "inputHeight") }
-    public var inputBorder: ParameterPort<Bool> { port(named: "inputBorder") }
-    public var inputGreys: ParameterPort<Bool> { port(named: "inputGreys") }
-    public var inputDiagonals: ParameterPort<Bool> { port(named: "inputDiagonals") }
-    public var inputCircle: ParameterPort<Bool> { port(named: "inputCircle") }
-    public var inputGrid: ParameterPort<Bool> { port(named: "inputGrid") }
-    public var inputGridSpacing: ParameterPort<Int> { port(named: "inputGridSpacing") }
-    public var inputText: ParameterPort<Bool> { port(named: "inputText") }
-    public var inputTextString: ParameterPort<String> { port(named: "inputTextString") }
-    public var outputTexturePort: NodePort<FabricImage> { port(named: "outputTexturePort") }
+    public var inputWidth: ParameterPort<Int> { _inputWidth }
+    private var _inputWidth: ParameterPort<Int>!
+    public var inputHeight: ParameterPort<Int> { _inputHeight }
+    private var _inputHeight: ParameterPort<Int>!
+    public var inputBorder: ParameterPort<Bool> { _inputBorder }
+    private var _inputBorder: ParameterPort<Bool>!
+    public var inputGreys: ParameterPort<Bool> { _inputGreys }
+    private var _inputGreys: ParameterPort<Bool>!
+    public var inputDiagonals: ParameterPort<Bool> { _inputDiagonals }
+    private var _inputDiagonals: ParameterPort<Bool>!
+    public var inputCircle: ParameterPort<Bool> { _inputCircle }
+    private var _inputCircle: ParameterPort<Bool>!
+    public var inputGrid: ParameterPort<Bool> { _inputGrid }
+    private var _inputGrid: ParameterPort<Bool>!
+    public var inputGridSpacing: ParameterPort<Int> { _inputGridSpacing }
+    private var _inputGridSpacing: ParameterPort<Int>!
+    public var inputText: ParameterPort<Bool> { _inputText }
+    private var _inputText: ParameterPort<Bool>!
+    public var inputTextString: ParameterPort<String> { _inputTextString }
+    private var _inputTextString: ParameterPort<String>!
+    public var outputTexturePort: NodePort<FabricImage> { _outputTexturePort }
+    private var _outputTexturePort: NodePort<FabricImage>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputWidth = findPort(named: "inputWidth")
+        self._inputHeight = findPort(named: "inputHeight")
+        self._inputBorder = findPort(named: "inputBorder")
+        self._inputGreys = findPort(named: "inputGreys")
+        self._inputDiagonals = findPort(named: "inputDiagonals")
+        self._inputCircle = findPort(named: "inputCircle")
+        self._inputGrid = findPort(named: "inputGrid")
+        self._inputGridSpacing = findPort(named: "inputGridSpacing")
+        self._inputText = findPort(named: "inputText")
+        self._inputTextString = findPort(named: "inputTextString")
+        self._outputTexturePort = findPort(named: "outputTexturePort")
+    }
 
     private var computePipeline: MTLComputePipelineState?
 

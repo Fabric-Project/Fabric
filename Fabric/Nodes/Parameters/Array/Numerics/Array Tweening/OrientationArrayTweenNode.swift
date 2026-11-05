@@ -32,11 +32,26 @@ public class OrientationArrayTweenNode : Node
         ]
     }
 
-    public var inputTargets: NodePort<ContiguousArray<simd_float4>> { port(named: "inputTargets") }
-    public var inputDuration: ParameterPort<Float> { port(named: "inputDuration") }
-    public var inputEasing: ParameterPort<String> { port(named: "inputEasing") }
-    public var outputOrientations: NodePort<ContiguousArray<simd_float4>> { port(named: "outputOrientations") }
-    public var outputProgress: NodePort<Float> { port(named: "outputProgress") }
+    public var inputTargets: NodePort<ContiguousArray<simd_float4>> { _inputTargets }
+    private var _inputTargets: NodePort<ContiguousArray<simd_float4>>!
+    public var inputDuration: ParameterPort<Float> { _inputDuration }
+    private var _inputDuration: ParameterPort<Float>!
+    public var inputEasing: ParameterPort<String> { _inputEasing }
+    private var _inputEasing: ParameterPort<String>!
+    public var outputOrientations: NodePort<ContiguousArray<simd_float4>> { _outputOrientations }
+    private var _outputOrientations: NodePort<ContiguousArray<simd_float4>>!
+    public var outputProgress: NodePort<Float> { _outputProgress }
+    private var _outputProgress: NodePort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputTargets = findPort(named: "inputTargets")
+        self._inputDuration = findPort(named: "inputDuration")
+        self._inputEasing = findPort(named: "inputEasing")
+        self._outputOrientations = findPort(named: "outputOrientations")
+        self._outputProgress = findPort(named: "outputProgress")
+    }
 
     // Quaternions, so the driver slerps; the ports carry them as float4.
     private let driver = TweenArrayDriver<simd_quatf>()

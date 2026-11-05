@@ -175,7 +175,14 @@ public class RoutingNodeBase: TypeAgnosticNode
 /// outputs). For per-input routing to independent outputs see [[MatrixSwitchNode]].
 public class RoutingNode: RoutingNodeBase
 {
-    public var inputIndex: ParameterPort<Int> { port(named: "inputIndex") }
+    public var inputIndex: ParameterPort<Int> { _inputIndex }
+    private var _inputIndex: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputIndex = findPort(named: "inputIndex")
+    }
 
     public required init(context: Context)
     {

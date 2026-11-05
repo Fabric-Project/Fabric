@@ -37,8 +37,17 @@ public final class TextFileLoaderNode : Node, NodeFileLoadingProtocol
     }
     
     // Port Proxy
-    public var inputFilePathParam:ParameterPort<String> { port(named: "inputFilePathParam") }
-    public var outputPort:NodePort<String> { port(named: "outputPort") }
+    public var inputFilePathParam: ParameterPort<String> { _inputFilePathParam }
+    private var _inputFilePathParam: ParameterPort<String>!
+    public var outputPort: NodePort<String> { _outputPort }
+    private var _outputPort: NodePort<String>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputFilePathParam = findPort(named: "inputFilePathParam")
+        self._outputPort = findPort(named: "outputPort")
+    }
 
     private var url:URL? = nil
     private var string: String? = nil

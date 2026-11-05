@@ -33,10 +33,23 @@ public class StringRangeNode : Node
     }
 
     // Port Proxy
-    public var inputPort:ParameterPort<String>       { port(named: "inputPort") }
-    public var inputRangeFrom:ParameterPort<Int> { port(named: "inputRangeFrom") }
-    public var inputRangeTo:ParameterPort<Int>  { port(named: "inputRangeTo") }
-    public var outputPort:NodePort<String>      { port(named: "outputPort") }
+    public var inputPort: ParameterPort<String> { _inputPort }
+    private var _inputPort: ParameterPort<String>!
+    public var inputRangeFrom: ParameterPort<Int> { _inputRangeFrom }
+    private var _inputRangeFrom: ParameterPort<Int>!
+    public var inputRangeTo: ParameterPort<Int> { _inputRangeTo }
+    private var _inputRangeTo: ParameterPort<Int>!
+    public var outputPort: NodePort<String> { _outputPort }
+    private var _outputPort: NodePort<String>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputPort = findPort(named: "inputPort")
+        self._inputRangeFrom = findPort(named: "inputRangeFrom")
+        self._inputRangeTo = findPort(named: "inputRangeTo")
+        self._outputPort = findPort(named: "outputPort")
+    }
 
 
     override public func execute(renderer:GraphRenderer,

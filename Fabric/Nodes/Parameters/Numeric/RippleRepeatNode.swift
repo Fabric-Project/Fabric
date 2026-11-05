@@ -30,8 +30,19 @@ public final class RippleRepeatNode: NumericTypeAgnosticNode
         ]
     }
 
-    public var inputCount: ParameterPort<Int> { port(named: "inputCount") }
-    public var inputDelaySecs: ParameterPort<Float> { port(named: "inputDelaySecs") }
+    public var inputCount: ParameterPort<Int> { _inputCount }
+    private var _inputCount: ParameterPort<Int>!
+    public var inputDelaySecs: ParameterPort<Float> { _inputDelaySecs }
+    private var _inputDelaySecs: ParameterPort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputValue = findPort(named: "inputValue")
+        self.boundOutputArray = findPort(named: "outputArray")
+        self._inputCount = findPort(named: "inputCount")
+        self._inputDelaySecs = findPort(named: "inputDelaySecs")
+    }
 
     public override func declaredPorts() -> [PortDeclaration]
     {
@@ -62,15 +73,18 @@ public final class RippleRepeatNode: NumericTypeAgnosticNode
         try super.startExecution(renderer: renderer)
     }
 
+    private var boundInputValue: Port?
+    private var boundOutputArray: Port?
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputValue") { return }
-        guard let inputValue: Port = findPort(named: "inputValue"),
-              let outputArray: Port = findPort(named: "outputArray")
+        if specializeFromConnectedPort(self.boundInputValue) { return }
+        guard let inputValue: Port = self.boundInputValue,
+              let outputArray: Port = self.boundOutputArray
         else { return }
 
         let now = executionInfo.timing.time

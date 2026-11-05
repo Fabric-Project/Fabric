@@ -30,12 +30,29 @@ public class PieceInfoNode: Node
         ]
     }
 
-    public var inputGeometry: NodePort<Geometry> { port(named: "inputGeometry") }
-    public var outputPieceCount: NodePort<Int> { port(named: "outputPieceCount") }
-    public var outputCenters: NodePort<ContiguousArray<simd_float3>> { port(named: "outputCenters") }
-    public var outputVolumes: NodePort<ContiguousArray<Float>> { port(named: "outputVolumes") }
-    public var outputParentIndices: NodePort<ContiguousArray<Int>> { port(named: "outputParentIndices") }
-    public var outputGenerations: NodePort<ContiguousArray<Float>> { port(named: "outputGenerations") }
+    public var inputGeometry: NodePort<Geometry> { _inputGeometry }
+    private var _inputGeometry: NodePort<Geometry>!
+    public var outputPieceCount: NodePort<Int> { _outputPieceCount }
+    private var _outputPieceCount: NodePort<Int>!
+    public var outputCenters: NodePort<ContiguousArray<simd_float3>> { _outputCenters }
+    private var _outputCenters: NodePort<ContiguousArray<simd_float3>>!
+    public var outputVolumes: NodePort<ContiguousArray<Float>> { _outputVolumes }
+    private var _outputVolumes: NodePort<ContiguousArray<Float>>!
+    public var outputParentIndices: NodePort<ContiguousArray<Int>> { _outputParentIndices }
+    private var _outputParentIndices: NodePort<ContiguousArray<Int>>!
+    public var outputGenerations: NodePort<ContiguousArray<Float>> { _outputGenerations }
+    private var _outputGenerations: NodePort<ContiguousArray<Float>>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputGeometry = findPort(named: "inputGeometry")
+        self._outputPieceCount = findPort(named: "outputPieceCount")
+        self._outputCenters = findPort(named: "outputCenters")
+        self._outputVolumes = findPort(named: "outputVolumes")
+        self._outputParentIndices = findPort(named: "outputParentIndices")
+        self._outputGenerations = findPort(named: "outputGenerations")
+    }
 
     private var infoStatuses: [NodeStatus] = []
 

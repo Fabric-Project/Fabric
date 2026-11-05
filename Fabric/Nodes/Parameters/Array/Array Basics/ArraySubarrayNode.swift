@@ -24,8 +24,19 @@ public class ArraySubarrayNode: TypeAgnosticNode
         ]
     }
 
-    public var inputOffset: ParameterPort<Int> { port(named: "inputOffset") }
-    public var inputCount:  ParameterPort<Int>  { port(named: "inputCount") }
+    public var inputOffset: ParameterPort<Int> { _inputOffset }
+    private var _inputOffset: ParameterPort<Int>!
+    public var inputCount: ParameterPort<Int> { _inputCount }
+    private var _inputCount: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputPort = findPort(named: "inputPort")
+        self.boundOutputPort = findPort(named: "outputPort")
+        self._inputOffset = findPort(named: "inputOffset")
+        self._inputCount = findPort(named: "inputCount")
+    }
 
     public override func declaredPorts() -> [PortDeclaration]
     {
@@ -40,14 +51,17 @@ public class ArraySubarrayNode: TypeAgnosticNode
         ]
     }
 
+    private var boundInputPort: Port?
+    private var boundOutputPort: Port?
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputPort:  Port = findPort(named: "inputPort"),
-              let outputPort: Port = findPort(named: "outputPort") else { return }
+        guard let inputPort:  Port = self.boundInputPort,
+              let outputPort: Port = self.boundOutputPort else { return }
 
         guard inputPort.valueDidChange || inputOffset.valueDidChange || inputCount.valueDidChange else { return }
 

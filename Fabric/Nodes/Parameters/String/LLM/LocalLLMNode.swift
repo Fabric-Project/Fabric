@@ -52,11 +52,26 @@ struct LocalLLMNodeSettingsView: View {
         ]
     }
 
-    public var inputPrompt: NodePort<String> { port(named: "inputPrompt") }
-    public var inputGenerate: NodePort<Bool> { port(named: "inputGenerate") }
-    public var outputPort: NodePort<String> { port(named: "outputPort") }
-    public var outputStats: NodePort<String> { port(named: "outputStats") }
-    public var outputModel: NodePort<String> { port(named: "outputModel") }
+    public var inputPrompt: NodePort<String> { _inputPrompt }
+    private var _inputPrompt: NodePort<String>!
+    public var inputGenerate: NodePort<Bool> { _inputGenerate }
+    private var _inputGenerate: NodePort<Bool>!
+    public var outputPort: NodePort<String> { _outputPort }
+    private var _outputPort: NodePort<String>!
+    public var outputStats: NodePort<String> { _outputStats }
+    private var _outputStats: NodePort<String>!
+    public var outputModel: NodePort<String> { _outputModel }
+    private var _outputModel: NodePort<String>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputPrompt = findPort(named: "inputPrompt")
+        self._inputGenerate = findPort(named: "inputGenerate")
+        self._outputPort = findPort(named: "outputPort")
+        self._outputStats = findPort(named: "outputStats")
+        self._outputModel = findPort(named: "outputModel")
+    }
 
     private enum CodingKeys: String, CodingKey {
         case selectedModelID

@@ -29,11 +29,26 @@ public class PlaneGeometryNode : BaseGeometryNode
     }
     
     // Proxy Port
-    public var inputPlane:ParameterPort<String> { port(named: "inputPlane")  }
-    public var inputWidth:ParameterPort<Float> { port(named: "inputWidth")  }
-    public var inputHeight:ParameterPort<Float> { port(named: "inputHeight")  }
-    public var inputResolutionWidth:ParameterPort<Int> { port(named: "inputResolutionWidth")  }
-    public var inputResolutionHeight:ParameterPort<Int> { port(named: "inputResolutionHeight")  }
+    public var inputPlane: ParameterPort<String> { _inputPlane }
+    private var _inputPlane: ParameterPort<String>!
+    public var inputWidth: ParameterPort<Float> { _inputWidth }
+    private var _inputWidth: ParameterPort<Float>!
+    public var inputHeight: ParameterPort<Float> { _inputHeight }
+    private var _inputHeight: ParameterPort<Float>!
+    public var inputResolutionWidth: ParameterPort<Int> { _inputResolutionWidth }
+    private var _inputResolutionWidth: ParameterPort<Int>!
+    public var inputResolutionHeight: ParameterPort<Int> { _inputResolutionHeight }
+    private var _inputResolutionHeight: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputPlane = findPort(named: "inputPlane")
+        self._inputWidth = findPort(named: "inputWidth")
+        self._inputHeight = findPort(named: "inputHeight")
+        self._inputResolutionWidth = findPort(named: "inputResolutionWidth")
+        self._inputResolutionHeight = findPort(named: "inputResolutionHeight")
+    }
     
     public override var geometry: PlaneGeometry { _geometry }
 

@@ -157,21 +157,56 @@ class SuperShapeGeometryNode : BaseGeometryNode
     }
 
     // Proxy Ports
-    public var r1Param:ParameterPort<Float>  { port(named: "r1Param") }
-    public var a1Param:ParameterPort<Float>  { port(named: "a1Param") }
-    public var b1Param:ParameterPort<Float>  { port(named: "b1Param") }
-    public var m1Param:ParameterPort<Float>  { port(named: "m1Param") }
-    public var n11Param:ParameterPort<Float>  { port(named: "n11Param") }
-    public var n21Param:ParameterPort<Float>  { port(named: "n21Param") }
-    public var n31Param:ParameterPort<Float>  { port(named: "n31Param") }
-    public var r2Param:ParameterPort<Float>  { port(named: "r2Param") }
-    public var a2Param:ParameterPort<Float>  { port(named: "a2Param") }
-    public var b2Param:ParameterPort<Float>  { port(named: "b2Param") }
-    public var m2Param:ParameterPort<Float>  { port(named: "m2Param") }
-    public var n12Param:ParameterPort<Float>  { port(named: "n12Param") }
-    public var n22Param:ParameterPort<Float>  { port(named: "n22Param") }
-    public var n32Param:ParameterPort<Float>  { port(named: "n32Param") }
-    public var resParam:ParameterPort<Int>  { port(named: "resParam") }
+    public var r1Param: ParameterPort<Float> { _r1Param }
+    private var _r1Param: ParameterPort<Float>!
+    public var a1Param: ParameterPort<Float> { _a1Param }
+    private var _a1Param: ParameterPort<Float>!
+    public var b1Param: ParameterPort<Float> { _b1Param }
+    private var _b1Param: ParameterPort<Float>!
+    public var m1Param: ParameterPort<Float> { _m1Param }
+    private var _m1Param: ParameterPort<Float>!
+    public var n11Param: ParameterPort<Float> { _n11Param }
+    private var _n11Param: ParameterPort<Float>!
+    public var n21Param: ParameterPort<Float> { _n21Param }
+    private var _n21Param: ParameterPort<Float>!
+    public var n31Param: ParameterPort<Float> { _n31Param }
+    private var _n31Param: ParameterPort<Float>!
+    public var r2Param: ParameterPort<Float> { _r2Param }
+    private var _r2Param: ParameterPort<Float>!
+    public var a2Param: ParameterPort<Float> { _a2Param }
+    private var _a2Param: ParameterPort<Float>!
+    public var b2Param: ParameterPort<Float> { _b2Param }
+    private var _b2Param: ParameterPort<Float>!
+    public var m2Param: ParameterPort<Float> { _m2Param }
+    private var _m2Param: ParameterPort<Float>!
+    public var n12Param: ParameterPort<Float> { _n12Param }
+    private var _n12Param: ParameterPort<Float>!
+    public var n22Param: ParameterPort<Float> { _n22Param }
+    private var _n22Param: ParameterPort<Float>!
+    public var n32Param: ParameterPort<Float> { _n32Param }
+    private var _n32Param: ParameterPort<Float>!
+    public var resParam: ParameterPort<Int> { _resParam }
+    private var _resParam: ParameterPort<Int>!
+
+    override func bindPorts()
+    {
+        super.bindPorts()
+        self._r1Param = findPort(named: "r1Param")
+        self._a1Param = findPort(named: "a1Param")
+        self._b1Param = findPort(named: "b1Param")
+        self._m1Param = findPort(named: "m1Param")
+        self._n11Param = findPort(named: "n11Param")
+        self._n21Param = findPort(named: "n21Param")
+        self._n31Param = findPort(named: "n31Param")
+        self._r2Param = findPort(named: "r2Param")
+        self._a2Param = findPort(named: "a2Param")
+        self._b2Param = findPort(named: "b2Param")
+        self._m2Param = findPort(named: "m2Param")
+        self._n12Param = findPort(named: "n12Param")
+        self._n22Param = findPort(named: "n22Param")
+        self._n32Param = findPort(named: "n32Param")
+        self._resParam = findPort(named: "resParam")
+    }
 
     public override var geometry: SuperShapeGeometry { _geometry }
 

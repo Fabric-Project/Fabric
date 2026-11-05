@@ -27,10 +27,23 @@ public class StringComparisonNode: Node {
     }
 
     // Port proxies
-    public var inputStringA: ParameterPort<String> { port(named: "inputStringA") }
-    public var inputStringB: ParameterPort<String> { port(named: "inputStringB") }
-    public var inputOperator: ParameterPort<String> { port(named: "inputOperator") }
-    public var outputResult: NodePort<Bool> { port(named: "outputResult") }
+    public var inputStringA: ParameterPort<String> { _inputStringA }
+    private var _inputStringA: ParameterPort<String>!
+    public var inputStringB: ParameterPort<String> { _inputStringB }
+    private var _inputStringB: ParameterPort<String>!
+    public var inputOperator: ParameterPort<String> { _inputOperator }
+    private var _inputOperator: ParameterPort<String>!
+    public var outputResult: NodePort<Bool> { _outputResult }
+    private var _outputResult: NodePort<Bool>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputStringA = findPort(named: "inputStringA")
+        self._inputStringB = findPort(named: "inputStringB")
+        self._inputOperator = findPort(named: "inputOperator")
+        self._outputResult = findPort(named: "outputResult")
+    }
 
     private var op = StringComparisonOperator.Equals
 

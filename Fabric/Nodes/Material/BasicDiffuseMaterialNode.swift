@@ -23,7 +23,14 @@ public class BasicDiffuseMaterialNode : BasicColorMaterialNode
                 ] + ports
     }
     
-    public var inputHardness:ParameterPort<Float> { port(named: "inputHardness") }
+    public var inputHardness: ParameterPort<Float> { _inputHardness }
+    private var _inputHardness: ParameterPort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputHardness = findPort(named: "inputHardness")
+    }
     
     public override var material: BasicDiffuseMaterial {
         return _material

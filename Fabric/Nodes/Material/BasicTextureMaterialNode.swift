@@ -24,7 +24,14 @@ public class BasicTextureMaterialNode : BasicColorMaterialNode
                 ] + ports
     }
     
-    public var inputTexture:NodePort<FabricImage> { port(named: "inputTexture") }
+    public var inputTexture: NodePort<FabricImage> { _inputTexture }
+    private var _inputTexture: NodePort<FabricImage>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputTexture = findPort(named: "inputTexture")
+    }
     
     public override var material: BasicTextureMaterial {
         return _material

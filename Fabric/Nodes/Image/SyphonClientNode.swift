@@ -35,10 +35,23 @@ public class SyphonClientNode : Node
         ]
     }
 
-    public var inputEnabled:ParameterPort<Bool> { port(named: "inputEnabled") }
-    public var inputServerName:ParameterPort<String>  { port(named: "inputServerName") }
-    public var inputServerAppName:ParameterPort<String>  { port(named: "inputServerAppName") }
-    public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
+    public var inputEnabled: ParameterPort<Bool> { _inputEnabled }
+    private var _inputEnabled: ParameterPort<Bool>!
+    public var inputServerName: ParameterPort<String> { _inputServerName }
+    private var _inputServerName: ParameterPort<String>!
+    public var inputServerAppName: ParameterPort<String> { _inputServerAppName }
+    private var _inputServerAppName: ParameterPort<String>!
+    public var outputTexturePort: NodePort<FabricImage> { _outputTexturePort }
+    private var _outputTexturePort: NodePort<FabricImage>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputEnabled = findPort(named: "inputEnabled")
+        self._inputServerName = findPort(named: "inputServerName")
+        self._inputServerAppName = findPort(named: "inputServerAppName")
+        self._outputTexturePort = findPort(named: "outputTexturePort")
+    }
 
     private var syphonClient:SyphonMetalClient? = nil
     {

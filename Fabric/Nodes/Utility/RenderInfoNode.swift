@@ -29,13 +29,28 @@ public class RenderInfoNode : Node
             ("outputFrameNumber", NodePort<Int>(name: "Frame Number", kind: .Outlet, description: "Current execution frame count")),
         ]
     }
-    public var outputWidth:NodePort<Float>  { port(named: "outputWidth") }
-    public var outputHeight:NodePort<Float> { port(named: "outputHeight") }
-    public var outputFrameNumber:NodePort<Int> { port(named: "outputFrameNumber") }
+    public var outputWidth: NodePort<Float> { _outputWidth }
+    private var _outputWidth: NodePort<Float>!
+    public var outputHeight: NodePort<Float> { _outputHeight }
+    private var _outputHeight: NodePort<Float>!
+    public var outputFrameNumber: NodePort<Int> { _outputFrameNumber }
+    private var _outputFrameNumber: NodePort<Int>!
 
     
-    public var inputTexturePort:NodePort<FabricImage>  { port(named: "inputTexturePort") }
-    public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
+    public var inputTexturePort: NodePort<FabricImage> { _inputTexturePort }
+    private var _inputTexturePort: NodePort<FabricImage>!
+    public var outputTexturePort: NodePort<FabricImage> { _outputTexturePort }
+    private var _outputTexturePort: NodePort<FabricImage>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._outputWidth = findPort(named: "outputWidth")
+        self._outputHeight = findPort(named: "outputHeight")
+        self._outputFrameNumber = findPort(named: "outputFrameNumber")
+        self._inputTexturePort = findPort(named: "inputTexturePort")
+        self._outputTexturePort = findPort(named: "outputTexturePort")
+    }
     
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,

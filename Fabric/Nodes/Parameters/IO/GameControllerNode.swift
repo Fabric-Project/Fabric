@@ -697,6 +697,17 @@ public class GameControllerNode: Node
 
     // MARK: - Port Creation
 
+    /// Each descriptor's outlet, in profile order.
+    private var boundOutlets: [(name: String, outlet: DeviceOutlet)] = []
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundOutlets = outputPortDescriptors.compactMap { descriptor in
+            deviceOutlet(for: descriptor).map { (descriptor.name, $0) }
+        }
+    }
+
     /// The outlets the controller's profile asks for, which the ports follow.
     private var outputPortDescriptors: [DeviceOutputPortDescriptor] = []
 
@@ -746,21 +757,14 @@ public class GameControllerNode: Node
     {
         let currentValues = controllerValues.withLock { $0 }
 
-        // Send axis values
-        for (name, value) in currentValues.axisValues
+        for (name, outlet) in boundOutlets
         {
-            if let port = findPort(named: name) as? NodePort<Float>
+            switch outlet
             {
-                port.send(value)
-            }
-        }
-
-        // Send button values
-        for (name, value) in currentValues.buttonValues
-        {
-            if let port = findPort(named: name) as? NodePort<Bool>
-            {
-                port.send(value)
+            case .axis(let port):
+                if let value = currentValues.axisValues[name] { port.send(value) }
+            case .button(let port):
+                if let value = currentValues.buttonValues[name] { port.send(value) }
             }
         }
     }

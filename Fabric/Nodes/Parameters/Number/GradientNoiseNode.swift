@@ -31,9 +31,20 @@ public class GradientNoiseNode : Node
     }
     
     // Port Proxy
-    public var inputTime:ParameterPort<Float> { port(named: "inputTime") }
-    public var inputFrequency:ParameterPort<Float> { port(named: "inputFrequency") }
-    public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
+    public var inputTime: ParameterPort<Float> { _inputTime }
+    private var _inputTime: ParameterPort<Float>!
+    public var inputFrequency: ParameterPort<Float> { _inputFrequency }
+    private var _inputFrequency: ParameterPort<Float>!
+    public var outputNumber: NodePort<Float> { _outputNumber }
+    private var _outputNumber: NodePort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputTime = findPort(named: "inputTime")
+        self._inputFrequency = findPort(named: "inputFrequency")
+        self._outputNumber = findPort(named: "outputNumber")
+    }
     
     // Ensure we always render!
     public override var isDirty:Bool { get {  true  } set { } }

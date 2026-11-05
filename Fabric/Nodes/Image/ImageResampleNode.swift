@@ -107,11 +107,26 @@ public final class ImageResampleNode: Node
         ]
     }
 
-    public var inputImage: NodePort<FabricImage> { port(named: "inputImage") }
-    public var inputWidth: ParameterPort<Int> { port(named: "inputWidth") }
-    public var inputHeight: ParameterPort<Int> { port(named: "inputHeight") }
-    public var inputMethod: ParameterPort<String> { port(named: "inputMethod") }
-    public var outputImage: NodePort<FabricImage> { port(named: "outputImage") }
+    public var inputImage: NodePort<FabricImage> { _inputImage }
+    private var _inputImage: NodePort<FabricImage>!
+    public var inputWidth: ParameterPort<Int> { _inputWidth }
+    private var _inputWidth: ParameterPort<Int>!
+    public var inputHeight: ParameterPort<Int> { _inputHeight }
+    private var _inputHeight: ParameterPort<Int>!
+    public var inputMethod: ParameterPort<String> { _inputMethod }
+    private var _inputMethod: ParameterPort<String>!
+    public var outputImage: NodePort<FabricImage> { _outputImage }
+    private var _outputImage: NodePort<FabricImage>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputImage = findPort(named: "inputImage")
+        self._inputWidth = findPort(named: "inputWidth")
+        self._inputHeight = findPort(named: "inputHeight")
+        self._inputMethod = findPort(named: "inputMethod")
+        self._outputImage = findPort(named: "outputImage")
+    }
 
     private var nearestPipeline: MTLComputePipelineState?
     private var bilinearPipeline: MTLComputePipelineState?

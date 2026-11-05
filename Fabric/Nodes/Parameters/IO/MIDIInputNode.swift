@@ -1128,26 +1128,26 @@ public class MIDIInputNode: Node
     {
         let currentValues = inputValues.withLock { $0 }
 
-        for input in configuredInputs
+        for (input, outlet) in boundOutlets
         {
-            let portName = input.portName
+            switch outlet
+            {
+            case .button(let port):
+                if let value = currentValues.boolValues[input.uniqueKey] { port.send(value) }
+            case .axis(let port):
+                if let value = currentValues.floatValues[input.uniqueKey] { port.send(value) }
+            }
+        }
+    }
 
-            if input.type == .noteGate
-            {
-                if let port = findPort(named: portName) as? NodePort<Bool>,
-                   let value = currentValues.boolValues[input.uniqueKey]
-                {
-                    port.send(value)
-                }
-            }
-            else
-            {
-                if let port = findPort(named: portName) as? NodePort<Float>,
-                   let value = currentValues.floatValues[input.uniqueKey]
-                {
-                    port.send(value)
-                }
-            }
+    /// Each configured input's outlet, in configuration order.
+    private var boundOutlets: [(input: DetectedMIDIInput, outlet: DeviceOutlet)] = []
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundOutlets = configuredInputs.compactMap { input in
+            deviceOutlet(for: DeviceOutputPortDescriptor(name: input.portName, isButton: input.type == .noteGate)).map { (input, $0) }
         }
     }
 }

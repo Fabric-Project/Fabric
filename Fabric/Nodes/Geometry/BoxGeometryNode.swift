@@ -25,10 +25,23 @@ public class BoxGeometryNode : BaseGeometryNode
         ] + ports
     }
     
-    public var inputWidthParam: NodePort<Float>             { port(named: "inputWidthParam") }
-    public var inputHeightParam: NodePort<Float>            { port(named: "inputHeightParam") }
-    public var inputDepthParam: NodePort<Float>             { port(named: "inputDepthParam") }
-    public var inputResolutionParam: NodePort<simd_float3>  { port(named: "inputResolutionParam") }
+    public var inputWidthParam: NodePort<Float> { _inputWidthParam }
+    private var _inputWidthParam: NodePort<Float>!
+    public var inputHeightParam: NodePort<Float> { _inputHeightParam }
+    private var _inputHeightParam: NodePort<Float>!
+    public var inputDepthParam: NodePort<Float> { _inputDepthParam }
+    private var _inputDepthParam: NodePort<Float>!
+    public var inputResolutionParam: NodePort<simd_float3> { _inputResolutionParam }
+    private var _inputResolutionParam: NodePort<simd_float3>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputWidthParam = findPort(named: "inputWidthParam")
+        self._inputHeightParam = findPort(named: "inputHeightParam")
+        self._inputDepthParam = findPort(named: "inputDepthParam")
+        self._inputResolutionParam = findPort(named: "inputResolutionParam")
+    }
     
     public override var geometry: BoxGeometry { _geometry }
     

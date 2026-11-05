@@ -28,9 +28,20 @@ public class RoundBoxGeometryNode : BaseGeometryNode
     }
     
     // Proxy Port
-    public var inputSize:ParameterPort<simd_float3> { port(named: "inputSize")  }
-    public var inputRadius:ParameterPort<Float> { port(named: "inputRadius")  }
-    public var inputResolution:ParameterPort<Int> { port(named: "inputResolution")  }
+    public var inputSize: ParameterPort<simd_float3> { _inputSize }
+    private var _inputSize: ParameterPort<simd_float3>!
+    public var inputRadius: ParameterPort<Float> { _inputRadius }
+    private var _inputRadius: ParameterPort<Float>!
+    public var inputResolution: ParameterPort<Int> { _inputResolution }
+    private var _inputResolution: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputSize = findPort(named: "inputSize")
+        self._inputRadius = findPort(named: "inputRadius")
+        self._inputResolution = findPort(named: "inputResolution")
+    }
        
     public override var geometry: RoundedBoxGeometry { _geometry }
 

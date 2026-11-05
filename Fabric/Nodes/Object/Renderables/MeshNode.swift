@@ -31,11 +31,26 @@ public class MeshNode : BaseRenderableNode<Mesh>
     }
         
     // Ergonomic access (no storage assignment needed)
-    public var inputGeometry: NodePort<Geometry>   { port(named: "inputGeometry") }
-    public var inputMaterial: NodePort<Material>   { port(named: "inputMaterial") }
-    public var inputCastsShadow: ParameterPort<Bool>   { port(named: "inputCastsShadow") }
-    public var inputDoubleSided: ParameterPort<Bool>   { port(named: "inputDoubleSided") }
-    public var inputCullingMode: ParameterPort<String>   { port(named: "inputCullingMode") }
+    public var inputGeometry: NodePort<Geometry> { _inputGeometry }
+    private var _inputGeometry: NodePort<Geometry>!
+    public var inputMaterial: NodePort<Material> { _inputMaterial }
+    private var _inputMaterial: NodePort<Material>!
+    public var inputCastsShadow: ParameterPort<Bool> { _inputCastsShadow }
+    private var _inputCastsShadow: ParameterPort<Bool>!
+    public var inputDoubleSided: ParameterPort<Bool> { _inputDoubleSided }
+    private var _inputDoubleSided: ParameterPort<Bool>!
+    public var inputCullingMode: ParameterPort<String> { _inputCullingMode }
+    private var _inputCullingMode: ParameterPort<String>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputGeometry = findPort(named: "inputGeometry")
+        self._inputMaterial = findPort(named: "inputMaterial")
+        self._inputCastsShadow = findPort(named: "inputCastsShadow")
+        self._inputDoubleSided = findPort(named: "inputDoubleSided")
+        self._inputCullingMode = findPort(named: "inputCullingMode")
+    }
 
     
     override public var object:Mesh? {

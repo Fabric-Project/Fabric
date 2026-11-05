@@ -753,7 +753,15 @@ public class TimelineNode: Node
     }
 
     // Port Proxy
-    public var inputTime:ParameterPort<Float> { port(named: "inputTime") }
+    public var inputTime: ParameterPort<Float> { _inputTime }
+    private var _inputTime: ParameterPort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.trackOutlets = tracks.map { findPort(named: $0.name) }
+        self._inputTime = findPort(named: "inputTime")
+    }
 
     // MARK: - Codable
 
@@ -949,6 +957,9 @@ public class TimelineNode: Node
         reconcilePorts()
     }
 
+    /// Each track's outlet, by track index; every track change reconciles.
+    private var trackOutlets: [NodePort<Float>?] = []
+
     // MARK: - Track Management
 
     fileprivate func addTrack()
@@ -1023,14 +1034,9 @@ public class TimelineNode: Node
         }
 
         // Evaluate each track and send to corresponding port
-        for track in tracks
+        for (track, port) in zip(tracks, trackOutlets)
         {
-            let value = track.evaluate(at: time, duration: duration)
-
-            if let port = findPort(named: track.name) as? NodePort<Float>
-            {
-                port.send(value)
-            }
+            port?.send(track.evaluate(at: time, duration: duration))
         }
     }
 }

@@ -29,9 +29,20 @@ public class RepeatValueNode<Value : PortValueRepresentable & ParameterValueType
 
     // ParameterPort<T> is a subclass of NodePort<T>, so this accessor type is
     // compatible whether the concrete port is a ParameterPort or a NodePort.
-    public var inputValue: NodePort<Value> { port(named: "inputValue") }
-    public var inputCount: ParameterPort<Int> { port(named: "inputCount") }
-    public var outputArray: NodePort<ContiguousArray<Value>> { port(named: "outputArray") }
+    public var inputValue: NodePort<Value> { _inputValue }
+    private var _inputValue: NodePort<Value>!
+    public var inputCount: ParameterPort<Int> { _inputCount }
+    private var _inputCount: ParameterPort<Int>!
+    public var outputArray: NodePort<ContiguousArray<Value>> { _outputArray }
+    private var _outputArray: NodePort<ContiguousArray<Value>>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputValue = findPort(named: "inputValue")
+        self._inputCount = findPort(named: "inputCount")
+        self._outputArray = findPort(named: "outputArray")
+    }
 
     public override func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,

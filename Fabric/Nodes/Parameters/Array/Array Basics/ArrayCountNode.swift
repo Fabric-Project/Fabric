@@ -23,7 +23,15 @@ public class ArrayCountNode: TypeAgnosticNode
         ]
     }
 
-    public var outputPort: NodePort<Int> { port(named: "outputPort") }
+    public var outputPort: NodePort<Int> { _outputPort }
+    private var _outputPort: NodePort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputPort = findPort(named: "inputPort")
+        self._outputPort = findPort(named: "outputPort")
+    }
 
     public override func declaredPorts() -> [PortDeclaration]
     {
@@ -36,13 +44,15 @@ public class ArrayCountNode: TypeAgnosticNode
         ] + super.declaredPorts()
     }
 
+    private var boundInputPort: Port?
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputPort: Port = findPort(named: "inputPort") else { return }
+        guard let inputPort: Port = self.boundInputPort else { return }
         guard inputPort.valueDidChange else { return }
         guard let boxed = inputPort.snapshotValue(),
               case .Array(let elements) = boxed else { return }

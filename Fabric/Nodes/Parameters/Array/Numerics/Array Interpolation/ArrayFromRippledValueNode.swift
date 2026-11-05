@@ -39,10 +39,23 @@ public class ArrayFromRippledValueNode<Value : PortValueRepresentable & Paramete
 
     // ParameterPort<T> is a subclass of NodePort<T>, so this accessor type is
     // compatible whether the concrete port is a ParameterPort or a NodePort.
-    public var inputValue: NodePort<Value> { port(named: "inputValue") }
-    public var inputCount: ParameterPort<Int> { port(named: "inputCount") }
-    public var inputDelaySecs: ParameterPort<Float> { port(named: "inputDelaySecs") }
-    public var outputArray: NodePort<ContiguousArray<Value>> { port(named: "outputArray") }
+    public var inputValue: NodePort<Value> { _inputValue }
+    private var _inputValue: NodePort<Value>!
+    public var inputCount: ParameterPort<Int> { _inputCount }
+    private var _inputCount: ParameterPort<Int>!
+    public var inputDelaySecs: ParameterPort<Float> { _inputDelaySecs }
+    private var _inputDelaySecs: ParameterPort<Float>!
+    public var outputArray: NodePort<ContiguousArray<Value>> { _outputArray }
+    private var _outputArray: NodePort<ContiguousArray<Value>>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputValue = findPort(named: "inputValue")
+        self._inputCount = findPort(named: "inputCount")
+        self._inputDelaySecs = findPort(named: "inputDelaySecs")
+        self._outputArray = findPort(named: "outputArray")
+    }
 
     override public func startExecution(renderer: GraphRenderer) throws
     {

@@ -18,10 +18,19 @@ public class ComposeTransformArrayNode: StrategyNode
 
     public override class var strategyOptions: [any NodeStrategyOption] { TransformCompositionMode.allCases }
 
+    /// `strategy`, typed before each reconcile, so execute switches on it without a cast.
+    private var typedStrategy: TransformCompositionMode?
+
+    override public func prepareDeclarations()
+    {
+        super.prepareDeclarations()
+        typedStrategy = strategyOption(as: TransformCompositionMode.self)
+    }
+
     override public func declaredPorts() -> [PortDeclaration]
     {
         let wanted: [(name: String, port: Port)]
-        switch strategy as? TransformCompositionMode
+        switch typedStrategy
         {
         case .trs:
             wanted =
@@ -49,20 +58,42 @@ public class ComposeTransformArrayNode: StrategyNode
         return super.declaredPorts() + wanted.map { PortDeclaration(key: $0.name, port: $0.port) }
     }
 
+    private var boundOutputTransforms: NodePort<ContiguousArray<simd_float4x4>>?
+    private var boundInputPositions: NodePort<ContiguousArray<simd_float3>>?
+    private var boundInputOrientations: NodePort<ContiguousArray<simd_float4>>?
+    private var boundInputScales: NodePort<ContiguousArray<simd_float3>>?
+    private var boundInputColumn0s: NodePort<ContiguousArray<simd_float4>>?
+    private var boundInputColumn1s: NodePort<ContiguousArray<simd_float4>>?
+    private var boundInputColumn2s: NodePort<ContiguousArray<simd_float4>>?
+    private var boundInputColumn3s: NodePort<ContiguousArray<simd_float4>>?
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundOutputTransforms = findPort(named: "outputTransforms")
+        self.boundInputPositions = findPort(named: "inputPositions")
+        self.boundInputOrientations = findPort(named: "inputOrientations")
+        self.boundInputScales = findPort(named: "inputScales")
+        self.boundInputColumn0s = findPort(named: "inputColumn0s")
+        self.boundInputColumn1s = findPort(named: "inputColumn1s")
+        self.boundInputColumn2s = findPort(named: "inputColumn2s")
+        self.boundInputColumn3s = findPort(named: "inputColumn3s")
+    }
+
     public override func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let outputTransforms: NodePort<ContiguousArray<simd_float4x4>> = findPort(named: "outputTransforms") else { return }
+        guard let outputTransforms: NodePort<ContiguousArray<simd_float4x4>> = self.boundOutputTransforms else { return }
 
-        switch self.strategy as? TransformCompositionMode
+        switch typedStrategy
         {
         case .trs:
-            guard let inputPositions: NodePort<ContiguousArray<simd_float3>> = findPort(named: "inputPositions"),
-                  let inputOrientations: NodePort<ContiguousArray<simd_float4>> = findPort(named: "inputOrientations"),
-                  let inputScales: NodePort<ContiguousArray<simd_float3>> = findPort(named: "inputScales")
+            guard let inputPositions: NodePort<ContiguousArray<simd_float3>> = self.boundInputPositions,
+                  let inputOrientations: NodePort<ContiguousArray<simd_float4>> = self.boundInputOrientations,
+                  let inputScales: NodePort<ContiguousArray<simd_float3>> = self.boundInputScales
             else { return }
             guard inputPositions.valueDidChange || inputOrientations.valueDidChange || inputScales.valueDidChange else { return }
 
@@ -98,10 +129,10 @@ public class ComposeTransformArrayNode: StrategyNode
             outputTransforms.send(output)
 
         case .columns:
-            guard let inputColumn0s: NodePort<ContiguousArray<simd_float4>> = findPort(named: "inputColumn0s"),
-                  let inputColumn1s: NodePort<ContiguousArray<simd_float4>> = findPort(named: "inputColumn1s"),
-                  let inputColumn2s: NodePort<ContiguousArray<simd_float4>> = findPort(named: "inputColumn2s"),
-                  let inputColumn3s: NodePort<ContiguousArray<simd_float4>> = findPort(named: "inputColumn3s")
+            guard let inputColumn0s: NodePort<ContiguousArray<simd_float4>> = self.boundInputColumn0s,
+                  let inputColumn1s: NodePort<ContiguousArray<simd_float4>> = self.boundInputColumn1s,
+                  let inputColumn2s: NodePort<ContiguousArray<simd_float4>> = self.boundInputColumn2s,
+                  let inputColumn3s: NodePort<ContiguousArray<simd_float4>> = self.boundInputColumn3s
             else { return }
             guard inputColumn0s.valueDidChange || inputColumn1s.valueDidChange
                 || inputColumn2s.valueDidChange || inputColumn3s.valueDidChange

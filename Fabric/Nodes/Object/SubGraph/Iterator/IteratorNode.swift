@@ -27,7 +27,14 @@ public class IteratorNode: SubgraphNode
     }
     
     // Port Proxy
-    public var inputIteratonCount:ParameterPort<Int> { port(named: "inputIteratonCount") }
+    public var inputIteratonCount: ParameterPort<Int> { _inputIteratonCount }
+    private var _inputIteratonCount: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputIteratonCount = findPort(named: "inputIteratonCount")
+    }
         
     // Ensure we always render!
     override public var isDirty:Bool { get {  true  } set { } }

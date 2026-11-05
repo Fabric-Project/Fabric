@@ -31,9 +31,20 @@ public class ScaleTransformNode : Node
     }
 
     // Port Proxy
-    public var inputTransform:NodePort<simd_float4x4> { port(named: "inputTransform") }
-    public var inputScale:ParameterPort<simd_float3> { port(named: "inputScale") }
-    public var outputTransform:NodePort<simd_float4x4> { port(named: "outputTransform") }
+    public var inputTransform: NodePort<simd_float4x4> { _inputTransform }
+    private var _inputTransform: NodePort<simd_float4x4>!
+    public var inputScale: ParameterPort<simd_float3> { _inputScale }
+    private var _inputScale: ParameterPort<simd_float3>!
+    public var outputTransform: NodePort<simd_float4x4> { _outputTransform }
+    private var _outputTransform: NodePort<simd_float4x4>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputTransform = findPort(named: "inputTransform")
+        self._inputScale = findPort(named: "inputScale")
+        self._outputTransform = findPort(named: "outputTransform")
+    }
     
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,

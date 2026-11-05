@@ -83,9 +83,20 @@ public class ScreenCaptureProviderNode: Node
         ]
     }
 
-    public var inputCaptureType: ParameterPort<String> { port(named: "inputCaptureType") }
-    public var inputCaptureSource: ParameterPort<String> { port(named: "inputCaptureSource") }
-    public var outputTexturePort: NodePort<FabricImage> { port(named: "outputTexturePort") }
+    public var inputCaptureType: ParameterPort<String> { _inputCaptureType }
+    private var _inputCaptureType: ParameterPort<String>!
+    public var inputCaptureSource: ParameterPort<String> { _inputCaptureSource }
+    private var _inputCaptureSource: ParameterPort<String>!
+    public var outputTexturePort: NodePort<FabricImage> { _outputTexturePort }
+    private var _outputTexturePort: NodePort<FabricImage>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputCaptureType = findPort(named: "inputCaptureType")
+        self._inputCaptureSource = findPort(named: "inputCaptureSource")
+        self._outputTexturePort = findPort(named: "outputTexturePort")
+    }
 
     private let streamDelegate = StreamDelegate()
     private let sampleHandlerQueue = DispatchQueue(label: "fabric.ScreenCaptureProviderNode.sample_handler")

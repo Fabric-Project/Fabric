@@ -21,7 +21,17 @@ public final class GateNode: RoutingNode
         "output\(index)"
     }
 
-    public var input: Port { port(named: Self.inputPortName) }
+    public var input: Port { _input }
+    private var _input: Port!
+    /// The route outlets, by route index.
+    private var routeOutputs: [Port] = []
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._input = findPort(named: Self.inputPortName)
+        self.routeOutputs = (0..<routeCount).compactMap { findPort(named: Self.outputPortName($0)) }
+    }
 
     public override func respondToPull(requestedOutputPort: Port?) -> Node.PullResponse
     {
@@ -61,14 +71,14 @@ public final class GateNode: RoutingNode
 
     private func selectedOutputPort() -> Port?
     {
-        findPort(named: Self.outputPortName(selectedRouteIndex()))
+        let index = selectedRouteIndex()
+        return routeOutputs.indices.contains(index) ? routeOutputs[index] : nil
     }
 
     public override func updateConnectionTopology()
     {
         graph?.setConnections(from: inputIndex, active: true)
-        let input: Port? = findPort(named: Self.inputPortName)
-        if let input
+        if let input = _input
         {
             graph?.setConnections(from: input, active: true)
         }

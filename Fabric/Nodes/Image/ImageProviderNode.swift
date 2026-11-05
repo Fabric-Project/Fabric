@@ -37,8 +37,17 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
         ]
     }
 
-    public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
-    public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
+    public var inputFilePathParam: ParameterPort<String> { _inputFilePathParam }
+    private var _inputFilePathParam: ParameterPort<String>!
+    public var outputTexturePort: NodePort<FabricImage> { _outputTexturePort }
+    private var _outputTexturePort: NodePort<FabricImage>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputFilePathParam = findPort(named: "inputFilePathParam")
+        self._outputTexturePort = findPort(named: "outputTexturePort")
+    }
 
     private var image: FabricImage? = nil
     private var textureLoader:MTKTextureLoader

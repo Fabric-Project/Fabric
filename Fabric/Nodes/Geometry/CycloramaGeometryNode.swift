@@ -28,14 +28,35 @@ public class CycloramaGeometryNode: BaseGeometryNode
         ] + ports
     }
 
-    public var inputWidth:             ParameterPort<Float> { port(named: "inputWidth") }
-    public var inputLength:            ParameterPort<Float> { port(named: "inputLength") }
-    public var inputDepth:             ParameterPort<Float> { port(named: "inputDepth") }
-    public var inputRadius:            ParameterPort<Float> { port(named: "inputRadius") }
-    public var inputWidthResolution:   ParameterPort<Int>   { port(named: "inputWidthResolution") }
-    public var inputLengthResolution:  ParameterPort<Int>   { port(named: "inputLengthResolution") }
-    public var inputDepthResolution:   ParameterPort<Int>   { port(named: "inputDepthResolution") }
-    public var inputAngularResolution: ParameterPort<Int>   { port(named: "inputAngularResolution") }
+    public var inputWidth: ParameterPort<Float> { _inputWidth }
+    private var _inputWidth: ParameterPort<Float>!
+    public var inputLength: ParameterPort<Float> { _inputLength }
+    private var _inputLength: ParameterPort<Float>!
+    public var inputDepth: ParameterPort<Float> { _inputDepth }
+    private var _inputDepth: ParameterPort<Float>!
+    public var inputRadius: ParameterPort<Float> { _inputRadius }
+    private var _inputRadius: ParameterPort<Float>!
+    public var inputWidthResolution: ParameterPort<Int> { _inputWidthResolution }
+    private var _inputWidthResolution: ParameterPort<Int>!
+    public var inputLengthResolution: ParameterPort<Int> { _inputLengthResolution }
+    private var _inputLengthResolution: ParameterPort<Int>!
+    public var inputDepthResolution: ParameterPort<Int> { _inputDepthResolution }
+    private var _inputDepthResolution: ParameterPort<Int>!
+    public var inputAngularResolution: ParameterPort<Int> { _inputAngularResolution }
+    private var _inputAngularResolution: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputWidth = findPort(named: "inputWidth")
+        self._inputLength = findPort(named: "inputLength")
+        self._inputDepth = findPort(named: "inputDepth")
+        self._inputRadius = findPort(named: "inputRadius")
+        self._inputWidthResolution = findPort(named: "inputWidthResolution")
+        self._inputLengthResolution = findPort(named: "inputLengthResolution")
+        self._inputDepthResolution = findPort(named: "inputDepthResolution")
+        self._inputAngularResolution = findPort(named: "inputAngularResolution")
+    }
 
     public override var geometry: CycloramaGeometry { _geometry }
 

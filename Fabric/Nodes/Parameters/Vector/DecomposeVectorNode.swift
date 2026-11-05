@@ -39,35 +39,49 @@ public class DecomposeVectorNode: StrategyNode
             }
     }
 
+    private var vectorType: VectorType?
+    private var outputs: [NodePort<Float>] = []
+    private var input2: ParameterPort<simd_float2>?
+    private var input3: ParameterPort<simd_float3>?
+    private var input4: ParameterPort<simd_float4>?
+
+    override public func prepareDeclarations()
+    {
+        super.prepareDeclarations()
+        self.vectorType = self.strategyOption()
+    }
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.outputs = (0..<4).compactMap { findPort(named: "outputComponent\($0)") }
+        self.input2 = findPort(named: "inputVector")
+        self.input3 = findPort(named: "inputVector")
+        self.input4 = findPort(named: "inputVector")
+    }
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let vt: VectorType = strategyOption() else { return }
+        guard let vectorType else { return }
 
         func sendComponents(_ values: [Float])
         {
-            for (i, value) in values.enumerated() {
-                if let out: NodePort<Float> = findPort(named: "outputComponent\(i)") {
-                    out.send(value)
-                }
-            }
+            for (output, value) in zip(outputs, values) { output.send(value) }
         }
 
-        switch vt {
+        switch vectorType {
         case .float2:
-            guard let inp: ParameterPort<simd_float2> = findPort(named: "inputVector"),
-                  inp.valueDidChange, let v = inp.value else { return }
+            guard let inp = input2, inp.valueDidChange, let v = inp.value else { return }
             sendComponents([v.x, v.y])
         case .float3:
-            guard let inp: ParameterPort<simd_float3> = findPort(named: "inputVector"),
-                  inp.valueDidChange, let v = inp.value else { return }
+            guard let inp = input3, inp.valueDidChange, let v = inp.value else { return }
             sendComponents([v.x, v.y, v.z])
         case .float4:
-            guard let inp: ParameterPort<simd_float4> = findPort(named: "inputVector"),
-                  inp.valueDidChange, let v = inp.value else { return }
+            guard let inp = input4, inp.valueDidChange, let v = inp.value else { return }
             sendComponents([v.x, v.y, v.z, v.w])
         }
     }

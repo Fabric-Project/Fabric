@@ -39,11 +39,26 @@ public class NumberTriggerNode : Node
         ]
     }
 
-    public var inputTarget: ParameterPort<Float> { port(named: "inputTarget") }
-    public var inputTriggerThreshold: ParameterPort<Float> { port(named: "inputTriggerThreshold") }
-    public var inputReleaseThreshold: ParameterPort<Float> { port(named: "inputReleaseThreshold") }
-    public var inputMinDurationSecs: ParameterPort<Float> { port(named: "inputMinDurationSecs") }
-    public var outputValue: NodePort<Float> { port(named: "outputValue") }
+    public var inputTarget: ParameterPort<Float> { _inputTarget }
+    private var _inputTarget: ParameterPort<Float>!
+    public var inputTriggerThreshold: ParameterPort<Float> { _inputTriggerThreshold }
+    private var _inputTriggerThreshold: ParameterPort<Float>!
+    public var inputReleaseThreshold: ParameterPort<Float> { _inputReleaseThreshold }
+    private var _inputReleaseThreshold: ParameterPort<Float>!
+    public var inputMinDurationSecs: ParameterPort<Float> { _inputMinDurationSecs }
+    private var _inputMinDurationSecs: ParameterPort<Float>!
+    public var outputValue: NodePort<Float> { _outputValue }
+    private var _outputValue: NodePort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputTarget = findPort(named: "inputTarget")
+        self._inputTriggerThreshold = findPort(named: "inputTriggerThreshold")
+        self._inputReleaseThreshold = findPort(named: "inputReleaseThreshold")
+        self._inputMinDurationSecs = findPort(named: "inputMinDurationSecs")
+        self._outputValue = findPort(named: "outputValue")
+    }
 
     override public func startExecution(renderer: GraphRenderer) throws {
         self.state = 0

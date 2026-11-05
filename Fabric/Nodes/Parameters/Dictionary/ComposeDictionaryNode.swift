@@ -21,15 +21,27 @@ public final class ComposeDictionaryNode: DictionaryTypeAgnosticNode
         ] + super.declaredPorts()
     }
 
+    private var boundInputKeys: Port?
+    private var boundInputValues: Port?
+    private var boundOutputDictionary: Port?
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputKeys = findPort(named: "inputKeys")
+        self.boundInputValues = findPort(named: "inputValues")
+        self.boundOutputDictionary = findPort(named: "outputDictionary")
+    }
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputKeys: Port = findPort(named: "inputKeys"),
-              let inputValues: Port = findPort(named: "inputValues"),
-              let outputDictionary: Port = findPort(named: "outputDictionary") else { return }
+        guard let inputKeys: Port = self.boundInputKeys,
+              let inputValues: Port = self.boundInputValues,
+              let outputDictionary: Port = self.boundOutputDictionary else { return }
 
         guard inputKeys.valueDidChange || inputValues.valueDidChange else { return }
 

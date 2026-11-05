@@ -40,7 +40,20 @@ public final class MatrixSwitchNode: RoutingNodeBase
 
     private static func outputPortName(_ index: Int) -> String { "output\(index)" }
 
-    public var inputMap: NodePort<[String: Int]> { port(named: Self.indexMapPortName) }
+    public var inputMap: NodePort<[String: Int]> { _inputMap }
+    private var _inputMap: NodePort<[String: Int]>!
+
+    /// The route ports, by route index.
+    private var routeInputs: [Port] = []
+    private var routeOutputs: [Port] = []
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputMap = findPort(named: Self.indexMapPortName)
+        self.routeInputs = (0..<routeCount).compactMap { findPort(named: Self.inputPortName($0)) }
+        self.routeOutputs = (0..<routeCount).compactMap { findPort(named: Self.outputPortName($0)) }
+    }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
     {
@@ -121,9 +134,11 @@ public final class MatrixSwitchNode: RoutingNodeBase
         for outputIndex in 0..<routeCount
         {
             guard let sourceIndex = sources[outputIndex],
-                  let sourceInput: Port = findPort(named: Self.inputPortName(sourceIndex)),
-                  let outputPort: Port = findPort(named: Self.outputPortName(outputIndex))
+                  routeInputs.indices.contains(sourceIndex),
+                  routeOutputs.indices.contains(outputIndex)
             else { continue }
+            let sourceInput = routeInputs[sourceIndex]
+            let outputPort = routeOutputs[outputIndex]
 
             outputPort.sendBoxed(sourceInput.snapshotValue(), force: true)
         }
@@ -136,13 +151,9 @@ public final class MatrixSwitchNode: RoutingNodeBase
 
         graph?.setConnections(from: inputMap, active: true)
 
-        for index in 0..<routeCount
+        for inputPort in routeInputs
         {
-            let inputPort: Port? = findPort(named: Self.inputPortName(index))
-            if let inputPort
-            {
-                graph?.setConnections(from: inputPort, active: routedInputIDs.contains(inputPort.id))
-            }
+            graph?.setConnections(from: inputPort, active: routedInputIDs.contains(inputPort.id))
         }
     }
 
@@ -186,11 +197,11 @@ public final class MatrixSwitchNode: RoutingNodeBase
         for outputIndex in 0..<routeCount
         {
             guard let sourceIndex = sources[outputIndex],
-                  seen.insert(sourceIndex).inserted,
-                  let port: Port = findPort(named: Self.inputPortName(sourceIndex))
+                  routeInputs.indices.contains(sourceIndex),
+                  seen.insert(sourceIndex).inserted
             else { continue }
 
-            result.append(port)
+            result.append(routeInputs[sourceIndex])
         }
 
         return result

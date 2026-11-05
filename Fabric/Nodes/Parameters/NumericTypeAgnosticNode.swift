@@ -42,9 +42,13 @@ public class NumericTypeAgnosticNode: StrategyNode
 
     public override class var separatorAfterFirstStrategy: Bool { true }
 
-    public var selectedNumericPortType: PortType
+    /// The strategy's port type, resolved before each reconcile.
+    public private(set) var selectedNumericPortType: PortType = .NumericVirtual
+
+    override public func prepareDeclarations()
     {
-        strategyOption(as: NumericPortStrategy.self)?.portType ?? .NumericVirtual
+        super.prepareDeclarations()
+        self.selectedNumericPortType = strategyOption(as: NumericPortStrategy.self)?.portType ?? .NumericVirtual
     }
 
     public convenience init(context: Context, portType: PortType)
@@ -84,11 +88,13 @@ public class NumericTypeAgnosticNode: StrategyNode
         return nil
     }
 
+    /// Takes the type of what is wired to `port`, while the node is Numeric
+    /// Virtual. Called from execute with a port bindPorts() resolved.
     @discardableResult
-    public func specializeFromConnectedPort(named portName: String) -> Bool
+    public func specializeFromConnectedPort(_ port: Port?) -> Bool
     {
         guard selectedNumericPortType == .NumericVirtual,
-              let port: Port = findPort(named: portName),
+              let port,
               let connectedType = port.connectedPorts.first?.portType,
               Self.supportedPortTypes.contains(connectedType)
         else { return false }

@@ -25,7 +25,14 @@ public class TriangleGeometryNode : BaseGeometryNode
     }
     
     // Proxy Port
-    public var inputSize:ParameterPort<Float> { port(named: "inputSize")  }
+    public var inputSize: ParameterPort<Float> { _inputSize }
+    private var _inputSize: ParameterPort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputSize = findPort(named: "inputSize")
+    }
 
     public override var geometry: TriangleGeometry { _geometry }
     

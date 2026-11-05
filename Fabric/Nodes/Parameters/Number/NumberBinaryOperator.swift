@@ -32,10 +32,23 @@ public class NumberBinaryOperator : Node
     }
     
     // Port Proxy
-    public var inputNumber1:ParameterPort<Float> { port(named: "inputNumber1") }
-    public var inputNumber2:ParameterPort<Float> { port(named: "inputNumber2") }
-    public var inputParam:ParameterPort<String> { port(named: "inputParam") }
-    public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
+    public var inputNumber1: ParameterPort<Float> { _inputNumber1 }
+    private var _inputNumber1: ParameterPort<Float>!
+    public var inputNumber2: ParameterPort<Float> { _inputNumber2 }
+    private var _inputNumber2: ParameterPort<Float>!
+    public var inputParam: ParameterPort<String> { _inputParam }
+    private var _inputParam: ParameterPort<String>!
+    public var outputNumber: NodePort<Float> { _outputNumber }
+    private var _outputNumber: NodePort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputNumber1 = findPort(named: "inputNumber1")
+        self._inputNumber2 = findPort(named: "inputNumber2")
+        self._inputParam = findPort(named: "inputParam")
+        self._outputNumber = findPort(named: "outputNumber")
+    }
     
     private var mathOperator = BinaryMathOperator.Add
     

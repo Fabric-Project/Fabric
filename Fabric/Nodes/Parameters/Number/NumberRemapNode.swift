@@ -34,13 +34,32 @@ public class NumberRemapNode : Node
     }
 
     // Port Proxy
-    public var inputNumber:ParameterPort<Float> { port(named: "inputNumber") }
-    public var inputMinNumber:ParameterPort<Float> { port(named: "inputMinNumber") }
-    public var inputMaxNumber:ParameterPort<Float> { port(named: "inputMaxNumber") }
-    public var inputNewMinNumber:ParameterPort<Float> { port(named: "inputNewMinNumber") }
-    public var inputNewMaxNumber:ParameterPort<Float> { port(named: "inputNewMaxNumber") }
-    public var inputClamp:ParameterPort<Bool> { port(named: "inputClamp") }
-    public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
+    public var inputNumber: ParameterPort<Float> { _inputNumber }
+    private var _inputNumber: ParameterPort<Float>!
+    public var inputMinNumber: ParameterPort<Float> { _inputMinNumber }
+    private var _inputMinNumber: ParameterPort<Float>!
+    public var inputMaxNumber: ParameterPort<Float> { _inputMaxNumber }
+    private var _inputMaxNumber: ParameterPort<Float>!
+    public var inputNewMinNumber: ParameterPort<Float> { _inputNewMinNumber }
+    private var _inputNewMinNumber: ParameterPort<Float>!
+    public var inputNewMaxNumber: ParameterPort<Float> { _inputNewMaxNumber }
+    private var _inputNewMaxNumber: ParameterPort<Float>!
+    public var inputClamp: ParameterPort<Bool> { _inputClamp }
+    private var _inputClamp: ParameterPort<Bool>!
+    public var outputNumber: NodePort<Float> { _outputNumber }
+    private var _outputNumber: NodePort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputNumber = findPort(named: "inputNumber")
+        self._inputMinNumber = findPort(named: "inputMinNumber")
+        self._inputMaxNumber = findPort(named: "inputMaxNumber")
+        self._inputNewMinNumber = findPort(named: "inputNewMinNumber")
+        self._inputNewMaxNumber = findPort(named: "inputNewMaxNumber")
+        self._inputClamp = findPort(named: "inputClamp")
+        self._outputNumber = findPort(named: "outputNumber")
+    }
     
     private var lastValue:Float = 0.0
         

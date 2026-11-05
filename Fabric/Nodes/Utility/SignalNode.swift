@@ -30,8 +30,17 @@ public class SignalNode : Node
     }
     
     // Params
-    public var inputValue:NodePort<PortValue> { port(named: "inputValue") }
-    public var outputSignal:NodePort<Bool> { port(named: "outputSignal") }
+    public var inputValue: NodePort<PortValue> { _inputValue }
+    private var _inputValue: NodePort<PortValue>!
+    public var outputSignal: NodePort<Bool> { _outputSignal }
+    private var _outputSignal: NodePort<Bool>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputValue = findPort(named: "inputValue")
+        self._outputSignal = findPort(named: "outputSignal")
+    }
         
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,

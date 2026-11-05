@@ -100,7 +100,14 @@ public class BlendNode: BaseImageNode
     }
 
     // Port Proxy
-    public var inputMode: ParameterPort<String> { port(named: "Mode") }
+    public var inputMode: ParameterPort<String> { _inputMode }
+    private var _inputMode: ParameterPort<String>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputMode = findPort(named: "Mode")
+    }
 
     private func shaderURL(for modeName: String) -> URL? {
         Bundle.module.url(forResource: modeName, withExtension: "metal", subdirectory: "EffectsTwoChannel/Mix")

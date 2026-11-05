@@ -32,9 +32,20 @@ public class StringJoinNode : Node
     }
 
     // Port Proxy
-    public var inputPort:NodePort<ContiguousArray<String>>  { port(named: "inputPort") }
-    public var separatorPort:NodePort<String>               { port(named: "separatorPort") }
-    public var outputPort:NodePort<String>                  { port(named: "outputPort") }
+    public var inputPort: NodePort<ContiguousArray<String>> { _inputPort }
+    private var _inputPort: NodePort<ContiguousArray<String>>!
+    public var separatorPort: NodePort<String> { _separatorPort }
+    private var _separatorPort: NodePort<String>!
+    public var outputPort: NodePort<String> { _outputPort }
+    private var _outputPort: NodePort<String>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputPort = findPort(named: "inputPort")
+        self._separatorPort = findPort(named: "separatorPort")
+        self._outputPort = findPort(named: "outputPort")
+    }
 
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,

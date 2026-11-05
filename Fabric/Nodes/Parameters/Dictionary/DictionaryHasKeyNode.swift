@@ -19,7 +19,16 @@ public final class DictionaryHasKeyNode: DictionaryTypeAgnosticNode
         ]
     }
 
-    private var inputKey: ParameterPort<String> { port(named: "inputKey") }
+    private var inputKey: ParameterPort<String> { _inputKey }
+    private var _inputKey: ParameterPort<String>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputDictionary = findPort(named: "inputDictionary")
+        self.boundOutputContainsKey = findPort(named: "outputContainsKey")
+        self._inputKey = findPort(named: "inputKey")
+    }
 
     public override func declaredPorts() -> [PortDeclaration]
     {
@@ -30,14 +39,17 @@ public final class DictionaryHasKeyNode: DictionaryTypeAgnosticNode
         ]
     }
 
+    private var boundInputDictionary: Port?
+    private var boundOutputContainsKey: Port?
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputDictionary: Port = findPort(named: "inputDictionary"),
-              let outputContainsKey: Port = findPort(named: "outputContainsKey"),
+        guard let inputDictionary: Port = self.boundInputDictionary,
+              let outputContainsKey: Port = self.boundOutputContainsKey,
               inputDictionary.valueDidChange || inputKey.valueDidChange else { return }
 
         let dictionary = inputDictionary.snapshotValue()?.dictionaryValue ?? [:]

@@ -39,7 +39,14 @@ public class LUTProcessorNode : BaseImageNode
         ]
     }
 
-    public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
+    public var inputFilePathParam: ParameterPort<String> { _inputFilePathParam }
+    private var _inputFilePathParam: ParameterPort<String>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputFilePathParam = findPort(named: "inputFilePathParam")
+    }
 
     private var texture: (any MTLTexture)? = nil
     private var url: URL? = nil

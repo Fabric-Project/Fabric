@@ -25,9 +25,20 @@ public class TransformArrayMultiplyNode: Node
         ]
     }
 
-    public var inputA: NodePort<ContiguousArray<simd_float4x4>> { port(named: "inputA") }
-    public var inputB: NodePort<ContiguousArray<simd_float4x4>> { port(named: "inputB") }
-    public var outputTransforms: NodePort<ContiguousArray<simd_float4x4>> { port(named: "outputTransforms") }
+    public var inputA: NodePort<ContiguousArray<simd_float4x4>> { _inputA }
+    private var _inputA: NodePort<ContiguousArray<simd_float4x4>>!
+    public var inputB: NodePort<ContiguousArray<simd_float4x4>> { _inputB }
+    private var _inputB: NodePort<ContiguousArray<simd_float4x4>>!
+    public var outputTransforms: NodePort<ContiguousArray<simd_float4x4>> { _outputTransforms }
+    private var _outputTransforms: NodePort<ContiguousArray<simd_float4x4>>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputA = findPort(named: "inputA")
+        self._inputB = findPort(named: "inputB")
+        self._outputTransforms = findPort(named: "outputTransforms")
+    }
 
     /// `a[i] × b[i]`, as long as the longer array; a missing element is identity.
     public static func multiplied(_ a: ContiguousArray<simd_float4x4>, _ b: ContiguousArray<simd_float4x4>) -> ContiguousArray<simd_float4x4>

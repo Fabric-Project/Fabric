@@ -18,10 +18,19 @@ public class ComposeOrientationNode: StrategyNode
 
     public override class var strategyOptions: [any NodeStrategyOption] { OrientationCompositionMode.allCases }
 
+    /// `strategy`, typed before each reconcile, so execute switches on it without a cast.
+    private var typedStrategy: OrientationCompositionMode?
+
+    override public func prepareDeclarations()
+    {
+        super.prepareDeclarations()
+        typedStrategy = strategyOption(as: OrientationCompositionMode.self)
+    }
+
     override public func declaredPorts() -> [PortDeclaration]
     {
         let wanted: [(name: String, port: Port)]
-        switch strategy as? OrientationCompositionMode
+        switch typedStrategy
         {
         case .euler:
             wanted =
@@ -56,20 +65,44 @@ public class ComposeOrientationNode: StrategyNode
         return super.declaredPorts() + wanted.map { PortDeclaration(key: $0.name, port: $0.port) }
     }
 
+    private var boundOutputOrientation: NodePort<simd_float4>?
+    private var boundInputX: ParameterPort<Float>?
+    private var boundInputY: ParameterPort<Float>?
+    private var boundInputZ: ParameterPort<Float>?
+    private var boundInputAngle: ParameterPort<Float>?
+    private var boundInputAxis: ParameterPort<simd_float3>?
+    private var boundInputPosition: ParameterPort<simd_float3>?
+    private var boundInputTarget: ParameterPort<simd_float3>?
+    private var boundInputAimOffset: ParameterPort<simd_float4>?
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundOutputOrientation = findPort(named: "outputOrientation")
+        self.boundInputX = findPort(named: "inputX")
+        self.boundInputY = findPort(named: "inputY")
+        self.boundInputZ = findPort(named: "inputZ")
+        self.boundInputAngle = findPort(named: "inputAngle")
+        self.boundInputAxis = findPort(named: "inputAxis")
+        self.boundInputPosition = findPort(named: "inputPosition")
+        self.boundInputTarget = findPort(named: "inputTarget")
+        self.boundInputAimOffset = findPort(named: "inputAimOffset")
+    }
+
     public override func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let outputOrientation: NodePort<simd_float4> = findPort(named: "outputOrientation") else { return }
+        guard let outputOrientation: NodePort<simd_float4> = self.boundOutputOrientation else { return }
 
-        switch self.strategy as? OrientationCompositionMode
+        switch typedStrategy
         {
         case .euler:
-            guard let inputX: ParameterPort<Float> = findPort(named: "inputX"),
-                  let inputY: ParameterPort<Float> = findPort(named: "inputY"),
-                  let inputZ: ParameterPort<Float> = findPort(named: "inputZ")
+            guard let inputX: ParameterPort<Float> = self.boundInputX,
+                  let inputY: ParameterPort<Float> = self.boundInputY,
+                  let inputZ: ParameterPort<Float> = self.boundInputZ
             else { return }
             guard inputX.valueDidChange || inputY.valueDidChange || inputZ.valueDidChange else { return }
 
@@ -77,8 +110,8 @@ public class ComposeOrientationNode: StrategyNode
             outputOrientation.send(simd_quatf(eulerAnglesDegrees: euler).vector)
 
         case .axisAngle:
-            guard let inputAngle: ParameterPort<Float> = findPort(named: "inputAngle"),
-                  let inputAxis: ParameterPort<simd_float3> = findPort(named: "inputAxis")
+            guard let inputAngle: ParameterPort<Float> = self.boundInputAngle,
+                  let inputAxis: ParameterPort<simd_float3> = self.boundInputAxis
             else { return }
             guard inputAngle.valueDidChange || inputAxis.valueDidChange else { return }
 
@@ -86,9 +119,9 @@ public class ComposeOrientationNode: StrategyNode
             outputOrientation.send(quat.vector)
 
         case .target:
-            guard let inputPosition: ParameterPort<simd_float3> = findPort(named: "inputPosition"),
-                  let inputTarget: ParameterPort<simd_float3> = findPort(named: "inputTarget"),
-                  let inputAimOffset: ParameterPort<simd_float4> = findPort(named: "inputAimOffset")
+            guard let inputPosition: ParameterPort<simd_float3> = self.boundInputPosition,
+                  let inputTarget: ParameterPort<simd_float3> = self.boundInputTarget,
+                  let inputAimOffset: ParameterPort<simd_float4> = self.boundInputAimOffset
             else { return }
             guard inputPosition.valueDidChange || inputTarget.valueDidChange
                 || inputAimOffset.valueDidChange

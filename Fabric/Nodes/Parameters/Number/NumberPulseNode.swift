@@ -33,9 +33,20 @@ public class NumberPulseNode : Node
         ]
     }
 
-    public var inputPeriod: ParameterPort<Float> { port(named: "inputPeriod") }
-    public var inputPhase: ParameterPort<Float> { port(named: "inputPhase") }
-    public var outputSignal: NodePort<Bool> { port(named: "outputSignal") }
+    public var inputPeriod: ParameterPort<Float> { _inputPeriod }
+    private var _inputPeriod: ParameterPort<Float>!
+    public var inputPhase: ParameterPort<Float> { _inputPhase }
+    private var _inputPhase: ParameterPort<Float>!
+    public var outputSignal: NodePort<Bool> { _outputSignal }
+    private var _outputSignal: NodePort<Bool>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputPeriod = findPort(named: "inputPeriod")
+        self._inputPhase = findPort(named: "inputPhase")
+        self._outputSignal = findPort(named: "outputSignal")
+    }
 
     override public func startExecution(renderer: GraphRenderer) throws {
         self.phase = 0

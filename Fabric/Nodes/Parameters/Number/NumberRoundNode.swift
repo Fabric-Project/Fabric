@@ -35,9 +35,20 @@ public class NumberRoundNode : Node
     }
     
     // Port Proxy
-    public var inputNumber:ParameterPort<Float> { port(named: "inputNumber") }
-    public var inputRoundMethod:ParameterPort<String> { port(named: "inputRoundMethod") }
-    public var outputNumber:NodePort<Int> { port(named: "outputNumber") }
+    public var inputNumber: ParameterPort<Float> { _inputNumber }
+    private var _inputNumber: ParameterPort<Float>!
+    public var inputRoundMethod: ParameterPort<String> { _inputRoundMethod }
+    private var _inputRoundMethod: ParameterPort<String>!
+    public var outputNumber: NodePort<Int> { _outputNumber }
+    private var _outputNumber: NodePort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputNumber = findPort(named: "inputNumber")
+        self._inputRoundMethod = findPort(named: "inputRoundMethod")
+        self._outputNumber = findPort(named: "outputNumber")
+    }
     
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,

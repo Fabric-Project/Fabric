@@ -32,9 +32,20 @@ public class PolyLineSimplifyNode: Node
     }
     
     // Port Proxy
-    public var inputPort:NodePort<ContiguousArray<simd_float2>> { port(named: "inputPort") }
-    public var inputTolerance:ParameterPort<Float> { port(named: "inputTolerance") }
-    public var outputPort:NodePort<ContiguousArray<simd_float2>> { port(named: "outputPort") }
+    public var inputPort: NodePort<ContiguousArray<simd_float2>> { _inputPort }
+    private var _inputPort: NodePort<ContiguousArray<simd_float2>>!
+    public var inputTolerance: ParameterPort<Float> { _inputTolerance }
+    private var _inputTolerance: ParameterPort<Float>!
+    public var outputPort: NodePort<ContiguousArray<simd_float2>> { _outputPort }
+    private var _outputPort: NodePort<ContiguousArray<simd_float2>>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputPort = findPort(named: "inputPort")
+        self._inputTolerance = findPort(named: "inputTolerance")
+        self._outputPort = findPort(named: "outputPort")
+    }
     
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,

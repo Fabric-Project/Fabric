@@ -22,13 +22,32 @@ public final class PostProcessMotionBlurNode: Node
         ]
     }
 
-    public var inputImage: NodePort<FabricImage> { port(named: "inputImage") }
-    public var inputVelocityImage: NodePort<FabricImage> { port(named: "inputVelocityImage") }
-    public var inputDepthImage: NodePort<FabricImage> { port(named: "inputDepthImage") }
-    public var inputShutterAngle: ParameterPort<Float> { port(named: "inputShutterAngle") }
-    public var inputSamples: ParameterPort<Int> { port(named: "inputSamples") }
-    public var inputJitter: ParameterPort<Float> { port(named: "inputJitter") }
-    public var outputImage: NodePort<FabricImage> { port(named: "outputImage") }
+    public var inputImage: NodePort<FabricImage> { _inputImage }
+    private var _inputImage: NodePort<FabricImage>!
+    public var inputVelocityImage: NodePort<FabricImage> { _inputVelocityImage }
+    private var _inputVelocityImage: NodePort<FabricImage>!
+    public var inputDepthImage: NodePort<FabricImage> { _inputDepthImage }
+    private var _inputDepthImage: NodePort<FabricImage>!
+    public var inputShutterAngle: ParameterPort<Float> { _inputShutterAngle }
+    private var _inputShutterAngle: ParameterPort<Float>!
+    public var inputSamples: ParameterPort<Int> { _inputSamples }
+    private var _inputSamples: ParameterPort<Int>!
+    public var inputJitter: ParameterPort<Float> { _inputJitter }
+    private var _inputJitter: ParameterPort<Float>!
+    public var outputImage: NodePort<FabricImage> { _outputImage }
+    private var _outputImage: NodePort<FabricImage>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputImage = findPort(named: "inputImage")
+        self._inputVelocityImage = findPort(named: "inputVelocityImage")
+        self._inputDepthImage = findPort(named: "inputDepthImage")
+        self._inputShutterAngle = findPort(named: "inputShutterAngle")
+        self._inputSamples = findPort(named: "inputSamples")
+        self._inputJitter = findPort(named: "inputJitter")
+        self._outputImage = findPort(named: "outputImage")
+    }
 
     private let postProcessor: MotionBlurPostProcessEncoder
 

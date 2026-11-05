@@ -50,26 +50,57 @@ public class FacePoseAnalysisNode: Node
         ]
     }
 
-    public var inputImage:NodePort<FabricImage>  { port(named: "inputImage") }
+    public var inputImage: NodePort<FabricImage> { _inputImage }
+    private var _inputImage: NodePort<FabricImage>!
 
-    public var outputFaceContour:NodePort<ContiguousArray<simd_float2>> { port(named: "outputFaceContour") }
+    public var outputFaceContour: NodePort<ContiguousArray<simd_float2>> { _outputFaceContour }
+    private var _outputFaceContour: NodePort<ContiguousArray<simd_float2>>!
     
-    public var outputLeftEye:NodePort<ContiguousArray<simd_float2>> { port(named: "outputLeftEye") }
-    public var outputRightEye:NodePort<ContiguousArray<simd_float2>> { port(named: "outputRightEye") }
+    public var outputLeftEye: NodePort<ContiguousArray<simd_float2>> { _outputLeftEye }
+    private var _outputLeftEye: NodePort<ContiguousArray<simd_float2>>!
+    public var outputRightEye: NodePort<ContiguousArray<simd_float2>> { _outputRightEye }
+    private var _outputRightEye: NodePort<ContiguousArray<simd_float2>>!
 
-    public var outputLeftPupil:NodePort<ContiguousArray<simd_float2>> { port(named: "outputLeftPupil") }
-    public var outputRightPupil:NodePort<ContiguousArray<simd_float2>> { port(named: "outputRightPupil") }
+    public var outputLeftPupil: NodePort<ContiguousArray<simd_float2>> { _outputLeftPupil }
+    private var _outputLeftPupil: NodePort<ContiguousArray<simd_float2>>!
+    public var outputRightPupil: NodePort<ContiguousArray<simd_float2>> { _outputRightPupil }
+    private var _outputRightPupil: NodePort<ContiguousArray<simd_float2>>!
 
-    public var outputLeftEyebrow:NodePort<ContiguousArray<simd_float2>> { port(named: "outputLeftEyebrow") }
-    public var outputRightEyebrow:NodePort<ContiguousArray<simd_float2>> { port(named: "outputRightEyebrow") }
+    public var outputLeftEyebrow: NodePort<ContiguousArray<simd_float2>> { _outputLeftEyebrow }
+    private var _outputLeftEyebrow: NodePort<ContiguousArray<simd_float2>>!
+    public var outputRightEyebrow: NodePort<ContiguousArray<simd_float2>> { _outputRightEyebrow }
+    private var _outputRightEyebrow: NodePort<ContiguousArray<simd_float2>>!
 
-    public var outputNose:NodePort<ContiguousArray<simd_float2>> { port(named: "outputNose") }
-    public var outputNoseCrest:NodePort<ContiguousArray<simd_float2>> { port(named: "outputNoseCrest") }
+    public var outputNose: NodePort<ContiguousArray<simd_float2>> { _outputNose }
+    private var _outputNose: NodePort<ContiguousArray<simd_float2>>!
+    public var outputNoseCrest: NodePort<ContiguousArray<simd_float2>> { _outputNoseCrest }
+    private var _outputNoseCrest: NodePort<ContiguousArray<simd_float2>>!
 
-    public var outputMedianLine:NodePort<ContiguousArray<simd_float2>> { port(named: "outputMedianLine") }
+    public var outputMedianLine: NodePort<ContiguousArray<simd_float2>> { _outputMedianLine }
+    private var _outputMedianLine: NodePort<ContiguousArray<simd_float2>>!
 
-    public var outputInnerLips:NodePort<ContiguousArray<simd_float2>> { port(named: "outputInnerLips") }
-    public var outputOuterLips:NodePort<ContiguousArray<simd_float2>> { port(named: "outputOuterLips") }
+    public var outputInnerLips: NodePort<ContiguousArray<simd_float2>> { _outputInnerLips }
+    private var _outputInnerLips: NodePort<ContiguousArray<simd_float2>>!
+    public var outputOuterLips: NodePort<ContiguousArray<simd_float2>> { _outputOuterLips }
+    private var _outputOuterLips: NodePort<ContiguousArray<simd_float2>>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputImage = findPort(named: "inputImage")
+        self._outputFaceContour = findPort(named: "outputFaceContour")
+        self._outputLeftEye = findPort(named: "outputLeftEye")
+        self._outputRightEye = findPort(named: "outputRightEye")
+        self._outputLeftPupil = findPort(named: "outputLeftPupil")
+        self._outputRightPupil = findPort(named: "outputRightPupil")
+        self._outputLeftEyebrow = findPort(named: "outputLeftEyebrow")
+        self._outputRightEyebrow = findPort(named: "outputRightEyebrow")
+        self._outputNose = findPort(named: "outputNose")
+        self._outputNoseCrest = findPort(named: "outputNoseCrest")
+        self._outputMedianLine = findPort(named: "outputMedianLine")
+        self._outputInnerLips = findPort(named: "outputInnerLips")
+        self._outputOuterLips = findPort(named: "outputOuterLips")
+    }
 
     
     private var ciContext:CIContext!

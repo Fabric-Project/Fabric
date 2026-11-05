@@ -21,15 +21,27 @@ public final class DictionaryMergeNode: DictionaryTypeAgnosticNode
         ] + super.declaredPorts()
     }
 
+    private var boundInputDictionaryA: Port?
+    private var boundInputDictionaryB: Port?
+    private var boundOutputDictionary: Port?
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputDictionaryA = findPort(named: "inputDictionaryA")
+        self.boundInputDictionaryB = findPort(named: "inputDictionaryB")
+        self.boundOutputDictionary = findPort(named: "outputDictionary")
+    }
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputDictionaryA: Port = findPort(named: "inputDictionaryA"),
-              let inputDictionaryB: Port = findPort(named: "inputDictionaryB"),
-              let outputDictionary: Port = findPort(named: "outputDictionary"),
+        guard let inputDictionaryA: Port = self.boundInputDictionaryA,
+              let inputDictionaryB: Port = self.boundInputDictionaryB,
+              let outputDictionary: Port = self.boundOutputDictionary,
               inputDictionaryA.valueDidChange || inputDictionaryB.valueDidChange else { return }
 
         var dictionary = inputDictionaryA.snapshotValue()?.dictionaryValue ?? [:]

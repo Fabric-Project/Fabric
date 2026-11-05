@@ -30,12 +30,29 @@ public class RingPointsNode : Node
         ]
     }
 
-    public var inputCount: ParameterPort<Int> { port(named: "inputCount") }
-    public var inputRadius: ParameterPort<Float> { port(named: "inputRadius") }
-    public var inputArcDegrees: ParameterPort<Float> { port(named: "inputArcDegrees") }
-    public var inputClosed: ParameterPort<Bool> { port(named: "inputClosed") }
-    public var inputOrientation: ParameterPort<simd_float4> { port(named: "inputOrientation") }
-    public var outputPositions: NodePort<ContiguousArray<simd_float3>> { port(named: "outputPositions") }
+    public var inputCount: ParameterPort<Int> { _inputCount }
+    private var _inputCount: ParameterPort<Int>!
+    public var inputRadius: ParameterPort<Float> { _inputRadius }
+    private var _inputRadius: ParameterPort<Float>!
+    public var inputArcDegrees: ParameterPort<Float> { _inputArcDegrees }
+    private var _inputArcDegrees: ParameterPort<Float>!
+    public var inputClosed: ParameterPort<Bool> { _inputClosed }
+    private var _inputClosed: ParameterPort<Bool>!
+    public var inputOrientation: ParameterPort<simd_float4> { _inputOrientation }
+    private var _inputOrientation: ParameterPort<simd_float4>!
+    public var outputPositions: NodePort<ContiguousArray<simd_float3>> { _outputPositions }
+    private var _outputPositions: NodePort<ContiguousArray<simd_float3>>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputCount = findPort(named: "inputCount")
+        self._inputRadius = findPort(named: "inputRadius")
+        self._inputArcDegrees = findPort(named: "inputArcDegrees")
+        self._inputClosed = findPort(named: "inputClosed")
+        self._inputOrientation = findPort(named: "inputOrientation")
+        self._outputPositions = findPort(named: "outputPositions")
+    }
 
     public override func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,

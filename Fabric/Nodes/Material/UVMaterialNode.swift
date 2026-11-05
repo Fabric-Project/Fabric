@@ -24,7 +24,14 @@ public class UVMaterialNode : BaseMaterialNode
                 ] + ports
     }
     
-    public var inputPointSize:ParameterPort<Float>   { port(named: "inputPointSize") }
+    public var inputPointSize: ParameterPort<Float> { _inputPointSize }
+    private var _inputPointSize: ParameterPort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputPointSize = findPort(named: "inputPointSize")
+    }
 
     public override var material: UVColorMaterial {
         return _material

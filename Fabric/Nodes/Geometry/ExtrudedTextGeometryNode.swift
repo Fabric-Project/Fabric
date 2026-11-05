@@ -28,9 +28,20 @@ public class ExtrudedTextGeometryNode : BaseGeometryNode
     }
     
     // Proxy Ports
-    public var inputText:ParameterPort<String> { port(named: "inputText")  }
-    public var inputFont:ParameterPort<String> { port(named: "inputFont")  }
-    public var inputPieceGeneration:ParameterPort<String> { port(named: "inputPieceGeneration")  }
+    public var inputText: ParameterPort<String> { _inputText }
+    private var _inputText: ParameterPort<String>!
+    public var inputFont: ParameterPort<String> { _inputFont }
+    private var _inputFont: ParameterPort<String>!
+    public var inputPieceGeneration: ParameterPort<String> { _inputPieceGeneration }
+    private var _inputPieceGeneration: ParameterPort<String>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputText = findPort(named: "inputText")
+        self._inputFont = findPort(named: "inputFont")
+        self._inputPieceGeneration = findPort(named: "inputPieceGeneration")
+    }
     
     public override var geometry: ExtrudedTextGeometry { _geometry }
 

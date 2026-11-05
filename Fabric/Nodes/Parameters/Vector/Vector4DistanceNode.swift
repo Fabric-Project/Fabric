@@ -59,10 +59,23 @@ public class Vector4Distance : Node
     }
 
     // Port Proxies
-    public var inputMetricParam:ParameterPort<String> { port(named: "inputMetricParam") }
-    public var inputVectorAParam:ParameterPort<simd_float4> { port(named: "inputVectorAParam") }
-    public var inputVectorBParam:ParameterPort<simd_float4> { port(named: "inputVectorBParam") }
-    public var outputDistancePort:NodePort<Float> { port(named: "outputDistancePort") }
+    public var inputMetricParam: ParameterPort<String> { _inputMetricParam }
+    private var _inputMetricParam: ParameterPort<String>!
+    public var inputVectorAParam: ParameterPort<simd_float4> { _inputVectorAParam }
+    private var _inputVectorAParam: ParameterPort<simd_float4>!
+    public var inputVectorBParam: ParameterPort<simd_float4> { _inputVectorBParam }
+    private var _inputVectorBParam: ParameterPort<simd_float4>!
+    public var outputDistancePort: NodePort<Float> { _outputDistancePort }
+    private var _outputDistancePort: NodePort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputMetricParam = findPort(named: "inputMetricParam")
+        self._inputVectorAParam = findPort(named: "inputVectorAParam")
+        self._inputVectorBParam = findPort(named: "inputVectorBParam")
+        self._outputDistancePort = findPort(named: "outputDistancePort")
+    }
     
     private var metric = Vector4Distance.Eucledian
     

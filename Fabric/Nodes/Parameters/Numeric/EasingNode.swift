@@ -23,8 +23,20 @@ public final class EasingNode: NumericTypeAgnosticNode
         ]
     }
 
-    public var inputProgress: ParameterPort<Float> { port(named: "inputProgress") }
-    public var inputEasing: ParameterPort<String> { port(named: "inputEasing") }
+    public var inputProgress: ParameterPort<Float> { _inputProgress }
+    private var _inputProgress: ParameterPort<Float>!
+    public var inputEasing: ParameterPort<String> { _inputEasing }
+    private var _inputEasing: ParameterPort<String>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputFrom = findPort(named: "inputFrom")
+        self.boundInputTo = findPort(named: "inputTo")
+        self.boundOutputValue = findPort(named: "outputValue")
+        self._inputProgress = findPort(named: "inputProgress")
+        self._inputEasing = findPort(named: "inputEasing")
+    }
 
     public override func declaredPorts() -> [PortDeclaration]
     {
@@ -38,16 +50,20 @@ public final class EasingNode: NumericTypeAgnosticNode
         ]
     }
 
+    private var boundInputFrom: Port?
+    private var boundInputTo: Port?
+    private var boundOutputValue: Port?
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputFrom") || specializeFromConnectedPort(named: "inputTo") { return }
-        guard let inputFrom: Port = findPort(named: "inputFrom"),
-              let inputTo: Port = findPort(named: "inputTo"),
-              let outputValue: Port = findPort(named: "outputValue"),
+        if specializeFromConnectedPort(self.boundInputFrom) || specializeFromConnectedPort(self.boundInputTo) { return }
+        guard let inputFrom: Port = self.boundInputFrom,
+              let inputTo: Port = self.boundInputTo,
+              let outputValue: Port = self.boundOutputValue,
               inputFrom.valueDidChange || inputTo.valueDidChange || inputProgress.valueDidChange || inputEasing.valueDidChange,
               let from = inputFrom.snapshotValue(),
               let to = inputTo.snapshotValue(),

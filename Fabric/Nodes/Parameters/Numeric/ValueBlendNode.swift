@@ -25,7 +25,17 @@ public final class ValueBlendNode: NumericTypeAgnosticNode
         ]
     }
 
-    public var inputBlendAmount: ParameterPort<Float> { port(named: "inputBlendAmount") }
+    public var inputBlendAmount: ParameterPort<Float> { _inputBlendAmount }
+    private var _inputBlendAmount: ParameterPort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputSource = findPort(named: "inputSource")
+        self.boundInputTarget = findPort(named: "inputTarget")
+        self.boundOutputValue = findPort(named: "outputValue")
+        self._inputBlendAmount = findPort(named: "inputBlendAmount")
+    }
 
     public override func declaredPorts() -> [PortDeclaration]
     {
@@ -74,16 +84,20 @@ public final class ValueBlendNode: NumericTypeAgnosticNode
         }
     }
 
+    private var boundInputSource: Port?
+    private var boundInputTarget: Port?
+    private var boundOutputValue: Port?
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputSource") || specializeFromConnectedPort(named: "inputTarget") { return }
-        guard let inputSource: Port = findPort(named: "inputSource"),
-              let inputTarget: Port = findPort(named: "inputTarget"),
-              let outputValue: Port = findPort(named: "outputValue"),
+        if specializeFromConnectedPort(self.boundInputSource) || specializeFromConnectedPort(self.boundInputTarget) { return }
+        guard let inputSource: Port = self.boundInputSource,
+              let inputTarget: Port = self.boundInputTarget,
+              let outputValue: Port = self.boundOutputValue,
               inputSource.valueDidChange || inputTarget.valueDidChange || inputBlendAmount.valueDidChange,
               let source = inputSource.snapshotValue(),
               let target = inputTarget.snapshotValue(),

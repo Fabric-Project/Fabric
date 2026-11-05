@@ -35,8 +35,17 @@ public class KeypointDistortNode: BaseImageNode {
     }
 
     // Proxies
-    public var inputReferenceKeyPoints:  NodePort<ContiguousArray<simd_float2>> { port(named: "inputReferenceKeyPoints") }
-    public var inputDisplacedKeyPoints:  NodePort<ContiguousArray<simd_float2>> { port(named: "inputDisplacedKeyPoints") }
+    public var inputReferenceKeyPoints: NodePort<ContiguousArray<simd_float2>> { _inputReferenceKeyPoints }
+    private var _inputReferenceKeyPoints: NodePort<ContiguousArray<simd_float2>>!
+    public var inputDisplacedKeyPoints: NodePort<ContiguousArray<simd_float2>> { _inputDisplacedKeyPoints }
+    private var _inputDisplacedKeyPoints: NodePort<ContiguousArray<simd_float2>>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputReferenceKeyPoints = findPort(named: "inputReferenceKeyPoints")
+        self._inputDisplacedKeyPoints = findPort(named: "inputDisplacedKeyPoints")
+    }
 
     
     private var refKeyPointStructBuffer:StructBuffer<simd_float2>!

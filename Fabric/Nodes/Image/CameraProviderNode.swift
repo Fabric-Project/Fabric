@@ -101,8 +101,17 @@ public class CameraProviderNode : Node
         ]
     }
 
-    public var inputCamera:ParameterPort<String>  { port(named: "inputCamera") }
-    public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
+    public var inputCamera: ParameterPort<String> { _inputCamera }
+    private var _inputCamera: ParameterPort<String>!
+    public var outputTexturePort: NodePort<FabricImage> { _outputTexturePort }
+    private var _outputTexturePort: NodePort<FabricImage>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputCamera = findPort(named: "inputCamera")
+        self._outputTexturePort = findPort(named: "outputTexturePort")
+    }
     
     private let discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInWideAngleCamera, .continuityCamera, .external,], mediaType: nil, position:.unspecified)
     private var device: AVCaptureDevice? = nil

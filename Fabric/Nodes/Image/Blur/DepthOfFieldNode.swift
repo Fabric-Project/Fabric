@@ -24,14 +24,35 @@ public final class DepthOfFieldNode: Node
         ]
     }
 
-    public var inputImage: NodePort<FabricImage> { port(named: "inputImage") }
-    public var inputDepthImage: NodePort<FabricImage> { port(named: "inputDepthImage") }
-    public var inputFocusDistance: ParameterPort<Float> { port(named: "inputFocusDistance") }
-    public var inputFocusRange: ParameterPort<Float> { port(named: "inputFocusRange") }
-    public var inputMaxBlurRadius: ParameterPort<Float> { port(named: "inputMaxBlurRadius") }
-    public var inputResolutionScale: ParameterPort<Float> { port(named: "inputResolutionScale") }
-    public var inputBlend: ParameterPort<Float> { port(named: "inputBlend") }
-    public var outputImage: NodePort<FabricImage> { port(named: "outputImage") }
+    public var inputImage: NodePort<FabricImage> { _inputImage }
+    private var _inputImage: NodePort<FabricImage>!
+    public var inputDepthImage: NodePort<FabricImage> { _inputDepthImage }
+    private var _inputDepthImage: NodePort<FabricImage>!
+    public var inputFocusDistance: ParameterPort<Float> { _inputFocusDistance }
+    private var _inputFocusDistance: ParameterPort<Float>!
+    public var inputFocusRange: ParameterPort<Float> { _inputFocusRange }
+    private var _inputFocusRange: ParameterPort<Float>!
+    public var inputMaxBlurRadius: ParameterPort<Float> { _inputMaxBlurRadius }
+    private var _inputMaxBlurRadius: ParameterPort<Float>!
+    public var inputResolutionScale: ParameterPort<Float> { _inputResolutionScale }
+    private var _inputResolutionScale: ParameterPort<Float>!
+    public var inputBlend: ParameterPort<Float> { _inputBlend }
+    private var _inputBlend: ParameterPort<Float>!
+    public var outputImage: NodePort<FabricImage> { _outputImage }
+    private var _outputImage: NodePort<FabricImage>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputImage = findPort(named: "inputImage")
+        self._inputDepthImage = findPort(named: "inputDepthImage")
+        self._inputFocusDistance = findPort(named: "inputFocusDistance")
+        self._inputFocusRange = findPort(named: "inputFocusRange")
+        self._inputMaxBlurRadius = findPort(named: "inputMaxBlurRadius")
+        self._inputResolutionScale = findPort(named: "inputResolutionScale")
+        self._inputBlend = findPort(named: "inputBlend")
+        self._outputImage = findPort(named: "outputImage")
+    }
 
     private let postProcessor: BokehDepthOfFieldPostProcessEncoder
     private let fallbackCamera: PerspectiveCamera

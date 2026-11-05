@@ -26,9 +26,20 @@ public final class ClearNode: Node
         ]
     }
 
-    public var inputClearColor: ParameterPort<simd_float4> { port(named: "inputClearColor") }
-    public var inputClearDepth: ParameterPort<Bool> { port(named: "inputClearDepth") }
-    public var inputClearStencil: ParameterPort<Bool> { port(named: "inputClearStencil") }
+    public var inputClearColor: ParameterPort<simd_float4> { _inputClearColor }
+    private var _inputClearColor: ParameterPort<simd_float4>!
+    public var inputClearDepth: ParameterPort<Bool> { _inputClearDepth }
+    private var _inputClearDepth: ParameterPort<Bool>!
+    public var inputClearStencil: ParameterPort<Bool> { _inputClearStencil }
+    private var _inputClearStencil: ParameterPort<Bool>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputClearColor = findPort(named: "inputClearColor")
+        self._inputClearDepth = findPort(named: "inputClearDepth")
+        self._inputClearStencil = findPort(named: "inputClearStencil")
+    }
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,

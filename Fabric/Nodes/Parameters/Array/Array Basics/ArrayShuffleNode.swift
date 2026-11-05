@@ -23,7 +23,16 @@ public class ArrayShuffleNode: TypeAgnosticNode
         ]
     }
 
-    public var inputShuffle: ParameterPort<Bool> { port(named: "inputShuffle") }
+    public var inputShuffle: ParameterPort<Bool> { _inputShuffle }
+    private var _inputShuffle: ParameterPort<Bool>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputPort = findPort(named: "inputPort")
+        self.boundOutputPort = findPort(named: "outputPort")
+        self._inputShuffle = findPort(named: "inputShuffle")
+    }
 
     public override func declaredPorts() -> [PortDeclaration]
     {
@@ -38,14 +47,17 @@ public class ArrayShuffleNode: TypeAgnosticNode
         ]
     }
 
+    private var boundInputPort: Port?
+    private var boundOutputPort: Port?
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputPort:  Port = findPort(named: "inputPort"),
-              let outputPort: Port = findPort(named: "outputPort") else { return }
+        guard let inputPort:  Port = self.boundInputPort,
+              let outputPort: Port = self.boundOutputPort else { return }
 
         guard inputPort.valueDidChange || inputShuffle.valueDidChange else { return }
 

@@ -52,7 +52,13 @@ public class StringSplitNode: StrategyNode
     // Title leads with the active mode (StrategyNode default), e.g. "Newline String Split".
 
     /// The active mode, or nil if the serialized strategy names no known mode.
-    public var splitMode: StringSplitMode? { strategyOption() }
+    public private(set) var splitMode: StringSplitMode?
+
+    override public func prepareDeclarations()
+    {
+        super.prepareDeclarations()
+        self.splitMode = self.strategyOption()
+    }
 
     /// The separator Custom mode uses, kept while another mode is selected.
     /// Switching mode tears the inlet down — the wire goes with it, as it does
@@ -117,10 +123,21 @@ public class StringSplitNode: StrategyNode
     }
 
     // Port proxies
-    public var inputPort: ParameterPort<String> { port(named: "inputPort") }
-    public var outputPort: NodePort<ContiguousArray<String>> { port(named: "outputPort") }
+    public var inputPort: ParameterPort<String> { _inputPort }
+    private var _inputPort: ParameterPort<String>!
+    public var outputPort: NodePort<ContiguousArray<String>> { _outputPort }
+    private var _outputPort: NodePort<ContiguousArray<String>>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.inputSeparator = findPort(named: "inputSeparator")
+        self.boundInputPort = findPort(named: "inputPort")
+        self._inputPort = findPort(named: "inputPort")
+        self._outputPort = findPort(named: "outputPort")
+    }
     /// Present only in Custom mode.
-    public var inputSeparator: ParameterPort<String>? { findPort(named: "inputSeparator") }
+    public private(set) var inputSeparator: ParameterPort<String>?
 
     /// The Separator inlet belongs to Custom alone; the other modes carry their
     /// separator in the mode itself.
@@ -141,7 +158,7 @@ public class StringSplitNode: StrategyNode
     {
         if let inputSeparator { customSeparator = inputSeparator.value ?? customSeparator }
         super.apply(settings)
-        if let inputPort: ParameterPort<String> = findPort(named: "inputPort")
+        if let inputPort: ParameterPort<String> = self.boundInputPort
         {
             inputPort.valueDidChange = true
             markDirty()
@@ -153,6 +170,8 @@ public class StringSplitNode: StrategyNode
         guard let inputSeparator else { return .evaluate(pulling: [inputPort]) }
         return .evaluate(pulling: [inputPort, inputSeparator])
     }
+
+    private var boundInputPort: ParameterPort<String>?
 
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,

@@ -28,11 +28,26 @@ public class DepthMaterialNode : BaseMaterialNode
                 ] + ports
     }
     
-    public var inputNear:ParameterPort<Float> { port(named: "inputNear") }
-    public var inputFar:ParameterPort<Float> { port(named: "inputFar") }
-    public var inputInvert:ParameterPort<Bool> { port(named: "inputInvert") }
-    public var inputColor:ParameterPort<Bool> { port(named: "inputColor") }
-    public var inputPointSize:ParameterPort<Float> { port(named: "inputPointSize") }
+    public var inputNear: ParameterPort<Float> { _inputNear }
+    private var _inputNear: ParameterPort<Float>!
+    public var inputFar: ParameterPort<Float> { _inputFar }
+    private var _inputFar: ParameterPort<Float>!
+    public var inputInvert: ParameterPort<Bool> { _inputInvert }
+    private var _inputInvert: ParameterPort<Bool>!
+    public var inputColor: ParameterPort<Bool> { _inputColor }
+    private var _inputColor: ParameterPort<Bool>!
+    public var inputPointSize: ParameterPort<Float> { _inputPointSize }
+    private var _inputPointSize: ParameterPort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputNear = findPort(named: "inputNear")
+        self._inputFar = findPort(named: "inputFar")
+        self._inputInvert = findPort(named: "inputInvert")
+        self._inputColor = findPort(named: "inputColor")
+        self._inputPointSize = findPort(named: "inputPointSize")
+    }
 
     public override var material: DepthMaterial {
         return _material

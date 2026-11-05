@@ -21,15 +21,27 @@ public final class DecomposeDictionaryNode: DictionaryTypeAgnosticNode
         ] + super.declaredPorts()
     }
 
+    private var boundInputDictionary: Port?
+    private var boundOutputKeys: Port?
+    private var boundOutputValues: Port?
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputDictionary = findPort(named: "inputDictionary")
+        self.boundOutputKeys = findPort(named: "outputKeys")
+        self.boundOutputValues = findPort(named: "outputValues")
+    }
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputDictionary: Port = findPort(named: "inputDictionary"),
-              let outputKeys: Port = findPort(named: "outputKeys"),
-              let outputValues: Port = findPort(named: "outputValues"),
+        guard let inputDictionary: Port = self.boundInputDictionary,
+              let outputKeys: Port = self.boundOutputKeys,
+              let outputValues: Port = self.boundOutputValues,
               inputDictionary.valueDidChange else { return }
 
         let dictionary = inputDictionary.snapshotValue()?.dictionaryValue ?? [:]

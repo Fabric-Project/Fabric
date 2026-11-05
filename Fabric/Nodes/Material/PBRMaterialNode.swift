@@ -45,25 +45,68 @@ public class PBRMaterialNode : StandardMaterialNode
     }
 
     // Port Proxys
-    var inputBumpTexture: NodePort<FabricImage> { port(named: "inputBumpTexture") }
-    var inputDisplacementTexture: NodePort<FabricImage> { port(named: "inputDisplacementTexture") }
-    var inputOcclusionTexture: NodePort<FabricImage> { port(named: "inputOcclusionTexture") }
-    var inputSubsurfaceTexture: NodePort<FabricImage> { port(named: "inputSubsurfaceTexture") }
-    var inputClearcoatTexture: NodePort<FabricImage> { port(named: "inputClearcoatTexture") }
-    var inputClearcoatRoughTexture: NodePort<FabricImage> { port(named: "inputClearcoatRoughTexture") }
-    var inputClearcoatGlossTexture: NodePort<FabricImage> { port(named: "inputClearcoatGlossTexture") }
-    var inputTransmissionTexture: NodePort<FabricImage> { port(named: "inputTransmissionTexture") }
-    var inputSubsurface: ParameterPort<Float> { port(named: "inputSubsurface") }
-    var inputAnisotropic: ParameterPort<Float> { port(named: "inputAnisotropic") }
-    var inputAnisotropicAngle: ParameterPort<Float> { port(named: "inputAnisotropicAngle") }
-    var inputSpecularTint: ParameterPort<Float> { port(named: "inputSpecularTint") }
-    var inputClearcoat: ParameterPort<Float> { port(named: "inputClearcoat") }
-    var inputClearcoatRoughness: ParameterPort<Float>  { port(named: "inputClearcoatRoughness") }
-    var inputSheen: ParameterPort<Float> { port(named: "inputSheen") }
-    var inputSheenTint: ParameterPort<Float> { port(named: "inputSheenTint") }
-    var inputTransmission: ParameterPort<Float> { port(named: "inputTransmission") }
-    var inputThickness: ParameterPort<Float> { port(named: "inputThickness") }
-    var inputIOR: ParameterPort<Float> { port(named: "inputIOR") }
+    var inputBumpTexture: NodePort<FabricImage> { _inputBumpTexture }
+    private var _inputBumpTexture: NodePort<FabricImage>!
+    var inputDisplacementTexture: NodePort<FabricImage> { _inputDisplacementTexture }
+    private var _inputDisplacementTexture: NodePort<FabricImage>!
+    var inputOcclusionTexture: NodePort<FabricImage> { _inputOcclusionTexture }
+    private var _inputOcclusionTexture: NodePort<FabricImage>!
+    var inputSubsurfaceTexture: NodePort<FabricImage> { _inputSubsurfaceTexture }
+    private var _inputSubsurfaceTexture: NodePort<FabricImage>!
+    var inputClearcoatTexture: NodePort<FabricImage> { _inputClearcoatTexture }
+    private var _inputClearcoatTexture: NodePort<FabricImage>!
+    var inputClearcoatRoughTexture: NodePort<FabricImage> { _inputClearcoatRoughTexture }
+    private var _inputClearcoatRoughTexture: NodePort<FabricImage>!
+    var inputClearcoatGlossTexture: NodePort<FabricImage> { _inputClearcoatGlossTexture }
+    private var _inputClearcoatGlossTexture: NodePort<FabricImage>!
+    var inputTransmissionTexture: NodePort<FabricImage> { _inputTransmissionTexture }
+    private var _inputTransmissionTexture: NodePort<FabricImage>!
+    var inputSubsurface: ParameterPort<Float> { _inputSubsurface }
+    private var _inputSubsurface: ParameterPort<Float>!
+    var inputAnisotropic: ParameterPort<Float> { _inputAnisotropic }
+    private var _inputAnisotropic: ParameterPort<Float>!
+    var inputAnisotropicAngle: ParameterPort<Float> { _inputAnisotropicAngle }
+    private var _inputAnisotropicAngle: ParameterPort<Float>!
+    var inputSpecularTint: ParameterPort<Float> { _inputSpecularTint }
+    private var _inputSpecularTint: ParameterPort<Float>!
+    var inputClearcoat: ParameterPort<Float> { _inputClearcoat }
+    private var _inputClearcoat: ParameterPort<Float>!
+    var inputClearcoatRoughness: ParameterPort<Float> { _inputClearcoatRoughness }
+    private var _inputClearcoatRoughness: ParameterPort<Float>!
+    var inputSheen: ParameterPort<Float> { _inputSheen }
+    private var _inputSheen: ParameterPort<Float>!
+    var inputSheenTint: ParameterPort<Float> { _inputSheenTint }
+    private var _inputSheenTint: ParameterPort<Float>!
+    var inputTransmission: ParameterPort<Float> { _inputTransmission }
+    private var _inputTransmission: ParameterPort<Float>!
+    var inputThickness: ParameterPort<Float> { _inputThickness }
+    private var _inputThickness: ParameterPort<Float>!
+    var inputIOR: ParameterPort<Float> { _inputIOR }
+    private var _inputIOR: ParameterPort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputBumpTexture = findPort(named: "inputBumpTexture")
+        self._inputDisplacementTexture = findPort(named: "inputDisplacementTexture")
+        self._inputOcclusionTexture = findPort(named: "inputOcclusionTexture")
+        self._inputSubsurfaceTexture = findPort(named: "inputSubsurfaceTexture")
+        self._inputClearcoatTexture = findPort(named: "inputClearcoatTexture")
+        self._inputClearcoatRoughTexture = findPort(named: "inputClearcoatRoughTexture")
+        self._inputClearcoatGlossTexture = findPort(named: "inputClearcoatGlossTexture")
+        self._inputTransmissionTexture = findPort(named: "inputTransmissionTexture")
+        self._inputSubsurface = findPort(named: "inputSubsurface")
+        self._inputAnisotropic = findPort(named: "inputAnisotropic")
+        self._inputAnisotropicAngle = findPort(named: "inputAnisotropicAngle")
+        self._inputSpecularTint = findPort(named: "inputSpecularTint")
+        self._inputClearcoat = findPort(named: "inputClearcoat")
+        self._inputClearcoatRoughness = findPort(named: "inputClearcoatRoughness")
+        self._inputSheen = findPort(named: "inputSheen")
+        self._inputSheenTint = findPort(named: "inputSheenTint")
+        self._inputTransmission = findPort(named: "inputTransmission")
+        self._inputThickness = findPort(named: "inputThickness")
+        self._inputIOR = findPort(named: "inputIOR")
+    }
     
     override public var material: PhysicalMaterial {
         return _material

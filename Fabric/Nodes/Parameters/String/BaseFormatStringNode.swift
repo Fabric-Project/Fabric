@@ -186,6 +186,35 @@ public class BaseFormatStringNode: Node {
         }
     }
 
+    /// A placeholder's port, typed by the specifier that built it.
+    enum PlaceholderPort {
+        case float(NodePort<Float>)
+        case int(NodePort<Int>)
+        case bool(NodePort<Bool>)
+        case string(NodePort<String>)
+    }
+
+    /// One per placeholder occurrence, in format-string order: the placeholder
+    /// that governs the name (its first occurrence) and the port that name owns.
+    private(set) var boundOccurrences: [(placeholder: FormatPlaceholder, port: PlaceholderPort?)] = []
+
+    override public func bindPorts() {
+        super.bindPorts()
+        self.boundOccurrences = self.parsedFormatString.tokens.compactMap { token in
+            guard case .placeholder(let occurrence) = token else { return nil }
+            let placeholder = self.parsedFormatString.placeholder(named: occurrence.name) ?? occurrence
+            let name = placeholder.name
+            let port: PlaceholderPort?
+            switch placeholder.portType {
+            case .Float: port = (findPort(named: name) as NodePort<Float>?).map(PlaceholderPort.float)
+            case .Int: port = (findPort(named: name) as NodePort<Int>?).map(PlaceholderPort.int)
+            case .Bool: port = (findPort(named: name) as NodePort<Bool>?).map(PlaceholderPort.bool)
+            default: port = (findPort(named: name) as NodePort<String>?).map(PlaceholderPort.string)
+            }
+            return (placeholder, port)
+        }
+    }
+
     private func updatePorts() {
         self.parsedFormatString = parseFormatString(formatString)
         self.reconcilePorts()

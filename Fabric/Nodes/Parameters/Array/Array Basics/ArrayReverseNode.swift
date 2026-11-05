@@ -28,14 +28,24 @@ public class ArrayReverseNode: TypeAgnosticNode
         ] + super.declaredPorts()
     }
 
+    private var boundInputPort: Port?
+    private var boundOutputPort: Port?
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputPort = findPort(named: "inputPort")
+        self.boundOutputPort = findPort(named: "outputPort")
+    }
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputPort:  Port = findPort(named: "inputPort"),
-              let outputPort: Port = findPort(named: "outputPort") else { return }
+        guard let inputPort:  Port = self.boundInputPort,
+              let outputPort: Port = self.boundOutputPort else { return }
 
         guard inputPort.valueDidChange else { return }
 

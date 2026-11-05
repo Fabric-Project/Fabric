@@ -36,9 +36,20 @@ public class PixelArrayToGeometryNode : BaseGeometryNode
         ] + ports
     }
 
-    public var inputPositions: NodePort<ContiguousArray<simd_float3>> { port(named: "inputPositions") }
-    public var inputOrientations: NodePort<ContiguousArray<simd_float4>> { port(named: "inputOrientations") }
-    public var inputUVs: NodePort<ContiguousArray<simd_float2>> { port(named: "inputUVs") }
+    public var inputPositions: NodePort<ContiguousArray<simd_float3>> { _inputPositions }
+    private var _inputPositions: NodePort<ContiguousArray<simd_float3>>!
+    public var inputOrientations: NodePort<ContiguousArray<simd_float4>> { _inputOrientations }
+    private var _inputOrientations: NodePort<ContiguousArray<simd_float4>>!
+    public var inputUVs: NodePort<ContiguousArray<simd_float2>> { _inputUVs }
+    private var _inputUVs: NodePort<ContiguousArray<simd_float2>>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputPositions = findPort(named: "inputPositions")
+        self._inputOrientations = findPort(named: "inputOrientations")
+        self._inputUVs = findPort(named: "inputUVs")
+    }
 
     public override var geometry: PointCloudGeometry { _geometry }
 

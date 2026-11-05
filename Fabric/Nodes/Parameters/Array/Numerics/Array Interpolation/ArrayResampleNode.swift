@@ -27,9 +27,20 @@ public class ArrayResampleNode<Value: PortValueRepresentable & Lerpable>: Node
         ]
     }
 
-    public var inputArray: NodePort<ContiguousArray<Value>> { port(named: "inputArray") }
-    public var inputCount: ParameterPort<Int> { port(named: "inputCount") }
-    public var outputArray: NodePort<ContiguousArray<Value>> { port(named: "outputArray") }
+    public var inputArray: NodePort<ContiguousArray<Value>> { _inputArray }
+    private var _inputArray: NodePort<ContiguousArray<Value>>!
+    public var inputCount: ParameterPort<Int> { _inputCount }
+    private var _inputCount: ParameterPort<Int>!
+    public var outputArray: NodePort<ContiguousArray<Value>> { _outputArray }
+    private var _outputArray: NodePort<ContiguousArray<Value>>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputArray = findPort(named: "inputArray")
+        self._inputCount = findPort(named: "inputCount")
+        self._outputArray = findPort(named: "outputArray")
+    }
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,

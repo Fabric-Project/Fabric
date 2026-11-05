@@ -22,7 +22,16 @@ public final class RepeatNode: NumericTypeAgnosticNode
         ]
     }
 
-    public var inputCount: ParameterPort<Int> { port(named: "inputCount") }
+    public var inputCount: ParameterPort<Int> { _inputCount }
+    private var _inputCount: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputValue = findPort(named: "inputValue")
+        self.boundOutputArray = findPort(named: "outputArray")
+        self._inputCount = findPort(named: "inputCount")
+    }
 
     public override func declaredPorts() -> [PortDeclaration]
     {
@@ -36,15 +45,18 @@ public final class RepeatNode: NumericTypeAgnosticNode
         ]
     }
 
+    private var boundInputValue: Port?
+    private var boundOutputArray: Port?
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputValue") { return }
-        guard let inputValue: Port = findPort(named: "inputValue"),
-              let outputArray: Port = findPort(named: "outputArray"),
+        if specializeFromConnectedPort(self.boundInputValue) { return }
+        guard let inputValue: Port = self.boundInputValue,
+              let outputArray: Port = self.boundOutputArray,
               inputValue.valueDidChange || inputCount.valueDidChange,
               let value = inputValue.snapshotValue(),
               let count = inputCount.value

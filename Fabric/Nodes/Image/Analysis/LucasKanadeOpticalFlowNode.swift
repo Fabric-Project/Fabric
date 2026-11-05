@@ -58,12 +58,29 @@ public class LucasKanadeOpticalFlowNode: Node
         ]
     }
 
-    public var inputImage:     NodePort<FabricImage> { port(named: "inputImage") }
-    public var inputPrevImage: NodePort<FabricImage> { port(named: "inputPrevImage") }
-    public var inputQuality:   NodePort<String>       { port(named: "inputQuality") }
-    public var inputPreviousFlow: NodePort<FabricImage> { port(named: "inputPreviousFlow") }
-    public var inputTemporalSmoothing: NodePort<Float> { port(named: "inputTemporalSmoothing") }
-    public var outputFlow:     NodePort<FabricImage>  { port(named: "outputFlow") }
+    public var inputImage: NodePort<FabricImage> { _inputImage }
+    private var _inputImage: NodePort<FabricImage>!
+    public var inputPrevImage: NodePort<FabricImage> { _inputPrevImage }
+    private var _inputPrevImage: NodePort<FabricImage>!
+    public var inputQuality: NodePort<String> { _inputQuality }
+    private var _inputQuality: NodePort<String>!
+    public var inputPreviousFlow: NodePort<FabricImage> { _inputPreviousFlow }
+    private var _inputPreviousFlow: NodePort<FabricImage>!
+    public var inputTemporalSmoothing: NodePort<Float> { _inputTemporalSmoothing }
+    private var _inputTemporalSmoothing: NodePort<Float>!
+    public var outputFlow: NodePort<FabricImage> { _outputFlow }
+    private var _outputFlow: NodePort<FabricImage>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputImage = findPort(named: "inputImage")
+        self._inputPrevImage = findPort(named: "inputPrevImage")
+        self._inputQuality = findPort(named: "inputQuality")
+        self._inputPreviousFlow = findPort(named: "inputPreviousFlow")
+        self._inputTemporalSmoothing = findPort(named: "inputTemporalSmoothing")
+        self._outputFlow = findPort(named: "outputFlow")
+    }
 
     // ── Compute pipelines ─────────────────────────────────────────────────
     private var preprocessPipeline:        MTLComputePipelineState?

@@ -31,10 +31,23 @@ public class BooleanLogicNode : Node
     }
     
     // Port Proxy
-    public var inputBool1:ParameterPort<Bool> { port(named: "inputBool1") }
-    public var inputBool2:ParameterPort<Bool> { port(named: "inputBool2") }
-    public var inputParam:ParameterPort<String> { port(named: "inputParam") }
-    public var outputBool:NodePort<Bool> { port(named: "outputBool") }
+    public var inputBool1: ParameterPort<Bool> { _inputBool1 }
+    private var _inputBool1: ParameterPort<Bool>!
+    public var inputBool2: ParameterPort<Bool> { _inputBool2 }
+    private var _inputBool2: ParameterPort<Bool>!
+    public var inputParam: ParameterPort<String> { _inputParam }
+    private var _inputParam: ParameterPort<String>!
+    public var outputBool: NodePort<Bool> { _outputBool }
+    private var _outputBool: NodePort<Bool>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputBool1 = findPort(named: "inputBool1")
+        self._inputBool2 = findPort(named: "inputBool2")
+        self._inputParam = findPort(named: "inputParam")
+        self._outputBool = findPort(named: "outputBool")
+    }
     
     private var op = LogicOperator.Equals
     

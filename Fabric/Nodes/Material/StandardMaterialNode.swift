@@ -40,21 +40,56 @@ public class StandardMaterialNode : BaseMaterialNode
     }
 
     // Proxy Ports
-    public var inputDiffuseTexture: NodePort<FabricImage> { port(named: "inputDiffuseTexture") }
-    public var inputNormalTexture: NodePort<FabricImage> { port(named: "inputNormalTexture") }
-    public var inputEmissiveTexture: NodePort<FabricImage>{ port(named: "inputEmissiveTexture") }
-    public var inputSpecularTexture: NodePort<FabricImage>{ port(named: "inputSpecularTexture") }
-    public var inputRoughnessTexture: NodePort<FabricImage>{ port(named: "inputRoughnessTexture") }
-    public var inputMetallicTexture: NodePort<FabricImage>{ port(named: "inputMetallicTexture") }
-    public var inputBaseColor: ParameterPort<simd_float4>{ port(named: "inputBaseColor") }
-    public var inputEmissiveColor: ParameterPort<simd_float4>{ port(named: "inputEmissiveColor") }
-    public var inputSpecular: ParameterPort<Float>{ port(named: "inputSpecular") }
-    public var inputRoughness: ParameterPort<Float>{ port(named: "inputRoughness") }
-    public var inputMetallic: ParameterPort<Float>{ port(named: "inputMetallic") }
-    public var inputOcclusion: ParameterPort<Float>{ port(named: "inputOcclusion") }
-    public var inputEnvironmentIntensity: ParameterPort<Float>{ port(named: "inputEnvironmentIntensity") }
-    public var inputGammaCorrection: ParameterPort<Float>{ port(named: "inputGammaCorrection") }
-    public var inputPointSize:ParameterPort<Float>   { port(named: "inputPointSize") }
+    public var inputDiffuseTexture: NodePort<FabricImage> { _inputDiffuseTexture }
+    private var _inputDiffuseTexture: NodePort<FabricImage>!
+    public var inputNormalTexture: NodePort<FabricImage> { _inputNormalTexture }
+    private var _inputNormalTexture: NodePort<FabricImage>!
+    public var inputEmissiveTexture: NodePort<FabricImage> { _inputEmissiveTexture }
+    private var _inputEmissiveTexture: NodePort<FabricImage>!
+    public var inputSpecularTexture: NodePort<FabricImage> { _inputSpecularTexture }
+    private var _inputSpecularTexture: NodePort<FabricImage>!
+    public var inputRoughnessTexture: NodePort<FabricImage> { _inputRoughnessTexture }
+    private var _inputRoughnessTexture: NodePort<FabricImage>!
+    public var inputMetallicTexture: NodePort<FabricImage> { _inputMetallicTexture }
+    private var _inputMetallicTexture: NodePort<FabricImage>!
+    public var inputBaseColor: ParameterPort<simd_float4> { _inputBaseColor }
+    private var _inputBaseColor: ParameterPort<simd_float4>!
+    public var inputEmissiveColor: ParameterPort<simd_float4> { _inputEmissiveColor }
+    private var _inputEmissiveColor: ParameterPort<simd_float4>!
+    public var inputSpecular: ParameterPort<Float> { _inputSpecular }
+    private var _inputSpecular: ParameterPort<Float>!
+    public var inputRoughness: ParameterPort<Float> { _inputRoughness }
+    private var _inputRoughness: ParameterPort<Float>!
+    public var inputMetallic: ParameterPort<Float> { _inputMetallic }
+    private var _inputMetallic: ParameterPort<Float>!
+    public var inputOcclusion: ParameterPort<Float> { _inputOcclusion }
+    private var _inputOcclusion: ParameterPort<Float>!
+    public var inputEnvironmentIntensity: ParameterPort<Float> { _inputEnvironmentIntensity }
+    private var _inputEnvironmentIntensity: ParameterPort<Float>!
+    public var inputGammaCorrection: ParameterPort<Float> { _inputGammaCorrection }
+    private var _inputGammaCorrection: ParameterPort<Float>!
+    public var inputPointSize: ParameterPort<Float> { _inputPointSize }
+    private var _inputPointSize: ParameterPort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputDiffuseTexture = findPort(named: "inputDiffuseTexture")
+        self._inputNormalTexture = findPort(named: "inputNormalTexture")
+        self._inputEmissiveTexture = findPort(named: "inputEmissiveTexture")
+        self._inputSpecularTexture = findPort(named: "inputSpecularTexture")
+        self._inputRoughnessTexture = findPort(named: "inputRoughnessTexture")
+        self._inputMetallicTexture = findPort(named: "inputMetallicTexture")
+        self._inputBaseColor = findPort(named: "inputBaseColor")
+        self._inputEmissiveColor = findPort(named: "inputEmissiveColor")
+        self._inputSpecular = findPort(named: "inputSpecular")
+        self._inputRoughness = findPort(named: "inputRoughness")
+        self._inputMetallic = findPort(named: "inputMetallic")
+        self._inputOcclusion = findPort(named: "inputOcclusion")
+        self._inputEnvironmentIntensity = findPort(named: "inputEnvironmentIntensity")
+        self._inputGammaCorrection = findPort(named: "inputGammaCorrection")
+        self._inputPointSize = findPort(named: "inputPointSize")
+    }
 
     
     public override var material: StandardMaterial {

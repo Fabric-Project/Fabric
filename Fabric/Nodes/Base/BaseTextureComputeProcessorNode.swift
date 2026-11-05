@@ -40,8 +40,17 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
         ]
     }
 
-    public var inputImage:NodePort<FabricImage>  { port(named: "inputImage") }
-    public var outputImage:NodePort<FabricImage> { port(named: "outputImage") }
+    public var inputImage: NodePort<FabricImage> { _inputImage }
+    private var _inputImage: NodePort<FabricImage>!
+    public var outputImage: NodePort<FabricImage> { _outputImage }
+    private var _outputImage: NodePort<FabricImage>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputImage = findPort(named: "inputImage")
+        self._outputImage = findPort(named: "outputImage")
+    }
     private var url:URL? = nil
 
     private enum CodingKeys: String, CodingKey

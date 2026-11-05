@@ -29,12 +29,29 @@ public class ArcGeometryNode : BaseGeometryNode
     }
     
     // Proxy Port
-    public var inputInnerRadius:ParameterPort<Float> { port(named: "inputInnerRadius")  }
-    public var inputOuteradius:ParameterPort<Float> { port(named: "inputOuteradius")  }
-    public var inputStartAngle:ParameterPort<Float> { port(named: "inputStartAngle")  }
-    public var inputEndAngle:ParameterPort<Float> { port(named: "inputEndAngle")  }
-    public var inputAngularResolution:ParameterPort<Int> { port(named: "inputAngularResolution") }
-    public var inputRadialResolution:ParameterPort<Int> { port(named: "inputRadialResolution")  }
+    public var inputInnerRadius: ParameterPort<Float> { _inputInnerRadius }
+    private var _inputInnerRadius: ParameterPort<Float>!
+    public var inputOuteradius: ParameterPort<Float> { _inputOuteradius }
+    private var _inputOuteradius: ParameterPort<Float>!
+    public var inputStartAngle: ParameterPort<Float> { _inputStartAngle }
+    private var _inputStartAngle: ParameterPort<Float>!
+    public var inputEndAngle: ParameterPort<Float> { _inputEndAngle }
+    private var _inputEndAngle: ParameterPort<Float>!
+    public var inputAngularResolution: ParameterPort<Int> { _inputAngularResolution }
+    private var _inputAngularResolution: ParameterPort<Int>!
+    public var inputRadialResolution: ParameterPort<Int> { _inputRadialResolution }
+    private var _inputRadialResolution: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputInnerRadius = findPort(named: "inputInnerRadius")
+        self._inputOuteradius = findPort(named: "inputOuteradius")
+        self._inputStartAngle = findPort(named: "inputStartAngle")
+        self._inputEndAngle = findPort(named: "inputEndAngle")
+        self._inputAngularResolution = findPort(named: "inputAngularResolution")
+        self._inputRadialResolution = findPort(named: "inputRadialResolution")
+    }
 
     public override var geometry: ArcGeometry { _geometry }
 

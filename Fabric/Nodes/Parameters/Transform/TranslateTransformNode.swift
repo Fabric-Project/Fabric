@@ -31,9 +31,20 @@ public class TranslateTransformNode : Node
     }
 
     // Port Proxy
-    public var inputTransform:NodePort<simd_float4x4> { port(named: "inputTransform") }
-    public var inputTranslation:ParameterPort<simd_float3> { port(named: "inputTranslation") }
-    public var outputTransform:NodePort<simd_float4x4> { port(named: "outputTransform") }
+    public var inputTransform: NodePort<simd_float4x4> { _inputTransform }
+    private var _inputTransform: NodePort<simd_float4x4>!
+    public var inputTranslation: ParameterPort<simd_float3> { _inputTranslation }
+    private var _inputTranslation: ParameterPort<simd_float3>!
+    public var outputTransform: NodePort<simd_float4x4> { _outputTransform }
+    private var _outputTransform: NodePort<simd_float4x4>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputTransform = findPort(named: "inputTransform")
+        self._inputTranslation = findPort(named: "inputTranslation")
+        self._outputTransform = findPort(named: "outputTransform")
+    }
     
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,

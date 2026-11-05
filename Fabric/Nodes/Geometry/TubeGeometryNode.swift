@@ -29,12 +29,29 @@ public class TubeGeometryNode : BaseGeometryNode
     }
     
     // Proxy Port
-    public var inputRadius:ParameterPort<Float> { port(named: "inputRadius")  }
-    public var inputHeight:ParameterPort<Float> { port(named: "inputHeight")  }
-    public var inputStartAngle:ParameterPort<Float> { port(named: "inputStartAngle")  }
-    public var inputEndAngle:ParameterPort<Float> { port(named: "inputEndAngle")  }
-    public var inputAngularResolution:ParameterPort<Int> { port(named: "inputAngularResolution") }
-    public var inputVerticalResolution:ParameterPort<Int> { port(named: "inputVerticalResolution")  }
+    public var inputRadius: ParameterPort<Float> { _inputRadius }
+    private var _inputRadius: ParameterPort<Float>!
+    public var inputHeight: ParameterPort<Float> { _inputHeight }
+    private var _inputHeight: ParameterPort<Float>!
+    public var inputStartAngle: ParameterPort<Float> { _inputStartAngle }
+    private var _inputStartAngle: ParameterPort<Float>!
+    public var inputEndAngle: ParameterPort<Float> { _inputEndAngle }
+    private var _inputEndAngle: ParameterPort<Float>!
+    public var inputAngularResolution: ParameterPort<Int> { _inputAngularResolution }
+    private var _inputAngularResolution: ParameterPort<Int>!
+    public var inputVerticalResolution: ParameterPort<Int> { _inputVerticalResolution }
+    private var _inputVerticalResolution: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputRadius = findPort(named: "inputRadius")
+        self._inputHeight = findPort(named: "inputHeight")
+        self._inputStartAngle = findPort(named: "inputStartAngle")
+        self._inputEndAngle = findPort(named: "inputEndAngle")
+        self._inputAngularResolution = findPort(named: "inputAngularResolution")
+        self._inputVerticalResolution = findPort(named: "inputVerticalResolution")
+    }
 
     public override var geometry: TubeGeometry { _geometry }
 

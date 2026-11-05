@@ -80,6 +80,14 @@ public class NumberIndexGeneratorNode : StrategyNode
     // Sequence state, reset whenever Size, Mode, or Loop changes.
     private var bag: [Int] = []        // remaining draws for Shuffle
     private var finished: Bool = false // finite sequence done, Loop off → hold
+    private var mode: IndexGeneratorMode = .shuffle
+
+    override public func prepareDeclarations()
+    {
+        super.prepareDeclarations()
+        self.mode = self.strategyOption(as: IndexGeneratorMode.self) ?? .shuffle
+    }
+
 
     override public func declaredPorts() -> [PortDeclaration]
     {
@@ -109,10 +117,24 @@ public class NumberIndexGeneratorNode : StrategyNode
         self.resetSequence()
     }
 
-    public var inputSignal: ParameterPort<Bool> { port(named: "inputSignal") }
-    public var inputSize: ParameterPort<Int> { port(named: "inputSize") }
-    public var inputLoop: ParameterPort<Bool>? { findPort(named: "inputLoop") }
-    public var outputIndex: NodePort<Int> { port(named: "outputIndex") }
+    public var inputSignal: ParameterPort<Bool> { _inputSignal }
+    private var _inputSignal: ParameterPort<Bool>!
+    public var inputSize: ParameterPort<Int> { _inputSize }
+    private var _inputSize: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.inputLoop = findPort(named: "inputLoop")
+        self._inputSignal = findPort(named: "inputSignal")
+        self._inputSize = findPort(named: "inputSize")
+        self._outputIndex = findPort(named: "outputIndex")
+    }
+    /// Present in the strategies that loop.
+    public private(set) var inputLoop: ParameterPort<Bool>?
+    public var outputIndex: NodePort<Int> { _outputIndex }
+    private var _outputIndex: NodePort<Int>!
+
 
     override public func startExecution(renderer: GraphRenderer) throws {
         self.index = 0
@@ -142,7 +164,7 @@ public class NumberIndexGeneratorNode : StrategyNode
         guard anyChanged || !self.hasEmitted else { return }
 
         let size = max(1, self.inputSize.value ?? 1)
-        let mode = self.strategyOption(as: IndexGeneratorMode.self) ?? .shuffle
+        let mode = self.mode
         let loop = loopPort?.value ?? true
 
         // Changing Size or Loop restarts the sequence and re-clamps the held index

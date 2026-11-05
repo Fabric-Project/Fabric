@@ -39,15 +39,34 @@ public class HandPoseAnalysisNode: Node
         ]
     }
 
-    public var inputImage:NodePort<FabricImage>  { port(named: "inputImage") }
+    public var inputImage: NodePort<FabricImage> { _inputImage }
+    private var _inputImage: NodePort<FabricImage>!
 
-    public var outputThumb:NodePort<ContiguousArray<simd_float2>> { port(named: "outputThumb") }
-    public var outputIndex:NodePort<ContiguousArray<simd_float2>> { port(named: "outputIndex") }
-    public var outputMiddle:NodePort<ContiguousArray<simd_float2>> { port(named: "outputMiddle") }
-    public var outputRing:NodePort<ContiguousArray<simd_float2>> { port(named: "outputRing") }
-    public var outputLittle:NodePort<ContiguousArray<simd_float2>> { port(named: "outputLittle") }
+    public var outputThumb: NodePort<ContiguousArray<simd_float2>> { _outputThumb }
+    private var _outputThumb: NodePort<ContiguousArray<simd_float2>>!
+    public var outputIndex: NodePort<ContiguousArray<simd_float2>> { _outputIndex }
+    private var _outputIndex: NodePort<ContiguousArray<simd_float2>>!
+    public var outputMiddle: NodePort<ContiguousArray<simd_float2>> { _outputMiddle }
+    private var _outputMiddle: NodePort<ContiguousArray<simd_float2>>!
+    public var outputRing: NodePort<ContiguousArray<simd_float2>> { _outputRing }
+    private var _outputRing: NodePort<ContiguousArray<simd_float2>>!
+    public var outputLittle: NodePort<ContiguousArray<simd_float2>> { _outputLittle }
+    private var _outputLittle: NodePort<ContiguousArray<simd_float2>>!
 
-    public var outputWrist:NodePort<simd_float2> { port(named: "outputWrist") }
+    public var outputWrist: NodePort<simd_float2> { _outputWrist }
+    private var _outputWrist: NodePort<simd_float2>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputImage = findPort(named: "inputImage")
+        self._outputThumb = findPort(named: "outputThumb")
+        self._outputIndex = findPort(named: "outputIndex")
+        self._outputMiddle = findPort(named: "outputMiddle")
+        self._outputRing = findPort(named: "outputRing")
+        self._outputLittle = findPort(named: "outputLittle")
+        self._outputWrist = findPort(named: "outputWrist")
+    }
 
     private static let thumbJoints: [VNHumanHandPoseObservation.JointName] = [.thumbCMC, .thumbMP, .thumbIP, .thumbTip]
     private static let indexJoints: [VNHumanHandPoseObservation.JointName] = [.indexMCP, .indexPIP, .indexDIP, .indexTip]

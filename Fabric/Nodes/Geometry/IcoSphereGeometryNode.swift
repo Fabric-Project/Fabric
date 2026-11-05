@@ -25,8 +25,17 @@ public class IcoSphereGeometryNode : BaseGeometryNode
     }
     
     // Proxy Port
-    public var inputRadius:ParameterPort<Float> { port(named: "inputRadius")  }
-    public var inputResolution:ParameterPort<Int> { port(named: "inputResolution")  }
+    public var inputRadius: ParameterPort<Float> { _inputRadius }
+    private var _inputRadius: ParameterPort<Float>!
+    public var inputResolution: ParameterPort<Int> { _inputResolution }
+    private var _inputResolution: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputRadius = findPort(named: "inputRadius")
+        self._inputResolution = findPort(named: "inputResolution")
+    }
 
     public override var geometry: IcoSphereGeometry { _geometry }
     private lazy var _geometry = IcoSphereGeometry(context:self.context, radius: 1.0, resolution: 1)

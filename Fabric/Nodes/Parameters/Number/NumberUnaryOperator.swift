@@ -34,9 +34,20 @@ public class NumberUnaryOperator : Node
     }
     
     // Port Proxy
-    public var inputNumber:ParameterPort<Float> { port(named: "inputNumber") }
-    public var inputParam:ParameterPort<String> { port(named: "inputParam") }
-    public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
+    public var inputNumber: ParameterPort<Float> { _inputNumber }
+    private var _inputNumber: ParameterPort<Float>!
+    public var inputParam: ParameterPort<String> { _inputParam }
+    private var _inputParam: ParameterPort<String>!
+    public var outputNumber: NodePort<Float> { _outputNumber }
+    private var _outputNumber: NodePort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputNumber = findPort(named: "inputNumber")
+        self._inputParam = findPort(named: "inputParam")
+        self._outputNumber = findPort(named: "outputNumber")
+    }
         
     private var mathOperator = UnaryMathOperator.Sine
     

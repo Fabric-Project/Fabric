@@ -38,15 +38,38 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
     }
 
     // Port accessors
-    public var inputImage: NodePort<FabricImage> { port(named: "inputImage") }
-    public var inputColor: ParameterPort<simd_float4> { port(named: "inputColor") }
-    public var inputSize: ParameterPort<Float> { port(named: "inputSize") }
-    public var inputSizingDimension: ParameterPort<String> { port(named: "inputSizingDimension") }
-    public var inputBlending: ParameterPort<String> { port(named: "inputBlending") }
-    public var inputWriteDepth: ParameterPort<Bool> { port(named: "inputWriteDepth") }
-    public var inputDepthTest: ParameterPort<Bool> { port(named: "inputDepthTest") }
-    public var inputDoubleSided: ParameterPort<Bool> { port(named: "inputDoubleSided") }
-    public var inputCastsShadow: ParameterPort<Bool> { port(named: "inputCastsShadow") }
+    public var inputImage: NodePort<FabricImage> { _inputImage }
+    private var _inputImage: NodePort<FabricImage>!
+    public var inputColor: ParameterPort<simd_float4> { _inputColor }
+    private var _inputColor: ParameterPort<simd_float4>!
+    public var inputSize: ParameterPort<Float> { _inputSize }
+    private var _inputSize: ParameterPort<Float>!
+    public var inputSizingDimension: ParameterPort<String> { _inputSizingDimension }
+    private var _inputSizingDimension: ParameterPort<String>!
+    public var inputBlending: ParameterPort<String> { _inputBlending }
+    private var _inputBlending: ParameterPort<String>!
+    public var inputWriteDepth: ParameterPort<Bool> { _inputWriteDepth }
+    private var _inputWriteDepth: ParameterPort<Bool>!
+    public var inputDepthTest: ParameterPort<Bool> { _inputDepthTest }
+    private var _inputDepthTest: ParameterPort<Bool>!
+    public var inputDoubleSided: ParameterPort<Bool> { _inputDoubleSided }
+    private var _inputDoubleSided: ParameterPort<Bool>!
+    public var inputCastsShadow: ParameterPort<Bool> { _inputCastsShadow }
+    private var _inputCastsShadow: ParameterPort<Bool>!
+
+    override func bindPorts()
+    {
+        super.bindPorts()
+        self._inputImage = findPort(named: "inputImage")
+        self._inputColor = findPort(named: "inputColor")
+        self._inputSize = findPort(named: "inputSize")
+        self._inputSizingDimension = findPort(named: "inputSizingDimension")
+        self._inputBlending = findPort(named: "inputBlending")
+        self._inputWriteDepth = findPort(named: "inputWriteDepth")
+        self._inputDepthTest = findPort(named: "inputDepthTest")
+        self._inputDoubleSided = findPort(named: "inputDoubleSided")
+        self._inputCastsShadow = findPort(named: "inputCastsShadow")
+    }
 
     override public var object: Mesh? {
         return self.mesh

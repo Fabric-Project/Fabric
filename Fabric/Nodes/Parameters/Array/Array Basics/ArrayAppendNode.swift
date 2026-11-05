@@ -29,15 +29,27 @@ public class ArrayAppendNode: TypeAgnosticNode
         ] + super.declaredPorts()
     }
 
+    private var boundInputArrayA: Port?
+    private var boundInputArrayB: Port?
+    private var boundOutputPort: Port?
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputArrayA = findPort(named: "inputArrayA")
+        self.boundInputArrayB = findPort(named: "inputArrayB")
+        self.boundOutputPort = findPort(named: "outputPort")
+    }
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputPortA: Port = findPort(named: "inputArrayA"),
-              let inputPortB: Port = findPort(named: "inputArrayB"),
-              let outputPort: Port = findPort(named: "outputPort") else { return }
+        guard let inputPortA: Port = self.boundInputArrayA,
+              let inputPortB: Port = self.boundInputArrayB,
+              let outputPort: Port = self.boundOutputPort else { return }
 
         guard inputPortA.valueDidChange || inputPortB.valueDidChange else { return }
 

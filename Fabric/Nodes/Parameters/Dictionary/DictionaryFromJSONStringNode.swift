@@ -25,10 +25,23 @@ public final class DictionaryFromJSONStringNode: Node
         ]
     }
 
-    public var inputJSONString: ParameterPort<String> { port(named: "inputJSONString") }
-    public var outputDictionary: Port { port(named: "outputDictionary") }
-    public var outputValid: NodePort<Bool> { port(named: "outputValid") }
-    public var outputError: NodePort<String> { port(named: "outputError") }
+    public var inputJSONString: ParameterPort<String> { _inputJSONString }
+    private var _inputJSONString: ParameterPort<String>!
+    public var outputDictionary: Port { _outputDictionary }
+    private var _outputDictionary: Port!
+    public var outputValid: NodePort<Bool> { _outputValid }
+    private var _outputValid: NodePort<Bool>!
+    public var outputError: NodePort<String> { _outputError }
+    private var _outputError: NodePort<String>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputJSONString = findPort(named: "inputJSONString")
+        self._outputDictionary = findPort(named: "outputDictionary")
+        self._outputValid = findPort(named: "outputValid")
+        self._outputError = findPort(named: "outputError")
+    }
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
