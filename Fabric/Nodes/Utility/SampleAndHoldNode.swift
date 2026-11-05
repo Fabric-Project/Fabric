@@ -33,10 +33,10 @@ public class SampleAndHoldNode: TypeAgnosticNode
         ]
     }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
         super.rebuildPorts(forStrategy: strategy)
-        guard let portType = PortType(rawValue: strategy) else { return }
+        guard let portType = strategy as? PortType else { return }
 
         addOrReplaceDynamicPortPreservingIdentity(name: "inputValue",  displayName: "Value", portType: portType, kind: .Inlet,  description: "Value to sample and hold")
         addOrReplaceDynamicPortPreservingIdentity(name: "outputValue", displayName: "Value", portType: portType, kind: .Outlet, description: "The last sampled value")

@@ -25,12 +25,17 @@ public class ComposeOrientationNode: StrategyNode
         "outputOrientation",
     ]
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    /// `strategy`, typed once per rebuild, so execute never compares strategy strings.
+    private var typedStrategy: OrientationCompositionMode?
+
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
+        typedStrategy = strategy as? OrientationCompositionMode
+
         let wanted: [(name: String, port: Port)]
-        switch strategy
+        switch typedStrategy
         {
-        case "Euler":
+        case .euler:
             wanted =
             [
                 ("inputX", ParameterPort(parameter: FloatParameter("X (Pitch)", 0.0, .inputfield, "Rotation around the X axis in degrees"))),
@@ -39,7 +44,7 @@ public class ComposeOrientationNode: StrategyNode
                 ("outputOrientation", NodePort<simd_float4>(name: "Orientation", kind: .Outlet, description: "Quaternion orientation (X, Y, Z, W)")),
             ]
 
-        case "Axis Angle":
+        case .axisAngle:
             wanted =
             [
                 ("inputAngle", ParameterPort(parameter: FloatParameter("Angle", 0.0, .inputfield, "Rotation angle in degrees"))),
@@ -47,7 +52,7 @@ public class ComposeOrientationNode: StrategyNode
                 ("outputOrientation", NodePort<simd_float4>(name: "Orientation", kind: .Outlet, description: "Quaternion orientation (X, Y, Z, W)")),
             ]
 
-        case "Target":
+        case .target:
             wanted =
             [
                 ("inputPosition", ParameterPort(parameter: Float3Parameter("Position", simd_float3(0, 0, 0), .inputfield, "Viewpoint position (XYZ)"))),
@@ -56,7 +61,7 @@ public class ComposeOrientationNode: StrategyNode
                 ("outputOrientation", NodePort<simd_float4>(name: "Orientation", kind: .Outlet, description: "Quaternion orientation (X, Y, Z, W)")),
             ]
 
-        default:
+        case nil:
             wanted = []
         }
 
@@ -79,9 +84,9 @@ public class ComposeOrientationNode: StrategyNode
     {
         guard let outputOrientation: NodePort<simd_float4> = findPort(named: "outputOrientation") else { return }
 
-        switch self.strategy
+        switch typedStrategy
         {
-        case "Euler":
+        case .euler:
             guard let inputX: ParameterPort<Float> = findPort(named: "inputX"),
                   let inputY: ParameterPort<Float> = findPort(named: "inputY"),
                   let inputZ: ParameterPort<Float> = findPort(named: "inputZ")
@@ -91,7 +96,7 @@ public class ComposeOrientationNode: StrategyNode
             let euler = simd_float3(inputX.value ?? 0, inputY.value ?? 0, inputZ.value ?? 0)
             outputOrientation.send(simd_quatf(eulerAnglesDegrees: euler).vector)
 
-        case "Axis Angle":
+        case .axisAngle:
             guard let inputAngle: ParameterPort<Float> = findPort(named: "inputAngle"),
                   let inputAxis: ParameterPort<simd_float3> = findPort(named: "inputAxis")
             else { return }
@@ -100,7 +105,7 @@ public class ComposeOrientationNode: StrategyNode
             let quat = simd_quatf(axis: inputAxis.value ?? simd_float3(0, 1, 0), angleDegrees: inputAngle.value ?? 0)
             outputOrientation.send(quat.vector)
 
-        case "Target":
+        case .target:
             guard let inputPosition: ParameterPort<simd_float3> = findPort(named: "inputPosition"),
                   let inputTarget: ParameterPort<simd_float3> = findPort(named: "inputTarget"),
                   let inputAimOffset: ParameterPort<simd_float4> = findPort(named: "inputAimOffset")
@@ -116,7 +121,7 @@ public class ComposeOrientationNode: StrategyNode
             let look = simd_quatf(lookingAlong: position - target , up: Satin.worldUpDirection)
             outputOrientation.send((look * offset).vector)
 
-        default:
+        case nil:
             break
         }
     }

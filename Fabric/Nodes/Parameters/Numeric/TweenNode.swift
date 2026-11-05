@@ -33,7 +33,7 @@ public final class TweenNode: NumericTypeAgnosticNode
     public var inputEasing: ParameterPort<String> { port(named: "inputEasing") }
     public var outputProgress: NodePort<Float> { port(named: "outputProgress") }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
         super.rebuildPorts(forStrategy: strategy)
         let portType = selectedNumericPortType

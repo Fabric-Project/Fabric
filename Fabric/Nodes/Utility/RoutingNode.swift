@@ -91,7 +91,7 @@ public class RoutingNodeBase: TypeAgnosticNode
         try super.init(from: decoder)
     }
 
-    override public var settings: (any NodeSettings)? { RoutingSettings(strategy: strategy, routeCount: routeCount) }
+    override public var settings: (any NodeSettings)? { RoutingSettings(strategy: strategyName, routeCount: routeCount) }
 
     override public func apply(_ settings: any NodeSettings)
     {
@@ -103,13 +103,13 @@ public class RoutingNodeBase: TypeAgnosticNode
     /// Changes the route count and keeps the type.
     public func setRouteCount(_ count: Int)
     {
-        setSettings(RoutingSettings(strategy: strategy, routeCount: Self.clampedRouteCount(count)))
+        setSettings(RoutingSettings(strategy: strategyName, routeCount: Self.clampedRouteCount(count)))
     }
 
     /// Changes the type and keeps the route count.
     public func setPortType(_ portType: PortType)
     {
-        setStrategy(portType.rawValue)
+        setStrategy(portType)
     }
 
     override public var settingsSize: SettingsViewSize { .Small }
@@ -232,7 +232,7 @@ public class RoutingNode: RoutingNodeBase
         ]
     }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
         super.rebuildPorts(forStrategy: strategy)
         updateIndexRange()

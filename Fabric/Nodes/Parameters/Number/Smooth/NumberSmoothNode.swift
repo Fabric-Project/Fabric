@@ -110,9 +110,9 @@ public class NumberSmoothNode : StrategyNode
     private var velocity: Float = 0
     private var hasValue: Bool = false
 
-    override public func rebuildPorts(forStrategy strategy: String)
+    override public func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
-        let mode = SmoothFilterMode(rawValue: strategy) ?? .oneEuro
+        let mode = (strategy as? SmoothFilterMode) ?? .oneEuro
 
         var wanted: [(name: String, port: Port)] =
         [

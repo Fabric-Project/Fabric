@@ -44,12 +44,12 @@ public class NumericTypeAgnosticNode: StrategyNode
 
     public var selectedNumericPortType: PortType
     {
-        Self.portType(forStrategy: strategy)
+        strategyOption(as: NumericPortStrategy.self)?.portType ?? .NumericVirtual
     }
 
     public convenience init(context: Context, portType: PortType)
     {
-        self.init(context: context, initialStrategy: portType.rawValue)
+        self.init(context: context, strategy: portType == .NumericVirtual ? NumericPortStrategy.virtual : NumericPortStrategy.concrete(portType))
     }
 
     /// Node-generated name: the selected numeric port type leads the title, e.g.
@@ -59,12 +59,6 @@ public class NumericTypeAgnosticNode: StrategyNode
     override public func deriveSubtitle() -> String? {
         let portType = selectedNumericPortType
         return portType == .NumericVirtual ? nil : portType.rawValue
-    }
-
-    public class func portType(forStrategy strategy: String) -> PortType
-    {
-        if strategy == NumericPortStrategy.virtual.rawValue { return .NumericVirtual }
-        return supportedPortTypes.first(where: { $0.rawValue == strategy }) ?? .NumericVirtual
     }
 
     public func concretePortType(from port: Port?) -> PortType?
@@ -99,7 +93,7 @@ public class NumericTypeAgnosticNode: StrategyNode
               Self.supportedPortTypes.contains(connectedType)
         else { return false }
 
-        setStrategy(connectedType.rawValue)
+        setStrategy(NumericPortStrategy.concrete(connectedType))
         return true
     }
 

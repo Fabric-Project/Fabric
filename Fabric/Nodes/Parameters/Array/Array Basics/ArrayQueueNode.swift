@@ -36,10 +36,10 @@ public class ArrayQueueNode: TypeAgnosticNode
     // Type-agnostic queue; PortValue boxing lets this work identically for Virtual and typed ports.
     private var queue: ContiguousArray<PortValue> = []
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
         super.rebuildPorts(forStrategy: strategy)
-        guard let elementType = PortType(rawValue: strategy) else { return }
+        guard let elementType = strategy as? PortType else { return }
 
         let arrayType: PortType = .Array(portType: elementType)
 

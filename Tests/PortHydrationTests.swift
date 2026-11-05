@@ -127,7 +127,7 @@ struct PortHydrationTests
         guard let context = makeContext() else { return }
 
         let node = nodeClass.init(context: context)
-        node.setStrategy(PortType.Float.rawValue)
+        node.setStrategy(PortType.Float)
 
         let graph = Graph(context: context)
         graph.addNode(node)
@@ -274,7 +274,7 @@ struct PortHydrationTests
         floatInput.value = 7.5
         let savedID = floatInput.id
 
-        node.setStrategy(PortType.Transform.rawValue)
+        node.setStrategy(PortType.Transform)
 
         let transformInput = try #require(node.findPort(named: "input0") as NodePort<simd_float4x4>?)
         #expect(transformInput.id == savedID)
@@ -282,7 +282,7 @@ struct PortHydrationTests
 
         // The numeric family rebuilds through the same helper.
         let distance = DistanceNode(context: context)
-        distance.setStrategy(PortType.Float.rawValue)
+        distance.setStrategy(PortType.Float)
         let floatA = try #require(distance.findPort(named: "inputA") as ParameterPort<Float>?)
         floatA.published = true
         let savedAID = floatA.id

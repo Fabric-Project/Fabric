@@ -12,7 +12,7 @@ public final class ComposeDictionaryNode: DictionaryTypeAgnosticNode
     public override class var name: String { "Compose Dictionary" }
     override public class var nodeDescription: String { "Builds a dictionary from string keys and values. Choose value type in Settings." }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
         super.rebuildPorts(forStrategy: strategy)
 

@@ -75,9 +75,9 @@ public class NumberGeneratorNode : StrategyNode
     private var previousSignal: Bool? = nil
     private var hasEmitted: Bool = false
 
-    override public func rebuildPorts(forStrategy strategy: String)
+    override public func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
-        let mode = NumberGeneratorMode(rawValue: strategy) ?? .random
+        let mode = (strategy as? NumberGeneratorMode) ?? .random
 
         var wanted: [(name: String, port: Port)] =
         [

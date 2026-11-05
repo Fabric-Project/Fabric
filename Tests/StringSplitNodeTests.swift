@@ -14,7 +14,7 @@ struct StringSplitNodeTests
         )
 
         #expect(StringSplitNode.strategies == StringSplitMode.allCases.map(\.rawValue))
-        #expect(StringSplitNode.defaultStrategy == StringSplitMode.custom.rawValue)
+        #expect(StringSplitNode.defaultStrategy as? StringSplitMode == .custom)
     }
 
     @Test("Every split mode explains itself in the Settings pane")
@@ -35,11 +35,11 @@ struct StringSplitNodeTests
         #expect(node.splitMode == .custom)
         #expect(node.inputSeparator != nil)
 
-        node.setStrategy(StringSplitMode.newline.rawValue)
+        node.setStrategy(StringSplitMode.newline)
         #expect(node.splitMode == .newline)
         #expect(node.inputSeparator == nil)
 
-        node.setStrategy(StringSplitMode.custom.rawValue)
+        node.setStrategy(StringSplitMode.custom)
         #expect(node.inputSeparator != nil)
     }
 
@@ -51,10 +51,10 @@ struct StringSplitNodeTests
         let node = StringSplitNode(context: harness.context, strategy: StringSplitMode.custom)
         try #require(node.inputSeparator).value = #"\t"#
 
-        node.setStrategy(StringSplitMode.comma.rawValue)
+        node.setStrategy(StringSplitMode.comma)
         #expect(node.customSeparator == #"\t"#)
 
-        node.setStrategy(StringSplitMode.custom.rawValue)
+        node.setStrategy(StringSplitMode.custom)
         #expect(node.inputSeparator?.value == #"\t"#)
     }
 

@@ -24,12 +24,17 @@ public class DecomposeOrientationArrayNode: StrategyNode
         "outputAxes", "outputAngles",
     ]
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    /// `strategy`, typed once per rebuild, so execute never compares strategy strings.
+    private var typedStrategy: OrientationDecompositionMode?
+
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
+        typedStrategy = strategy as? OrientationDecompositionMode
+
         let wanted: [(name: String, port: Port)]
-        switch strategy
+        switch typedStrategy
         {
-        case "To Euler":
+        case .toEuler:
             wanted =
             [
                 ("inputOrientations", NodePort<ContiguousArray<simd_float4>>(name: "Orientations", kind: .Inlet, description: "Per-element quaternion orientation (X, Y, Z, W)")),
@@ -38,7 +43,7 @@ public class DecomposeOrientationArrayNode: StrategyNode
                 ("outputZ", NodePort<ContiguousArray<Float>>(name: "Z (Roll)", kind: .Outlet, description: "Per-element rotation around the Z axis in degrees")),
             ]
 
-        case "To Axis Angle":
+        case .toAxisAngle:
             wanted =
             [
                 ("inputOrientations", NodePort<ContiguousArray<simd_float4>>(name: "Orientations", kind: .Inlet, description: "Per-element quaternion orientation (X, Y, Z, W)")),
@@ -46,7 +51,7 @@ public class DecomposeOrientationArrayNode: StrategyNode
                 ("outputAngles", NodePort<ContiguousArray<Float>>(name: "Angles", kind: .Outlet, description: "Per-element rotation angle in degrees")),
             ]
 
-        default:
+        case nil:
             wanted = []
         }
 
@@ -74,9 +79,9 @@ public class DecomposeOrientationArrayNode: StrategyNode
         let orientations = inputOrientations.value ?? ContiguousArray<simd_float4>()
         let quats = orientations.map { simd_quatf(safeVector: $0) }
 
-        switch self.strategy
+        switch typedStrategy
         {
-        case "To Euler":
+        case .toEuler:
             guard let outputX: NodePort<ContiguousArray<Float>> = findPort(named: "outputX"),
                   let outputY: NodePort<ContiguousArray<Float>> = findPort(named: "outputY"),
                   let outputZ: NodePort<ContiguousArray<Float>> = findPort(named: "outputZ")
@@ -95,7 +100,7 @@ public class DecomposeOrientationArrayNode: StrategyNode
             outputY.send(ys)
             outputZ.send(zs)
 
-        case "To Axis Angle":
+        case .toAxisAngle:
             guard let outputAxes: NodePort<ContiguousArray<simd_float3>> = findPort(named: "outputAxes"),
                   let outputAngles: NodePort<ContiguousArray<Float>> = findPort(named: "outputAngles")
             else { return }
@@ -110,7 +115,7 @@ public class DecomposeOrientationArrayNode: StrategyNode
             outputAxes.send(axes)
             outputAngles.send(angles)
 
-        default:
+        case nil:
             break
         }
     }

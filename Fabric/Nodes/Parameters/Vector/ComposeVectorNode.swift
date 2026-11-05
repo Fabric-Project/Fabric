@@ -32,9 +32,9 @@ public class ComposeVectorNode: StrategyNode
         self.init(context: context, strategy: vectorType)
     }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
-        guard let vt: VectorType = Self.strategyOption(matching: strategy) else { return }
+        guard let vt = strategy as? VectorType else { return }
 
         // Remove component ports beyond the needed count
         for i in vt.componentLabels.count..<4 {

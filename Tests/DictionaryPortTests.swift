@@ -68,7 +68,7 @@ struct DictionaryPortTests
         legacyInput.publishedName = "Legacy Array"
         node.addDynamicPort(legacyInput, name: "inputPort")
 
-        node.rebuildPorts(forStrategy: PortType.Virtual.rawValue)
+        node.rebuildPorts(forStrategy: PortType.Virtual)
 
         let migratedInput: Fabric.Port = node.port(named: "inputPort")
         #expect(migratedInput.id == legacyID)

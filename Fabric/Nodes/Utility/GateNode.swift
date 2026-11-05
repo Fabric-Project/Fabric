@@ -35,10 +35,10 @@ public final class GateNode: RoutingNode
         return .evaluate(pulling: [inputIndex, input])
     }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
     {
         super.rebuildPorts(forStrategy: strategy)
-        let portType = PortType(rawValue: strategy) ?? .Virtual
+        let portType = (strategy as? PortType) ?? .Virtual
 
         addOrReplaceDynamicPortPreservingIdentity(name: Self.inputPortName,
                                                   displayName: "Input",

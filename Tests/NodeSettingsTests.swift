@@ -293,7 +293,7 @@ struct NodeSettingsTests
         // A strategy carried by another node's settings type is not taken either.
         let sampleAndHold = SampleAndHoldNode(context: context, initialStrategy: PortType.Float.rawValue)
         sampleAndHold.apply(RoutingSettings(portType: .Int, routeCount: 3))
-        #expect(sampleAndHold.strategy == PortType.Float.rawValue)
+        #expect(sampleAndHold.strategyName == PortType.Float.rawValue)
 
         node.setSettings(RoutingSettings(portType: .Float, routeCount: 2))
         #expect(node.routeCount == 2)
@@ -413,13 +413,13 @@ struct NodeSettingsTests
         undoManager.beginUndoGrouping()
         model.strategy = PortType.Float.rawValue
         undoManager.endUndoGrouping()
-        #expect(node.strategy == PortType.Float.rawValue)
+        #expect(node.strategyName == PortType.Float.rawValue)
 
         undoManager.undo()
-        #expect(node.strategy == PortType.Int.rawValue)
+        #expect(node.strategyName == PortType.Int.rawValue)
         try await runMainLoop()
         #expect(model.strategy == PortType.Int.rawValue)
-        #expect(node.strategy == PortType.Int.rawValue)
+        #expect(node.strategyName == PortType.Int.rawValue)
 
         // The model's update after a run of changes reads the node's strategy as it is then.
         undoManager.beginUndoGrouping()
@@ -427,7 +427,7 @@ struct NodeSettingsTests
         node.setSettings(StrategyNodeSettings(strategy: PortType.Bool.rawValue))
         undoManager.endUndoGrouping()
         try await runMainLoop()
-        #expect(node.strategy == PortType.Bool.rawValue)
+        #expect(node.strategyName == PortType.Bool.rawValue)
         #expect(model.strategy == PortType.Bool.rawValue)
 
         // A change made off main reaches the model on main.
@@ -780,10 +780,10 @@ struct NodeSettingsTests
         decoder.context = DecoderContext(documentContext: context)
         let decoded = try decoder.decode(Graph.self, from: data)
         #expect(decoded.nodes.compactMap { $0 as? MathExpressionNode }.first?.stringExpression == "x * 2")
-        #expect(decoded.nodes.compactMap { $0 as? SampleAndHoldNode }.first?.strategy == PortType.String.rawValue)
+        #expect(decoded.nodes.compactMap { $0 as? SampleAndHoldNode }.first?.strategyName == PortType.String.rawValue)
         let routing = decoded.nodes.compactMap { $0 as? SwitchNode }.first
         #expect(routing?.routeCount == 5)
-        #expect(routing?.strategy == PortType.Int.rawValue)
+        #expect(routing?.strategyName == PortType.Int.rawValue)
 
         let json = String(decoding: data, as: UTF8.self)
         #expect(json.contains("\"stringExpression\""))
