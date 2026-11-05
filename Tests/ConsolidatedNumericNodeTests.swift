@@ -13,6 +13,86 @@ private func publish(_ port: Fabric.Port, in graph: Graph)
 @Suite("Consolidated Numeric Nodes")
 struct ConsolidatedNumericNodeTests
 {
+    @Test("Wiring a Float outlet into a virtual numeric node specialises it on connect; an unwired one stays virtual")
+    func virtualNodeSpecialisesOnConnect() throws
+    {
+        guard let device = MTLCreateSystemDefaultDevice() else { return }
+        let context = Context(device: device, sampleCount: 1, colorPixelFormat: .bgra8Unorm)
+
+        let graph = Graph(context: context)
+        let source = NumberBinaryOperator(context: context)
+        let wired = TweenNode(context: context)
+        let unwired = TweenNode(context: context)
+        graph.addNode(source)
+        graph.addNode(wired)
+        graph.addNode(unwired)
+        #expect(wired.selectedNumericPortType == .NumericVirtual)
+
+        let target: Fabric.Port = wired.port(named: "inputTarget")
+        #expect(target.portType == .NumericVirtual)
+        graph.connect(source.outputNumber, to: target)
+
+        // Specialised by the connect itself, before anything executes.
+        #expect(wired.selectedNumericPortType == .Float)
+        let specialised: Fabric.Port = wired.port(named: "inputTarget")
+        #expect(specialised.portType == .Float)
+        #expect(specialised.connectedPorts.map(\.id) == [source.outputNumber.id])
+        #expect(unwired.selectedNumericPortType == .NumericVirtual)
+
+        // A document saved before the strategy was ever set specialises as its
+        // wires come back.
+        var json = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(graph)) as? [String: Any])
+        var nodeMap = try #require(json["nodeMap"] as? [[String: Any]])
+        for index in nodeMap.indices
+        {
+            guard var value = nodeMap[index]["value"] as? [String: Any], value["id"] as? String == wired.id.uuidString else { continue }
+            value["strategy"] = "Virtual"
+            nodeMap[index]["value"] = value
+        }
+        json["nodeMap"] = nodeMap
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decoded = try decoder.decode(Graph.self, from: JSONSerialization.data(withJSONObject: json))
+        let reopened = try #require(decoded.node(forID: wired.id) as? TweenNode)
+        #expect(reopened.selectedNumericPortType == .Float)
+        #expect((reopened.port(named: "inputTarget") as Fabric.Port).connectedPorts.count == 1)
+        #expect((decoded.node(forID: unwired.id) as? TweenNode)?.selectedNumericPortType == .NumericVirtual)
+    }
+
+    @Test("Undoing the connect that specialised a virtual numeric node disconnects it and puts it back to virtual; redo does both again")
+    func undoOfSpecialisingConnect() throws
+    {
+        guard let device = MTLCreateSystemDefaultDevice() else { return }
+        let context = Context(device: device, sampleCount: 1, colorPixelFormat: .bgra8Unorm)
+
+        let graph = Graph(context: context)
+        let source = NumberBinaryOperator(context: context)
+        let tween = TweenNode(context: context)
+        graph.addNode(source)
+        graph.addNode(tween)
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        graph.undoManager = undoManager
+
+        // One user event: the connect, and the strategy step it makes.
+        undoManager.beginUndoGrouping()
+        graph.connect(source.outputNumber, to: tween.port(named: "inputTarget"))
+        undoManager.endUndoGrouping()
+        #expect(tween.selectedNumericPortType == .Float)
+
+        undoManager.undo()
+        #expect(tween.selectedNumericPortType == .NumericVirtual)
+        let target: Fabric.Port = tween.port(named: "inputTarget")
+        #expect(target.portType == .NumericVirtual)
+        #expect(target.connectedPorts.isEmpty)
+
+        undoManager.redo()
+        #expect(tween.selectedNumericPortType == .Float)
+        let redone: Fabric.Port = tween.port(named: "inputTarget")
+        #expect(redone.portType == .Float)
+        #expect(redone.connectedPorts.map(\.id) == [source.outputNumber.id])
+    }
+
     @Test("Distance computes corrected Euclidean vector distance")
     func distanceComputesVectorDistance() throws
     {

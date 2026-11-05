@@ -45,7 +45,6 @@ public final class ArrayResampleTypeAgnosticNode: NumericTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(self.boundInputArray) { return }
         guard let inputArray: Port = self.boundInputArray,
               let outputArray: Port = self.boundOutputArray,
               inputArray.valueDidChange || inputCount.valueDidChange,

@@ -913,6 +913,7 @@ internal import AnyCodable
             inletNode.updateConnectionTopology()
             markNodeForLifecycleReview(outletNode)
             markNodeForLifecycleReview(inletNode)
+            inletNode.inletDidConnect(inlet, from: outlet)
         }
     }
     

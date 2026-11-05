@@ -66,7 +66,6 @@ public final class TweenNode: NumericTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(self.boundInputTarget) { return }
         guard let inputTarget: Port = self.boundInputTarget,
               let outputValue: Port = self.boundOutputValue
         else { return }

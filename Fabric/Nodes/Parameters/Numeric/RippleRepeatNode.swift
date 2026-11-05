@@ -72,7 +72,6 @@ public final class RippleRepeatNode: NumericTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(self.boundInputValue) { return }
         guard let inputValue: Port = self.boundInputValue,
               let outputArray: Port = self.boundOutputArray
         else { return }

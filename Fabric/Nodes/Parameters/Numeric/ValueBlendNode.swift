@@ -86,7 +86,6 @@ public final class ValueBlendNode: NumericTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(self.boundInputSource) || specializeFromConnectedPort(self.boundInputTarget) { return }
         guard let inputSource: Port = self.boundInputSource,
               let inputTarget: Port = self.boundInputTarget,
               let outputValue: Port = self.boundOutputValue,

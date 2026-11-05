@@ -240,8 +240,8 @@ open class StrategyNode: Node
     }
 
     /// Changes the strategy and keeps the rest of the node's settings. The
-    /// strategy picker writes through this, as does a node specialising from
-    /// execute().
+    /// strategy picker writes through this, as does a numeric node specialising
+    /// as a wire is attached.
     public func setStrategy(_ strategy: String)
     {
         guard var settings = self.settings as? any StrategySettings else { return }

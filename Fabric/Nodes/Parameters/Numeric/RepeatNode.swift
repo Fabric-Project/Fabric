@@ -46,7 +46,6 @@ public final class RepeatNode: NumericTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(self.boundInputValue) { return }
         guard let inputValue: Port = self.boundInputValue,
               let outputArray: Port = self.boundOutputArray,
               inputValue.valueDidChange || inputCount.valueDidChange,

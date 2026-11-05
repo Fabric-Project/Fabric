@@ -47,7 +47,6 @@ public final class PairwiseDistanceArrayNode: NumericTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(self.boundInputA) || specializeFromConnectedPort(self.boundInputB) { return }
         guard let inputA: Port = self.boundInputA,
               let inputB: Port = self.boundInputB,
               inputA.valueDidChange || inputB.valueDidChange || inputMetric.valueDidChange,

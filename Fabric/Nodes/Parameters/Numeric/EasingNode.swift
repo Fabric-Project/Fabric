@@ -50,7 +50,6 @@ public final class EasingNode: NumericTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(self.boundInputFrom) || specializeFromConnectedPort(self.boundInputTo) { return }
         guard let inputFrom: Port = self.boundInputFrom,
               let inputTo: Port = self.boundInputTo,
               let outputValue: Port = self.boundOutputValue,

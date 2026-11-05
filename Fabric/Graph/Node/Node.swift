@@ -587,6 +587,12 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         self.outputNodes = calcOutputNodes()
     }
 
+    /// A wire has been attached to `inlet`, from `outlet`: by a connect, an
+    /// undo, or a document opening. Called by the graph on the editing thread,
+    /// inside the edit. A node whose interface follows what is wired to it
+    /// changes it here, never from execute. Does nothing by default.
+    open func inletDidConnect(_ inlet: Port, from outlet: Port) { }
+
     internal func didDisconnectFromNode(_ node: Node)
     {
         self.inputNodes = calcInputNodes()
@@ -718,11 +724,11 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     /// as no change, and calls super with the same value.
     ///
     /// Threads: called on the thread that edits the graph, which a host can
-    /// keep off main, and on the render thread as a NumericTypeAgnosticNode
-    /// specialises from execute(). A node whose settings reach main-thread
-    /// state waits for main, so it is applied only from main. A change reaches
-    /// an open settings view's model through settingsDidChange(), from the
-    /// observer of the stored setting.
+    /// keep off main, never from execute(): a NumericTypeAgnosticNode
+    /// specialises inside the connect, from inletDidConnect(_:from:). A node
+    /// whose settings reach main-thread state waits for main, so it is applied
+    /// only from main. A change reaches an open settings view's model through
+    /// settingsDidChange(), from the observer of the stored setting.
     open func apply(_ settings: any NodeSettings)
     {
     }

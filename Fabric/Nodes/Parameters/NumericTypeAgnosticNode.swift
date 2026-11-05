@@ -88,18 +88,20 @@ public class NumericTypeAgnosticNode: StrategyNode
         return nil
     }
 
-    /// Takes the type of what is wired to `port`, while the node is Numeric
-    /// Virtual. Called from execute with a port bindPorts() resolved.
-    @discardableResult
-    public func specializeFromConnectedPort(_ port: Port?) -> Bool
+    /// While the node is Numeric Virtual, a wire into one of its virtual
+    /// inlets from an outlet of a supported type makes that type the node's
+    /// strategy, as part of the connect. An explicit choice of Virtual made
+    /// while wired stands: retyping moves wires without connecting them.
+    override public func inletDidConnect(_ inlet: Port, from outlet: Port)
     {
+        super.inletDidConnect(inlet, from: outlet)
         guard selectedNumericPortType == .NumericVirtual,
-              let port,
-              let connectedType = port.connectedPorts.first?.portType,
-              Self.supportedPortTypes.contains(connectedType)
-        else { return false }
+              inlet.portType == .NumericVirtual,
+              Self.supportedPortTypes.contains(outlet.portType)
+        else { return }
 
-        setStrategy(NumericPortStrategy.concrete(connectedType))
-        return true
+        // A settings change, made by the graph inside the connect: it registers
+        // the strategy's undo step in the connect's group.
+        setStrategy(NumericPortStrategy.concrete(outlet.portType))
     }
 }
