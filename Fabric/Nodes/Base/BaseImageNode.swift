@@ -5,6 +5,22 @@ import Satin
 import simd
 import UniformTypeIdentifiers
 
+/// The settings of a shader-backed image node: the shader file it is made
+/// from. A file inside Fabric's bundle is named by its path there, a user's
+/// file by its reference, relative to the document's folder where it is
+/// inside it. Neither names the class's own shader.
+public struct ShaderFileSettings: NodeSettings
+{
+    public var effectPath: String?
+    public var effectFile: String?
+
+    public init(effectPath: String?, effectFile: String?)
+    {
+        self.effectPath = effectPath
+        self.effectFile = effectFile
+    }
+}
+
 open class BaseImageNode: Node, NodeMadeFromFile
 {
     open class var supportedContentTypes: [UTType] { [] }
@@ -142,16 +158,68 @@ open class BaseImageNode: Node, NodeMadeFromFile
         self.postSetupSynchronizePorts()
     }
     
-    public func setFileURL(_ url: URL) {
-        let cachedName = Self.fileURLToName(fileURL: url)
-        let shouldUpdatePipeline = self.url != url
-        guard shouldUpdatePipeline || self.cachedFileURLName != cachedName else { return }
+    /// Builds the node a fresh one becomes when `settings` are applied to it.
+    public convenience init(context: Context, settings: ShaderFileSettings) {
+        self.init(context: context)
+        self.apply(settings)
+    }
 
-        self.url = url
+    /// The file the node is made from: nil for the class's own shader.
+    override open var settings: (any NodeSettings)? {
+        if let url = self.url {
+            if let bundlePath = Self.bundleRelativeResourcePath(for: url) {
+                return ShaderFileSettings(effectPath: bundlePath, effectFile: nil)
+            }
+            return ShaderFileSettings(effectPath: nil, effectFile: url.fileReference(relativeTo: self.graph?.fileReferenceBaseURL))
+        }
+        return ShaderFileSettings(effectPath: nil, effectFile: self.unresolvedEffectFile)
+    }
+
+    /// Loads the file the settings name and declares the ports its shader
+    /// reads as. A user's file that does not resolve against the document's
+    /// folder is kept, and the node runs its class shader meanwhile, as on open.
+    override open func apply(_ settings: any NodeSettings) {
+        if let settings = settings as? ShaderFileSettings, self.settings?.isEqual(to: settings) == false {
+            if let effectPath = settings.effectPath, let url = Self.resolveBundleResource(path: effectPath) {
+                self.loadShader(at: url, as: url)
+            } else if let effectFile = settings.effectFile {
+                if let url = URL(fileReference: effectFile, relativeTo: self.graph?.fileReferenceBaseURL),
+                   FileManager.default.fileExists(atPath: url.path) {
+                    self.loadShader(at: url, as: url)
+                } else if let classShader = Self.sourceShaderURL {
+                    self.loadShader(at: classShader, as: nil)
+                    self.unresolvedEffectFile = effectFile
+                }
+            } else if let classShader = Self.sourceShaderURL {
+                self.loadShader(at: classShader, as: nil)
+            }
+        }
+        super.apply(settings)
+    }
+
+    /// Makes the node from the file at `url`, a change to its settings.
+    public func setFileURL(_ url: URL) {
+        self.setSettings(ShaderFileSettings(effectPath: Self.bundleRelativeResourcePath(for: url),
+                                            effectFile: Self.bundleRelativeResourcePath(for: url) == nil
+                                                ? url.fileReference(relativeTo: self.graph?.fileReferenceBaseURL) : nil))
+    }
+
+    /// Runs the shader at `url`, recorded as the node's file as `recordedURL`
+    /// (nil for the class's own shader), and brings the ports to it. Not a
+    /// settings change by itself: apply(_:) and a late-resolving reference
+    /// come here, and Blend does from execute for its Mode.
+    func loadShader(at url: URL, as recordedURL: URL?) {
+        let cachedName = recordedURL.map(Self.fileURLToName(fileURL:))
+        let shouldUpdatePipeline = self.postMaterial.pipelineURL != url
+        let recordChanged = self.url != recordedURL || self.unresolvedEffectFile != nil
+        guard shouldUpdatePipeline || recordChanged || self.cachedFileURLName != cachedName else { return }
+
+        self.url = recordedURL
         self.unresolvedEffectFile = nil
         self.cachedFileURLName = cachedName
         self.updatePostProcessorLabel()
         self.namingDidChange()
+        if recordChanged { self.settingsDidChange() }
 
         guard shouldUpdatePipeline else { return }
 
@@ -166,12 +234,14 @@ open class BaseImageNode: Node, NodeMadeFromFile
         self.postSetupSynchronizePorts()
     }
 
+    /// The document's folder became known: a user's file that did not resolve
+    /// may now. The settings are unchanged; what they name has been found.
     public func fileReferenceBaseDidChange(_ directoryURL: URL?) {
         guard let unresolvedEffectFile,
               let url = URL(fileReference: unresolvedEffectFile, relativeTo: directoryURL),
               FileManager.default.fileExists(atPath: url.path)
         else { return }
-        self.setFileURL(url)
+        self.loadShader(at: url, as: url)
     }
 
     public required init(from decoder: any Decoder) throws {
@@ -221,24 +291,9 @@ open class BaseImageNode: Node, NodeMadeFromFile
         self.postSetupSynchronizePorts()
     }
 
+    // The shader file saves as the node's settings.
     override public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-
-        if let url = self.url
-        {
-            if let bundlePath = Self.bundleRelativeResourcePath(for: url)
-            {
-                try container.encode(bundlePath, forKey: .effectPath)
-            }
-            else
-            {
-                try container.encode(url.fileReference(relativeTo: self.graph?.fileReferenceBaseURL), forKey: .effectFile)
-            }
-        }
-        else if let unresolvedEffectFile
-        {
-            try container.encode(unresolvedEffectFile, forKey: .effectFile)
-        }
 
         try container.encode(1, forKey: .baseImageNodeVersion)
         try container.encode(self.currentImageInputCount, forKey: .lastKnownInputCount)

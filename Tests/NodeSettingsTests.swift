@@ -129,6 +129,8 @@ struct NodeSettingsTests
         let element = HIDElementInfo(id: "axis-x", cookie: 1, usagePage: 1, usage: 0x30,
                                      displayName: "X", min: 0, max: 255, isRelative: false)
         let shader = (LiveImageNode(context: context).settings as? LiveImageSettings)?.shaderSource ?? ""
+        let effect = try BaseImageNode(context: context,
+                                       fileURL: try #require(BaseImageNode.resolveBundleResource(path: "Effects/ColorSpace/XYZ to RGB.metal")))
         let cases: [(name: String, node: Node, settings: any NodeSettings)] = [
             ("Strategy", SampleAndHoldNode(context: context), StrategyNodeSettings(strategy: PortType.String.rawValue)),
             ("Routing", SwitchNode(context: context), RoutingSettings(portType: .Int, routeCount: 5)),
@@ -139,6 +141,7 @@ struct NodeSettingsTests
              ParametricExpressionSettings(expressionX: "a * u", expressionY: "v", expressionZ: "b")),
             ("JavaScript", JavaScriptNode(context: context), JavaScriptSettings(scriptSource: script, selectedTimeMode: .TimeBase)),
             ("Live Image", LiveImageNode(context: context), LiveImageSettings(shaderSource: shader + "\n// edited\n")),
+            ("Shader File", effect, ShaderFileSettings(effectPath: "Effects/ColorSpace/XYZ to LAB.metal", effectFile: nil)),
             ("Timeline", TimelineNode(context: context),
              TimelineSettings(duration: 2, tracks: [TimelineTrack(name: "A", duration: 2), TimelineTrack(name: "B", duration: 2)])),
             ("OSC Receive", OSCReceiveNode(context: context),

@@ -798,8 +798,8 @@ public protocol NodeFileLoadingProtocol : Node
 }
 
 /// A node whose file is part of what it is, such as a shader effect: the
-/// file decides its interface, and the node saves its path itself. Changing
-/// the file with `setFileURL(_:)` is a change to the node's settings.
+/// file decides its interface and is the node's settings, saved with them.
+/// `setFileURL(_:)` is a setter over `setSettings(_:)`.
 public protocol NodeMadeFromFile : NodeFileLoadingProtocol
 {
     func setFileURL(_ url: URL)
