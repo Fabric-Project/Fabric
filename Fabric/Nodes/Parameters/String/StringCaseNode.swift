@@ -15,20 +15,18 @@ public class StringCaseNode: Node {
     override public class var nodeDescription: String { "Convert the case of a String" }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputPort = ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to convert"))
+    public let inputCase = ParameterPort(parameter: StringParameter("Case", "Uppercase", StringCaseMode.allCases.map(\.rawValue), .dropdown, "Case conversion to apply"))
+    public let outputPort = NodePort<String>(name: "String", kind: .Outlet, description: "Case-converted string")
 
-        return ports + [
-            ("inputPort", ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to convert"))),
-            ("inputCase", ParameterPort(parameter: StringParameter("Case", "Uppercase", StringCaseMode.allCases.map(\.rawValue), .dropdown, "Case conversion to apply"))),
-            ("outputPort", NodePort<String>(name: "String", kind: .Outlet, description: "Case-converted string")),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputPort", port: self.inputPort),
+            PortDeclaration(key: "inputCase", port: self.inputCase),
+            PortDeclaration(key: "outputPort", port: self.outputPort),
         ]
     }
-
-    // Port proxies
-    public var inputPort: ParameterPort<String> { port(named: "inputPort") }
-    public var inputCase: ParameterPort<String> { port(named: "inputCase") }
-    public var outputPort: NodePort<String> { port(named: "outputPort") }
 
     private var mode = StringCaseMode.Uppercase
 

@@ -9,6 +9,7 @@ import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
 import Satin
+import Synchronization
 
 public enum PortKind : String, Codable
 {
@@ -67,7 +68,7 @@ extension UTType
 
 
 // Non Generic Base Port Class, dont use directly
-@Observable public class Port : Identifiable, Hashable, Equatable, Codable, CustomDebugStringConvertible
+public class Port : Identifiable, Hashable, Equatable, CustomDebugStringConvertible
 {
     public static func == (lhs: Port, rhs: Port) -> Bool
     {
@@ -77,8 +78,6 @@ extension UTType
     public func hash(into hasher: inout Hasher)
     {
         hasher.combine(id)
-        hasher.combine(published)
-        hasher.combine(name)
     }
     
     /// Mutable only via hydrate(from:) during decode, which adopts the
@@ -87,21 +86,24 @@ extension UTType
 
     public let name: String
 
+    /// What the port's node finds it by; the registry sets it.
+    public internal(set) var key: PortKey
+
+    /// The control the port's declaration gives it; nil for a plain port. The
+    /// registry sets it.
+    public internal(set) var control: PortControl?
+
     public var portDescription: String = ""
-
-    public var published: Bool = false
-
-    public var publishedName: String? = nil
 
     // Kind of lame, but necessary to avoid some type based bullshit.
     // TODO: Figure out a way to hide setting this (seems not good)
     // unless its a ParameterPort? 
-    @ObservationIgnored public var parameter:(any Parameter)? = nil
+    public var parameter:(any Parameter)? = nil
         
     // Maybe a bit too verbose?
-    @ObservationIgnored public var portType: PortType { fatalError("Must be implemented") }
+    public var portType: PortType { fatalError("Must be implemented") }
     
-    @ObservationIgnored public var valueDidChange:Bool = true
+    public var valueDidChange:Bool = true
 
     /// Runtime-polymorphic read for ports whose concrete type is only known at
     /// runtime — routing nodes' boxed forwarding, Iterator's count resolution,
@@ -119,16 +121,21 @@ extension UTType
     
     // Unowned, not weak: any weak reference gives Node a Swift side table, which
     // slows every retain and release of it. Cleared on registry removal and Node deinit.
-    @ObservationIgnored public unowned var node: Node?
-    @ObservationIgnored internal var deferredSendCapture: GraphDeferredSendCapture?
-    @ObservationIgnored internal var deferredOutputIndex = 0
-    @ObservationIgnored internal var onValueChanged: (() -> Void)?
+    public unowned var node: Node?
+    internal var deferredSendCapture: GraphDeferredSendCapture?
+    internal var deferredOutputIndex = 0
+    internal var onValueChanged: (() -> Void)?
+
+    /// Watchers of the value from outside the graph, such as a control. The
+    /// count lets a send skip the lock while nothing watches.
+    internal let valueObservers = Mutex<[PortValueObservation]>([])
+    internal let valueObserverCount = Atomic<Int>(0)
 
     internal var connections: [Connection] = []
-    @ObservationIgnored public let kind: PortKind
-    @ObservationIgnored public let direction:PortDirection = .Horizontal
-    @ObservationIgnored public var color:Color
-    @ObservationIgnored public var backgroundColor:Color
+    public let kind: PortKind
+    public let direction:PortDirection = .Horizontal
+    public var color:Color
+    public var backgroundColor:Color
 
     public var debugDescription: String
     {
@@ -140,55 +147,14 @@ extension UTType
         self.id = id
         self.kind = kind
         self.name = name
+        self.key = .own(name)
         self.portDescription = description
         self.color = .clear
         self.backgroundColor = .clear
     }
     
-    enum CodingKeys : String, CodingKey
-    {
-        case id
-        case name
-        case kind
-        case direction
-        case published
-        case publishedName
-        case portDescription
-    }
 
-    required public  init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
 
-        self.id = try container.decode(UUID.self, forKey: .id)
-        self.name = try container.decode(String.self, forKey: .name)
-        self.kind = try container.decode(PortKind.self, forKey: .kind)
-        self.published = try container.decodeIfPresent(Bool.self, forKey: .published) ?? false
-        self.publishedName = try container.decodeIfPresent(String.self, forKey: .publishedName)
-        self.portDescription = try container.decodeIfPresent(String.self, forKey: .portDescription) ?? ""
-        self.color = .clear
-        self.backgroundColor = .clear
-    }
-
-    public func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(id, forKey: .id)
-        try container.encode(name, forKey: .name)
-        try container.encode(kind, forKey: .kind)
-        try container.encode(published, forKey: .published)
-
-        if let publishedName
-        {
-            try container.encode(publishedName, forKey: .publishedName)
-        }
-
-        if !portDescription.isEmpty
-        {
-            try container.encode(portDescription, forKey: .portDescription)
-        }
-
-    }
     
     deinit
     {
@@ -203,15 +169,9 @@ extension UTType
 //        print("Deinit Port \(self.id)")
     }
     
-    /// The display name: publishedName if set, otherwise the port's own name.
-    public var displayName: String { publishedName ?? name }
-
-    /// Identity for view code that must re-identify a port view when its type
-    /// changes: `id` alone survives a TypeAgnosticNode Settings-driven type
-    /// swap unchanged (addOrReplaceDynamicPortPreservingIdentity preserves it
-    /// so wires reconnect), so views keyed on `id` alone see no change and
-    /// skip re-rendering the stale type.
-    public var identitySignature: String { "\(id):\(portType.rawValue)" }
+    /// The display name: the name its graph publishes it under, if it was
+    /// given one, otherwise the port's own name.
+    public var displayName: String { self.node?.graph?.publishedName(of: self) ?? name }
 
     public var connectedPorts: [Port]
     {
@@ -250,24 +210,31 @@ extension UTType
         return "\(head) - \(portType.previewString(for: value))"
     }
 
-    /// Applies document-owned state from a decoded snapshot onto this
-    /// code-declared port: identity (connections are keyed by port UUID),
-    /// published state, and — when the types still agree — the persisted value.
-    /// Code-owned metadata (name, description, parameter range and control
-    /// type) deliberately stays as declared; the document does not own it.
-    /// Must run before the port is registered — the registry indexes by id.
-    internal func hydrate(from decoded: Port)
-    {
-        self.id = decoded.id
-        self.published = decoded.published
-        self.publishedName = decoded.publishedName
 
-        if decoded.portType == self.portType,
-           let boxedValue = decoded.snapshotValue()
-        {
-            self.restoreValue(from: boxedValue)
-        }
+    /// Takes `id` as the port's runtime identity.
+    internal func adoptID(_ id: UUID)
+    {
+        self.id = id
     }
+
+    /// Puts a saved or carried value on the port when it fits the port's type,
+    /// then lets the port correct it. Returns whether the value fitted.
+    @discardableResult
+    internal func apply(_ state: PortState, fileReferenceBase: URL? = nil) -> Bool
+    {
+        guard self.accepts(state.value) else { return false }
+        self.restoreValue(from: state.value)
+        self.correctAppliedValue(fileReferenceBase: fileReferenceBase)
+        return true
+    }
+
+    /// Whether `value` is a value of this port's type.
+    internal func accepts(_ value: PortValue) -> Bool { false }
+
+    /// A port's own correction of a value put on it from outside the node: a
+    /// slider's clamp to its range, a file picker's absolute reference inside
+    /// `fileReferenceBase` made relative. Never an edit.
+    internal func correctAppliedValue(fileReferenceBase: URL?) { }
 
     public func canConnect(to other:Port) -> Bool
     {

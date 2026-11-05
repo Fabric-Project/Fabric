@@ -15,15 +15,17 @@ private final class PlanningTestNode: Node {
     var declines = false
     var keepControlAlive = false
     var onPull: (() -> Void)?
-    var first: NodePort<Float> { port(named: "first") }
-    var second: NodePort<Float> { port(named: "second") }
-    var output: NodePort<Float> { port(named: "output") }
 
-    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)] {
-        super.registerPorts(context: context) + [
-            ("first", NodePort<Float>(name: "First", kind: .Inlet)),
-            ("second", NodePort<Float>(name: "Second", kind: .Inlet)),
-            ("output", NodePort<Float>(name: "Output", kind: .Outlet)),
+    let first = NodePort<Float>(name: "First", kind: .Inlet)
+    let second = NodePort<Float>(name: "Second", kind: .Inlet)
+    let output = NodePort<Float>(name: "Output", kind: .Outlet)
+
+    override func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "first", port: self.first),
+            PortDeclaration(key: "second", port: self.second),
+            PortDeclaration(key: "output", port: self.output),
         ]
     }
 

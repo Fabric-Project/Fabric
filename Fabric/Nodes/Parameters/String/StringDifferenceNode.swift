@@ -20,22 +20,19 @@ public class StringDifferenceNode : Node
     override public class var nodeDescription: String { "Find the difference between two strings"}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputPort",   ParameterPort(parameter: StringParameter("String", "", .inputfield, "First string to compare"))),
-            ("input2Port",  ParameterPort(parameter: StringParameter("String", "", .inputfield, "Second string to compare"))),
-            ("outputPort",  NodePort<String>(name: "String", kind: .Outlet, description: "Characters that differ between the two strings")),
+    public let inputPort: NodePort<String> = ParameterPort(parameter: StringParameter("String", "", .inputfield, "First string to compare"))
+    public let input2Port: NodePort<String> = ParameterPort(parameter: StringParameter("String", "", .inputfield, "Second string to compare"))
+    public let outputPort = NodePort<String>(name: "String", kind: .Outlet, description: "Characters that differ between the two strings")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputPort", port: self.inputPort),
+            PortDeclaration(key: "input2Port", port: self.input2Port),
+            PortDeclaration(key: "outputPort", port: self.outputPort),
         ]
     }
-    
-    // Port Proxy
-    public var inputPort:NodePort<String>   { port(named: "inputPort") }
-    public var input2Port:NodePort<String>   { port(named: "input2Port") }
-    public var outputPort:NodePort<String>     { port(named: "outputPort") }
-    
+
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,

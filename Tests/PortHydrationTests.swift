@@ -66,46 +66,74 @@ struct PortHydrationTests
         nodeMap[index]["value"] = value
         object["nodeMap"] = nodeMap
 
+        // Wires and publishing name the node by id: follow a changed one.
+        if let newID = value["id"] as? String, newID != nodeID.uuidString
+        {
+            func follow(_ object: Any) -> Any
+            {
+                switch object
+                {
+                case let string as String: return string == nodeID.uuidString ? newID : string
+                case let array as [Any]: return array.map(follow)
+                case let dictionary as [String: Any]: return dictionary.mapValues(follow)
+                default: return object
+                }
+            }
+            object["connections"] = object["connections"].map(follow)
+            object["published"] = object["published"].map(follow)
+        }
+
         let decoder = JSONDecoder()
         decoder.context = DecoderContext(documentContext: context)
         return try decoder.decode(Graph.self, from: try JSONSerialization.data(withJSONObject: object))
     }
 
-    @Test("Round trip preserves port identity, published state and values")
+    /// Saves a graph holding `node` and opens it again, handing back the node;
+    /// publishing is the graph's, so it round-trips only through one.
+    private func roundTripInGraph<N: Node>(_ node: N, context: Context, publishing: (Graph) -> Void = { _ in }) throws -> (graph: Graph, node: N)
+    {
+        let graph = Graph(context: context)
+        graph.addNode(node)
+        publishing(graph)
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decoded = try decoder.decode(Graph.self, from: JSONEncoder().encode(graph))
+        return (decoded, try #require(decoded.node(forID: node.id) as? N))
+    }
+
+    @Test("Round trip preserves port keys, published state and values")
     func roundTripPreservesDocumentOwnedState() throws
     {
         guard let context = makeContext() else { return }
 
         let node = NumberBinaryOperator(context: context)
         node.inputNumber1.value = 72
-        node.inputNumber2.published = true
-        node.inputNumber2.publishedName = "Custom Name"
 
-        let savedIDs = node.ports.map(\.id)
+        let (decodedGraph, decoded) = try roundTripInGraph(node, context: context) { graph in
+            graph.setPublished(true, port: node.inputNumber2, name: "Custom Name")
+        }
+        defer { withExtendedLifetime(decodedGraph) { } }
 
-        let decoded = try roundTrip(node, context: context)
-
-        #expect(decoded.ports.map(\.id) == savedIDs)
+        #expect(decoded.ports.map(\.key) == node.ports.map(\.key))
         #expect(decoded.inputNumber1.value == 72)
-        #expect(decoded.inputNumber2.published)
-        #expect(decoded.inputNumber2.publishedName == "Custom Name")
+        #expect(decoded.inputNumber2.isPublishedInGraph)
+        #expect(decoded.inputNumber2.publishedNameInGraph == "Custom Name")
         #expect(decoded.droppedPortStateKeys.isEmpty)
     }
 
-    @Test("Dynamic strategy ports rebuild from the decoded strategy and keep identity")
-    func dynamicPortsKeepIdentity() throws
+    @Test("Dynamic strategy ports rebuild from the decoded strategy")
+    func dynamicPortsRebuildFromStrategy() throws
     {
         guard let context = makeContext() else { return }
 
         let node = SampleAndHoldNode(context: context, portType: .Float)
-        let savedInputID = try #require((node.findPort(named: "inputValue") as Fabric.Port?)?.id)
-        let savedOutputID = try #require((node.findPort(named: "outputValue") as Fabric.Port?)?.id)
 
         let decoded = try roundTrip(node, context: context)
 
         #expect(decoded.selectedPortType == .Float)
-        #expect((decoded.findPort(named: "inputValue") as Fabric.Port?)?.id == savedInputID)
-        #expect((decoded.findPort(named: "outputValue") as Fabric.Port?)?.id == savedOutputID)
+        #expect((decoded.findPort(named: "inputValue") as Fabric.Port?)?.portType == .Float)
+        #expect((decoded.findPort(named: "outputValue") as Fabric.Port?)?.portType == .Float)
+        #expect(decoded.ports.map(\.key) == node.ports.map(\.key))
         #expect(decoded.droppedPortStateKeys.isEmpty)
     }
 
@@ -121,7 +149,7 @@ struct PortHydrationTests
         (DictionarySetValueForKeyNode.self, "inputValue"),
     ]
 
-    @Test("A type-agnostic node's edited value inlet comes back with its value, on its id", arguments: editableValueInlets)
+    @Test("A type-agnostic node's edited value inlet comes back with its value", arguments: editableValueInlets)
     func editableValueInletSurvivesRoundTrip(nodeClass: TypeAgnosticNode.Type, portName: String) throws
     {
         guard let context = makeContext() else { return }
@@ -135,7 +163,6 @@ struct PortHydrationTests
         let inlet = try #require(node.findPort(named: portName) as ParameterPort<Float>?,
                                  "\(nodeClass) Float value inlet is not a ParameterPort<Float>")
         inlet.value = 7.5
-        let savedID = inlet.id
 
         let data = try JSONEncoder().encode(graph)
         let decoder = JSONDecoder()
@@ -146,8 +173,6 @@ struct PortHydrationTests
         let decodedInlet = try #require(decoded.findPort(named: portName) as ParameterPort<Float>?,
                                         "\(nodeClass) value inlet decoded without its parameter")
 
-        #expect(decodedInlet.id == savedID)
-        #expect(decodedInlet.parameter?.id == savedID)
         #expect(decodedInlet.value == 7.5)
     }
 
@@ -159,45 +184,18 @@ struct PortHydrationTests
         let node = NumberBinaryOperator(context: context)
         let declaredPortCount = node.ports.count
 
-        // Rewrite one snapshot's registry key to one no code declares —
-        // exactly what a document written by an older build holds after the
-        // code retires or re-keys a port.
+        // Move a saved value to a key no code declares: exactly what a
+        // document written by an older build holds after the code retires or
+        // re-keys a port.
         let decoded = try roundTrip(node, context: context) { jsonObject in
-            var ports = jsonObject["ports"] as? [[String: Any]] ?? []
-            if var first = ports.first
-            {
-                first["name"] = "retiredKey"
-                ports[0] = first
-            }
+            var ports = jsonObject["ports"] as? [String: Any] ?? [:]
+            ports["retiredKey"] = ports.removeValue(forKey: "inputNumber1")
             jsonObject["ports"] = ports
         }
 
         #expect(decoded.ports.count == declaredPortCount)
         #expect((decoded.findPort(named: "retiredKey") as Fabric.Port?) == nil)
         #expect(decoded.droppedPortStateKeys == ["retiredKey"])
-    }
-
-    @Test("Hydration keeps the backing parameter on the port's identity")
-    func hydrationKeepsParameterOnPortIdentity() throws
-    {
-        guard let context = makeContext() else { return }
-
-        let node = NumberBinaryOperator(context: context)
-        let savedID = node.inputNumber1.id
-        #expect(node.inputNumber1.parameter?.id == savedID)
-
-        let decoded = try roundTrip(node, context: context)
-
-        #expect(decoded.inputNumber1.id == savedID)
-        #expect(decoded.inputNumber1.parameter?.id == savedID)
-
-        // Material syncs swap the backing parameter wholesale
-        // (Node.replaceParameterOfPort); the invariant has to survive that too.
-        let replacement = FloatParameter("Number 1", 3)
-        decoded.replaceParameterOfPort(decoded.inputNumber1, withParam: replacement)
-
-        #expect(decoded.inputNumber1.id == savedID)
-        #expect(decoded.inputNumber1.parameter?.id == savedID)
     }
 
     @Test("An editable port rebuilt on another's id keeps it, parameter included")
@@ -212,7 +210,6 @@ struct PortHydrationTests
             #expect(port.parameter != nil, "\(portType.rawValue) rebuilt without a parameter")
             #expect(port.portType == portType, "\(portType.rawValue) rebuilt as \(port.portType.rawValue)")
             #expect(port.id == takenOverID, "\(portType.rawValue) rebuilt on a new id")
-            #expect(port.parameter?.id == takenOverID, "\(portType.rawValue) parameter keyed to a different id")
         }
 
         // A type with no parameter to offer falls back to a plain port, on the same id.
@@ -282,36 +279,36 @@ struct PortHydrationTests
 
         // The numeric family rebuilds through the same helper.
         let distance = DistanceNode(context: context)
+        let graph = Graph(context: context)
+        graph.addNode(distance)
         distance.setStrategy(PortType.Float)
         let floatA = try #require(distance.findPort(named: "inputA") as ParameterPort<Float>?)
-        floatA.published = true
+        floatA.publishInGraph(true)
         let savedAID = floatA.id
 
         distance.setStrategy(PortType.Vector3.rawValue)
 
         let float3A = try #require(distance.findPort(named: "inputA") as ParameterPort<simd_float3>?)
         #expect(float3A.id == savedAID)
-        #expect(float3A.published)
+        #expect(float3A.isPublishedInGraph)
     }
 
-    @Test("A saved quaternion parameter port comes back as a plain port on its id, not a crash")
-    func quaternionParameterPortDecodesAsPlainPort() throws
+    @Test("A saved parameter Satin could not decode is dropped, not a crash")
+    func undecodableParameterIsDropped() throws
     {
         guard let context = makeContext() else { return }
 
-        // What a build before this rule wrote for a quaternion uniform.
-        let port = ParameterPort(parameter: GenericParameter<simd_quatf>("Rotation", simd_quatf(angle: 0.5, axis: simd_float3(0, 1, 0))))
-        let data = try JSONEncoder().encode(AnyPort(port))
+        // What a build before this rule wrote for a quaternion uniform: a
+        // .generic parameter, which Satin's decoder traps on.
+        var operation = LegacyDocumentFixture.numberBinaryOperator(a: 5)
+        operation.node.ports[0].parameter = ("generic", [0, 0, 0, 1])
+        let decoded = try LegacyDocumentFixture(nodes: [operation.node]).decode(context: context)
 
-        let decoder = JSONDecoder()
-        decoder.context = DecoderContext(documentContext: context)
-        let decoded = try decoder.decode(AnyPort.self, from: data).base
-        #expect(decoded is NodePort<simd_quatf>)
-        #expect(decoded.parameter == nil)
-        #expect(decoded.id == port.id)
+        let node = try #require(decoded.node(forID: operation.node.id) as? NumberBinaryOperator)
+        #expect(node.inputNumber1.value == 0)
     }
 
-    @Test("A Transform parameter port survives a save as a parameter port, value and id intact")
+    @Test("A Transform parameter port survives a save as a parameter port, value intact")
     func transformParameterPortSurvivesRoundTrip() throws
     {
         guard let context = makeContext() else { return }
@@ -322,26 +319,12 @@ struct PortHydrationTests
                                                   simd_float4(0, 0, 1, 0),
                                                   simd_float4(3, 4, 5, 1)))
         node.input.value = translation
-        node.input.published = true
-        let savedID = node.input.id
 
-        // The port on its own, through the document's port envelope: a parameter
-        // port that fails to decode is quietly re-read as a plain one (AnyPort),
-        // which the node-level round trip below would not notice.
-        let portData = try JSONEncoder().encode(AnyPort(node.input))
-        let portDecoder = JSONDecoder()
-        portDecoder.context = DecoderContext(documentContext: context)
-        let decodedPort = try #require(try portDecoder.decode(AnyPort.self, from: portData).base as? ParameterPort<simd_float4x4>)
-        #expect(decodedPort.id == savedID)
-        #expect(decodedPort.value == translation)
-        #expect((decodedPort.parameter as? Float4x4Parameter)?.value == translation)
-
-        // The node, through declare-then-hydrate.
+        // The node, through declare-then-hydrate: the value is saved as a
+        // PortValue under the port's key and taken by the declared port.
         let decoded = try roundTrip(node, context: context)
-        #expect(decoded.input.id == savedID)
         #expect(decoded.input.value == translation)
         #expect((decoded.input.parameter as? Float4x4Parameter)?.value == translation)
-        #expect(decoded.input.published)
         #expect(decoded.droppedPortStateKeys.isEmpty)
     }
 
@@ -367,7 +350,7 @@ struct PortHydrationTests
         #expect(decoded.inputNumber1.value == 5)
     }
 
-    @Test("JavaScript node rebuilds its script ports on decode and keeps identity")
+    @Test("JavaScript node rebuilds its script ports on decode")
     @MainActor
     func javaScriptNodeRebuildsScriptPortsOnDecode() throws
     {
@@ -382,19 +365,19 @@ struct PortHydrationTests
 
         let inputPort = try #require(node.findPort(named: "x") as Fabric.Port?)
         let outputPort = try #require(node.findPort(named: "doubled") as Fabric.Port?)
-        inputPort.published = true
-        let savedInputID = inputPort.id
-        let savedOutputID = outputPort.id
+        _ = outputPort
 
-        let decoded = try roundTrip(node, context: context)
+        let (decodedGraph, decoded) = try roundTripInGraph(node, context: context) { graph in
+            graph.setPublished(true, port: inputPort)
+        }
+        defer { withExtendedLifetime(decodedGraph) { } }
 
-        #expect((decoded.findPort(named: "x") as Fabric.Port?)?.id == savedInputID)
-        #expect((decoded.findPort(named: "x") as Fabric.Port?)?.published == true)
-        #expect((decoded.findPort(named: "doubled") as Fabric.Port?)?.id == savedOutputID)
+        #expect((decoded.findPort(named: "x") as Fabric.Port?)?.isPublishedInGraph == true)
+        #expect((decoded.findPort(named: "doubled") as Fabric.Port?) != nil)
         #expect(decoded.droppedPortStateKeys.isEmpty)
     }
 
-    @Test("A JavaScript node whose saved script no longer parses keeps its ports and wires")
+    @Test("A JavaScript node saved with a script that does not parse opens with the ports of the last that did")
     @MainActor
     func javaScriptNodeKeepsPortsWhenSavedScriptFailsToParse() throws
     {
@@ -415,22 +398,28 @@ struct PortHydrationTests
         let outputPort = try #require(node.findPort(named: "doubled") as Fabric.Port?)
         graph.connect(outputPort, to: consumer.inputNumber1)
 
-        let savedPortIDs = node.ports.map(\.id)
+        let savedPortIDs = node.ports.map(\.key)
         #expect(savedPortIDs.count == 2)
 
+        // Saved mid-edit: the document holds the script that does not parse,
+        // and the last one that did beside it.
+        node.updateScriptSource("function (this is not javascript")
+        var savedLastCompiled: String?
         let decodedGraph = try roundTripGraph(graph, context: context, editingNode: node.id) { value in
-            value["scriptSource"] = "function (this is not javascript"
+            savedLastCompiled = value["lastCompiledSource"] as? String
         }
+        #expect(savedLastCompiled?.contains("doubled") == true)
 
         let decodedNode = try #require(decodedGraph.nodes.first { $0.id == node.id } as? JavaScriptNode)
+        #expect(decodedNode.currentDiagnostics.isEmpty == false)
 
-        #expect(decodedNode.ports.map(\.id) == savedPortIDs)
+        #expect(decodedNode.ports.map(\.key) == savedPortIDs)
         #expect(decodedGraph.droppedPortStateDiagnostics.isEmpty)
         #expect(decodedGraph.droppedConnectionDiagnostics.isEmpty)
         #expect(try #require(decodedNode.findPort(named: "doubled") as Fabric.Port?).connections.count == 1)
     }
 
-    @Test("A Live Image node whose saved shader no longer compiles keeps its ports and wires")
+    @Test("A Live Image node saved with a shader that does not compile opens with the uniforms of the last that did")
     @MainActor
     func liveImageNodeKeepsPortsWhenSavedShaderFailsToCompile() throws
     {
@@ -464,23 +453,25 @@ struct PortHydrationTests
         gainPort.value = 1.7
         graph.connect(source.outputNumber, to: gainPort)
 
-        let savedPortIDs = node.ports.map(\.id)
+        let savedPortIDs = node.ports.map(\.key)
 
-        // updateShaderSource writes and recompiles, so the broken source has to
-        // reach the node through the document. The node id has to change with
-        // it: the shader workspace is keyed on that id, and reusing it would
+        // Saved mid-edit: the document holds the shader that does not compile,
+        // and the last one that did beside it. The node id changes on the way
+        // through: the shader workspace is keyed on it, and reusing it would
         // have the decoded node recompile a directory this test already
         // compiled a working shader in.
+        node.updateShaderSource("this is not a metal shader")
+        #expect(Set(node.ports.map(\.key)) == Set(savedPortIDs))
         let decodedNodeID = UUID()
         let decodedGraph = try roundTripGraph(graph, context: context, editingNode: node.id) { value in
-            value["shaderSource"] = "this is not a metal shader"
+            #expect((value["lastCompiledSource"] as? String)?.contains("gain") == true)
             value["id"] = decodedNodeID.uuidString
         }
 
         let decodedNode = try #require(decodedGraph.nodes.first { $0.id == decodedNodeID } as? LiveImageNode)
 
         #expect(decodedNode.currentShaderErrorDescription() != nil)
-        #expect(Set(decodedNode.ports.map(\.id)) == Set(savedPortIDs))
+        #expect(Set(decodedNode.ports.map(\.key)) == Set(savedPortIDs))
         #expect(decodedGraph.droppedPortStateDiagnostics.isEmpty)
         #expect(decodedGraph.droppedConnectionDiagnostics.isEmpty)
 
@@ -542,8 +533,7 @@ struct PortHydrationTests
 
         let decoded = try #require(decodedGraph.node(forID: node.id) as? LiveImageNode)
         let decodedPort = try #require(decoded.findPort(named: uniformPort.name) as ParameterPort<simd_float4x4>?)
-        #expect(decodedPort.id == uniformPort.id)
-        #expect(decodedPort.connectedPorts.map(\.id) == [source.output.id])
+        #expect(decodedPort.connectedPorts.map { $0.node?.id } == [source.id])
 
         let scale = simd_float4x4(diagonal: simd_float4(2, 3, 1, 1))
         decodedPort.value = scale
@@ -554,9 +544,9 @@ struct PortHydrationTests
         #expect((decodedPort.parameter as AnyObject) === materialParameter)
     }
 
-    @Test("A Transform uniform saved as a plain port becomes a parameter port on its id once the shader compiles again")
+    @Test("A uniform declared from the last compiled shader takes the material's parameter once the shader compiles again")
     @MainActor
-    func plainTransformUniformPortIsReplacedOnItsIdWhenShaderCompiles() throws
+    func lastCompiledUniformTakesMaterialParameterWhenShaderCompiles() throws
     {
         guard let context = makeContext() else { return }
 
@@ -585,48 +575,30 @@ struct PortHydrationTests
         node.updateShaderSource(shaderSource)
 
         let uniformPort = try #require(node.ports.first { $0.kind == .Inlet && $0.portType == .Transform })
-        uniformPort.published = true
+        uniformPort.publishInGraph(true)
         graph.connect(source.output, to: uniformPort)
-        let savedID = uniformPort.id
-
-        // A document from before Transform carried a parameter holds the uniform
-        // as a plain port, and its shader fails to compile on load, so the node
-        // adopts that port as a stand-in.
+        // Saved with a shader that does not compile: on open the uniform is
+        // declared from the last that did, read for its interface only, so
+        // its parameter is not the material's.
+        node.updateShaderSource("this is not a metal shader")
         let decodedNodeID = UUID()
         let decodedGraph = try roundTripGraph(graph, context: context, editingNode: node.id) { value in
-            value["shaderSource"] = "this is not a metal shader"
             value["id"] = decodedNodeID.uuidString
-
-            var ports = value["ports"] as? [[String: Any]] ?? []
-            for index in ports.indices
-            {
-                guard var payload = ports[index]["payload"] as? [String: Any],
-                      var base = payload["base"] as? [String: Any],
-                      base["id"] as? String == savedID.uuidString
-                else { continue }
-
-                base["parameter"] = nil
-                payload["base"] = base
-                payload["isParameterPort"] = false
-                ports[index]["payload"] = payload
-            }
-            value["ports"] = ports
         }
 
         let decodedNode = try #require(decodedGraph.nodes.first { $0.id == decodedNodeID } as? LiveImageNode)
-        let adopted = try #require(decodedNode.findPort(named: uniformPort.name) as Fabric.Port?)
-        #expect(adopted.parameter == nil)
-        #expect(adopted.id == savedID)
+        let adopted = try #require(decodedNode.findPort(named: uniformPort.name) as ParameterPort<simd_float4x4>?)
+        #expect(adopted.isPublishedInGraph)
+        #expect(adopted.connectedPorts.count == 1)
 
         decodedNode.updateShaderSource(shaderSource)
 
         let replaced = try #require(decodedNode.findPort(named: uniformPort.name) as ParameterPort<simd_float4x4>?)
-        #expect(replaced.id == savedID)
-        #expect(replaced.published)
+        #expect(replaced === adopted)
+        #expect(replaced.isPublishedInGraph)
         #expect(replaced.connectedPorts.count == 1)
         let materialParameter = try #require(decodedNode.postMaterial.parameters.get(uniformPort.name) as? Float4x4Parameter)
         #expect((replaced.parameter as AnyObject) === materialParameter)
-        #expect(materialParameter.id == savedID)
     }
 
     @Test("Live Image node rebuilds its saved shader's uniform ports on decode")
@@ -658,15 +630,12 @@ struct PortHydrationTests
         // test would only prove the template shader's ports survive.
         let gainPort = try #require(node.findPort(named: "Gain") as? ParameterPort<Float>)
         gainPort.value = 1.7
-        let savedGainID = gainPort.id
-        let savedImageInputID = try #require((node.findPort(named: "Image") as Fabric.Port?)?.id)
 
         let decoded = try roundTrip(node, context: context)
 
         let decodedGain = try #require(decoded.findPort(named: "Gain") as? ParameterPort<Float>)
-        #expect(decodedGain.id == savedGainID)
         #expect(decodedGain.value == 1.7)
-        #expect((decoded.findPort(named: "Image") as Fabric.Port?)?.id == savedImageInputID)
+        #expect((decoded.findPort(named: "Image") as Fabric.Port?) != nil)
         #expect(decoded.droppedPortStateKeys.isEmpty)
     }
 
@@ -677,7 +646,7 @@ struct PortHydrationTests
 
         let node = try BaseTextureComputeProcessorNode(context: context,
                                                        fileURL: bundledComputeShaderURL())
-        let savedPortIDs = node.ports.map(\.id)
+        let savedPortIDs = node.ports.map(\.key)
         let savedTitle = node.title
 
         let encodedData = try JSONEncoder().encode(node)
@@ -704,7 +673,7 @@ struct PortHydrationTests
         #expect(decoded.compute != nil,
                 "A valid bundled compute effectPath decoded without rebuilding its processor.")
         #expect(decoded.title == savedTitle)
-        #expect(decoded.ports.map(\.id) == savedPortIDs)
+        #expect(decoded.ports.map(\.key) == savedPortIDs)
         #expect(decoded.droppedPortStateKeys.isEmpty)
     }
 
@@ -731,16 +700,18 @@ struct PortHydrationTests
     {
         guard let context = makeContext() else { return }
 
-        // No controller is present in tests; adding the ports directly stands
-        // in for what a connected profile does via synchronizePorts.
-        let node = GameControllerNode(context: context)
-        node.addDynamicPort(NodePort<Float>(name: "Left Stick X", kind: .Outlet))
-        node.addDynamicPort(NodePort<Bool>(name: "A", kind: .Outlet))
-        let savedPortIDs = node.ports.map(\.id)
+        // No controller is present in tests; a document carrying descriptors
+        // stands in for what a connected profile does via synchronizePorts.
+        let descriptors: [[String: Any]] = [["name": "Left Stick X", "isButton": false], ["name": "A", "isButton": true]]
+        let node = try roundTrip(GameControllerNode(context: context), context: context) { jsonObject in
+            jsonObject["portDescriptors"] = descriptors
+        }
+        let savedPortIDs = node.ports.map(\.key)
+        #expect(savedPortIDs.count == 2)
 
         let decoded = try roundTrip(node, context: context)
 
-        #expect(decoded.ports.map(\.id) == savedPortIDs)
+        #expect(decoded.ports.map(\.key) == savedPortIDs)
         #expect(decoded.findPort(named: "Left Stick X") is NodePort<Float>)
         #expect(decoded.findPort(named: "A") is NodePort<Bool>)
         #expect(decoded.droppedPortStateKeys.isEmpty)
@@ -772,25 +743,24 @@ struct PortHydrationTests
         #expect(reencodedInfo["productCategory"] as? String == savedInfo["productCategory"] as? String)
     }
 
-    @Test("Ports added after graph decode cannot resurrect stale snapshot state")
-    func latePortsDoNotResurrectStaleSnapshotState() throws
+    @Test("Ports added after graph decode cannot resurrect stale saved state")
+    func latePortsDoNotResurrectStaleSavedState() throws
     {
         guard let context = makeContext() else { return }
 
         let graph = Graph(context: context)
-        let node = NumberBinaryOperator(context: context)
+        let node = MathExpressionNode(context: context, expression: "x + 1")
         graph.addNode(node)
+        try #require(node.findPort(named: "x", as: ParameterPort<Float>.self)).value = 5
 
-        // Retire a key in the saved document, then load: the state is
-        // reported dropped and the node's hydration window closes.
+        // Retire a key in the saved document, then load: the value is
+        // reported dropped and the node's decode window closes.
         let data = try JSONEncoder().encode(graph)
         var object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
         var nodeMap = try #require(object["nodeMap"] as? [[String: Any]])
         var value = try #require(nodeMap[0]["value"] as? [String: Any])
-        var ports = try #require(value["ports"] as? [[String: Any]])
-        ports[0]["name"] = "retiredKey"
-        let retiredSnapshotID = try #require((ports[0]["payload"] as? [String: Any])
-            .flatMap { ($0["base"] as? [String: Any])?["id"] as? String })
+        var ports = try #require(value["ports"] as? [String: Any])
+        ports["retiredKey"] = ports.removeValue(forKey: "x")
         value["ports"] = ports
         nodeMap[0]["value"] = value
         object["nodeMap"] = nodeMap
@@ -801,28 +771,27 @@ struct PortHydrationTests
 
         #expect(decoded.droppedPortStateDiagnostics.first?.droppedRegistryKeys == ["retiredKey"])
 
-        // The pre-session failure mode: state lingered after decode, so a
-        // port registered under the stale key months later — a settings
-        // toggle, a reconnecting device — suddenly adopted the saved identity
-        // without its wires. The window is closed now; late ports are fresh.
-        let decodedNode = try #require(decoded.nodes.first { $0.id == node.id })
-        let latePort = NodePort<Float>(name: "Retired", kind: .Inlet)
-        decodedNode.addDynamicPort(latePort, name: "retiredKey")
+        // A port declared under the stale key later, a settings edit or a
+        // reconnecting device, must not take the saved value: the window is
+        // closed, and a late port rests at its default.
+        let decodedNode = try #require(decoded.nodes.first { $0.id == node.id } as? MathExpressionNode)
+        decodedNode.stringExpression = "retiredKey * 2"
+        let latePort = try #require(decodedNode.findPort(named: "retiredKey", as: ParameterPort<Float>.self))
 
-        #expect(latePort.id.uuidString != retiredSnapshotID)
+        #expect(latePort.value == 0)
     }
 
-    @Test("A port removed and recreated within one decode keeps its identity")
-    func removeAndRecreateWithinDecodeKeepsIdentity() throws
+    @Test("A port removed and declared again within one decode keeps its saved value")
+    func removeAndRecreateWithinDecodeKeepsValue() throws
     {
         guard let context = makeContext() else { return }
 
         let node = RecreatingPortNode(context: context)
-        let savedID = node.value.id
+        node.value.value = 4
 
         let decoded = try roundTrip(node, context: context)
 
-        #expect(decoded.value.id == savedID)
+        #expect(decoded.value.value == 4)
         #expect(decoded.droppedPortStateKeys.isEmpty)
     }
 
@@ -832,21 +801,20 @@ struct PortHydrationTests
         guard let context = makeContext() else { return }
 
         let graph = Graph(context: context)
-        let node = NumberBinaryOperator(context: context)
+        let node = MathExpressionNode(context: context, expression: "extraKey + 1")
         graph.addNode(node)
 
-        // A key no registerPorts declares: it survives the duplicate's encode
-        // and has nothing to hydrate on the way back in, so it is exactly the
-        // stale state a later port must not pick up.
-        node.addDynamicPort(NodePort<Float>(name: "Extra", kind: .Inlet), name: "extraKey")
+        // The duplicate takes extraKey's saved state on its way in. Once its
+        // expression drops the variable and brings it back, the port is a new
+        // one: the window that held the saved state has closed.
+        try #require(node.findPort(named: "extraKey", as: ParameterPort<Float>.self)).value = 3
+        let duplicated = try #require(graph.duplicateNodes([node]).first as? MathExpressionNode)
+        #expect(try #require(duplicated.findPort(named: "extraKey", as: ParameterPort<Float>.self)).value == 3)
+        duplicated.stringExpression = "1"
+        duplicated.stringExpression = "extraKey + 1"
+        let latePort = try #require(duplicated.findPort(named: "extraKey", as: ParameterPort<Float>.self))
 
-        let duplicated = try #require(graph.duplicateNodes([node]).first)
-
-        let latePort = NodePort<Float>(name: "Extra", kind: .Inlet)
-        let freshID = latePort.id
-        duplicated.addDynamicPort(latePort, name: "extraKey")
-
-        #expect(latePort.id == freshID)
+        #expect(latePort.value == 0)
     }
 
     @Test("State under a key the code no longer declares drops and is reported")
@@ -856,27 +824,23 @@ struct PortHydrationTests
 
         let node = RenamedKeyPortNode(context: context)
         node.input.value = 7
-        let savedID = node.input.id
 
         // Rewrite the snapshot to a pre-rename key. Hydration matches exactly:
         // the state must not land on today's port, and the retired key must
         // surface as dropped rather than disappear.
         let decoded = try roundTrip(node, context: context) { jsonObject in
-            var ports = jsonObject["ports"] as? [[String: Any]] ?? []
-            for index in ports.indices where ports[index]["name"] as? String == "input"
-            {
-                ports[index]["name"] = "legacyInput"
-            }
+            var ports = jsonObject["ports"] as? [String: Any] ?? [:]
+            ports["legacyInput"] = ports.removeValue(forKey: "input")
             jsonObject["ports"] = ports
         }
 
-        #expect(decoded.input.id != savedID)
+        #expect(decoded.input.value == 0)
         #expect(decoded.droppedPortStateKeys == ["legacyInput"])
     }
 }
 
-/// Stands in for the remove-then-recreate a material sync performs when a
-/// uniform's backing type changes underneath an already hydrated port.
+/// Stands in for a node whose interface drops a port and declares it again
+/// within one decode, as a shader read twice can.
 private final class RecreatingPortNode: Node
 {
     override class var name: String { "Recreating Port" }
@@ -885,13 +849,19 @@ private final class RecreatingPortNode: Node
     override class var nodeTimeMode: Node.TimeMode { .None }
     override class var nodeDescription: String { "Test node that rebuilds a declared port during decode." }
 
-    var value: NodePort<Float> { port(named: "value") }
+    var value: ParameterPort<Float> { _value }
+    private var _value: ParameterPort<Float>!
 
-    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
+    override func bindPorts()
     {
-        super.registerPorts(context: context) + [
-            ("value", NodePort<Float>(name: "Value", kind: .Inlet)),
-        ]
+        super.bindPorts()
+        self._value = findPort(named: "value")
+    }
+    private var declaresValue = true
+
+    override func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + (declaresValue ? [PortDeclaration(key: "value", port: ParameterPort(parameter: FloatParameter("Value", 0, .inputfield)))] : [])
     }
 
     required init(context: Context)
@@ -903,8 +873,10 @@ private final class RecreatingPortNode: Node
     {
         try super.init(from: decoder)
 
-        self.removePort(self.value)
-        self.addDynamicPort(NodePort<Float>(name: "Value", kind: .Inlet), name: "value")
+        self.declaresValue = false
+        self.reconcilePorts()
+        self.declaresValue = true
+        self.reconcilePorts()
     }
 }
 
@@ -916,12 +888,12 @@ private final class RenamedKeyPortNode: Node
     override class var nodeTimeMode: Node.TimeMode { .None }
     override class var nodeDescription: String { "Test node with a renamed port key." }
 
-    var input: NodePort<Float> { port(named: "input") }
+    let input = ParameterPort(parameter: FloatParameter("Input", 0, .inputfield))
 
-    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
+    override func declaredPorts() -> [PortDeclaration]
     {
-        super.registerPorts(context: context) + [
-            ("input", NodePort<Float>(name: "Input", kind: .Inlet)),
+        super.declaredPorts() + [
+            PortDeclaration(key: "input", port: self.input),
         ]
     }
 }
@@ -936,13 +908,14 @@ private final class TransformParameterPortNode: Node
     override class var nodeTimeMode: Node.TimeMode { .None }
     override class var nodeDescription: String { "Test node with a Transform parameter port." }
 
-    var input: ParameterPort<simd_float4x4> { port(named: "inputTransform") }
+    let input = ParameterPort(parameter: Float4x4Parameter("Transform", matrix_identity_float4x4, .inputfield, "Transform"))
+    let outputTransform = NodePort<simd_float4x4>(name: "Transform", kind: .Outlet)
 
-    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
+    override func declaredPorts() -> [PortDeclaration]
     {
-        super.registerPorts(context: context) + [
-            ("inputTransform", ParameterPort(parameter: Float4x4Parameter("Transform", matrix_identity_float4x4, .inputfield, "Transform"))),
-            ("outputTransform", NodePort<simd_float4x4>(name: "Transform", kind: .Outlet)),
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputTransform", port: self.input),
+            PortDeclaration(key: "outputTransform", port: self.outputTransform),
         ]
     }
 }

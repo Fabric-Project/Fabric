@@ -16,22 +16,19 @@ public class ExtrudedTextGeometryNode : BaseGeometryNode
     public override class var nodeDescription: String { "Generates extruded 3D text geometry" }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return  [
-        ("inputText", ParameterPort(parameter:StringParameter("Text", "Testing", .inputfield, "The text string to render as 3D extruded geometry"))),
-        ("inputFont", ParameterPort(parameter:StringParameter("Font", "Helvetica", Self.installedFonts(), .dropdown, "Font family to use for text rendering"))),
-        ("inputPieceGeneration", ParameterPort(parameter:StringParameter("Pieces", TesselatedTextGeometry.PieceGeneration.none.menuTitle, TesselatedTextGeometry.PieceGeneration.menuTitles, .dropdown, "Divides the text into pieces, one per sentence, word or character, for Transform Pieces and Piece Info. None draws the text as one piece"))),
+    public let inputText = ParameterPort(parameter:StringParameter("Text", "Testing", .inputfield, "The text string to render as 3D extruded geometry"))
+    public let inputFont = ParameterPort(parameter:StringParameter("Font", "Helvetica", ExtrudedTextGeometryNode.installedFonts(), .dropdown, "Font family to use for text rendering"))
+    public let inputPieceGeneration = ParameterPort(parameter:StringParameter("Pieces", TesselatedTextGeometry.PieceGeneration.none.menuTitle, TesselatedTextGeometry.PieceGeneration.menuTitles, .dropdown, "Divides the text into pieces, one per sentence, word or character, for Transform Pieces and Piece Info. None draws the text as one piece"))
 
-        ] + ports
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        [
+            PortDeclaration(key: "inputText", port: self.inputText),
+            PortDeclaration(key: "inputFont", port: self.inputFont),
+            PortDeclaration(key: "inputPieceGeneration", port: self.inputPieceGeneration),
+        ] + super.declaredPorts()
     }
-    
-    // Proxy Ports
-    public var inputText:ParameterPort<String> { port(named: "inputText")  }
-    public var inputFont:ParameterPort<String> { port(named: "inputFont")  }
-    public var inputPieceGeneration:ParameterPort<String> { port(named: "inputPieceGeneration")  }
-    
+
     public override var geometry: ExtrudedTextGeometry { _geometry }
 
     private lazy var _geometry = ExtrudedTextGeometry(context:self.context, text: "Testing", fontSize: 1.0)

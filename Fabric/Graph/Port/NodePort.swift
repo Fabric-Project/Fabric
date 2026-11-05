@@ -28,6 +28,11 @@ public class NodePort<Value : PortValueRepresentable>: Port
         }
     }
 
+    override internal func accepts(_ value: PortValue) -> Bool
+    {
+        Value.fromPortValue(value) != nil
+    }
+
     override internal func sendBoxed(_ boxed: PortValue?)
     {
         sendBoxed(boxed, force: false)
@@ -61,6 +66,7 @@ public class NodePort<Value : PortValueRepresentable>: Port
             self.valueDidChange = true
             self.node?.markDirty()
             self.onValueChanged?()
+            self.notifyValueObservers()
             self.valueDidSet()
         }
     }
@@ -84,14 +90,10 @@ public class NodePort<Value : PortValueRepresentable>: Port
         
     public var valueType: Any.Type { Value.self }
 
-    @ObservationIgnored override public var portType: PortType {
+    override public var portType: PortType {
         Value.portType
     }
     
-    enum CodingKeys : String, CodingKey
-    {
-        case valueType
-    }
     
     override public init(name: String, kind: PortKind, description: String = "", id:UUID = UUID()) {
         super.init(name: name, kind: kind, description: description, id:id)
@@ -100,13 +102,6 @@ public class NodePort<Value : PortValueRepresentable>: Port
         self.backgroundColor = Self.calcBackgroundColor(forType: Value.self)
     }
     
-    required public init(from decoder: any Decoder) throws
-    {        
-        try super.init(from: decoder)
-
-        self.color = Self.calcColor(forType: Value.self)
-        self.backgroundColor = Self.calcBackgroundColor(forType: Value.self)
-    }
     
     override public func teardown()
     {

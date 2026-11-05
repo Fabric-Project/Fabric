@@ -39,6 +39,25 @@ import MathExpressionEngine
                 "a Processor that is not dirty is skipped, so the edit would not take effect")
     }
 
+    /// Saved mid-edit with an expression that does not compile: the document
+    /// carries the last one that did, and the node opens with its ports.
+    @Test func expressionThatDoesNotCompileOpensWithTheLastCompiledPorts() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = MathExpressionNode(context: context, expression: "in p: vec3; out o = p * 2")
+        node.stringExpression = "in p: vec3; out o = p *"
+
+        let saved = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(node)) as? [String: Any])
+        #expect(saved["lastCompiledSource"] as? String == "in p: vec3; out o = p * 2")
+
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decoded = try decoder.decode(MathExpressionNode.self, from: JSONEncoder().encode(node))
+        #expect(decoded.stringExpression == "in p: vec3; out o = p *")
+        #expect(names(decoded.inputPorts()) == ["p"])
+        #expect(names(decoded.outputPorts()) == ["o"])
+    }
+
     @Test func defaultExpressionDerivesTwoFloatInputsOneFloatOutput() throws
     {
         guard let context = makeContext() else { return }
@@ -240,14 +259,16 @@ import MathExpressionEngine
     {
         guard let context = makeContext() else { return }
         let node = MathExpressionNode(context: context, expression: "x + 1")
+        let graph = Graph(context: context)
+        graph.addNode(node)
         let x = try #require(node.findPort(named: "x", as: Fabric.Port.self))
         #expect(x.portType == .Float)
-        x.published = true
+        x.publishInGraph(true)
 
         node.stringExpression = "in x: vec3; out o = x + vec3(1)"
         let retyped = try #require(node.findPort(named: "x", as: Fabric.Port.self))
         #expect(retyped.portType == .Vector3)
         #expect(retyped.id == x.id)
-        #expect(retyped.published)
+        #expect(retyped.isPublishedInGraph)
     }
 }

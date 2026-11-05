@@ -24,22 +24,19 @@ public class NumberIntegralNode : Node
     private var state:Float = 0.0
     
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputNumber", ParameterPort(parameter: FloatParameter("Number", 0.0, .inputfield, "Value to integrate over time"))),
-            ("inputReset", ParameterPort(parameter: BoolParameter("Reset", false, .button, "Hold the Integral at zero while on"))),
-            ("outputNumber", NodePort<Float>(name: "Number" , kind: .Outlet, description: "Accumulated sum of input values over time")),
+    public let inputNumber = ParameterPort(parameter: FloatParameter("Number", 0.0, .inputfield, "Value to integrate over time"))
+    public let inputReset = ParameterPort(parameter: BoolParameter("Reset", false, .button, "Hold the Integral at zero while on"))
+    public let outputNumber = NodePort<Float>(name: "Number" , kind: .Outlet, description: "Accumulated sum of input values over time")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputNumber", port: self.inputNumber),
+            PortDeclaration(key: "inputReset", port: self.inputReset),
+            PortDeclaration(key: "outputNumber", port: self.outputNumber),
         ]
     }
-    
-    // Port Proxy
-    public var inputNumber:ParameterPort<Float> { port(named: "inputNumber") }
-    public var inputReset:ParameterPort<Bool> { port(named: "inputReset") }
-    public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
-    
+
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,

@@ -12,24 +12,27 @@ public final class DictionaryHasKeyNode: DictionaryTypeAgnosticNode
     public override class var name: String { "Dictionary Has Key" }
     override public class var nodeDescription: String { "Outputs whether a dictionary contains a string key. Choose value type in Settings." }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    private let inputKey = ParameterPort(parameter: StringParameter("Key", "", .inputfield, "Dictionary key to test"))
+
+    override public func bindPorts()
     {
-        super.registerPorts(context: context) + [
-            ("inputKey", ParameterPort(parameter: StringParameter("Key", "", .inputfield, "Dictionary key to test"))),
+        super.bindPorts()
+        self.boundInputDictionary = findPort(named: "inputDictionary")
+        self.boundOutputContainsKey = findPort(named: "outputContainsKey")
+    }
+
+    public override func declaredPorts() -> [PortDeclaration]
+    {
+        return [
+            PortDeclaration(key: "inputDictionary", portType: dictionaryType, kind: .Inlet, name: "Dictionary", description: "Dictionary to test"),
+        ] + super.declaredPorts() + [
+            PortDeclaration(key: "inputKey", port: self.inputKey),
+            PortDeclaration(key: "outputContainsKey", portType: .Bool, kind: .Outlet, name: "Contains Key", description: "Whether the key exists"),
         ]
     }
 
-    private var inputKey: ParameterPort<String> { port(named: "inputKey") }
-
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
-    {
-        super.rebuildPorts(forStrategy: strategy)
-
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputDictionary",   displayName: "Dictionary",   portType: dictionaryType, kind: .Inlet,  description: "Dictionary to test")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputContainsKey", displayName: "Contains Key", portType: .Bool,          kind: .Outlet, description: "Whether the key exists")
-
-        reorderPorts(named: ["inputDictionary", "inputKey", "outputContainsKey"])
-    }
+    private var boundInputDictionary: Port?
+    private var boundOutputContainsKey: Port?
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
@@ -37,8 +40,8 @@ public final class DictionaryHasKeyNode: DictionaryTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputDictionary: Port = findPort(named: "inputDictionary"),
-              let outputContainsKey: Port = findPort(named: "outputContainsKey"),
+        guard let inputDictionary: Port = self.boundInputDictionary,
+              let outputContainsKey: Port = self.boundOutputContainsKey,
               inputDictionary.valueDidChange || inputKey.valueDidChange else { return }
 
         let dictionary = inputDictionary.snapshotValue()?.dictionaryValue ?? [:]

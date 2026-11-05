@@ -464,9 +464,9 @@ public class MIDIInputNode: Node
             // Choosing none forgets the input, so an input appearing does not bring it back.
             savedInputInfo = selectedInputID == nil ? nil : liveInputInfo() ?? savedInputInfo
             updateMIDIConnection()
-            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+            settingsDidChange()
             // `subtitle` is derived from the selected input; notify so the title refreshes.
-            self.subtitleSubject.send()
+            self.namingDidChange()
         }
     }
 
@@ -483,7 +483,7 @@ public class MIDIInputNode: Node
         didSet
         {
             rebuildPorts()
-            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+            settingsDidChange()
         }
     }
 
@@ -559,6 +559,12 @@ public class MIDIInputNode: Node
     }
 
     private var _settingsModelStorage: SettingsModel? = nil
+
+    override public func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _settingsModelStorage?.refreshFromNode()
+    }
 
     // MARK: - Lifecycle
 
@@ -653,7 +659,7 @@ public class MIDIInputNode: Node
 
         performOnMainSync { _settingsModelStorage?.availableInputs = availableInputs }
         // `subtitle` resolves against the input list; notify so the title refreshes.
-        self.subtitleSubject.send()
+        self.namingDidChange()
 
         print("[MIDI] Found \(availableInputs.count) MIDI sources:")
         for input in availableInputs
@@ -782,7 +788,7 @@ public class MIDIInputNode: Node
                 Self.log.error("\(inputStatus.message, privacy: .public)")
             }
             performOnMainSync { _settingsModelStorage?.inputStatus = inputStatus }
-            self.subtitleSubject.send()
+            self.namingDidChange()
         }
     }
 
@@ -1088,15 +1094,25 @@ public class MIDIInputNode: Node
 
     // MARK: - Port Management
 
+    /// The outlets the configured inputs ask for, which the ports follow.
+    private var outputPortDescriptors: [DeviceOutputPortDescriptor] = []
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + Self.deviceOutputPortDeclarations(for: outputPortDescriptors,
+                                                                  buttonDescription: "MIDI note gate (true while note is held)",
+                                                                  axisDescription: "MIDI value normalized from 0 to 1")
+    }
+
     private func rebuildPorts()
     {
         let descriptors = configuredInputs.map {
             DeviceOutputPortDescriptor(name: $0.portName, isButton: $0.type == .noteGate)
         }
 
-        let created = Set(synchronizeDeviceOutputPorts(to: descriptors,
-                                                       buttonDescription: "MIDI note gate (true while note is held)",
-                                                       axisDescription: "MIDI value normalized from 0 to 1").map(\.name))
+        let created = Set(deviceOutputDescriptorsNeedingPorts(descriptors).map(\.name))
+        outputPortDescriptors = descriptors
+        reconcilePorts()
 
         // Values are keyed by control identity rather than port name, so the
         // seeding cannot ride along inside the sync.
@@ -1118,26 +1134,26 @@ public class MIDIInputNode: Node
     {
         let currentValues = inputValues.withLock { $0 }
 
-        for input in configuredInputs
+        for (input, outlet) in boundOutlets
         {
-            let portName = input.portName
+            switch outlet
+            {
+            case .button(let port):
+                if let value = currentValues.boolValues[input.uniqueKey] { port.send(value) }
+            case .axis(let port):
+                if let value = currentValues.floatValues[input.uniqueKey] { port.send(value) }
+            }
+        }
+    }
 
-            if input.type == .noteGate
-            {
-                if let port = findPort(named: portName) as? NodePort<Bool>,
-                   let value = currentValues.boolValues[input.uniqueKey]
-                {
-                    port.send(value)
-                }
-            }
-            else
-            {
-                if let port = findPort(named: portName) as? NodePort<Float>,
-                   let value = currentValues.floatValues[input.uniqueKey]
-                {
-                    port.send(value)
-                }
-            }
+    /// Each configured input's outlet, in configuration order.
+    private var boundOutlets: [(input: DetectedMIDIInput, outlet: DeviceOutlet)] = []
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundOutlets = configuredInputs.compactMap { input in
+            deviceOutlet(for: DeviceOutputPortDescriptor(name: input.portName, isButton: input.type == .noteGate)).map { (input, $0) }
         }
     }
 }

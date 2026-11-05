@@ -42,21 +42,22 @@ struct LocalLLMNodeSettingsView: View {
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Provide a string prompt to a local LLM for evaluation via MLX-Swift-LM" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        super.registerPorts(context: context) + [
-            ("inputPrompt", ParameterPort(parameter: StringParameter("Prompt", "What color is the sky?", [], .inputfield))),
-            ("inputGenerate", ParameterPort(parameter: BoolParameter("Generate", false, .button))),
-            ("outputPort", NodePort<String>(name: "Output", kind: .Outlet)),
-            ("outputStats", NodePort<String>(name: "Stats", kind: .Outlet)),
-            ("outputModel", NodePort<String>(name: "Model Info", kind: .Outlet)),
+    public let inputPrompt: NodePort<String> = ParameterPort(parameter: StringParameter("Prompt", "What color is the sky?", [], .inputfield))
+    public let inputGenerate: NodePort<Bool> = ParameterPort(parameter: BoolParameter("Generate", false, .button))
+    public let outputPort = NodePort<String>(name: "Output", kind: .Outlet)
+    public let outputStats = NodePort<String>(name: "Stats", kind: .Outlet)
+    public let outputModel = NodePort<String>(name: "Model Info", kind: .Outlet)
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputPrompt", port: self.inputPrompt),
+            PortDeclaration(key: "inputGenerate", port: self.inputGenerate),
+            PortDeclaration(key: "outputPort", port: self.outputPort),
+            PortDeclaration(key: "outputStats", port: self.outputStats),
+            PortDeclaration(key: "outputModel", port: self.outputModel),
         ]
     }
-
-    public var inputPrompt: NodePort<String> { port(named: "inputPrompt") }
-    public var inputGenerate: NodePort<Bool> { port(named: "inputGenerate") }
-    public var outputPort: NodePort<String> { port(named: "outputPort") }
-    public var outputStats: NodePort<String> { port(named: "outputStats") }
-    public var outputModel: NodePort<String> { port(named: "outputModel") }
 
     private enum CodingKeys: String, CodingKey {
         case selectedModelID

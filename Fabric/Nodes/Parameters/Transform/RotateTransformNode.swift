@@ -19,22 +19,19 @@ public class RotateTransformNode : Node
     override public class var nodeDescription: String { "Rotate a transform"}
     
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputTransform", PortType.Transform.makeFreshPort(name: "Transform", kind: .Inlet, description: "4x4 transform matrix to rotate")),
-            ("inputRotation", ParameterPort(parameter: Float4Parameter("Rotation", simd_float4(0, 0, 0, 1), .inputfield, "Quaternion rotation to apply (X, Y, Z, W)"))),
-            ("outputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Outlet, description: "Rotated 4x4 transform matrix")),
+    public let inputTransform = NodePort<simd_float4x4>.makeFresh(name: "Transform", kind: .Inlet, description: "4x4 transform matrix to rotate")
+    public let inputRotation = ParameterPort(parameter: Float4Parameter("Rotation", simd_float4(0, 0, 0, 1), .inputfield, "Quaternion rotation to apply (X, Y, Z, W)"))
+    public let outputTransform = NodePort<simd_float4x4>(name: "Transform" , kind: .Outlet, description: "Rotated 4x4 transform matrix")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputTransform", port: self.inputTransform),
+            PortDeclaration(key: "inputRotation", port: self.inputRotation),
+            PortDeclaration(key: "outputTransform", port: self.outputTransform),
         ]
     }
 
-    // Port Proxy
-    public var inputTransform:NodePort<simd_float4x4> { port(named: "inputTransform") }
-    public var inputRotation:ParameterPort<simd_float4> { port(named: "inputRotation") }
-    public var outputTransform:NodePort<simd_float4x4> { port(named: "outputTransform") }
-    
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,

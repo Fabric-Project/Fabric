@@ -18,23 +18,27 @@ public final class ValueBlendNode: NumericTypeAgnosticNode
     override public class var nodeDescription: String { "Blends Source toward Target by Blend Amount: 0 is Source, 1 is Target, and values outside 0-1 extrapolate. Orientations slerp and Transforms blend as translation, rotation and scale. Arrays blend per element, as long as the shorter input. Choose the value type in Settings." }
     public override class var supportedPortTypes: [PortType] { interpolatableSingleTypes + interpolatableArrayTypes }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    public let inputBlendAmount = ParameterPort(parameter: FloatParameter("Blend Amount", 0.5, .inputfield, "0 is Source, 1 is Target; not clamped"))
+
+    override public func bindPorts()
     {
-        super.registerPorts(context: context) + [
-            ("inputBlendAmount", ParameterPort(parameter: FloatParameter("Blend Amount", 0.5, .inputfield, "0 is Source, 1 is Target; not clamped")))
-        ]
+        super.bindPorts()
+        self.boundInputSource = findPort(named: "inputSource")
+        self.boundInputTarget = findPort(named: "inputTarget")
+        self.boundOutputValue = findPort(named: "outputValue")
     }
 
-    public var inputBlendAmount: ParameterPort<Float> { port(named: "inputBlendAmount") }
-
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
         let portType = selectedNumericPortType
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputSource", displayName: "Source", portType: portType, kind: .Inlet, description: "The value at Blend Amount 0")
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputTarget", displayName: "Target", portType: portType, kind: .Inlet, description: "The value at Blend Amount 1")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputValue", displayName: "Value", portType: portType, kind: .Outlet, description: "The blended value")
-        reorderPorts(named: ["inputSource", "inputTarget", "inputBlendAmount", "outputValue"])
+
+        return [
+            PortDeclaration(key: "inputSource", portType: portType, kind: .Inlet, name: "Source", description: "The value at Blend Amount 0"),
+            PortDeclaration(key: "inputTarget", portType: portType, kind: .Inlet, name: "Target", description: "The value at Blend Amount 1"),
+        ] + super.declaredPorts() + [
+            PortDeclaration(key: "inputBlendAmount", port: self.inputBlendAmount),
+            PortDeclaration(key: "outputValue", portType: portType, kind: .Outlet, name: "Value", description: "The blended value"),
+        ]
     }
 
     /// `source` and `target` blended by `amount` with Satin's `Lerpable`; nil when their
@@ -72,16 +76,19 @@ public final class ValueBlendNode: NumericTypeAgnosticNode
         }
     }
 
+    private var boundInputSource: Port?
+    private var boundInputTarget: Port?
+    private var boundOutputValue: Port?
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputSource") || specializeFromConnectedPort(named: "inputTarget") { return }
-        guard let inputSource: Port = findPort(named: "inputSource"),
-              let inputTarget: Port = findPort(named: "inputTarget"),
-              let outputValue: Port = findPort(named: "outputValue"),
+        guard let inputSource: Port = self.boundInputSource,
+              let inputTarget: Port = self.boundInputTarget,
+              let outputValue: Port = self.boundOutputValue,
               inputSource.valueDidChange || inputTarget.valueDidChange || inputBlendAmount.valueDidChange,
               let source = inputSource.snapshotValue(),
               let target = inputTarget.snapshotValue(),

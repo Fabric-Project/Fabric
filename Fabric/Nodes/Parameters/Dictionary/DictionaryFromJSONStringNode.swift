@@ -15,20 +15,20 @@ public final class DictionaryFromJSONStringNode: Node
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Parses a JSON object string into a boxed dictionary." }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    public let inputJSONString = ParameterPort(parameter: StringParameter("JSON", "", .inputfield, "JSON object string to parse"))
+    public let outputDictionary: Port = PortType.Dictionary(valueType: .Virtual).makeFreshPort(name: "Dictionary", kind: .Outlet, description: "Parsed dictionary")
+    public let outputValid = NodePort<Bool>(name: "Valid", kind: .Outlet, description: "Whether parsing succeeded")
+    public let outputError = NodePort<String>(name: "Error", kind: .Outlet, description: "Parsing error message")
+
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        super.registerPorts(context: context) + [
-            ("inputJSONString", ParameterPort(parameter: StringParameter("JSON", "", .inputfield, "JSON object string to parse"))),
-            ("outputDictionary", PortType.Dictionary(valueType: .Virtual).makeFreshPort(name: "Dictionary", kind: .Outlet, description: "Parsed dictionary")),
-            ("outputValid", NodePort<Bool>(name: "Valid", kind: .Outlet, description: "Whether parsing succeeded")),
-            ("outputError", NodePort<String>(name: "Error", kind: .Outlet, description: "Parsing error message")),
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputJSONString", port: self.inputJSONString),
+            PortDeclaration(key: "outputDictionary", port: self.outputDictionary),
+            PortDeclaration(key: "outputValid", port: self.outputValid),
+            PortDeclaration(key: "outputError", port: self.outputError),
         ]
     }
-
-    public var inputJSONString: ParameterPort<String> { port(named: "inputJSONString") }
-    public var outputDictionary: Port { port(named: "outputDictionary") }
-    public var outputValid: NodePort<Bool> { port(named: "outputValid") }
-    public var outputError: NodePort<String> { port(named: "outputError") }
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,

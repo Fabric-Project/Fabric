@@ -22,33 +22,42 @@ public class DecomposeVectorArrayNode: StrategyNode
     // plain type-name title rather than leading it with the strategy.
     override public func deriveSubtitle() -> String? { nil }
 
-    private static let allDynamicNames: Set<String> = [
-        "inputArray",
-        "outputComponent0", "outputComponent1", "outputComponent2", "outputComponent3",
-    ]
-
     public convenience init(context: Context, vectorType: VectorType)
     {
         self.init(context: context, strategy: vectorType)
     }
 
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        guard let vt = strategy as? VectorType else { return }
+        guard let vt = strategy as? VectorType else { return super.declaredPorts() }
 
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputArray", displayName: "\(vt.portType.rawValue) Array", portType: .Array(portType: vt.portType), kind: .Inlet, description: "Array of \(vt.portType.rawValue) values to decompose")
-
-        // Remove component output ports beyond the needed count
-        for i in vt.componentLabels.count..<4 {
-            if let p: Port = findPort(named: "outputComponent\(i)") { removePort(p) }
-        }
-        // Add missing component output ports
-        for (i, label) in vt.componentLabels.enumerated() {
-            if findPort(named: "outputComponent\(i)") == nil {
-                let p = NodePort<ContiguousArray<Float>>(name: label, kind: .Outlet, description: "\(label) component, one per element")
-                addDynamicPort(p, name: "outputComponent\(i)")
+        return super.declaredPorts()
+            + [PortDeclaration(key: "inputArray", portType: .Array(portType: vt.portType), kind: .Inlet, name: "\(vt.portType.rawValue) Array", description: "Array of \(vt.portType.rawValue) values to decompose")]
+            + vt.componentLabels.enumerated().map { index, label in
+                PortDeclaration(key: "outputComponent\(index)",
+                                port: NodePort<ContiguousArray<Float>>(name: label, kind: .Outlet, description: "\(label) component, one per element"))
             }
-        }
+    }
+
+    private var vectorType: VectorType?
+    private var outputs: [NodePort<ContiguousArray<Float>>] = []
+    private var input2: NodePort<ContiguousArray<simd_float2>>?
+    private var input3: NodePort<ContiguousArray<simd_float3>>?
+    private var input4: NodePort<ContiguousArray<simd_float4>>?
+
+    override public func prepareDeclarations()
+    {
+        super.prepareDeclarations()
+        self.vectorType = self.strategyOption()
+    }
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.outputs = (0..<4).compactMap { findPort(named: "outputComponent\($0)") }
+        self.input2 = findPort(named: "inputArray")
+        self.input3 = findPort(named: "inputArray")
+        self.input4 = findPort(named: "inputArray")
     }
 
     override public func execute(renderer: GraphRenderer,
@@ -57,29 +66,21 @@ public class DecomposeVectorArrayNode: StrategyNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let vt: VectorType = strategyOption() else { return }
+        guard let vt = vectorType else { return }
 
         func sendEmpty()
         {
-            for i in 0..<vt.componentLabels.count {
-                if let out: NodePort<ContiguousArray<Float>> = findPort(named: "outputComponent\(i)") {
-                    out.send(ContiguousArray())
-                }
-            }
+            for output in outputs { output.send(ContiguousArray()) }
         }
 
         func sendComponentArrays(_ arrays: [ContiguousArray<Float>])
         {
-            for (i, arr) in arrays.enumerated() {
-                if let out: NodePort<ContiguousArray<Float>> = findPort(named: "outputComponent\(i)") {
-                    out.send(arr)
-                }
-            }
+            for (output, array) in zip(outputs, arrays) { output.send(array) }
         }
 
         switch vt {
         case .float2:
-            guard let inp: NodePort<ContiguousArray<simd_float2>> = findPort(named: "inputArray"),
+            guard let inp = input2,
                   inp.valueDidChange else { return }
             guard let values = inp.value else { sendEmpty(); return }
             var xs = ContiguousArray<Float>(); xs.reserveCapacity(values.count)
@@ -88,7 +89,7 @@ public class DecomposeVectorArrayNode: StrategyNode
             sendComponentArrays([xs, ys])
 
         case .float3:
-            guard let inp: NodePort<ContiguousArray<simd_float3>> = findPort(named: "inputArray"),
+            guard let inp = input3,
                   inp.valueDidChange else { return }
             guard let values = inp.value else { sendEmpty(); return }
             var xs = ContiguousArray<Float>(); xs.reserveCapacity(values.count)
@@ -98,7 +99,7 @@ public class DecomposeVectorArrayNode: StrategyNode
             sendComponentArrays([xs, ys, zs])
 
         case .float4:
-            guard let inp: NodePort<ContiguousArray<simd_float4>> = findPort(named: "inputArray"),
+            guard let inp = input4,
                   inp.valueDidChange else { return }
             guard let values = inp.value else { sendEmpty(); return }
             var xs = ContiguousArray<Float>(); xs.reserveCapacity(values.count)

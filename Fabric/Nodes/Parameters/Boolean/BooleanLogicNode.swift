@@ -18,24 +18,21 @@ public class BooleanLogicNode : Node
     override public class var nodeDescription: String { "Compare two Boolean values"}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputBool1", ParameterPort(parameter: BoolParameter("Bool A", false, .button, "First boolean value to compare"))),
-            ("inputBool2", ParameterPort(parameter: BoolParameter("Bool B", false, .button, "Second boolean value to compare"))),
-            ("inputParam", ParameterPort(parameter: StringParameter("Operator", "Equals", LogicOperator.allCases.map(\.rawValue), .dropdown, "Logic operation to perform on the two values")) ),
-            ("outputBool", NodePort<Bool>(name: "Result" , kind: .Outlet, description: "Result of the boolean logic operation")),
+    public let inputBool1 = ParameterPort(parameter: BoolParameter("Bool A", false, .button, "First boolean value to compare"))
+    public let inputBool2 = ParameterPort(parameter: BoolParameter("Bool B", false, .button, "Second boolean value to compare"))
+    public let inputParam = ParameterPort(parameter: StringParameter("Operator", "Equals", LogicOperator.allCases.map(\.rawValue), .dropdown, "Logic operation to perform on the two values"))
+    public let outputBool = NodePort<Bool>(name: "Result" , kind: .Outlet, description: "Result of the boolean logic operation")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputBool1", port: self.inputBool1),
+            PortDeclaration(key: "inputBool2", port: self.inputBool2),
+            PortDeclaration(key: "inputParam", port: self.inputParam),
+            PortDeclaration(key: "outputBool", port: self.outputBool),
         ]
     }
-    
-    // Port Proxy
-    public var inputBool1:ParameterPort<Bool> { port(named: "inputBool1") }
-    public var inputBool2:ParameterPort<Bool> { port(named: "inputBool2") }
-    public var inputParam:ParameterPort<String> { port(named: "inputParam") }
-    public var outputBool:NodePort<Bool> { port(named: "outputBool") }
-    
+
     private var op = LogicOperator.Equals
     
     override public func startExecution(renderer:GraphRenderer) throws

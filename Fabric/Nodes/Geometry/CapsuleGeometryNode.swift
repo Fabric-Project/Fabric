@@ -14,23 +14,20 @@ public class CapsuleGeometryNode : BaseGeometryNode
     public override class var name:String { "Capsule Geometry" }
     public override class var nodeDescription: String { "Generates capsule geometry" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return  [
-        ("inputRadius",  ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield, "Radius of the capsule cylinder and end caps in world units"))),
-        ("inputHeight",  ParameterPort(parameter:FloatParameter("Height", 2.0, .inputfield, "Height of the cylindrical section in world units"))),
-        ("inputAngularResolution",  ParameterPort(parameter:IntParameter("Angular Segments", 30, .inputfield, "Number of segments around the capsule circumference"))),
-        ("inputVerticalResolution",  ParameterPort(parameter:IntParameter("Vertical Segments", 30, .inputfield, "Number of segments along the capsule height"))),
+    public let inputRadius = ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield, "Radius of the capsule cylinder and end caps in world units"))
+    public let inputHeight = ParameterPort(parameter:FloatParameter("Height", 2.0, .inputfield, "Height of the cylindrical section in world units"))
+    public let inputAngularResolution = ParameterPort(parameter:IntParameter("Angular Segments", 30, .inputfield, "Number of segments around the capsule circumference"))
+    public let inputVerticalResolution = ParameterPort(parameter:IntParameter("Vertical Segments", 30, .inputfield, "Number of segments along the capsule height"))
 
-        ] + ports
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        [
+            PortDeclaration(key: "inputRadius", port: self.inputRadius),
+            PortDeclaration(key: "inputHeight", port: self.inputHeight),
+            PortDeclaration(key: "inputAngularResolution", port: self.inputAngularResolution),
+            PortDeclaration(key: "inputVerticalResolution", port: self.inputVerticalResolution),
+        ] + super.declaredPorts()
     }
-    
-    // Proxy Port
-    public var inputRadius:ParameterPort<Float> { port(named: "inputRadius")  }
-    public var inputHeight:ParameterPort<Float> { port(named: "inputHeight")  }
-    public var inputAngularResolution:ParameterPort<Int> { port(named: "inputAngularResolution") }
-    public var inputVerticalResolution:ParameterPort<Int> { port(named: "inputVerticalResolution")  }
 
     public override var geometry: CapsuleGeometry { _geometry }
 

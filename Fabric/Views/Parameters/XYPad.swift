@@ -18,12 +18,10 @@ struct XYPad: View, Equatable {
     @Bindable var vmMax: ParameterObservableModel<simd_float2>
 
 
-    init(param:Float2Parameter)
+    init(param: Float2Parameter, port: NodePort<simd_float2>? = nil)
     {
-        self.vm = ParameterObservableModel(label: param.label,
-                                           get: { param.value },
-                                           set: { param.value = $0 },
-                                           publisher:param.valuePublisher )
+        self.vm = ParameterObservableModel(control: ControlValue(parameter: param, port: port),
+                                           publisher: param.valuePublisher)
 
         self.vmMin = ParameterObservableModel(label: param.label,
                                            get: { param.min },

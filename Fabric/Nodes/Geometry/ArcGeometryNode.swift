@@ -14,27 +14,24 @@ public class ArcGeometryNode : BaseGeometryNode
     public override class var name:String { "Arc Geometry" }
     public override class var nodeDescription: String { "Generates arc geometry" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return  [
-            ("inputInnerRadius",  ParameterPort(parameter:FloatParameter("Inner Radius", 0.25, .inputfield, "Inner radius of the arc ring in world units"))),
-            ("inputOuteradius",  ParameterPort(parameter:FloatParameter("Outer Radius", 0.75, .inputfield, "Outer radius of the arc ring in world units"))),
-            ("inputStartAngle",  ParameterPort(parameter:FloatParameter("Start Angle", 0.0, .inputfield, "Starting angle of the arc in degrees"))),
-            ("inputEndAngle",  ParameterPort(parameter:FloatParameter("End Angle", 90.0, .inputfield, "Ending angle of the arc in degrees"))),
-        ("inputAngularResolution",  ParameterPort(parameter:IntParameter("Angular Segments", 20, .inputfield, "Number of segments along the arc curve"))),
-        ("inputRadialResolution",  ParameterPort(parameter:IntParameter("Radial Segments", 5, .inputfield, "Number of segments from inner to outer radius"))),
+    public let inputInnerRadius = ParameterPort(parameter:FloatParameter("Inner Radius", 0.25, .inputfield, "Inner radius of the arc ring in world units"))
+    public let inputOuteradius = ParameterPort(parameter:FloatParameter("Outer Radius", 0.75, .inputfield, "Outer radius of the arc ring in world units"))
+    public let inputStartAngle = ParameterPort(parameter:FloatParameter("Start Angle", 0.0, .inputfield, "Starting angle of the arc in degrees"))
+    public let inputEndAngle = ParameterPort(parameter:FloatParameter("End Angle", 90.0, .inputfield, "Ending angle of the arc in degrees"))
+    public let inputAngularResolution = ParameterPort(parameter:IntParameter("Angular Segments", 20, .inputfield, "Number of segments along the arc curve"))
+    public let inputRadialResolution = ParameterPort(parameter:IntParameter("Radial Segments", 5, .inputfield, "Number of segments from inner to outer radius"))
 
-        ] + ports
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        [
+            PortDeclaration(key: "inputInnerRadius", port: self.inputInnerRadius),
+            PortDeclaration(key: "inputOuteradius", port: self.inputOuteradius),
+            PortDeclaration(key: "inputStartAngle", port: self.inputStartAngle),
+            PortDeclaration(key: "inputEndAngle", port: self.inputEndAngle),
+            PortDeclaration(key: "inputAngularResolution", port: self.inputAngularResolution),
+            PortDeclaration(key: "inputRadialResolution", port: self.inputRadialResolution),
+        ] + super.declaredPorts()
     }
-    
-    // Proxy Port
-    public var inputInnerRadius:ParameterPort<Float> { port(named: "inputInnerRadius")  }
-    public var inputOuteradius:ParameterPort<Float> { port(named: "inputOuteradius")  }
-    public var inputStartAngle:ParameterPort<Float> { port(named: "inputStartAngle")  }
-    public var inputEndAngle:ParameterPort<Float> { port(named: "inputEndAngle")  }
-    public var inputAngularResolution:ParameterPort<Int> { port(named: "inputAngularResolution") }
-    public var inputRadialResolution:ParameterPort<Int> { port(named: "inputRadialResolution")  }
 
     public override var geometry: ArcGeometry { _geometry }
 

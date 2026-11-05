@@ -111,24 +111,22 @@ public class PerspectiveQuadGeometryNode : BaseGeometryNode
     public override class var name: String { "Perspective Quad Geometry" }
     public override class var nodeDescription: String { "Generates a quad with perspective-correct corner placement" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputTopLeft = ParameterPort(parameter: Float2Parameter("Top Left",     simd_float2(-0.5,  0.5), .inputfield, "Top-left corner position"))
+    public let inputTopRight = ParameterPort(parameter: Float2Parameter("Top Right",    simd_float2( 0.5,  0.5), .inputfield, "Top-right corner position"))
+    public let inputBottomLeft = ParameterPort(parameter: Float2Parameter("Bottom Left",  simd_float2(-0.5, -0.5), .inputfield, "Bottom-left corner position"))
+    public let inputBottomRight = ParameterPort(parameter: Float2Parameter("Bottom Right", simd_float2( 0.5, -0.5), .inputfield, "Bottom-right corner position"))
+    public let inputResolution = ParameterPort(parameter: IntParameter("Segments", 10, .inputfield, "Number of subdivision segments"))
 
-        return [
-            ("inputTopLeft",     ParameterPort(parameter: Float2Parameter("Top Left",     simd_float2(-0.5,  0.5), .inputfield, "Top-left corner position"))),
-            ("inputTopRight",    ParameterPort(parameter: Float2Parameter("Top Right",    simd_float2( 0.5,  0.5), .inputfield, "Top-right corner position"))),
-            ("inputBottomLeft",  ParameterPort(parameter: Float2Parameter("Bottom Left",  simd_float2(-0.5, -0.5), .inputfield, "Bottom-left corner position"))),
-            ("inputBottomRight", ParameterPort(parameter: Float2Parameter("Bottom Right", simd_float2( 0.5, -0.5), .inputfield, "Bottom-right corner position"))),
-            ("inputResolution",  ParameterPort(parameter: IntParameter("Segments", 10, .inputfield, "Number of subdivision segments"))),
-        ] + ports
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        [
+            PortDeclaration(key: "inputTopLeft", port: self.inputTopLeft),
+            PortDeclaration(key: "inputTopRight", port: self.inputTopRight),
+            PortDeclaration(key: "inputBottomLeft", port: self.inputBottomLeft),
+            PortDeclaration(key: "inputBottomRight", port: self.inputBottomRight),
+            PortDeclaration(key: "inputResolution", port: self.inputResolution),
+        ] + super.declaredPorts()
     }
-
-    // Proxy Ports
-    public var inputTopLeft:     ParameterPort<simd_float2> { port(named: "inputTopLeft") }
-    public var inputTopRight:    ParameterPort<simd_float2> { port(named: "inputTopRight") }
-    public var inputBottomLeft:  ParameterPort<simd_float2> { port(named: "inputBottomLeft") }
-    public var inputBottomRight: ParameterPort<simd_float2> { port(named: "inputBottomRight") }
-    public var inputResolution:  ParameterPort<Int>         { port(named: "inputResolution") }
 
     public override var geometry: SatinGeometry { _geometry }
 

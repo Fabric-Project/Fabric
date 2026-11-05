@@ -78,10 +78,12 @@ private class DeferredProbeNode: Node {
     override class var nodeExecutionMode: Node.ExecutionMode { .Consumer }
     override class var nodeTimeMode: Node.TimeMode { .None }
     override class var nodeDescription: String { "Deferred output test" }
-    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)] {
-        [("output", NodePort<Int>(name: "Output", kind: .Outlet))]
+    let output = NodePort<Int>(name: "Output", kind: .Outlet)
+
+    override func declaredPorts() -> [PortDeclaration]
+    {
+        [PortDeclaration(key: "output", port: self.output)]
     }
-    var output: NodePort<Int> { port(named: "output") }
     var observed: [Int?] = []
     var requestCount = 0
     var continueAfterRequest = false
@@ -298,8 +300,8 @@ extension DeferredGPUResultTests {
         let harness = try #require(GraphExecutionTestHarness())
         let graph = Graph(context: harness.context)
         let probe = DeferredProcessorProbe(context: harness.context)
-        probe.output.published = true
         graph.addNode(probe)
+        probe.output.publishInGraph(true)
         graph.rebuildPublishedParameterGroup()
         let renderer = harness.graphRenderer(for: graph)
         try renderer.startExecution()
@@ -561,8 +563,8 @@ extension DeferredGPUResultTests {
     private func publishedSynchronousProbe(_ harness: GraphExecutionTestHarness) -> (Graph, DeferredSynchronousProbe) {
         let graph = Graph(context: harness.context)
         let probe = DeferredSynchronousProbe(context: harness.context)
-        probe.output.published = true
         graph.addNode(probe)
+        probe.output.publishInGraph(true)
         graph.rebuildPublishedParameterGroup()
         return (graph, probe)
     }

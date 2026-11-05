@@ -13,6 +13,7 @@ import Satin
 protocol ProxyPortProtocol
 {
     var innerPortID: UUID { get }
+    func wraps(_ port: Port) -> Bool
     func forwardFromInner(force:Bool)
 }
 
@@ -39,18 +40,16 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
 
     public var innerPortID: UUID { innerPort.id }
 
-    @ObservationIgnored override public var portType: PortType { declaredPortType ?? super.portType }
+    func wraps(_ port: Port) -> Bool { port === self.innerPort }
 
-    /// Prefers the proxy's own publishedName (set when renamed in the
-    /// parent graph), falling back to the inner port's displayName (which
-    /// reflects sub-graph level renames).
-    override public var displayName: String { publishedName ?? innerPort.displayName }
+    override public var portType: PortType { declaredPortType ?? super.portType }
 
-    public init(
-        wrapping innerPort: NodePort<Value>,
-        published: Bool = false,
-        publishedName: String? = nil
-    )
+    /// The name the parent graph publishes the proxy under, if it was given
+    /// one, falling back to the inner port's displayName (which reflects
+    /// sub-graph level renames).
+    override public var displayName: String { self.node?.graph?.publishedName(of: self) ?? innerPort.displayName }
+
+    public init(wrapping innerPort: NodePort<Value>)
     {
         self.innerPort = innerPort
         self.declaredPortType = innerPort.portType
@@ -67,56 +66,18 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
         self.parameter = innerPort.parameter
         self.value = innerPort.value
         innerPort.publishingProxy = self
-        self.published = published
-        self.publishedName = publishedName
+        self.key = Self.proxyKey(for: innerPort)
     }
 
-    required public init(from decoder: any Decoder) throws
+    /// A proxy's key is the address of the port it stands for, in its node's
+    /// sub graph.
+    static func proxyKey(for innerPort: Port) -> PortKey
     {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let innerPortID = try container.decode(UUID.self, forKey: .innerPortID)
-        self.declaredPortType = try container.decodeIfPresent(PortType.self, forKey: .declaredPortType)
-
-        guard let decodeContext = decoder.context else {
-            fatalError("Required Decode Context Not set")
-        }
-
-        // A Subgraph Node will have set the decodeContexts graph
-        // to be the actual sub graph
-        // this allows us to look up the correct inner port.
-        let currentGraph = decodeContext.currentGraph
-        let currentGraphNodes = currentGraph?.nodes
-
-        guard let innerPort = currentGraph?.nodePort(forID: innerPortID)
-            ?? currentGraphNodes?.flatMap(\.ports).first(where: { $0.id == innerPortID }) else {
-            throw ProxyPortBindingError.missingInnerPort(innerPortID)
-        }
-
-        guard let typedInnerPort = innerPort as? NodePort<Value> else {
-            throw ProxyPortBindingError.typeMismatch(expected: String(describing: Value.self),
-                                                     actual: String(describing: type(of: innerPort)))
-        }
-
-        self.innerPort = typedInnerPort
-        try super.init(from: decoder)
-        self.parameter = typedInnerPort.parameter
-        self.value = typedInnerPort.value
-        typedInnerPort.publishingProxy = self
+        innerPort.node.map { .proxy(node: $0.id, inner: innerPort.key) } ?? innerPort.key
     }
 
-    private enum CodingKeys: String, CodingKey
-    {
-        case innerPortID
-        case declaredPortType
-    }
 
-    override public func encode(to encoder: any Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.innerPortID, forKey: .innerPortID)
-        try container.encodeIfPresent(self.declaredPortType, forKey: .declaredPortType)
-        try super.encode(to: encoder)
-    }
+
 
     // MARK: - Value Forwarding
 

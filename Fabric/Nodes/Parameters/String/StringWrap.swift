@@ -15,24 +15,22 @@ public class StringWrapNode: Node {
     override public class var nodeDescription: String { "Wrap at word boundaries using: Characters – line length in characters; Words – number of words per line; Aspect – overall aspect ratio (characters across vs. lines down" }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputPort = ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to wrap"))
+    public let inputMode = ParameterPort(parameter: StringParameter("Mode", "Characters", WrapMode.allCases.map(\.rawValue), .dropdown, "Wrap criterion: Characters, Words, or Aspect"))
+    public let inputLimit = ParameterPort(parameter: IntParameter("Limit", 40, 1, 10000, .inputfield, "Character or word count per line"))
+    public let inputAspect = ParameterPort(parameter: FloatParameter("Aspect", 4.0, 0.01, 100.0, .inputfield, "Target aspect ratio (characters across / lines down)"))
+    public let outputPort = NodePort<String>(name: "String", kind: .Outlet, description: "String with newlines inserted at word boundaries")
 
-        return ports + [
-            ("inputPort", ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to wrap"))),
-            ("inputMode", ParameterPort(parameter: StringParameter("Mode", "Characters", WrapMode.allCases.map(\.rawValue), .dropdown, "Wrap criterion: Characters, Words, or Aspect"))),
-            ("inputLimit", ParameterPort(parameter: IntParameter("Limit", 40, 1, 10000, .inputfield, "Character or word count per line"))),
-            ("inputAspect", ParameterPort(parameter: FloatParameter("Aspect", 4.0, 0.01, 100.0, .inputfield, "Target aspect ratio (characters across / lines down)"))),
-            ("outputPort", NodePort<String>(name: "String", kind: .Outlet, description: "String with newlines inserted at word boundaries")),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputPort", port: self.inputPort),
+            PortDeclaration(key: "inputMode", port: self.inputMode),
+            PortDeclaration(key: "inputLimit", port: self.inputLimit),
+            PortDeclaration(key: "inputAspect", port: self.inputAspect),
+            PortDeclaration(key: "outputPort", port: self.outputPort),
         ]
     }
-
-    // Port proxies
-    public var inputPort: ParameterPort<String> { port(named: "inputPort") }
-    public var inputMode: ParameterPort<String> { port(named: "inputMode") }
-    public var inputLimit: ParameterPort<Int> { port(named: "inputLimit") }
-    public var inputAspect: ParameterPort<Float> { port(named: "inputAspect") }
-    public var outputPort: NodePort<String> { port(named: "outputPort") }
 
     private var mode = WrapMode.Characters
 

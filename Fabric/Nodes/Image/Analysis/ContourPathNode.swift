@@ -21,37 +21,29 @@ public final class ContourPathNode: Node {
     static let kMaxSegments: Int = 5_000_000
     
     // MARK: - Ports (Registry)
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputMask = NodePort<FabricImage>(name: "Mask", kind: .Inlet, description: "Grayscale mask image to extract contours from")
+    public let inputIso = ParameterPort(parameter: FloatParameter("Iso Level", 0.5, .inputfield, "Threshold value for edge detection (0-1)"))
+    public let inputMaxSegments = ParameterPort(parameter: IntParameter("Max Segments", ContourPathNode.kMaxSegments, .inputfield, "Maximum number of contour segments to generate"))
+    public let inputJoinEpsilon = ParameterPort(parameter: FloatParameter("Join Epsilon (px)", 1.0, .inputfield, "Pixel tolerance for joining contour endpoints"))
+    public let inputResultDelivery = ParameterPort(parameter: StringParameter(
+    "Result Timing", GPUResultDeliveryMode.sync.rawValue,
+    GPUResultDeliveryMode.allCases.map(\.rawValue), .dropdown,
+    "Same Frame waits for GPU results; Next Frame publishes completed results on a later matching execution"))
+    public let outputContour = NodePort<ContiguousArray<simd_float2>>(name: "Contour (points)", kind: .Outlet, description: "Ordered contour points in pixel coordinates")
 
-        return ports + [
-            // Inputs
-            ("inputMask", NodePort<FabricImage>(name: "Mask", kind: .Inlet, description: "Grayscale mask image to extract contours from")),
-
-            // Params
-            ("inputIso",  ParameterPort(parameter: FloatParameter("Iso Level", 0.5, .inputfield, "Threshold value for edge detection (0-1)"))),
-            ("inputMaxSegments", ParameterPort(parameter: IntParameter("Max Segments", Self.kMaxSegments, .inputfield, "Maximum number of contour segments to generate"))),
-            ("inputJoinEpsilon", ParameterPort(parameter: FloatParameter("Join Epsilon (px)", 1.0, .inputfield, "Pixel tolerance for joining contour endpoints"))),
-
-            ("inputResultDelivery", ParameterPort(parameter: StringParameter(
-                "Result Timing", GPUResultDeliveryMode.sync.rawValue,
-                GPUResultDeliveryMode.allCases.map(\.rawValue), .dropdown,
-                "Same Frame waits for GPU results; Next Frame publishes completed results on a later matching execution"))),
-
-            // Output (arbitrary payload for now)
-            ("outputContour", NodePort<ContiguousArray<simd_float2>>(name: "Contour (points)", kind: .Outlet, description: "Ordered contour points in pixel coordinates")),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputMask", port: self.inputMask),
+            PortDeclaration(key: "inputIso", port: self.inputIso),
+            PortDeclaration(key: "inputMaxSegments", port: self.inputMaxSegments),
+            PortDeclaration(key: "inputJoinEpsilon", port: self.inputJoinEpsilon),
+            PortDeclaration(key: "inputResultDelivery", port: self.inputResultDelivery),
+            PortDeclaration(key: "outputContour", port: self.outputContour),
         ]
     }
 
     // Proxies
-    public var inputMask: NodePort<FabricImage> { port(named: "inputMask") }
-    public var inputIso:  ParameterPort<Float>       { port(named: "inputIso") }
-    public var inputMaxSegments: ParameterPort<Int>  { port(named: "inputMaxSegments") }
-    public var inputJoinEpsilon: ParameterPort<Float> { port(named: "inputJoinEpsilon") }
-
-    public var outputContour: NodePort<ContiguousArray<simd_float2>>  { port(named: "outputContour") }
-
-    public var inputResultDelivery: ParameterPort<String> { port(named: "inputResultDelivery") }
     public var resultDeliveryMode: GPUResultDeliveryMode {
         get { GPUResultDeliveryMode(rawValue: inputResultDelivery.value ?? "") ?? .sync }
         set { inputResultDelivery.value = newValue.rawValue }
@@ -152,7 +144,7 @@ public final class ContourPathNode: Node {
         let transform = image.textureTransform
         let storageSize = simd_float2(Float(image.texture.width), Float(image.texture.height))
         let presentationSize = simd_float2(Float(image.presentationSize.width), Float(image.presentationSize.height))
-        let output = outputContour
+        let output: NodePort<ContiguousArray<simd_float2>> = outputContour
         let deliver = {
             let count = min(Int(counter.contents().load(as: UInt32.self)), maxSegments)
             let pointer = segments.contents().assumingMemoryBound(to: simd_float4.self)

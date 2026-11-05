@@ -12,7 +12,7 @@ import Metal
 import MetalKit
 import UniformTypeIdentifiers
 
-public final class TextFileLoaderNode : Node, NodeFileLoadingProtocol
+public final class TextFileLoaderNode : Node, NodeTakingFile
 {
     public static var supportedContentTypes: [UTType]
     {
@@ -26,19 +26,16 @@ public final class TextFileLoaderNode : Node, NodeFileLoadingProtocol
     override public class var nodeDescription: String { "Load a Plaintext file and output a String"}
         
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputFilePathParam", ParameterPort(parameter: StringParameter("Text File", "", .filepicker, "Path to the text file to load"))),
-            ("outputPort", NodePort<String>(name: "String", kind: .Outlet, description: "Contents of the loaded text file")),
+    public let inputFilePathParam = ParameterPort(parameter: StringParameter("Text File", "", .filepicker, "Path to the text file to load"))
+    public let outputPort = NodePort<String>(name: "String", kind: .Outlet, description: "Contents of the loaded text file")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputFilePathParam", port: self.inputFilePathParam),
+            PortDeclaration(key: "outputPort", port: self.outputPort),
         ]
     }
-    
-    // Port Proxy
-    public var inputFilePathParam:ParameterPort<String> { port(named: "inputFilePathParam") }
-    public var outputPort:NodePort<String> { port(named: "outputPort") }
 
     private var url:URL? = nil
     private var string: String? = nil
@@ -47,12 +44,10 @@ public final class TextFileLoaderNode : Node, NodeFileLoadingProtocol
     {
         self.init(context: context)
         
-        self.setFileURL(fileURL)
+        self.takeFile(fileURL)
     }
     
-    public func setFileURL(_ url: URL) {
-        self.inputFilePathParam.value = url.fileReference(relativeTo: self.graph?.fileReferenceBaseURL)
-    }
+    public var fileInlet: ParameterPort<String> { self.inputFilePathParam }
 
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,

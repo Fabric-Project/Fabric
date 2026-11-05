@@ -40,52 +40,69 @@ public final class MatrixSwitchNode: RoutingNodeBase
 
     private static func outputPortName(_ index: Int) -> String { "output\(index)" }
 
-    public var inputMap: NodePort<[String: Int]> { port(named: Self.indexMapPortName) }
+    public let inputMap = NodePort<[String: Int]>(name: "Index Map",
+                                                  kind: .Inlet,
+                                                  description: "Input index → output index. Omit a key to leave that input unrouted.")
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    /// The route ports, by route index.
+    private var routeInputs: [Port] = []
+    private var routeOutputs: [Port] = []
+
+    override public func bindPorts()
     {
-        super.registerPorts(context: context) + [
-            (Self.indexMapPortName, NodePort<[String: Int]>(name: "Index Map",
-                                                            kind: .Inlet,
-                                                            description: "Input index → output index. Omit a key to leave that input unrouted.")),
-        ]
+        super.bindPorts()
+        self.routeInputs = (0..<routeCount).compactMap { findPort(named: Self.inputPortName($0)) }
+        self.routeOutputs = (0..<routeCount).compactMap { findPort(named: Self.outputPortName($0)) }
     }
 
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
-        let portType = (strategy as? PortType) ?? .Virtual
+        super.declaredPorts()
+            + [PortDeclaration(key: Self.indexMapPortName, port: self.inputMap)]
+            + (0..<routeCount).map { index in
+                routePortDeclaration(key: Self.inputPortName(index),
+                                     name: "Input \(index)",
+                                     kind: .Inlet,
+                                     description: "Value for input \(index)")
+            }
+            + (0..<routeCount).map { index in
+                routePortDeclaration(key: Self.outputPortName(index),
+                                     name: "Output \(index)",
+                                     kind: .Outlet,
+                                     description: "Value routed to output \(index)")
+            }
+    }
 
-        for index in 0..<routeCount
-        {
-            addOrReplaceDynamicPortPreservingIdentity(name: Self.inputPortName(index),
-                                                      displayName: "Input \(index)",
-                                                      portType: portType,
-                                                      kind: .Inlet,
-                                                      description: "Value for input \(index)")
-        }
+    public required init(context: Context)
+    {
+        super.init(context: context)
+        observeIndexMap()
+    }
 
-        for index in 0..<routeCount
-        {
-            addOrReplaceDynamicPortPreservingIdentity(name: Self.outputPortName(index),
-                                                      displayName: "Output \(index)",
-                                                      portType: portType,
-                                                      kind: .Outlet,
-                                                      description: "Value routed to output \(index)")
-        }
+    public override init(context: Context, routeCount: Int, initialStrategy: String)
+    {
+        super.init(context: context, routeCount: routeCount, initialStrategy: initialStrategy)
+        observeIndexMap()
+    }
 
-        removeRoutingPortsAboveRouteCount(named: Self.inputPortName)
-        removeRoutingPortsAboveRouteCount(named: Self.outputPortName)
+    public required init(from decoder: any Decoder) throws
+    {
+        try super.init(from: decoder)
+        observeIndexMap()
+    }
 
-        let orderedPortNames = [Self.indexMapPortName]
-            + (0..<routeCount).map(Self.inputPortName)
-            + (0..<routeCount).map(Self.outputPortName)
-        applyPortOrder(orderedPortNames)
-
+    private func observeIndexMap()
+    {
         inputMap.onValueChanged = { [weak self] in
             self?.updateConnectionTopology()
         }
+        updateConnectionTopology()
+    }
 
+    /// The routes follow the route count and type.
+    public override func apply(_ settings: any NodeSettings)
+    {
+        super.apply(settings)
         updateConnectionTopology()
     }
 
@@ -109,9 +126,11 @@ public final class MatrixSwitchNode: RoutingNodeBase
         for outputIndex in 0..<routeCount
         {
             guard let sourceIndex = sources[outputIndex],
-                  let sourceInput: Port = findPort(named: Self.inputPortName(sourceIndex)),
-                  let outputPort: Port = findPort(named: Self.outputPortName(outputIndex))
+                  routeInputs.indices.contains(sourceIndex),
+                  routeOutputs.indices.contains(outputIndex)
             else { continue }
+            let sourceInput = routeInputs[sourceIndex]
+            let outputPort = routeOutputs[outputIndex]
 
             outputPort.sendBoxed(sourceInput.snapshotValue(), force: true)
         }
@@ -124,13 +143,9 @@ public final class MatrixSwitchNode: RoutingNodeBase
 
         graph?.setConnections(from: inputMap, active: true)
 
-        for index in 0..<routeCount
+        for inputPort in routeInputs
         {
-            let inputPort: Port? = findPort(named: Self.inputPortName(index))
-            if let inputPort
-            {
-                graph?.setConnections(from: inputPort, active: routedInputIDs.contains(inputPort.id))
-            }
+            graph?.setConnections(from: inputPort, active: routedInputIDs.contains(inputPort.id))
         }
     }
 
@@ -174,11 +189,11 @@ public final class MatrixSwitchNode: RoutingNodeBase
         for outputIndex in 0..<routeCount
         {
             guard let sourceIndex = sources[outputIndex],
-                  seen.insert(sourceIndex).inserted,
-                  let port: Port = findPort(named: Self.inputPortName(sourceIndex))
+                  routeInputs.indices.contains(sourceIndex),
+                  seen.insert(sourceIndex).inserted
             else { continue }
 
-            result.append(port)
+            result.append(routeInputs[sourceIndex])
         }
 
         return result

@@ -16,31 +16,34 @@ public class ArrayIndexValueNode: TypeAgnosticNode
     override public class var nodeDescription: String { "Returns the element at the specified index. Choose element type in Settings." }
     override public class var includesArrayTypesInStrategy: Bool { false }
 
-    private static let dynamicPortNames: Set<String> = ["inputPort", "outputPort"]
+    public let inputIndexParam = ParameterPort(parameter: IntParameter("Index", 0, .inputfield, "Array index to retrieve the value from"))
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    override public func bindPorts()
     {
-        super.registerPorts(context: context) + [
-            ("inputIndexParam", ParameterPort(parameter: IntParameter("Index", 0, .inputfield, "Array index to retrieve the value from"))),
-        ]
+        super.bindPorts()
+        self.boundInputPort = findPort(named: "inputPort")
+        self.boundOutputPort = findPort(named: "outputPort")
     }
 
-    public var inputIndexParam: ParameterPort<Int> { port(named: "inputIndexParam") }
-
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
-        guard let elementType = strategy as? PortType else { return }
+        let storedPorts = [
+            PortDeclaration(key: "inputIndexParam", port: self.inputIndexParam),
+        ]
+
+        guard let elementType = strategy as? PortType else { return super.declaredPorts() + storedPorts }
 
         let arrayType: PortType = .Array(portType: elementType)
 
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputPort", displayName: "Array", portType: arrayType, kind: .Inlet, description: "Input array to index into")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputPort", displayName: "Value", portType: elementType, kind: .Outlet, description: "Element at the specified index")
-
-        let portOrder = ["inputPort", "inputIndexParam", "outputPort"]
-        let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }
-        if reordered.count == self.ports.count { reorderPorts(reordered) }
+        return [
+            PortDeclaration(key: "inputPort", portType: arrayType, kind: .Inlet, name: "Array", description: "Input array to index into"),
+        ] + super.declaredPorts() + storedPorts + [
+            PortDeclaration(key: "outputPort", portType: elementType, kind: .Outlet, name: "Value", description: "Element at the specified index"),
+        ]
     }
+
+    private var boundInputPort: Port?
+    private var boundOutputPort: Port?
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
@@ -48,8 +51,8 @@ public class ArrayIndexValueNode: TypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputPort:  Port = findPort(named: "inputPort"),
-              let outputPort: Port = findPort(named: "outputPort") else { return }
+        guard let inputPort:  Port = self.boundInputPort,
+              let outputPort: Port = self.boundOutputPort else { return }
 
         guard inputPort.valueDidChange || inputIndexParam.valueDidChange else { return }
 

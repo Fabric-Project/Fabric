@@ -20,20 +20,17 @@ public class StringLengthNode : Node
     override public class var nodeDescription: String { "Returns the Length of a String as an Integer"}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputPort",   ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to measure"))),
-            ("outputPort",  NodePort<Int>(name: "Length", kind: .Outlet, description: "Character count of the input string")),
+    public let inputPort = ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to measure"))
+    public let outputPort = NodePort<Int>(name: "Length", kind: .Outlet, description: "Character count of the input string")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputPort", port: self.inputPort),
+            PortDeclaration(key: "outputPort", port: self.outputPort),
         ]
     }
-    
-    // Port Proxy
-    public var inputPort:ParameterPort<String>   { port(named: "inputPort") }
-    public var outputPort:NodePort<Int>     { port(named: "outputPort") }
-    
+
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,

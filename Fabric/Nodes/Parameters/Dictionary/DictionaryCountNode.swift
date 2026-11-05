@@ -12,14 +12,22 @@ public final class DictionaryCountNode: DictionaryTypeAgnosticNode
     public override class var name: String { "Dictionary Count" }
     override public class var nodeDescription: String { "Outputs the number of key-value pairs in a dictionary. Choose value type in Settings." }
 
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
+        return [
+            PortDeclaration(key: "inputDictionary", portType: dictionaryType, kind: .Inlet, name: "Dictionary", description: "Dictionary to count"),
+            PortDeclaration(key: "outputCount", portType: .Int, kind: .Outlet, name: "Count", description: "Dictionary count"),
+        ] + super.declaredPorts()
+    }
 
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputDictionary", displayName: "Dictionary", portType: dictionaryType, kind: .Inlet,  description: "Dictionary to count")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputCount",     displayName: "Count",      portType: .Int,           kind: .Outlet, description: "Dictionary count")
+    private var boundInputDictionary: Port?
+    private var boundOutputCount: Port?
 
-        reorderPorts(named: ["inputDictionary", "outputCount"])
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputDictionary = findPort(named: "inputDictionary")
+        self.boundOutputCount = findPort(named: "outputCount")
     }
 
     override public func execute(renderer: GraphRenderer,
@@ -28,8 +36,8 @@ public final class DictionaryCountNode: DictionaryTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputDictionary: Port = findPort(named: "inputDictionary"),
-              let outputCount: Port = findPort(named: "outputCount"),
+        guard let inputDictionary: Port = self.boundInputDictionary,
+              let outputCount: Port = self.boundOutputCount,
               inputDictionary.valueDidChange else { return }
 
         outputCount.sendBoxed(.Int(inputDictionary.snapshotValue()?.dictionaryValue?.count ?? 0))

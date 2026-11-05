@@ -22,25 +22,33 @@ public final class RippleRepeatNode: NumericTypeAgnosticNode
     private var oldest: Record?
     private var lastTime: TimeInterval?
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    public let inputCount = ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Number of elements"))
+    public let inputDelaySecs = ParameterPort(parameter: FloatParameter("Delay (secs)", 1.0, 0.0, 60.0, .inputfield, "Delay window in seconds"))
+
+    override public func bindPorts()
     {
-        super.registerPorts(context: context) + [
-            ("inputCount", ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Number of elements"))),
-            ("inputDelaySecs", ParameterPort(parameter: FloatParameter("Delay (secs)", 1.0, 0.0, 60.0, .inputfield, "Delay window in seconds")))
+        super.bindPorts()
+        self.boundInputValue = findPort(named: "inputValue")
+        self.boundOutputArray = findPort(named: "outputArray")
+    }
+
+    public override func declaredPorts() -> [PortDeclaration]
+    {
+        let valueType = selectedNumericPortType
+        let arrayType: PortType = valueType == .NumericVirtual ? .NumericVirtual : .Array(portType: valueType)
+
+        return [
+            PortDeclaration(key: "inputValue", portType: valueType, kind: .Inlet, name: "Value", description: "Animated value to stagger"),
+        ] + super.declaredPorts() + [
+            PortDeclaration(key: "inputCount", port: self.inputCount),
+            PortDeclaration(key: "inputDelaySecs", port: self.inputDelaySecs),
+            PortDeclaration(key: "outputArray", portType: arrayType, kind: .Outlet, name: "Array", description: "Rippled repeated values"),
         ]
     }
 
-    public var inputCount: ParameterPort<Int> { port(named: "inputCount") }
-    public var inputDelaySecs: ParameterPort<Float> { port(named: "inputDelaySecs") }
-
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    public override func apply(_ settings: any NodeSettings)
     {
-        super.rebuildPorts(forStrategy: strategy)
-        let valueType = selectedNumericPortType
-        let arrayType: PortType = valueType == .NumericVirtual ? .NumericVirtual : .Array(portType: valueType)
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputValue", displayName: "Value", portType: valueType, kind: .Inlet, description: "Animated value to stagger")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputArray", displayName: "Array", portType: arrayType, kind: .Outlet, description: "Rippled repeated values")
-        reorderPorts(named: ["inputValue", "inputCount", "inputDelaySecs", "outputArray"])
+        super.apply(settings)
         history.removeAll()
         oldest = nil
         lastTime = nil
@@ -55,15 +63,17 @@ public final class RippleRepeatNode: NumericTypeAgnosticNode
         try super.startExecution(renderer: renderer)
     }
 
+    private var boundInputValue: Port?
+    private var boundOutputArray: Port?
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputValue") { return }
-        guard let inputValue: Port = findPort(named: "inputValue"),
-              let outputArray: Port = findPort(named: "outputArray")
+        guard let inputValue: Port = self.boundInputValue,
+              let outputArray: Port = self.boundOutputArray
         else { return }
 
         let now = executionInfo.timing.time

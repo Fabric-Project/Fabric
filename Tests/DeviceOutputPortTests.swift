@@ -4,7 +4,24 @@ import Metal
 @testable import Fabric
 import Satin
 
-/// The reconcile every device-backed node shares (Node.synchronizeDeviceOutputPorts):
+/// A node whose outlets are a device's, as HID, MIDI Input and Game Controller
+/// declare them.
+private final class DeviceTestNode: Node
+{
+    override class var name: String { "Device Test" }
+    override class var nodeType: Node.NodeType { .Utility }
+    override class var nodeExecutionMode: Node.ExecutionMode { .Provider }
+    override class var nodeTimeMode: Node.TimeMode { .None }
+
+    var descriptors: [DeviceOutputPortDescriptor] = []
+
+    override func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + Self.deviceOutputPortDeclarations(for: descriptors, buttonDescription: "Button", axisDescription: "Axis")
+    }
+}
+
+/// The outlets every device-backed node declares (Node.deviceOutputPortDeclarations):
 /// ports follow the hardware, but wired-up ports must not be churned for nothing.
 @Suite("Device Output Ports")
 struct DeviceOutputPortTests
@@ -21,11 +38,14 @@ struct DeviceOutputPortTests
         )
     }
 
-    private func synchronize(_ node: Node, to descriptors: [DeviceOutputPortDescriptor]) -> [DeviceOutputPortDescriptor]
+    /// Reconciles to `descriptors`, returning those it had to make a port for.
+    @discardableResult
+    private func synchronize(_ node: DeviceTestNode, to descriptors: [DeviceOutputPortDescriptor]) -> [DeviceOutputPortDescriptor]
     {
-        node.synchronizeDeviceOutputPorts(to: descriptors,
-                                          buttonDescription: "Button",
-                                          axisDescription: "Axis")
+        let created = node.deviceOutputDescriptorsNeedingPorts(descriptors)
+        node.descriptors = descriptors
+        node.reconcilePorts()
+        return created
     }
 
     @Test("Matching ports survive a resync so their wires do")
@@ -33,33 +53,34 @@ struct DeviceOutputPortTests
     {
         guard let context = makeContext() else { return }
 
-        let node = GameControllerNode(context: context)
+        let node = DeviceTestNode(context: context)
         let descriptors = [DeviceOutputPortDescriptor(name: "Left Stick X", isButton: false),
                            DeviceOutputPortDescriptor(name: "A", isButton: true)]
 
         #expect(synchronize(node, to: descriptors).count == 2)
 
-        let savedIDs = node.ports.map(\.id)
+        let savedPorts = node.ports.map(ObjectIdentifier.init)
 
         #expect(synchronize(node, to: descriptors).isEmpty)
-        #expect(node.ports.map(\.id) == savedIDs)
+        #expect(node.ports.map(ObjectIdentifier.init) == savedPorts)
     }
 
-    @Test("A port whose element changed type is replaced, not kept")
+    @Test("A port whose element changed type is retyped under its runtime id, not kept")
     func mistypedPortsAreReplaced() throws
     {
         guard let context = makeContext() else { return }
 
-        let node = GameControllerNode(context: context)
+        let node = DeviceTestNode(context: context)
         synchronize(node, to: [DeviceOutputPortDescriptor(name: "Trigger", isButton: false)])
-        #expect(node.findPort(named: "Trigger") is NodePort<Float>)
+        let axis = try #require(node.findPort(named: "Trigger") as NodePort<Float>?)
 
         // Name-only matching kept the Float port here, leaving a button's state
         // with nowhere to go.
         let created = synchronize(node, to: [DeviceOutputPortDescriptor(name: "Trigger", isButton: true)])
 
         #expect(created.map(\.name) == ["Trigger"])
-        #expect(node.findPort(named: "Trigger") is NodePort<Bool>)
+        let button = try #require(node.findPort(named: "Trigger") as NodePort<Bool>?)
+        #expect(button.id == axis.id)
         #expect(node.ports.count == 1)
     }
 
@@ -68,7 +89,7 @@ struct DeviceOutputPortTests
     {
         guard let context = makeContext() else { return }
 
-        let node = GameControllerNode(context: context)
+        let node = DeviceTestNode(context: context)
         synchronize(node, to: [DeviceOutputPortDescriptor(name: "A", isButton: true),
                                DeviceOutputPortDescriptor(name: "B", isButton: true)])
 

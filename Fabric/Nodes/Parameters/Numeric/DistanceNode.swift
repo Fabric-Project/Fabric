@@ -15,26 +15,31 @@ public final class DistanceNode: NumericTypeAgnosticNode
     override public class var nodeDescription: String { "Computes a domain-aware distance between two numeric values. Choose the value type in Settings." }
     public override class var supportedPortTypes: [PortType] { singleNumericTypes }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    public let inputMetric: ParameterPort<String> = metricParameter("Distance calculation method")
+    public let outputDistance = NodePort<Float>(name: "Distance", kind: .Outlet, description: "Calculated distance")
+
+    override public func bindPorts()
     {
-        super.registerPorts(context: context) + [
-            ("inputMetric", metricParameter("Distance calculation method")),
-            ("outputDistance", NodePort<Float>(name: "Distance", kind: .Outlet, description: "Calculated distance"))
+        super.bindPorts()
+        self.boundInputA = findPort(named: "inputA")
+        self.boundInputB = findPort(named: "inputB")
+    }
+
+    public override func declaredPorts() -> [PortDeclaration]
+    {
+        let portType = selectedNumericPortType
+
+        return [
+            PortDeclaration(key: "inputA", portType: portType, kind: .Inlet, name: "A", description: "First value"),
+            PortDeclaration(key: "inputB", portType: portType, kind: .Inlet, name: "B", description: "Second value"),
+        ] + super.declaredPorts() + [
+            PortDeclaration(key: "inputMetric", port: self.inputMetric),
+            PortDeclaration(key: "outputDistance", port: self.outputDistance),
         ]
     }
 
-    public var inputMetric: ParameterPort<String> { port(named: "inputMetric") }
-    public var outputDistance: NodePort<Float> { port(named: "outputDistance") }
-
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
-    {
-        super.rebuildPorts(forStrategy: strategy)
-        let portType = selectedNumericPortType
-
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputA", displayName: "A", portType: portType, kind: .Inlet, description: "First value")
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputB", displayName: "B", portType: portType, kind: .Inlet, description: "Second value")
-        reorderPorts(named: ["inputA", "inputB", "inputMetric", "outputDistance"])
-    }
+    private var boundInputA: Port?
+    private var boundInputB: Port?
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
@@ -42,9 +47,8 @@ public final class DistanceNode: NumericTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputA") || specializeFromConnectedPort(named: "inputB") { return }
-        guard let inputA: Port = findPort(named: "inputA"),
-              let inputB: Port = findPort(named: "inputB"),
+        guard let inputA: Port = self.boundInputA,
+              let inputB: Port = self.boundInputB,
               inputA.valueDidChange || inputB.valueDidChange || inputMetric.valueDidChange,
               let valueA = inputA.snapshotValue(),
               let valueB = inputB.snapshotValue()

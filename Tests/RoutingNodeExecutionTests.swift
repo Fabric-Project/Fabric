@@ -28,8 +28,6 @@ private final class CountingProviderNode<PayloadValue: PortValueRepresentable & 
     var value: PayloadValue
     var executionCount = 0
 
-    var output: NodePort<PayloadValue> { port(named: "output") }
-
     init(context: Context, value: PayloadValue)
     {
         self.value = value
@@ -48,10 +46,12 @@ private final class CountingProviderNode<PayloadValue: PortValueRepresentable & 
         try super.init(from: decoder)
     }
 
-    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
+    let output = NodePort<PayloadValue>(name: "Output", kind: .Outlet)
+
+    override func declaredPorts() -> [PortDeclaration]
     {
-        super.registerPorts(context: context) + [
-            ("output", NodePort<PayloadValue>(name: "Output", kind: .Outlet)),
+        super.declaredPorts() + [
+            PortDeclaration(key: "output", port: self.output),
         ]
     }
 
@@ -80,12 +80,12 @@ private final class CountingFloatConsumerNode: Node
     var executionCount = 0
     var lastValue: Float?
 
-    var input: NodePort<Float> { port(named: "input") }
+    let input = NodePort<Float>(name: "Input", kind: .Inlet)
 
-    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
+    override func declaredPorts() -> [PortDeclaration]
     {
-        super.registerPorts(context: context) + [
-            ("input", NodePort<Float>(name: "Input", kind: .Inlet)),
+        super.declaredPorts() + [
+            PortDeclaration(key: "input", port: self.input),
         ]
     }
 
@@ -111,14 +111,14 @@ private final class CountingTwoInputConsumerNode: Node
     var lastA: Float?
     var lastB: Float?
 
-    var inputA: NodePort<Float> { port(named: "inputA") }
-    var inputB: NodePort<Float> { port(named: "inputB") }
+    let inputA = NodePort<Float>(name: "Input A", kind: .Inlet)
+    let inputB = NodePort<Float>(name: "Input B", kind: .Inlet)
 
-    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
+    override func declaredPorts() -> [PortDeclaration]
     {
-        super.registerPorts(context: context) + [
-            ("inputA", NodePort<Float>(name: "Input A", kind: .Inlet)),
-            ("inputB", NodePort<Float>(name: "Input B", kind: .Inlet)),
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputA", port: self.inputA),
+            PortDeclaration(key: "inputB", port: self.inputB),
         ]
     }
 
@@ -141,16 +141,16 @@ private final class AccumulatingFloatNode: Node
     override class var nodeTimeMode: Node.TimeMode { .None }
     override class var nodeDescription: String { "Test processor that adds its feedback inlet to its increment inlet." }
 
-    var inputIncrement: NodePort<Float> { port(named: "inputIncrement") }
-    var inputFeedback: NodePort<Float> { port(named: "inputFeedback") }
-    var output: NodePort<Float> { port(named: "output") }
+    let inputIncrement = NodePort<Float>(name: "Increment", kind: .Inlet)
+    let inputFeedback = NodePort<Float>(name: "Feedback", kind: .Inlet)
+    let output = NodePort<Float>(name: "Output", kind: .Outlet)
 
-    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
+    override func declaredPorts() -> [PortDeclaration]
     {
-        super.registerPorts(context: context) + [
-            ("inputIncrement", NodePort<Float>(name: "Increment", kind: .Inlet)),
-            ("inputFeedback", NodePort<Float>(name: "Feedback", kind: .Inlet)),
-            ("output", NodePort<Float>(name: "Output", kind: .Outlet)),
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputIncrement", port: self.inputIncrement),
+            PortDeclaration(key: "inputFeedback", port: self.inputFeedback),
+            PortDeclaration(key: "output", port: self.output),
         ]
     }
 
@@ -165,8 +165,7 @@ private final class AccumulatingFloatNode: Node
 
 private func publish(_ port: Fabric.Port, in graph: Graph)
 {
-    port.published = true
-    graph.rebuildPublishedParameterGroup()
+    graph.setPublished(true, port: port)
 }
 
 @Suite("Routing Nodes")
@@ -708,7 +707,6 @@ struct RoutingNodeExecutionTests
         graph.addNode(switchNode)
 
         graph.connect(upstream.output, to: switchNode.port(named: "input3", as: NodePort<Float>.self))
-        let savedInput3ID = switchNode.port(named: "input3", as: NodePort<Float>.self).id
 
         let data = try JSONEncoder().encode(graph)
         let decoder = JSONDecoder()
@@ -718,12 +716,9 @@ struct RoutingNodeExecutionTests
         let decodedSwitch = try #require(decodedGraph.nodes.first(where: { $0.id == switchNode.id }) as? SwitchNode)
         #expect(decodedSwitch.routeCount == 4)
 
-        // The decode must rebuild ports with the saved route count in place —
-        // otherwise the high-index ports are torn down and recreated with fresh
-        // UUIDs, and the graph's UUID-keyed connection restore silently drops
-        // everything wired to routes >= 2.
+        // The decode must declare ports for the saved route count, or the
+        // wires to routes >= 2 find no port at their address.
         let decodedInput3 = try #require(decodedSwitch.findPort(named: "input3", as: NodePort<Float>.self))
-        #expect(decodedInput3.id == savedInput3ID)
         #expect(decodedInput3.connections.count == 1)
     }
 

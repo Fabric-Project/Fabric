@@ -18,30 +18,27 @@ public class NumberRemapNode : Node
     override public class var nodeDescription: String { "Remap a number from one range to another. With Clamp enabled, values outside the given ranges map to the range ends instead of extrapolating past them."}
     
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputNumber", ParameterPort(parameter: FloatParameter("Number", 0.0, .inputfield, "The input value to remap"))),
-            ("inputMinNumber", ParameterPort(parameter: FloatParameter("Input Min", 0.0, .inputfield, "Minimum of the input range"))),
-            ("inputMaxNumber", ParameterPort(parameter: FloatParameter("Input Max", 1.0, .inputfield, "Maximum of the input range"))),
-            ("inputNewMinNumber", ParameterPort(parameter: FloatParameter("Output Min", 0.0, .inputfield, "Minimum of the output range"))),
-            ("inputNewMaxNumber", ParameterPort(parameter: FloatParameter("Output Max", 1.0, .inputfield, "Maximum of the output range"))),
-            ("inputClamp", ParameterPort(parameter: BoolParameter("Clamp", false, .toggle, "Respect the given ranges: inputs outside [Input Min, Input Max] map to the output min/max instead of extrapolating past them. Off by default."))),
-            ("outputNumber", NodePort<Float>(name: "Number" , kind: .Outlet, description: "The remapped output value")),
+    public let inputNumber = ParameterPort(parameter: FloatParameter("Number", 0.0, .inputfield, "The input value to remap"))
+    public let inputMinNumber = ParameterPort(parameter: FloatParameter("Input Min", 0.0, .inputfield, "Minimum of the input range"))
+    public let inputMaxNumber = ParameterPort(parameter: FloatParameter("Input Max", 1.0, .inputfield, "Maximum of the input range"))
+    public let inputNewMinNumber = ParameterPort(parameter: FloatParameter("Output Min", 0.0, .inputfield, "Minimum of the output range"))
+    public let inputNewMaxNumber = ParameterPort(parameter: FloatParameter("Output Max", 1.0, .inputfield, "Maximum of the output range"))
+    public let inputClamp = ParameterPort(parameter: BoolParameter("Clamp", false, .toggle, "Respect the given ranges: inputs outside [Input Min, Input Max] map to the output min/max instead of extrapolating past them. Off by default."))
+    public let outputNumber = NodePort<Float>(name: "Number" , kind: .Outlet, description: "The remapped output value")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputNumber", port: self.inputNumber),
+            PortDeclaration(key: "inputMinNumber", port: self.inputMinNumber),
+            PortDeclaration(key: "inputMaxNumber", port: self.inputMaxNumber),
+            PortDeclaration(key: "inputNewMinNumber", port: self.inputNewMinNumber),
+            PortDeclaration(key: "inputNewMaxNumber", port: self.inputNewMaxNumber),
+            PortDeclaration(key: "inputClamp", port: self.inputClamp),
+            PortDeclaration(key: "outputNumber", port: self.outputNumber),
         ]
     }
 
-    // Port Proxy
-    public var inputNumber:ParameterPort<Float> { port(named: "inputNumber") }
-    public var inputMinNumber:ParameterPort<Float> { port(named: "inputMinNumber") }
-    public var inputMaxNumber:ParameterPort<Float> { port(named: "inputMaxNumber") }
-    public var inputNewMinNumber:ParameterPort<Float> { port(named: "inputNewMinNumber") }
-    public var inputNewMaxNumber:ParameterPort<Float> { port(named: "inputNewMaxNumber") }
-    public var inputClamp:ParameterPort<Bool> { port(named: "inputClamp") }
-    public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
-    
     private var lastValue:Float = 0.0
         
     override public func execute(renderer:GraphRenderer,

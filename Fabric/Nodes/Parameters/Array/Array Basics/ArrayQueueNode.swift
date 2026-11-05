@@ -20,38 +20,45 @@ public class ArrayQueueNode: TypeAgnosticNode
     override public class var nodeDescription: String { "Inserts items into the beginning of an array queue. Choose element type in Settings." }
     override public class var includesArrayTypesInStrategy: Bool { false }
 
-    private static let dynamicPortNames: Set<String> = ["inputPort", "outputPort"]
+    public let inputSizeParam = ParameterPort(parameter: IntParameter("Size", 0, .inputfield, "Maximum number of elements to keep in the queue"))
+    public let resetPort: NodePort<Bool> = ParameterPort(parameter: BoolParameter("Reset", false, .button,  "When true, drops all queued items while maintaining capacity"))
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    override public func bindPorts()
     {
-        super.registerPorts(context: context) + [
-            ("inputSizeParam", ParameterPort(parameter: IntParameter("Size", 0, .inputfield, "Maximum number of elements to keep in the queue"))),
-            ("resetPort",     ParameterPort(parameter: BoolParameter("Reset", false, .button,  "When true, drops all queued items while maintaining capacity")))
-        ]
+        super.bindPorts()
+        self.boundInputPort = findPort(named: "inputPort")
+        self.boundOutputPort = findPort(named: "outputPort")
     }
-
-    public var inputSizeParam: ParameterPort<Int> { port(named: "inputSizeParam") }
-    public var resetPort: NodePort<Bool>           { port(named: "resetPort") }
 
     // Type-agnostic queue; PortValue boxing lets this work identically for Virtual and typed ports.
     private var queue: ContiguousArray<PortValue> = []
 
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
-        guard let elementType = strategy as? PortType else { return }
+        let storedPorts = [
+            PortDeclaration(key: "inputSizeParam", port: self.inputSizeParam),
+            PortDeclaration(key: "resetPort", port: self.resetPort),
+        ]
+
+        guard let elementType = strategy as? PortType else { return super.declaredPorts() + storedPorts }
 
         let arrayType: PortType = .Array(portType: elementType)
 
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputPort", displayName: "Value", portType: elementType, kind: .Inlet, description: "Value to insert at the front of the queue")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputPort", displayName: "Array", portType: arrayType, kind: .Outlet, description: "Array containing the queued values")
-
-        queue.removeAll()
-
-        let portOrder = ["inputPort", "inputSizeParam", "resetPort", "outputPort"]
-        let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }
-        if reordered.count == self.ports.count { reorderPorts(reordered) }
+        return [
+            PortDeclaration(key: "inputPort", portType: elementType, kind: .Inlet, name: "Value", description: "Value to insert at the front of the queue"),
+        ] + super.declaredPorts() + storedPorts + [
+            PortDeclaration(key: "outputPort", portType: arrayType, kind: .Outlet, name: "Array", description: "Array containing the queued values"),
+        ]
     }
+
+    public override func apply(_ settings: any NodeSettings)
+    {
+        super.apply(settings)
+        queue.removeAll()
+    }
+
+    private var boundInputPort: Port?
+    private var boundOutputPort: Port?
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
@@ -59,8 +66,8 @@ public class ArrayQueueNode: TypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputPort:  Port = findPort(named: "inputPort"),
-              let outputPort: Port = findPort(named: "outputPort") else { return }
+        guard let inputPort:  Port = self.boundInputPort,
+              let outputPort: Port = self.boundOutputPort else { return }
 
         if resetPort.valueDidChange, resetPort.value == true
         {

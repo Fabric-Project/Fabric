@@ -44,8 +44,8 @@ struct RenderToImageDepthTests {
         guard let harness = GraphExecutionTestHarness() else { return }
         let graph = Graph(context: harness.context)
         let deferred = makeBoxNode(harness)
-        deferred.outputDepthTexture.published = true
         graph.addNode(deferred)
+        deferred.outputDepthTexture.publishInGraph(true)
         let renderer = harness.graphRenderer(for: graph)
         try renderer.startExecution()
         defer { try? renderer.stopExecution() }
@@ -85,7 +85,7 @@ struct RenderToImageDepthTests {
         let albedo = try #require(deferred.findPort(named: "outputAlbedoTexture", as: NodePort<FabricImage>.self))
         #expect(albedo.value == nil)
 
-        albedo.published = true
+        albedo.publishInGraph(true)
         try harness.render(graph: graph, executionInfo: harness.makeExecutionContext(time: 1, deltaTime: 1, frameNumber: 1))
         #expect(albedo.value != nil)
         #expect(deferred.outputDepthTexture.value == nil)

@@ -16,32 +16,37 @@ public class ArrayReplaceValueAtIndexNode: TypeAgnosticNode
     override public class var nodeDescription: String { "Replaces the element at the specified index with a new value. Choose element type in Settings." }
     override public class var includesArrayTypesInStrategy: Bool { false }
 
-    private static let dynamicPortNames: Set<String> = ["inputPort", "inputValue", "outputPort"]
+    public let inputIndexParam = ParameterPort(parameter: IntParameter("Index", 0, .inputfield, "Array index where the value will be replaced"))
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    override public func bindPorts()
     {
-        super.registerPorts(context: context) + [
-            ("inputIndexParam", ParameterPort(parameter: IntParameter("Index", 0, .inputfield, "Array index where the value will be replaced"))),
-        ]
+        super.bindPorts()
+        self.boundInputPort = findPort(named: "inputPort")
+        self.boundInputValue = findPort(named: "inputValue")
+        self.boundOutputPort = findPort(named: "outputPort")
     }
 
-    public var inputIndexParam: ParameterPort<Int> { port(named: "inputIndexParam") }
-
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
-        guard let elementType = strategy as? PortType else { return }
+        let storedPorts = [
+            PortDeclaration(key: "inputIndexParam", port: self.inputIndexParam),
+        ]
+
+        guard let elementType = strategy as? PortType else { return super.declaredPorts() + storedPorts }
 
         let arrayType: PortType = .Array(portType: elementType)
 
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputPort", displayName: "Array", portType: arrayType, kind: .Inlet, description: "Input array to modify")
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputValue", displayName: "Value", portType: elementType, kind: .Inlet, description: "New value to insert at the specified index")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputPort", displayName: "Array", portType: arrayType, kind: .Outlet, description: "Array with the value replaced at the specified index")
-
-        let portOrder = ["inputPort", "inputIndexParam", "inputValue", "outputPort"]
-        let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }
-        if reordered.count == self.ports.count { reorderPorts(reordered) }
+        return [
+            PortDeclaration(key: "inputPort", portType: arrayType, kind: .Inlet, name: "Array", description: "Input array to modify"),
+        ] + super.declaredPorts() + storedPorts + [
+            PortDeclaration(key: "inputValue", portType: elementType, kind: .Inlet, name: "Value", description: "New value to insert at the specified index"),
+            PortDeclaration(key: "outputPort", portType: arrayType, kind: .Outlet, name: "Array", description: "Array with the value replaced at the specified index"),
+        ]
     }
+
+    private var boundInputPort: Port?
+    private var boundInputValue: Port?
+    private var boundOutputPort: Port?
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
@@ -49,9 +54,9 @@ public class ArrayReplaceValueAtIndexNode: TypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputPort:  Port = findPort(named: "inputPort"),
-              let inputValue: Port = findPort(named: "inputValue"),
-              let outputPort: Port = findPort(named: "outputPort") else { return }
+        guard let inputPort:  Port = self.boundInputPort,
+              let inputValue: Port = self.boundInputValue,
+              let outputPort: Port = self.boundOutputPort else { return }
 
         guard inputPort.valueDidChange || inputIndexParam.valueDidChange || inputValue.valueDidChange else { return }
 

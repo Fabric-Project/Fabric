@@ -14,21 +14,18 @@ public class SphereGeometryNode : BaseGeometryNode
     public override class var name:String { "Sphere Geometry" }
     public override class var nodeDescription: String { "Generates sphere geometry" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return  [
-        ("inputRadius", ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield, "Radius of the sphere in world units"))),
-        ("inputAngularResolution", ParameterPort(parameter:IntParameter("Angular Segments", 60, .inputfield, "Number of segments around the circumference"))),
-        ("inputVerticalResolution", ParameterPort(parameter:IntParameter("Vertical Segments", 30, .inputfield, "Number of segments from pole to pole"))),
+    public let inputRadius = ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield, "Radius of the sphere in world units"))
+    public let inputAngularResolution = ParameterPort(parameter:IntParameter("Angular Segments", 60, .inputfield, "Number of segments around the circumference"))
+    public let inputVerticalResolution = ParameterPort(parameter:IntParameter("Vertical Segments", 30, .inputfield, "Number of segments from pole to pole"))
 
-        ] + ports
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        [
+            PortDeclaration(key: "inputRadius", port: self.inputRadius),
+            PortDeclaration(key: "inputAngularResolution", port: self.inputAngularResolution),
+            PortDeclaration(key: "inputVerticalResolution", port: self.inputVerticalResolution),
+        ] + super.declaredPorts()
     }
-    
-    // Proxy Port
-    public var inputRadius:ParameterPort<Float> { port(named: "inputRadius")  }
-    public var inputAngularResolution:ParameterPort<Int> { port(named: "inputAngularResolution")  }
-    public var inputVerticalResolution:ParameterPort<Int> { port(named: "inputVerticalResolution")  }
 
     public override var geometry: SphereGeometry { _geometry }
 

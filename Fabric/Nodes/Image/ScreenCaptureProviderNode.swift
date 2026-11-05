@@ -73,19 +73,18 @@ public class ScreenCaptureProviderNode: Node
     override public class var nodeTimeMode: Node.TimeMode { .TimeBase }
     override public class var nodeDescription: String { "Capture a display, window, or application and provide output Images" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputCaptureType = ParameterPort(parameter: StringParameter("Capture Type", CaptureKind.display.rawValue, [CaptureKind.display.rawValue, CaptureKind.window.rawValue, CaptureKind.application.rawValue], .dropdown, "Screen capture source type"))
+    public let inputCaptureSource = ParameterPort(parameter: StringParameter("Capture Source", "", [String](), .dropdown, "Display, window, or application to capture"))
+    public let outputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Current screen capture frame")
 
-        return ports + [
-            ("inputCaptureType", ParameterPort(parameter: StringParameter("Capture Type", CaptureKind.display.rawValue, [CaptureKind.display.rawValue, CaptureKind.window.rawValue, CaptureKind.application.rawValue], .dropdown, "Screen capture source type"))),
-            ("inputCaptureSource", ParameterPort(parameter: StringParameter("Capture Source", "", [String](), .dropdown, "Display, window, or application to capture"))),
-            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Current screen capture frame")),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputCaptureType", port: self.inputCaptureType),
+            PortDeclaration(key: "inputCaptureSource", port: self.inputCaptureSource),
+            PortDeclaration(key: "outputTexturePort", port: self.outputTexturePort),
         ]
     }
-
-    public var inputCaptureType: ParameterPort<String> { port(named: "inputCaptureType") }
-    public var inputCaptureSource: ParameterPort<String> { port(named: "inputCaptureSource") }
-    public var outputTexturePort: NodePort<FabricImage> { port(named: "outputTexturePort") }
 
     private let streamDelegate = StreamDelegate()
     private let sampleHandlerQueue = DispatchQueue(label: "fabric.ScreenCaptureProviderNode.sample_handler")
@@ -122,7 +121,7 @@ public class ScreenCaptureProviderNode: Node
                 _settingsModelStorage?.captureStatus = captureFailure?.status
                 _settingsModelStorage?.canRetry = captureFailure?.canRetry ?? false
             }
-            self.subtitleSubject.send()
+            self.namingDidChange()
         }
     }
 

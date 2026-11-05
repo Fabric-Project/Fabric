@@ -19,25 +19,20 @@ public class InstancedModelMeshNode : InstancedMeshNode
     override public class var nodeDescription: String { "Load a 3D model file from disk, rendering it to the scene multiple times via instances. An animated model (skeletons or moving parts) poses at Time, every instance alike."}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+    public let inputFilePathParam = ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the 3D model file to load"))
+    public let inputTime = ParameterPort(parameter: FloatParameter("Time", 0.0, .inputfield, "Seconds from the start of the model's animation; held at the first or last pose outside it"))
+    public let outputDuration = NodePort<Float>(name: "Duration", kind: .Outlet, description: "Length of the model's animation in seconds; 0 when it doesn't move, no value without a model")
 
-        // We prune Geom and Material since we dont really let you fuck with them for now
-        let ports = super.registerPorts(context: context).filter({ (name: String, port: Port) in
-            !(port.name == "Geometry" || port.name == "Material")
-        })
-
-        return ports +
-        [
-            ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the 3D model file to load"))),
-            ("inputTime", ParameterPort(parameter: FloatParameter("Time", 0.0, .inputfield, "Seconds from the start of the model's animation; held at the first or last pose outside it"))),
-            ("outputDuration", NodePort<Float>(name: "Duration", kind: .Outlet, description: "Length of the model's animation in seconds; 0 when it doesn't move, no value without a model")),
+    /// The mesh's ports less Geometry and Material, which come from the model.
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts().filter { $0.key != .own("inputGeometry") && $0.key != .own("inputMaterial") } + [
+            PortDeclaration(key: "inputFilePathParam", port: self.inputFilePathParam),
+            PortDeclaration(key: "inputTime", port: self.inputTime),
+            PortDeclaration(key: "outputDuration", port: self.outputDuration),
         ]
     }
 
-    public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
-    public var inputTime:ParameterPort<Float>  { port(named: "inputTime") }
-    public var outputDuration:NodePort<Float>  { port(named: "outputDuration") }
-    
     private let modelLoader = ModelFileLoader(instanced: true)
 
     override public func getObject() -> Object? {
@@ -134,7 +129,7 @@ public class InstancedModelMeshNode : InstancedMeshNode
 
         if self.status != statusBefore
         {
-            self.subtitleSubject.send()
+            self.namingDidChange()
         }
 
         switch outcome

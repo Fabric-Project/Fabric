@@ -26,108 +26,157 @@ import Foundation
 
 final class PortRegistry
 {
-    // Stable order for UI/layout and serialization. Name lookup returns an
+    // Stable order for UI/layout and serialization. Key lookup returns an
     // integer first so optimized reads can borrow the port from this storage.
     private(set) var ordered: ContiguousArray<Port> = []
-    private var byName: [String: Int] = [:]
-    // lookup by UUID for connections remap
-    private var byID: [UUID: Port] = [:]
-    
-    func register(_ port: Port, name: String, owner: Node)
+    private var indexByKey: [PortKey: Int] = [:]
+
+    // MARK: - Reconciling to declarations
+
+    /// What reconcile(to:applying:owner:hydrating:) changed. Retired ports,
+    /// those removed and those retyped, still name their node, so the node can
+    /// take their wires through the graph before it lets them go.
+    struct Reconciliation
     {
-        port.node = owner
-        self.ordered.append(port)
-        self.byName[name] = self.ordered.count - 1
-        self.byID[port.id] = port
+        var added: [Port] = []
+        var removed: [Port] = []
+        var retyped: [(old: Port, new: Port)] = []
+        var reordered = false
+
+        var isEmpty: Bool { added.isEmpty && removed.isEmpty && retyped.isEmpty && !reordered }
     }
 
-    func addDynamic(_ port: Port, owner: Node, name: String? = nil)
+    /// Brings the ports to `declarations`, in their order, and puts `states`
+    /// on them. A port whose key, kind and type match its declaration, and
+    /// that is a parameter port exactly when the declaration has a control,
+    /// stays as it is. One that differs is retyped: made afresh under the old
+    /// one's runtime id. A missing key is made. A port no declaration names is
+    /// removed. The first of two declarations under one key counts.
+    ///
+    /// A state goes onto the port at its key when its value fits the port's
+    /// type; the port then corrects it (a slider clamps to its range, a file
+    /// picker's reference inside `fileReferenceBase` becomes relative). This
+    /// never touches the graph: the caller applies the result to it.
+    func reconcile(to declarations: [PortDeclaration],
+                   applying states: [PortState],
+                   owner: Node,
+                   hydrating session: PortHydrationSession?,
+                   fileReferenceBase: URL? = nil) -> Reconciliation
     {
-        self.register(port, name: name ?? port.name, owner: owner)
-    }
+        var reconciliation = Reconciliation()
+        var reconciled: [(key: PortKey, port: Port, control: PortControl?)] = []
+        var made: [(key: PortKey, port: Port)] = []
+        var declaredKeys = Set<PortKey>()
 
-    func remove(_ p: Port)
-    {
-        if let graph = p.node?.graph {
-            graph.disconnectAll(from: p)
-        }
-        self.byID[p.id] = nil
-        if let removedIndex = ordered.firstIndex(where: { $0.id == p.id })
+        for declaration in declarations where declaredKeys.insert(declaration.key).inserted
         {
-            // Inspect the old storage before removing its element. Keys for
-            // later ports shift with the array; registry keys are not labels.
-            for (name, index) in self.byName
+            let key = declaration.key
+
+            guard let existing = self.port(forKey: key) else
             {
-                if self.ordered[index].id == p.id {
-                    self.byName[name] = nil
-                } else if index > removedIndex {
-                    self.byName[name] = index - 1
-                }
+                let port = Self.make(declaration, id: nil)
+                made.append((key, port))
+                reconciled.append((key, port, declaration.control))
+                reconciliation.added.append(port)
+                continue
             }
-            self.ordered.remove(at: removedIndex)
+
+            if existing.kind == declaration.kind
+                && existing.portType == declaration.portType
+                && (existing.parameter != nil) == (declaration.control != nil)
+                && declaration.stillDescribes?(existing) != false
+            {
+                reconciled.append((key, existing, declaration.control))
+                continue
+            }
+
+            let replacement = Self.make(declaration, id: existing.id)
+            session?.relinquish(existing)
+            made.append((key, replacement))
+            reconciled.append((key, replacement, declaration.control))
+            reconciliation.retyped.append((existing, replacement))
         }
-        // Dynamic type changes replace a Port instance while preserving its
-        // UUID. Detach the retired instance so a transient SwiftUI view cannot
-        // reconnect that stale object after the replacement is registered.
-        p.node = nil
+
+        for port in self.ordered where !declaredKeys.contains(port.key)
+        {
+            session?.relinquish(port)
+            reconciliation.removed.append(port)
+        }
+
+        // Every retired port has handed back its state before any port takes
+        // state, so a key retired and made again takes it.
+        var hydratedStates: [PortState] = []
+        for (key, port) in made
+        {
+            port.key = key
+            port.node = owner
+            if let state = session?.hydrate(port, key: key) { hydratedStates.append(state) }
+        }
+
+        reconciliation.reordered = self.ordered.map(\.key) != reconciled.map(\.key)
+
+        self.ordered = ContiguousArray(reconciled.map(\.port))
+        self.indexByKey = Dictionary(reconciled.enumerated().map { ($0.element.key, $0.offset) }, uniquingKeysWith: { first, _ in first })
+        for entry in reconciled
+        {
+            entry.port.key = entry.key
+            entry.port.control = entry.control
+        }
+
+        // A decoded value is put back as saved: wires come back after the
+        // nodes, so a file picker cannot yet tell whether a wire drives it, and
+        // saving already made its unwired references relative.
+        for state in hydratedStates
+        {
+            self.port(forKey: state.key)?.apply(state)
+        }
+        for state in states
+        {
+            self.port(forKey: state.key)?.apply(state, fileReferenceBase: fileReferenceBase)
+        }
+
+        return reconciliation
     }
 
-    func reorder(_ reordered: [Port])
+    private static func make(_ declaration: PortDeclaration, id: UUID?) -> Port
     {
-        guard reordered.count == self.ordered.count else { return }
+        let port = declaration.makePort(id)
+        if let id, port.id != id { port.adoptID(id) }
+        return port
+    }
 
-        let oldIDs = Set(self.ordered.map(\.id))
-        let newIDs = Set(reordered.map(\.id))
-        guard oldIDs == newIDs else { return }
-
-        let namesByID: [UUID: String] = Dictionary(uniqueKeysWithValues: self.byName.map { (key, value) in
-            (self.ordered[value].id, key)
-        })
-
-        self.ordered = ContiguousArray(reordered)
-        self.byName.removeAll(keepingCapacity: true)
-        self.byID.removeAll(keepingCapacity: true)
-
-        for (index, port) in self.ordered.enumerated() {
-            let name = namesByID[port.id] ?? port.name
-            self.byName[name] = index
-            self.byID[port.id] = port
+    /// The value every parameter inlet rests at, under its key: the whole of
+    /// what a document holds about a node's ports.
+    func states() -> [PortState]
+    {
+        self.ordered.compactMap { port in
+            guard port.kind == .Inlet, port.control != nil, let value = port.snapshotValue() else { return nil }
+            return PortState(key: port.key, value: value)
         }
     }
-    
+
+    // MARK: - Lookup
+
+    func port(forKey key: PortKey) -> Port?
+    {
+        guard let index = self.indexByKey[key] else { return nil }
+        return self.ordered[index]
+    }
+
     func port(named name: String) -> Port?
     {
-        guard let index = self.byName[name] else { return nil }
-        return self.ordered[index]
+        self.port(forKey: .own(name))
     }
 
     func name(of port: Port) -> String?
     {
-        self.byName.first { self.ordered[$0.value].id == port.id }?.key
+        guard self.port(forKey: port.key) === port, case .own(let name) = port.key else { return nil }
+        return name
     }
 
     // Native Array and ContiguousArray share storage here. Preserve the public
     // Array API and its copy-on-write snapshot semantics.
     func all() -> [Port] { Array(self.ordered) }
 
-    /// A port's persisted form: registry key plus the encoded port object.
-    /// Decode treats it as a hydration source only — the port instances that
-    /// end up registered always come from the code's declarations (see
-    /// Node.init(from:)); the snapshot contributes document-owned state.
-    struct Snapshot: Codable
-    {
-        var name: String
-        var payload: AnyPort // you already have this for heterogeneous, codable ports
-    }
 
-    func encode() -> [Snapshot] {
-        self.ordered.map { port in
-
-            let name = byName.first(where: { (key, value) in
-                port.id == self.ordered[value].id
-            })?.key ?? port.name
-
-            return Snapshot(name: name, payload: AnyPort(port))
-        }
-    }
 }

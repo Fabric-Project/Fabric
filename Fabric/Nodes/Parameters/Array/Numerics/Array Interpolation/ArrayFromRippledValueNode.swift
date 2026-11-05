@@ -25,24 +25,23 @@ public class ArrayFromRippledValueNode<Value : PortValueRepresentable & Paramete
     private var oldest: Record? = nil
     private var lastTime: TimeInterval? = nil
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputValue = NodePort<Value>.makeFresh(name: "Value", kind: .Inlet, description: "Animated value to stagger across the array")
+    public let inputCount = ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Number of elements in the output array"))
+    public let inputDelaySecs = ParameterPort(parameter: FloatParameter("Delay (secs)", 1.0, 0.0, 60.0, .inputfield, "Window over which changes ripple from element 0 (oldest) to element N-1 (newest)"))
+    public let outputArray = NodePort<ContiguousArray<Value>>(name: "Array", kind: .Outlet, description: "Array of staggered past values")
 
-        return ports +
-        [
-            ("inputValue", Value.makeDefaultParameterPort(name: "Value", description: "Animated value to stagger across the array")),
-            ("inputCount", ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Number of elements in the output array"))),
-            ("inputDelaySecs", ParameterPort(parameter: FloatParameter("Delay (secs)", 1.0, 0.0, 60.0, .inputfield, "Window over which changes ripple from element 0 (oldest) to element N-1 (newest)"))),
-            ("outputArray", NodePort<ContiguousArray<Value>>(name: "Array", kind: .Outlet, description: "Array of staggered past values")),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputValue", port: self.inputValue),
+            PortDeclaration(key: "inputCount", port: self.inputCount),
+            PortDeclaration(key: "inputDelaySecs", port: self.inputDelaySecs),
+            PortDeclaration(key: "outputArray", port: self.outputArray),
         ]
     }
 
     // ParameterPort<T> is a subclass of NodePort<T>, so this accessor type is
     // compatible whether the concrete port is a ParameterPort or a NodePort.
-    public var inputValue: NodePort<Value> { port(named: "inputValue") }
-    public var inputCount: ParameterPort<Int> { port(named: "inputCount") }
-    public var inputDelaySecs: ParameterPort<Float> { port(named: "inputDelaySecs") }
-    public var outputArray: NodePort<ContiguousArray<Value>> { port(named: "outputArray") }
 
     override public func startExecution(renderer: GraphRenderer) throws
     {

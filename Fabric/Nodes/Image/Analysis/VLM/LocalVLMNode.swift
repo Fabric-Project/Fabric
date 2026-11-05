@@ -43,23 +43,24 @@ struct LocalVLMNodeSettingsView: View {
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Provide a string prompt to a local VLLM for evaluation via MLX-Swift-LM" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        super.registerPorts(context: context) + [
-            ("inputPrompt", ParameterPort(parameter: StringParameter("Prompt", "Describe this image?", [], .inputfield, "Text prompt to send to the model"))),
-            ("inputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Image to analyze with the VLM")),
-            ("inputGenerate", ParameterPort(parameter: BoolParameter("Generate", false, .button, "Trigger text generation"))),
-            ("outputPort", NodePort<String>(name: "Output", kind: .Outlet, description: "Generated text response")),
-            ("outputStats", NodePort<String>(name: "Stats", kind: .Outlet, description: "Generation statistics")),
-            ("outputModel", NodePort<String>(name: "Model Info", kind: .Outlet, description: "Current model information")),
+    public let inputPrompt: NodePort<String> = ParameterPort(parameter: StringParameter("Prompt", "Describe this image?", [], .inputfield, "Text prompt to send to the model"))
+    public let inputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Image to analyze with the VLM")
+    public let inputGenerate: NodePort<Bool> = ParameterPort(parameter: BoolParameter("Generate", false, .button, "Trigger text generation"))
+    public let outputPort = NodePort<String>(name: "Output", kind: .Outlet, description: "Generated text response")
+    public let outputStats = NodePort<String>(name: "Stats", kind: .Outlet, description: "Generation statistics")
+    public let outputModel = NodePort<String>(name: "Model Info", kind: .Outlet, description: "Current model information")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputPrompt", port: self.inputPrompt),
+            PortDeclaration(key: "inputImage", port: self.inputTexturePort),
+            PortDeclaration(key: "inputGenerate", port: self.inputGenerate),
+            PortDeclaration(key: "outputPort", port: self.outputPort),
+            PortDeclaration(key: "outputStats", port: self.outputStats),
+            PortDeclaration(key: "outputModel", port: self.outputModel),
         ]
     }
-
-    public var inputPrompt: NodePort<String> { port(named: "inputPrompt") }
-    public var inputTexturePort: NodePort<FabricImage> { port(named: "inputTexturePort") }
-    public var inputGenerate: NodePort<Bool> { port(named: "inputGenerate") }
-    public var outputPort: NodePort<String> { port(named: "outputPort") }
-    public var outputStats: NodePort<String> { port(named: "outputStats") }
-    public var outputModel: NodePort<String> { port(named: "outputModel") }
 
     private enum CodingKeys: String, CodingKey {
         case selectedModelID

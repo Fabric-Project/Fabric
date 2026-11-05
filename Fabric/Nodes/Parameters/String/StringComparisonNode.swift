@@ -15,22 +15,20 @@ public class StringComparisonNode: Node {
     override public class var nodeDescription: String { "Compare two String values" }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputStringA = ParameterPort(parameter: StringParameter("String A", "", .inputfield, "First string to compare"))
+    public let inputStringB = ParameterPort(parameter: StringParameter("String B", "", .inputfield, "Second string to compare"))
+    public let inputOperator = ParameterPort(parameter: StringParameter("Operator", "Equals", StringComparisonOperator.allCases.map(\.rawValue), .dropdown, "Comparison operation to perform"))
+    public let outputResult = NodePort<Bool>(name: "Result", kind: .Outlet, description: "Result of the string comparison")
 
-        return ports + [
-            ("inputStringA", ParameterPort(parameter: StringParameter("String A", "", .inputfield, "First string to compare"))),
-            ("inputStringB", ParameterPort(parameter: StringParameter("String B", "", .inputfield, "Second string to compare"))),
-            ("inputOperator", ParameterPort(parameter: StringParameter("Operator", "Equals", StringComparisonOperator.allCases.map(\.rawValue), .dropdown, "Comparison operation to perform"))),
-            ("outputResult", NodePort<Bool>(name: "Result", kind: .Outlet, description: "Result of the string comparison")),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputStringA", port: self.inputStringA),
+            PortDeclaration(key: "inputStringB", port: self.inputStringB),
+            PortDeclaration(key: "inputOperator", port: self.inputOperator),
+            PortDeclaration(key: "outputResult", port: self.outputResult),
         ]
     }
-
-    // Port proxies
-    public var inputStringA: ParameterPort<String> { port(named: "inputStringA") }
-    public var inputStringB: ParameterPort<String> { port(named: "inputStringB") }
-    public var inputOperator: ParameterPort<String> { port(named: "inputOperator") }
-    public var outputResult: NodePort<Bool> { port(named: "outputResult") }
 
     private var op = StringComparisonOperator.Equals
 

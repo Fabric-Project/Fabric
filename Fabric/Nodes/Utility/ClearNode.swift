@@ -15,20 +15,18 @@ public final class ClearNode: Node
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Sets the initial render target clear color and optionally clears depth and stencil. Clear happens before scene rendering and does not participate in Render Order." }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
-    {
-        let ports = super.registerPorts(context: context)
+    public let inputClearColor = ParameterPort(parameter: Float4Parameter("Background Color Color", .zero, .colorpicker, "Color used for background clearing on the current color render target"))
+    public let inputClearDepth = ParameterPort(parameter: BoolParameter("Clear Depth", true, .button, "Clear the depth attachment before scene rendering"))
+    public let inputClearStencil = ParameterPort(parameter: BoolParameter("Clear Stencil", false, .button, "Clear the stencil attachment before scene rendering"))
 
-        return ports + [
-            ("inputClearColor", ParameterPort(parameter: Float4Parameter("Background Color Color", .zero, .colorpicker, "Color used for background clearing on the current color render target"))),
-            ("inputClearDepth", ParameterPort(parameter: BoolParameter("Clear Depth", true, .button, "Clear the depth attachment before scene rendering"))),
-            ("inputClearStencil", ParameterPort(parameter: BoolParameter("Clear Stencil", false, .button, "Clear the stencil attachment before scene rendering"))),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputClearColor", port: self.inputClearColor),
+            PortDeclaration(key: "inputClearDepth", port: self.inputClearDepth),
+            PortDeclaration(key: "inputClearStencil", port: self.inputClearStencil),
         ]
     }
-
-    public var inputClearColor: ParameterPort<simd_float4> { port(named: "inputClearColor") }
-    public var inputClearDepth: ParameterPort<Bool> { port(named: "inputClearDepth") }
-    public var inputClearStencil: ParameterPort<Bool> { port(named: "inputClearStencil") }
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,

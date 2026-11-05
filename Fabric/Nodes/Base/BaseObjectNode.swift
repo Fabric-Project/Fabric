@@ -24,30 +24,46 @@ open class BaseObjectNode : Node
 
 open class ObjectNode<ObjectType : Satin.Object> : BaseObjectNode
 {
-    override open class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return [
-            ("inputVisible", ParameterPort(parameter:BoolParameter("Visible", true, .button, "When enabled, the object is rendered in the scene") ) ),
-            ("inputRenderOrder", ParameterPort(parameter:IntParameter("Render Order", 0, .inputfield, "Draw order within the same render pass (lower = earlier)") ) ),
+    public let inputVisible = ParameterPort(parameter:BoolParameter("Visible", true, .button, "When enabled, the object is rendered in the scene") )
+    public let inputRenderOrder = ParameterPort(parameter:IntParameter("Render Order", 0, .inputfield, "Draw order within the same render pass (lower = earlier)") )
+    public let inputPosition: ParameterPort<simd_float3>
+    public let inputScale: ParameterPort<simd_float3>
+    public let inputOrientation: ParameterPort<simd_float4>
 
-            ("inputPosition", ParameterPort(parameter:Float3Parameter("Position", simd_float3(repeating:0), .inputfield, "Position in 3D space (X, Y, Z) in world units") ) ),
-
-            ("inputScale", ParameterPort(parameter:Float3Parameter("Scale", simd_float3(repeating:1), .inputfield, "Scale factor along each axis (X, Y, Z)") ) ),
-
-            ("inputOrientation", ParameterPort(parameter:Float4Parameter("Orientation", simd_float4(repeating:0), .inputfield, "Orientation as quaternion (X, Y, Z, W)") ) ),
-
-        ] + ports
+    /// The position, scale and orientation inlets, made per class so a
+    /// subclass can give them its own defaults and wording under the same keys.
+    open class func makePlacementPorts() -> (position: ParameterPort<simd_float3>, scale: ParameterPort<simd_float3>, orientation: ParameterPort<simd_float4>)
+    {
+        (
+            position: ParameterPort(parameter:Float3Parameter("Position", simd_float3(repeating:0), .inputfield, "Position in 3D space (X, Y, Z) in world units") ),
+            scale: ParameterPort(parameter:Float3Parameter("Scale", simd_float3(repeating:1), .inputfield, "Scale factor along each axis (X, Y, Z)") ),
+            orientation: ParameterPort(parameter:Float4Parameter("Orientation", simd_float4(repeating:0), .inputfield, "Orientation as quaternion (X, Y, Z, W)") )
+        )
     }
-    
-    // Port Proxy
-    public var inputVisible:ParameterPort<Bool>    { port(named: "inputVisible") }
-    public var inputRenderOrder:ParameterPort<Int>          { port(named: "inputRenderOrder") }
-    
-    public var inputPosition:ParameterPort<simd_float3>          { port(named: "inputPosition") }
-    public var inputScale:ParameterPort<simd_float3>          { port(named: "inputScale") }
-    public var inputOrientation:ParameterPort<simd_float4>          { port(named: "inputOrientation") }
-    
+
+    public required init(context: Context)
+    {
+        (self.inputPosition, self.inputScale, self.inputOrientation) = Self.makePlacementPorts()
+        super.init(context: context)
+    }
+
+    public required init(from decoder: any Decoder) throws
+    {
+        (self.inputPosition, self.inputScale, self.inputOrientation) = Self.makePlacementPorts()
+        try super.init(from: decoder)
+    }
+
+    override open func declaredPorts() -> [PortDeclaration]
+    {
+        [
+            PortDeclaration(key: "inputVisible", port: self.inputVisible),
+            PortDeclaration(key: "inputRenderOrder", port: self.inputRenderOrder),
+            PortDeclaration(key: "inputPosition", port: self.inputPosition),
+            PortDeclaration(key: "inputScale", port: self.inputScale),
+            PortDeclaration(key: "inputOrientation", port: self.inputOrientation),
+        ] + super.declaredPorts()
+    }
+
     override open func getObject() -> Object? {
         return self.object
     }

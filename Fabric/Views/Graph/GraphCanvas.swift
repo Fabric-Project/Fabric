@@ -232,8 +232,7 @@ public struct GraphCanvas : View
                     guard let nodeClass = try? NodeRegistry.shared.dropTargetNodeClass(for: contentType)
                     else { return }
 
-                    let node = nodeClass.init(context: currentGraph.context)
-                    node.setFileURL(url)
+                    guard let node = try? nodeClass.init(context: currentGraph.context, fileURL: url) else { return }
                     node.offset = CGSize(width: location.x - canvasSize.width / 2.0 - node.nodeSize.width / 2.0,
                                          height: location.y - canvasSize.height / 2.0 - node.nodeSize.height / 2.0)
                     currentGraph.addNode(node)

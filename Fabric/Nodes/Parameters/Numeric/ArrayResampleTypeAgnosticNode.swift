@@ -15,23 +15,29 @@ public final class ArrayResampleTypeAgnosticNode: NumericTypeAgnosticNode
     override public class var nodeDescription: String { "Resamples a numeric array to a new count using type-appropriate interpolation." }
     public override class var supportedPortTypes: [PortType] { interpolatableArrayTypes }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    public let inputCount = ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Desired output element count"))
+
+    override public func bindPorts()
     {
-        super.registerPorts(context: context) + [
-            ("inputCount", ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Desired output element count")))
+        super.bindPorts()
+        self.boundInputArray = findPort(named: "inputArray")
+        self.boundOutputArray = findPort(named: "outputArray")
+    }
+
+    public override func declaredPorts() -> [PortDeclaration]
+    {
+        let portType = selectedNumericPortType
+
+        return [
+            PortDeclaration(key: "inputArray", portType: portType, kind: .Inlet, name: "Array", description: "Source array"),
+        ] + super.declaredPorts() + [
+            PortDeclaration(key: "inputCount", port: self.inputCount),
+            PortDeclaration(key: "outputArray", portType: portType, kind: .Outlet, name: "Array", description: "Resampled array"),
         ]
     }
 
-    public var inputCount: ParameterPort<Int> { port(named: "inputCount") }
-
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
-    {
-        super.rebuildPorts(forStrategy: strategy)
-        let portType = selectedNumericPortType
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputArray", displayName: "Array", portType: portType, kind: .Inlet, description: "Source array")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputArray", displayName: "Array", portType: portType, kind: .Outlet, description: "Resampled array")
-        reorderPorts(named: ["inputArray", "inputCount", "outputArray"])
-    }
+    private var boundInputArray: Port?
+    private var boundOutputArray: Port?
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
@@ -39,9 +45,8 @@ public final class ArrayResampleTypeAgnosticNode: NumericTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputArray") { return }
-        guard let inputArray: Port = findPort(named: "inputArray"),
-              let outputArray: Port = findPort(named: "outputArray"),
+        guard let inputArray: Port = self.boundInputArray,
+              let outputArray: Port = self.boundOutputArray,
               inputArray.valueDidChange || inputCount.valueDidChange,
               case .Array(let elementType) = selectedNumericPortType,
               let source = NumericValueOperations.arrayValues(from: inputArray.snapshotValue()),

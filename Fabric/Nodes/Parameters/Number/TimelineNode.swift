@@ -743,17 +743,13 @@ public class TimelineNode: Node
     override public class var nodeDescription: String { "Multi-track timeline with keyframe animation" }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputTime = ParameterPort(parameter: FloatParameter("Time", 0.0, .inputfield, "Current playback time for evaluating the timeline"))
 
-        return ports +
-        [
-            ("inputTime", ParameterPort(parameter: FloatParameter("Time", 0.0, .inputfield, "Current playback time for evaluating the timeline"))),
-        ]
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.trackOutlets = tracks.map { findPort(named: $0.name) }
     }
-
-    // Port Proxy
-    public var inputTime:ParameterPort<Float> { port(named: "inputTime") }
 
     // MARK: - Codable
 
@@ -772,8 +768,6 @@ public class TimelineNode: Node
         self.tracks = Self.tracksOrDefault(try container.decodeIfPresent([TimelineTrack].self, forKey: .tracks) ?? [],
                                            duration: duration)
 
-        // Use sync instead of rebuild to preserve ports decoded by super.init
-        // This maintains connection IDs across serialization
         syncPortsToTracks()
     }
 
@@ -807,7 +801,6 @@ public class TimelineNode: Node
         self.duration = settings.duration
         self.tracks = Self.tracksOrDefault(settings.tracks, duration: settings.duration)
         self.syncPortsToTracks()
-        self.reorderPorts(self.inputPorts() + self.tracks.compactMap { self.findPort(named: $0.name) as Port? })
         self.markDirty()
         super.apply(settings)
     }
@@ -841,7 +834,7 @@ public class TimelineNode: Node
         didSet
         {
             guard oldValue != duration else { return }
-            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+            settingsDidChange()
         }
     }
 
@@ -850,7 +843,7 @@ public class TimelineNode: Node
         didSet
         {
             guard oldValue != tracks else { return }
-            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+            settingsDidChange()
         }
     }
 
@@ -932,37 +925,36 @@ public class TimelineNode: Node
     }
 
     private var _settingsModelStorage: SettingsModel? = nil
+
+    override public func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _settingsModelStorage?.refreshFromNode()
+    }
     private let playheadUpdateQueued = Mutex(false)
 
     // MARK: - Ports
 
-    /// Synchronize ports to tracks, preserving existing ports when possible
-    /// This is important for maintaining connections across serialization
-    fileprivate func syncPortsToTracks()
+    /// A Float outlet per track, in track order, under the track's name: a
+    /// track keeps its port and wires while its name stands, and a rename is
+    /// a new port.
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        let trackNames = Set(tracks.map { $0.name })
-        let existingOutputs = outputPorts()
-        let existingPortNames = Set(existingOutputs.map { $0.name })
-
-        // Remove ports that no longer have matching tracks
-        for port in existingOutputs
-        {
-            if !trackNames.contains(port.name)
-            {
-                removePort(port)
-            }
-        }
-
-        // Add ports for tracks that don't have matching ports
-        for track in tracks
-        {
-            if !existingPortNames.contains(track.name)
-            {
-                let port = NodePort<Float>(name: track.name, kind: .Outlet, description: "Animated value from timeline track")
-                addDynamicPort(port)
-            }
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputTime", port: self.inputTime),
+        ] + tracks.map { track in
+            PortDeclaration(key: track.name,
+                            port: NodePort<Float>(name: track.name, kind: .Outlet, description: "Animated value from timeline track"))
         }
     }
+
+    fileprivate func syncPortsToTracks()
+    {
+        reconcilePorts()
+    }
+
+    /// Each track's outlet, by track index; every track change reconciles.
+    private var trackOutlets: [NodePort<Float>?] = []
 
     // MARK: - Track Management
 
@@ -1038,14 +1030,9 @@ public class TimelineNode: Node
         }
 
         // Evaluate each track and send to corresponding port
-        for track in tracks
+        for (track, port) in zip(tracks, trackOutlets)
         {
-            let value = track.evaluate(at: time, duration: duration)
-
-            if let port = findPort(named: track.name) as? NodePort<Float>
-            {
-                port.send(value)
-            }
+            port?.send(track.evaluate(at: time, duration: duration))
         }
     }
 }

@@ -33,8 +33,9 @@ extension Graph
             case incompatibleTypes
         }
 
-        public let portID: UUID
-        public let otherPortID: UUID
+        /// The wire's outlet and inlet, as the document addressed them.
+        public let from: PortAddress
+        public let to: PortAddress
         public let reason: Reason
 
         /// Endpoints named as "node.port" where they still resolve.
@@ -86,30 +87,22 @@ extension Graph
         }
     }
 
-    /// Builds the diagnostic for a saved wire that couldn't be restored, or
-    /// nil if this endpoint pair was already reported (the legacy connection
-    /// map holds every wire under both endpoints, so either side can surface
-    /// the same drop first).
-    func makeDroppedConnectionDiagnostic(from portID: UUID,
-                                         to otherPortID: UUID,
-                                         reason: DroppedConnectionDiagnostic.Reason,
-                                         portsByID: [UUID: Port],
-                                         reportedPairs: inout Set<Set<UUID>>) -> DroppedConnectionDiagnostic?
+    /// Builds the diagnostic for a saved wire that couldn't be restored.
+    func makeDroppedConnectionDiagnostic(from outlet: PortAddress,
+                                         to inlet: PortAddress,
+                                         reason: DroppedConnectionDiagnostic.Reason) -> DroppedConnectionDiagnostic
     {
-        guard reportedPairs.insert(Set([portID, otherPortID])).inserted else { return nil }
-
-        // A raw port UUID means nothing to a person reading this; name
-        // whichever side we can and describe the other relative to it, since
-        // it's only ever the far side's owning node that failed to load.
-        func describe(_ id: UUID) -> String?
+        // An address means little to a person reading this; name whichever
+        // side still resolves and describe the other relative to it.
+        func describe(_ address: PortAddress) -> String?
         {
-            guard let port = portsByID[id] else { return nil }
+            guard let port = self.port(at: address) else { return nil }
             return "\(port.node?.title ?? "?").\(port.displayName)"
         }
 
         let summary: String
 
-        switch (describe(portID), describe(otherPortID))
+        switch (describe(outlet), describe(inlet))
         {
         case let (.some(known), .some(otherKnown)):
             summary = "\(known) ↔ \(otherKnown)"
@@ -119,10 +112,7 @@ extension Graph
             summary = "Could not restore a connection — neither port exists anymore"
         }
 
-        let diagnostic = DroppedConnectionDiagnostic(portID: portID,
-                                                     otherPortID: otherPortID,
-                                                     reason: reason,
-                                                     summary: summary)
+        let diagnostic = DroppedConnectionDiagnostic(from: outlet, to: inlet, reason: reason, summary: summary)
         print("Graph decode: dropped connection (\(reason)): \(diagnostic.summary)")
         return diagnostic
     }

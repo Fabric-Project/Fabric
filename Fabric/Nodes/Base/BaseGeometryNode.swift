@@ -24,18 +24,37 @@ open class BaseGeometryNode : Node
     override open class var nodeTimeMode: Node.TimeMode { .None }
     override open class var nodeDescription: String { "Provides \(Self.name)"}
 
-    override open class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputPrimitiveType", ParameterPort(parameter:StringParameter("Primitive", "Triangle", ["Point", "Line", "Line Strip", "Triangle", "Triangle Strip"], .dropdown, "Rendering primitive type for the geometry mesh")) ),
-            ("outputGeometry",  NodePort<Geometry>(name: "Geometry", kind: .Outlet, description: "The generated geometry mesh")),
+    public let inputPrimitiveType: NodePort<String>
+    public let outputGeometry = NodePort<Geometry>(name: "Geometry", kind: .Outlet, description: "The generated geometry mesh")
+
+    override open func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputPrimitiveType", port: self.inputPrimitiveType),
+            PortDeclaration(key: "outputGeometry", port: self.outputGeometry),
         ]
     }
-    
-    public var inputPrimitiveType: NodePort<String>   { port(named: "inputPrimitiveType") }
-    public var outputGeometry: NodePort<Geometry>   { port(named: "outputGeometry") }
+
+    /// The Primitive inlet's starting value. A node that builds points
+    /// overrides it.
+    open class var defaultPrimitiveType: String { "Triangle" }
+
+    public required init(context: Context)
+    {
+        self.inputPrimitiveType = Self.makePrimitiveTypePort()
+        super.init(context: context)
+    }
+
+    public required init(from decoder: any Decoder) throws
+    {
+        self.inputPrimitiveType = Self.makePrimitiveTypePort()
+        try super.init(from: decoder)
+    }
+
+    private static func makePrimitiveTypePort() -> NodePort<String>
+    {
+        ParameterPort(parameter:StringParameter("Primitive", defaultPrimitiveType, ["Point", "Line", "Line Strip", "Triangle", "Triangle Strip"], .dropdown, "Rendering primitive type for the geometry mesh"))
+    }
 
     open var geometry: Geometry {
         fatalError("Subclasses must override geometry")

@@ -21,33 +21,28 @@ public class HandPoseAnalysisNode: Node
     override public class var nodeDescription: String { "Detects a hand pose in an image and outputs ordered finger-point arrays in unit coordinates" }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to analyze for hand poses")),
-            ("inputHandCount", ParameterPort(parameter: IntParameter("Hand Count", 1, 1, 16, .inputfield, "Maximum number of hands to detect"))),
+    public let inputImage = NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to analyze for hand poses")
+    public let inputHandCount = ParameterPort(parameter: IntParameter("Hand Count", 1, 1, 16, .inputfield, "Maximum number of hands to detect"))
+    public let outputThumb = NodePort<ContiguousArray<simd_float2>>(name: "Thumb", kind: .Outlet, description: "Thumb points ordered CMC, MP, IP, Tip in unit coordinates")
+    public let outputIndex = NodePort<ContiguousArray<simd_float2>>(name: "Index", kind: .Outlet, description: "Index finger points ordered MCP, PIP, DIP, Tip in unit coordinates")
+    public let outputMiddle = NodePort<ContiguousArray<simd_float2>>(name: "Middle", kind: .Outlet, description: "Middle finger points ordered MCP, PIP, DIP, Tip in unit coordinates")
+    public let outputRing = NodePort<ContiguousArray<simd_float2>>(name: "Ring", kind: .Outlet, description: "Ring finger points ordered MCP, PIP, DIP, Tip in unit coordinates")
+    public let outputLittle = NodePort<ContiguousArray<simd_float2>>(name: "Little", kind: .Outlet, description: "Little finger points ordered MCP, PIP, DIP, Tip in unit coordinates")
+    public let outputWrist = NodePort<simd_float2>(name: "Wrist", kind: .Outlet, description: "Position of wrist in unit coordinates")
 
-            ("outputThumb", NodePort<ContiguousArray<simd_float2>>(name: "Thumb", kind: .Outlet, description: "Thumb points ordered CMC, MP, IP, Tip in unit coordinates")),
-            ("outputIndex", NodePort<ContiguousArray<simd_float2>>(name: "Index", kind: .Outlet, description: "Index finger points ordered MCP, PIP, DIP, Tip in unit coordinates")),
-            ("outputMiddle", NodePort<ContiguousArray<simd_float2>>(name: "Middle", kind: .Outlet, description: "Middle finger points ordered MCP, PIP, DIP, Tip in unit coordinates")),
-            ("outputRing", NodePort<ContiguousArray<simd_float2>>(name: "Ring", kind: .Outlet, description: "Ring finger points ordered MCP, PIP, DIP, Tip in unit coordinates")),
-            ("outputLittle", NodePort<ContiguousArray<simd_float2>>(name: "Little", kind: .Outlet, description: "Little finger points ordered MCP, PIP, DIP, Tip in unit coordinates")),
-
-            ("outputWrist", NodePort<simd_float2>(name: "Wrist", kind: .Outlet, description: "Position of wrist in unit coordinates")),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputImage", port: self.inputImage),
+            PortDeclaration(key: "inputHandCount", port: self.inputHandCount),
+            PortDeclaration(key: "outputThumb", port: self.outputThumb),
+            PortDeclaration(key: "outputIndex", port: self.outputIndex),
+            PortDeclaration(key: "outputMiddle", port: self.outputMiddle),
+            PortDeclaration(key: "outputRing", port: self.outputRing),
+            PortDeclaration(key: "outputLittle", port: self.outputLittle),
+            PortDeclaration(key: "outputWrist", port: self.outputWrist),
         ]
     }
-
-    public var inputImage:NodePort<FabricImage>  { port(named: "inputImage") }
-
-    public var outputThumb:NodePort<ContiguousArray<simd_float2>> { port(named: "outputThumb") }
-    public var outputIndex:NodePort<ContiguousArray<simd_float2>> { port(named: "outputIndex") }
-    public var outputMiddle:NodePort<ContiguousArray<simd_float2>> { port(named: "outputMiddle") }
-    public var outputRing:NodePort<ContiguousArray<simd_float2>> { port(named: "outputRing") }
-    public var outputLittle:NodePort<ContiguousArray<simd_float2>> { port(named: "outputLittle") }
-
-    public var outputWrist:NodePort<simd_float2> { port(named: "outputWrist") }
 
     private static let thumbJoints: [VNHumanHandPoseObservation.JointName] = [.thumbCMC, .thumbMP, .thumbIP, .thumbTip]
     private static let indexJoints: [VNHumanHandPoseObservation.JointName] = [.indexMCP, .indexPIP, .indexDIP, .indexTip]

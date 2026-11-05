@@ -83,7 +83,7 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
 
     /// Shown as the node's title: the three axis expressions. Falls back to the
     /// type name when all axes are blank; a user `userName` overrides it.
-    /// Refreshed via subtitleSubject in parseExpressions().
+    /// Refreshed via namingDidChange() in parseExpressions().
     override public func deriveSubtitle() -> String? {
         let axes = [expressionX, expressionY, expressionZ]
         guard axes.contains(where: { !$0.isEmpty }) else { return nil }
@@ -161,6 +161,12 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
     /// Nil until a settings view asks for it.
     private var _settingsModelStorage: SettingsModel?
 
+    override public func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _settingsModelStorage?.refreshFromNode()
+    }
+
     var settingsModel: SettingsModel
     {
         performOnMainSync
@@ -229,25 +235,20 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
 
     // MARK: - Static Ports
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
-    {
-        let ports = super.registerPorts(context: context)
-        return [
-            ("inputResolutionU", ParameterPort(parameter: IntParameter("Resolution U",  128,  .inputfield, "Mesh segments along the U direction"))),
-            ("inputResolutionV", ParameterPort(parameter: IntParameter("Resolution V",  128,  .inputfield, "Mesh segments along the V direction"))),
-            ("inputRangeUMin",   ParameterPort(parameter: FloatParameter("Range U Min", -.pi, .inputfield, "Lower bound of the U parameter domain"))),
-            ("inputRangeUMax",   ParameterPort(parameter: FloatParameter("Range U Max",  .pi, .inputfield, "Upper bound of the U parameter domain"))),
-            ("inputRangeVMin",   ParameterPort(parameter: FloatParameter("Range V Min",    0, .inputfield, "Lower bound of the V parameter domain"))),
-            ("inputRangeVMax",   ParameterPort(parameter: FloatParameter("Range V Max",  .pi, .inputfield, "Upper bound of the V parameter domain"))),
-        ] + ports
-    }
+    public let inputResolutionU = ParameterPort(parameter: IntParameter("Resolution U",  128,  .inputfield, "Mesh segments along the U direction"))
+    public let inputResolutionV = ParameterPort(parameter: IntParameter("Resolution V",  128,  .inputfield, "Mesh segments along the V direction"))
+    public let inputRangeUMin = ParameterPort(parameter: FloatParameter("Range U Min", -.pi, .inputfield, "Lower bound of the U parameter domain"))
+    public let inputRangeUMax = ParameterPort(parameter: FloatParameter("Range U Max",  .pi, .inputfield, "Upper bound of the U parameter domain"))
+    public let inputRangeVMin = ParameterPort(parameter: FloatParameter("Range V Min",    0, .inputfield, "Lower bound of the V parameter domain"))
+    public let inputRangeVMax = ParameterPort(parameter: FloatParameter("Range V Max",  .pi, .inputfield, "Upper bound of the V parameter domain"))
 
-    public var inputResolutionU: ParameterPort<Int>   { port(named: "inputResolutionU") }
-    public var inputResolutionV: ParameterPort<Int>   { port(named: "inputResolutionV") }
-    public var inputRangeUMin:   ParameterPort<Float> { port(named: "inputRangeUMin") }
-    public var inputRangeUMax:   ParameterPort<Float> { port(named: "inputRangeUMax") }
-    public var inputRangeVMin:   ParameterPort<Float> { port(named: "inputRangeVMin") }
-    public var inputRangeVMax:   ParameterPort<Float> { port(named: "inputRangeVMax") }
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.variablePorts = _dynamicVariablePortNames.sorted().compactMap { name in
+            (findPort(named: name) as ParameterPort<Float>?).map { (name, $0) }
+        }
+    }
 
     // MARK: - Geometry
 
@@ -320,8 +321,8 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
         updateCompileErrorStatus()
         syncVariablePorts()
         _expressionsDirty = true
-        subtitleSubject.send()
-        performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+        namingDidChange()
+        settingsDidChange()
     }
 
     /// Which axes compile.
@@ -363,34 +364,60 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
         return AxisExpression(compileResult: compileResult)
     }
 
-    /// Keeps dynamic input ports in sync with the union of free variables across all
-    /// three expressions, minus u and v which are always resolved by the generator.
+    /// One Float inlet per free variable across the three expressions, minus u
+    /// and v which the generator resolves, after the node's own ports.
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        [
+            PortDeclaration(key: "inputResolutionU", port: self.inputResolutionU),
+            PortDeclaration(key: "inputResolutionV", port: self.inputResolutionV),
+            PortDeclaration(key: "inputRangeUMin", port: self.inputRangeUMin),
+            PortDeclaration(key: "inputRangeUMax", port: self.inputRangeUMax),
+            PortDeclaration(key: "inputRangeVMin", port: self.inputRangeVMin),
+            PortDeclaration(key: "inputRangeVMax", port: self.inputRangeVMax),
+        ] + super.declaredPorts() + _dynamicVariablePortNames.sorted().map { name in
+            PortDeclaration(key: name, portType: .Float, kind: .Inlet, name: name)
+        }
+    }
+
+    /// Each variable's inlet, in declared order.
+    private var variablePorts: [(name: String, port: ParameterPort<Float>)] = []
+
+    /// The three expressions as one source, X, Y and Z, for the last
+    /// compiled source.
+    override public var compilableSource: String? { Self.joinedSource([expressionX, expressionY, expressionZ]) }
+
+    private static func joinedSource(_ expressions: [String]) -> String?
+    {
+        (try? JSONEncoder().encode(expressions)).map { String(decoding: $0, as: UTF8.self) }
+    }
+
     private func syncVariablePorts()
     {
+        let current = [evalX, evalY, evalZ]
+        if current.allSatisfy({ $0 != nil }) { self.lastCompiledSource = self.compilableSource }
+
+        // An axis that does not compile on open takes its variables from the
+        // last expressions that compiled, so their wires hold; it still does
+        // not run.
+        var fallback: [AxisExpression?] = [nil, nil, nil]
+        if self.isDecoding,
+           current.contains(where: { $0 == nil }),
+           let data = self.lastCompiledSource?.data(using: .utf8),
+           let expressions = try? JSONDecoder().decode([String].self, from: data),
+           expressions.count == 3
+        {
+            fallback = expressions.map { axisExpression(from: $0) }
+        }
+
         var allVars = Set<String>()
-        if let ev = evalX { allVars.formUnion(ev.variableNames) }
-        if let ev = evalY { allVars.formUnion(ev.variableNames) }
-        if let ev = evalZ { allVars.formUnion(ev.variableNames) }
-
-        let variableNames = allVars.subtracting(Self.parametricBindings)
-
-        for name in _dynamicVariablePortNames.subtracting(variableNames)
+        for (axis, lastCompiled) in zip(current, fallback)
         {
-            if let port: Port = self.findPort(named: name)
-            {
-                self.removePort(port)
-            }
-            _dynamicVariablePortNames.remove(name)
+            if let ev = axis ?? lastCompiled { allVars.formUnion(ev.variableNames) }
         }
 
-        for name in variableNames.subtracting(_dynamicVariablePortNames).sorted()
-        {
-            self.addDynamicPort(
-                PortType.Float.makeFreshPort(name: name, kind: .Inlet),
-                name: name
-            )
-            _dynamicVariablePortNames.insert(name)
-        }
+        _dynamicVariablePortNames = allVars.subtracting(Self.parametricBindings)
+        self.reconcilePorts()
     }
 
     // MARK: - Settings View
@@ -435,9 +462,7 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
             || inputRangeUMin.valueDidChange || inputRangeUMax.valueDidChange
             || inputRangeVMin.valueDidChange || inputRangeVMax.valueDidChange
 
-        let anyVarChanged = _dynamicVariablePortNames.contains { name in
-            (self.findPort(named: name) as? ParameterPort<Float>)?.valueDidChange == true
-        }
+        let anyVarChanged = variablePorts.contains { $0.port.valueDidChange }
 
         if paramsChanged || _expressionsDirty || anyVarChanged
         {
@@ -454,10 +479,9 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
 
             // Snapshot variable port values so the generator closure is pure.
             var varSnapshot: [String: Float] = [:]
-            for name in _dynamicVariablePortNames
+            for (name, port) in variablePorts
             {
-                let value = (self.findPort(named: name) as? ParameterPort<Float>)?.value ?? 0
-                varSnapshot[name] = value
+                varSnapshot[name] = port.value ?? 0
             }
 
             let eX = evalX, eY = evalY, eZ = evalZ

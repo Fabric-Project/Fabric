@@ -5,9 +5,9 @@
 //  Shared base for the nodes driven by a `{name:spec}` format string — String
 //  Formatter, which substitutes values into it, and String Scanner, which reads
 //  values back out. Everything the two share lives here: the format string and
-//  its serialization, the Settings pane, and the dynamic ports the placeholders
-//  build. A subclass says what a placeholder's port looks like and what to do
-//  once the ports have been rebuilt; the rest is not its business.
+//  its serialization, the Settings pane, and the ports the placeholders
+//  declare. A subclass says what a placeholder's port looks like and what to do
+//  once the ports follow an edit; the rest is not its business.
 //
 //  The format string is Settings-view state, never a port: it decides how many
 //  ports the node has and of what type, so a graph-driven edit would churn ports
@@ -60,14 +60,6 @@ public class BaseFormatStringNode: Node {
     /// The format string a node of this type starts with.
     public class var defaultFormatString: String { "" }
 
-    /// Which side of the node the placeholders build their ports on: inlets for
-    /// a node reading values in, outlets for one handing values out.
-    public class var placeholderPortKind: PortKind { .Inlet }
-
-    /// Ports on that side the format string does not own, so the placeholder
-    /// diff leaves them alone.
-    public class var staticPortNames: Set<String> { [] }
-
     /// Markdown shown above the format-string field in the Settings pane.
     public class var settingsGuidance: String { "" }
 
@@ -86,8 +78,8 @@ public class BaseFormatStringNode: Node {
     public fileprivate(set) var formatString: String {
         didSet {
             self.updatePorts()
-            self.subtitleSubject.send()
-            self.performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+            self.namingDidChange()
+            self.settingsDidChange()
         }
     }
 
@@ -112,6 +104,7 @@ public class BaseFormatStringNode: Node {
 
     public required init(context: Context) {
         self.formatString = Self.defaultFormatString
+        self.parsedFormatString = parseFormatString(Self.defaultFormatString)
         super.init(context: context)
         self.updatePorts()
     }
@@ -121,6 +114,7 @@ public class BaseFormatStringNode: Node {
     /// through the inspector to reach it.
     public init(context: Context, formatString: String) {
         self.formatString = formatString
+        self.parsedFormatString = parseFormatString(formatString)
         super.init(context: context)
         self.updatePorts()
     }
@@ -130,18 +124,14 @@ public class BaseFormatStringNode: Node {
     }
 
     public required init(from decoder: any Decoder) throws {
-        self.formatString = Self.defaultFormatString
-
-        try super.init(from: decoder)
-
+        // Decoded before super.init, which declares the placeholder ports.
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.formatString = try container.decodeIfPresent(String.self, forKey: .formatString)
             ?? Self.defaultFormatString
+        self.parsedFormatString = parseFormatString(self.formatString)
 
-        // Property observers do not fire inside an initializer, so rebuild
-        // explicitly: the restored format string recreates its placeholder
-        // ports, which adopt their persisted identity and state by registry
-        // key as they register.
+        try super.init(from: decoder)
+
         self.updatePorts()
     }
 
@@ -185,41 +175,55 @@ public class BaseFormatStringNode: Node {
     /// Nil until a settings view asks for it.
     private var _settingsModelStorage: SettingsModel?
 
-    // MARK: - Dynamic Port Management
+    override public func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _settingsModelStorage?.refreshFromNode()
+    }
 
-    /// Diffs the ports the placeholders ask for against the ones already there:
-    /// a name that has gone, or that has changed type, loses its port; a name
-    /// with no port gets one. A placeholder whose name and type are unchanged
-    /// keeps its port, and so keeps its wire and its value, across an edit.
+    // MARK: - Placeholder ports
+
+    /// The node's own ports, then one per placeholder on its side, in the
+    /// order the format string gives them. A placeholder whose name and type
+    /// are unchanged keeps its port, and so its wire and value, across an edit.
+    override public func declaredPorts() -> [PortDeclaration] {
+        super.declaredPorts() + self.parsedFormatString.placeholders.map { placeholder in
+            PortDeclaration(key: placeholder.name, port: self.makePlaceholderPort(for: placeholder))
+        }
+    }
+
+    /// A placeholder's port, typed by the specifier that built it.
+    enum PlaceholderPort {
+        case float(NodePort<Float>)
+        case int(NodePort<Int>)
+        case bool(NodePort<Bool>)
+        case string(NodePort<String>)
+    }
+
+    /// One per placeholder occurrence, in format-string order: the placeholder
+    /// that governs the name (its first occurrence) and the port that name owns.
+    private(set) var boundOccurrences: [(placeholder: FormatPlaceholder, port: PlaceholderPort?)] = []
+
+    override public func bindPorts() {
+        super.bindPorts()
+        self.boundOccurrences = self.parsedFormatString.tokens.compactMap { token in
+            guard case .placeholder(let occurrence) = token else { return nil }
+            let placeholder = self.parsedFormatString.placeholder(named: occurrence.name) ?? occurrence
+            let name = placeholder.name
+            let port: PlaceholderPort?
+            switch placeholder.portType {
+            case .Float: port = (findPort(named: name) as NodePort<Float>?).map(PlaceholderPort.float)
+            case .Int: port = (findPort(named: name) as NodePort<Int>?).map(PlaceholderPort.int)
+            case .Bool: port = (findPort(named: name) as NodePort<Bool>?).map(PlaceholderPort.bool)
+            default: port = (findPort(named: name) as NodePort<String>?).map(PlaceholderPort.string)
+            }
+            return (placeholder, port)
+        }
+    }
+
     private func updatePorts() {
-        let newParse = parseFormatString(formatString)
-        let newNames = Set(newParse.placeholders.map(\.name))
-
-        let existingNames = Set(
-            self.ports
-                .filter { $0.kind == Self.placeholderPortKind && !Self.staticPortNames.contains($0.name) }
-                .map(\.name)
-        )
-
-        for portName in existingNames.subtracting(newNames) {
-            if let port: Port = self.findPort(named: portName) {
-                self.removePort(port)
-            }
-        }
-
-        for placeholder in newParse.placeholders {
-            if let existingPort: Port = self.findPort(named: placeholder.name),
-               existingPort.portType != placeholder.portType {
-                self.removePort(existingPort)
-            }
-        }
-
-        for placeholder in newParse.placeholders
-        where (self.findPort(named: placeholder.name) as Port?) == nil {
-            self.addDynamicPort(self.makePlaceholderPort(for: placeholder), name: placeholder.name)
-        }
-
-        self.parsedFormatString = newParse
+        self.parsedFormatString = parseFormatString(formatString)
+        self.reconcilePorts()
 
         // A format edit reshapes the result even when it reshapes no port, and
         // the renderer skips a node that is not dirty.

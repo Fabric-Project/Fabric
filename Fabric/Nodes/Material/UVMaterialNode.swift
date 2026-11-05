@@ -15,16 +15,14 @@ public class UVMaterialNode : BaseMaterialNode
     public override class var name:String {  "UV Material" }
     override public class var nodeDescription: String { "Provides visualization of underlying geometry UV coordinates."}
     
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return  [
-                    ("inputPointSize", ParameterPort(parameter:FloatParameter("Point Size", 1.0, 0.5, 64.0, .slider, "Point Size") ) ),
+    public let inputPointSize = ParameterPort(parameter:FloatParameter("Point Size", 1.0, 0.5, 64.0, .slider, "Point Size") )
 
-                ] + ports
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        [
+            PortDeclaration(key: "inputPointSize", port: self.inputPointSize),
+        ] + super.declaredPorts()
     }
-    
-    public var inputPointSize:ParameterPort<Float>   { port(named: "inputPointSize") }
 
     public override var material: UVColorMaterial {
         return _material

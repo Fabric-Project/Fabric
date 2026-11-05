@@ -14,7 +14,7 @@ import ImageIO
 import CoreGraphics
 import UniformTypeIdentifiers
 
-public class ImageProviderNode : Node, NodeFileLoadingProtocol
+public class ImageProviderNode : Node, NodeTakingFile
 {
     public static var supportedContentTypes: [UTType] {
         (CGImageSourceCopyTypeIdentifiers() as! [String]).compactMap { UTType($0) }
@@ -27,26 +27,22 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
     override public class var nodeDescription: String { "Load an image file from disk, providing an output Image"}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the image file to load"))),
-            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "The loaded image")),
+    public let inputFilePathParam = ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the image file to load"))
+    public let outputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "The loaded image")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputFilePathParam", port: self.inputFilePathParam),
+            PortDeclaration(key: "outputTexturePort", port: self.outputTexturePort),
         ]
     }
-
-    public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
-    public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
 
     private var image: FabricImage? = nil
     private var textureLoader:MTKTextureLoader
     private var url: URL? = nil
     
-    public func setFileURL(_ url: URL) {
-        self.inputFilePathParam.value = url.fileReference(relativeTo: self.graph?.fileReferenceBaseURL)
-    }
+    public var fileInlet: ParameterPort<String> { self.inputFilePathParam }
     
     public required init(context:Context)
     {
@@ -61,7 +57,7 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
     {
         self.textureLoader = MTKTextureLoader(device: context.device)
         super.init(context: context)
-        self.setFileURL(fileURL)
+        self.takeFile(fileURL)
         try self.loadTextureFromInputValue()
     }
     

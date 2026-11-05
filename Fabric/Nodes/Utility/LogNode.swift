@@ -23,37 +23,11 @@ public class LogNode : Node
     override public class var nodeDescription: String { "Log Values to the Console"}
 
     // Ports
-    public let inputAny: NodePort<PortValue>
-    public override var ports: [Port] {  [self.inputAny] + super.ports }
+    public let inputAny = NodePort<PortValue>(name: "Log Value", kind: .Inlet, description: "Value to print to console")
 
-    public required init(context: Context)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        self.inputAny = NodePort<PortValue>(name: "Log Value" , kind: .Inlet, description: "Value to print to console")
-
-        super.init(context: context)
-    }
-
-    enum CodingKeys : String, CodingKey
-    {
-        case inputAnyPort
-    }
-
-    public override func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-
-        try container.encode(self.inputAny, forKey: .inputAnyPort)
-
-        try super.encode(to: encoder)
-    }
-
-    public required init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        self.inputAny = try container.decode(NodePort<PortValue>.self, forKey: .inputAnyPort)
-
-        try super.init(from: decoder)
+        [PortDeclaration(key: "inputAnyPort", port: self.inputAny)] + super.declaredPorts()
     }
 
     override public func execute(renderer:GraphRenderer,

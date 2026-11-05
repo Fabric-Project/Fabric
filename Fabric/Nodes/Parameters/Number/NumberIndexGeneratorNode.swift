@@ -73,9 +73,6 @@ public class NumberIndexGeneratorNode : StrategyNode
         AnyView(StrategyGuidanceView(model: strategySettingsModel) { IndexGeneratorMode(rawValue: $0)?.usageGuidance ?? "" })
     }
 
-    // Every mode carries Signal, Size, and Index; only the finite modes add Loop.
-    private static let allDynamicNames: Set<String> = ["inputSignal", "inputSize", "inputLoop", "outputIndex"]
-
     private var index: Int = 0
     private var previousSignal: Bool? = nil
     private var hasEmitted: Bool = false
@@ -83,8 +80,16 @@ public class NumberIndexGeneratorNode : StrategyNode
     // Sequence state, reset whenever Size, Mode, or Loop changes.
     private var bag: [Int] = []        // remaining draws for Shuffle
     private var finished: Bool = false // finite sequence done, Loop off → hold
+    private var mode: IndexGeneratorMode = .shuffle
 
-    override public func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    override public func prepareDeclarations()
+    {
+        super.prepareDeclarations()
+        self.mode = self.strategyOption(as: IndexGeneratorMode.self) ?? .shuffle
+    }
+
+
+    override public func declaredPorts() -> [PortDeclaration]
     {
         let mode = (strategy as? IndexGeneratorMode) ?? .shuffle
 
@@ -103,23 +108,33 @@ public class NumberIndexGeneratorNode : StrategyNode
 
         wanted.append(("outputIndex", NodePort<Int>(name: "Index", kind: .Outlet, description: "Current index in [0, Size)")))
 
-        let wantedNames = Set(wanted.map(\.name))
-        for name in Self.allDynamicNames.subtracting(wantedNames)
-        {
-            if let p = findPort(named: name) { removePort(p) }
-        }
-        for (name, p) in wanted where findPort(named: name) == nil
-        {
-            addDynamicPort(p, name: name)
-        }
+        return super.declaredPorts() + wanted.map { PortDeclaration(key: $0.name, port: $0.port) }
+    }
 
+    override public func apply(_ settings: any NodeSettings)
+    {
+        super.apply(settings)
         self.resetSequence()
     }
 
-    public var inputSignal: ParameterPort<Bool> { port(named: "inputSignal") }
-    public var inputSize: ParameterPort<Int> { port(named: "inputSize") }
-    public var inputLoop: ParameterPort<Bool>? { findPort(named: "inputLoop") }
-    public var outputIndex: NodePort<Int> { port(named: "outputIndex") }
+    public var inputSignal: ParameterPort<Bool> { _inputSignal }
+    private var _inputSignal: ParameterPort<Bool>!
+    public var inputSize: ParameterPort<Int> { _inputSize }
+    private var _inputSize: ParameterPort<Int>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.inputLoop = findPort(named: "inputLoop")
+        self._inputSignal = findPort(named: "inputSignal")
+        self._inputSize = findPort(named: "inputSize")
+        self._outputIndex = findPort(named: "outputIndex")
+    }
+    /// Present in the strategies that loop.
+    public private(set) var inputLoop: ParameterPort<Bool>?
+    public var outputIndex: NodePort<Int> { _outputIndex }
+    private var _outputIndex: NodePort<Int>!
+
 
     override public func startExecution(renderer: GraphRenderer) throws {
         self.index = 0
@@ -140,8 +155,8 @@ public class NumberIndexGeneratorNode : StrategyNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        // Mode lives on the Settings strategy now, not a port; switching it rebuilds
-        // ports and resets the sequence via rebuildPorts, so it needs no change-check here.
+        // Mode lives on the Settings strategy, not a port; switching it resets the
+        // sequence in apply(_:), so it needs no change-check here.
         let loopPort: ParameterPort<Bool>? = self.inputLoop
         let anyChanged = self.inputSignal.valueDidChange
             || self.inputSize.valueDidChange
@@ -149,7 +164,7 @@ public class NumberIndexGeneratorNode : StrategyNode
         guard anyChanged || !self.hasEmitted else { return }
 
         let size = max(1, self.inputSize.value ?? 1)
-        let mode = self.strategyOption(as: IndexGeneratorMode.self) ?? .shuffle
+        let mode = self.mode
         let loop = loopPort?.value ?? true
 
         // Changing Size or Loop restarts the sequence and re-clamps the held index

@@ -16,31 +16,34 @@ public class ArrayShuffleNode: TypeAgnosticNode
     override public class var nodeDescription: String { "Randomizes element order when Shuffle is true; passes through unchanged when false. Choose element type in Settings." }
     override public class var includesArrayTypesInStrategy: Bool { false }
 
-    private static let dynamicPortNames: Set<String> = ["inputPort", "outputPort"]
+    public let inputShuffle = ParameterPort(parameter: BoolParameter("Shuffle", false, .toggle, "When true, randomizes element order; when false, passes through unchanged"))
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    override public func bindPorts()
     {
-        super.registerPorts(context: context) + [
-            ("inputShuffle", ParameterPort(parameter: BoolParameter("Shuffle", false, .toggle, "When true, randomizes element order; when false, passes through unchanged"))),
-        ]
+        super.bindPorts()
+        self.boundInputPort = findPort(named: "inputPort")
+        self.boundOutputPort = findPort(named: "outputPort")
     }
 
-    public var inputShuffle: ParameterPort<Bool> { port(named: "inputShuffle") }
-
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
-        guard let elementType = strategy as? PortType else { return }
+        let storedPorts = [
+            PortDeclaration(key: "inputShuffle", port: self.inputShuffle),
+        ]
+
+        guard let elementType = strategy as? PortType else { return super.declaredPorts() + storedPorts }
 
         let arrayType: PortType = .Array(portType: elementType)
 
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputPort", displayName: "Array", portType: arrayType, kind: .Inlet, description: "Input array")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputPort", displayName: "Array", portType: arrayType, kind: .Outlet, description: "Shuffled or original array")
-
-        let portOrder = ["inputPort", "inputShuffle", "outputPort"]
-        let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }
-        if reordered.count == self.ports.count { reorderPorts(reordered) }
+        return [
+            PortDeclaration(key: "inputPort", portType: arrayType, kind: .Inlet, name: "Array", description: "Input array"),
+        ] + super.declaredPorts() + storedPorts + [
+            PortDeclaration(key: "outputPort", portType: arrayType, kind: .Outlet, name: "Array", description: "Shuffled or original array"),
+        ]
     }
+
+    private var boundInputPort: Port?
+    private var boundOutputPort: Port?
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
@@ -48,8 +51,8 @@ public class ArrayShuffleNode: TypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputPort:  Port = findPort(named: "inputPort"),
-              let outputPort: Port = findPort(named: "outputPort") else { return }
+        guard let inputPort:  Port = self.boundInputPort,
+              let outputPort: Port = self.boundOutputPort else { return }
 
         guard inputPort.valueDidChange || inputShuffle.valueDidChange else { return }
 

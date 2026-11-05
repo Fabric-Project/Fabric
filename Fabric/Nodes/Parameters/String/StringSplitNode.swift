@@ -52,7 +52,13 @@ public class StringSplitNode: StrategyNode
     // Title leads with the active mode (StrategyNode default), e.g. "Newline String Split".
 
     /// The active mode, or nil if the serialized strategy names no known mode.
-    public var splitMode: StringSplitMode? { strategyOption() }
+    public private(set) var splitMode: StringSplitMode?
+
+    override public func prepareDeclarations()
+    {
+        super.prepareDeclarations()
+        self.splitMode = self.strategyOption()
+    }
 
     /// The separator Custom mode uses, kept while another mode is selected.
     /// Switching mode tears the inlet down — the wire goes with it, as it does
@@ -80,7 +86,7 @@ public class StringSplitNode: StrategyNode
 
     public required init(from decoder: any Decoder) throws
     {
-        // Decoded before super.init, which rebuilds the ports: in Custom mode the
+        // Decoded before super.init, which declares the ports: in Custom mode the
         // inlet is restored from the document, in any other mode this is all that
         // is left of the separator.
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -107,45 +113,43 @@ public class StringSplitNode: StrategyNode
     }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputPort = ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to split"))
+    public let outputPort = NodePort<ContiguousArray<String>>(name: "Strings", kind: .Outlet, description: "Array of string components")
 
-        return ports + [
-            ("inputPort", ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to split"))),
-            ("outputPort", NodePort<ContiguousArray<String>>(name: "Strings", kind: .Outlet, description: "Array of string components")),
-        ]
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.inputSeparator = findPort(named: "inputSeparator")
+        self.boundInputPort = findPort(named: "inputPort")
     }
-
-    // Port proxies
-    public var inputPort: ParameterPort<String> { port(named: "inputPort") }
-    public var outputPort: NodePort<ContiguousArray<String>> { port(named: "outputPort") }
     /// Present only in Custom mode.
-    public var inputSeparator: ParameterPort<String>? { findPort(named: "inputSeparator") }
+    public private(set) var inputSeparator: ParameterPort<String>?
 
     /// The Separator inlet belongs to Custom alone; the other modes carry their
     /// separator in the mode itself.
-    override public func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        let wantsSeparator = (strategy as? StringSplitMode) == .custom
-        let existingSeparator: ParameterPort<String>? = findPort(named: "inputSeparator")
+        let storedPorts = [
+            PortDeclaration(key: "inputPort", port: self.inputPort),
+            PortDeclaration(key: "outputPort", port: self.outputPort),
+        ]
 
-        switch (wantsSeparator, existingSeparator)
-        {
-        case (true, nil):
-            addDynamicPort(
-                ParameterPort(parameter: StringParameter("Separator", customSeparator, .inputfield, #"Separator string to split on. Supports \n, \r, \t, and \\ escape sequences"#)),
-                name: "inputSeparator"
-            )
-        case (false, let separatorPort?):
-            customSeparator = separatorPort.value ?? customSeparator
-            removePort(separatorPort)
-        default:
-            break
-        }
+        guard splitMode == .custom else { return super.declaredPorts() + storedPorts }
 
-        // The String inlet survives a mode change, so nothing else would mark
-        // this node dirty — re-split what's already there the new way.
-        if let inputPort: ParameterPort<String> = findPort(named: "inputPort")
+        return super.declaredPorts() + storedPorts + [
+            PortDeclaration(key: "inputSeparator",
+                            port: ParameterPort(parameter: StringParameter("Separator", customSeparator, .inputfield, #"Separator string to split on. Supports \n, \r, \t, and \\ escape sequences"#))),
+        ]
+    }
+
+    /// Parks what the Separator inlet holds before a mode change takes it away.
+    /// The String inlet survives a mode change, so nothing else would mark this
+    /// node dirty: re-split what is already there the new way.
+    override public func apply(_ settings: any NodeSettings)
+    {
+        if let inputSeparator { customSeparator = inputSeparator.value ?? customSeparator }
+        super.apply(settings)
+        if let inputPort: ParameterPort<String> = self.boundInputPort
         {
             inputPort.valueDidChange = true
             markDirty()
@@ -157,6 +161,8 @@ public class StringSplitNode: StrategyNode
         guard let inputSeparator else { return .evaluate(pulling: [inputPort]) }
         return .evaluate(pulling: [inputPort, inputSeparator])
     }
+
+    private var boundInputPort: ParameterPort<String>?
 
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,

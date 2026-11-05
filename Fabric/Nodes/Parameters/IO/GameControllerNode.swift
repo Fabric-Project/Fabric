@@ -212,7 +212,7 @@ public class GameControllerNode: Node
         {
             synchronizePorts(to: settings.portDescriptors)
         }
-        performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+        settingsDidChange()
         super.apply(settings)
     }
 
@@ -236,9 +236,9 @@ public class GameControllerNode: Node
         didSet
         {
             setupController()
-            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+            settingsDidChange()
             // `subtitle` is derived from the selected controller; notify so the title refreshes.
-            self.subtitleSubject.send()
+            self.namingDidChange()
         }
     }
 
@@ -316,6 +316,12 @@ public class GameControllerNode: Node
     }
 
     private var _settingsModelStorage: SettingsModel? = nil
+
+    override public func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _settingsModelStorage?.refreshFromNode()
+    }
 
     // MARK: - Lifecycle
 
@@ -427,7 +433,7 @@ public class GameControllerNode: Node
 
         performOnMainSync { _settingsModelStorage?.availableControllers = availableControllers }
         // `subtitle` resolves against the controller list; notify so the title refreshes.
-        self.subtitleSubject.send()
+        self.namingDidChange()
 
         print("[GameController] Found \(availableControllers.count) controllers:")
         for info in availableControllers
@@ -471,7 +477,7 @@ public class GameControllerNode: Node
                 savedControllerInfo = nil
             }
             self.synchronizePorts(to: portDescriptorsForAbsentController ?? [])
-            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+            settingsDidChange()
             updateSubscription()
             updateControllerStatus()
             return
@@ -497,7 +503,7 @@ public class GameControllerNode: Node
         }
 
         self.synchronizePorts(to: descriptors)
-        performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+        settingsDidChange()
         updateSubscription()
         updateControllerStatus()
     }
@@ -534,7 +540,7 @@ public class GameControllerNode: Node
                 Self.log.error("\(controllerStatus.message, privacy: .public)")
             }
             performOnMainSync { _settingsModelStorage?.controllerStatus = controllerStatus }
-            self.subtitleSubject.send()
+            self.namingDidChange()
         }
     }
 
@@ -697,6 +703,27 @@ public class GameControllerNode: Node
 
     // MARK: - Port Creation
 
+    /// Each descriptor's outlet, in profile order.
+    private var boundOutlets: [(name: String, outlet: DeviceOutlet)] = []
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundOutlets = outputPortDescriptors.compactMap { descriptor in
+            deviceOutlet(for: descriptor).map { (descriptor.name, $0) }
+        }
+    }
+
+    /// The outlets the controller's profile asks for, which the ports follow.
+    private var outputPortDescriptors: [DeviceOutputPortDescriptor] = []
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + Self.deviceOutputPortDeclarations(for: outputPortDescriptors,
+                                                                  buttonDescription: "Controller button state (true when pressed)",
+                                                                  axisDescription: "Controller axis value normalized from -1 to 1")
+    }
+
     /// The persisted projection of the port set: encode derives it from the
     /// live ports rather than storing a parallel list that could drift.
     private func currentPortDescriptors() -> [DeviceOutputPortDescriptor]
@@ -708,9 +735,8 @@ public class GameControllerNode: Node
 
     private func synchronizePorts(to descriptors: [DeviceOutputPortDescriptor])
     {
-        synchronizeDeviceOutputPorts(to: descriptors,
-                                     buttonDescription: "Controller button state (true when pressed)",
-                                     axisDescription: "Controller axis value normalized from -1 to 1")
+        outputPortDescriptors = descriptors
+        reconcilePorts()
 
         controllerValues.withLock { values in
             for descriptor in descriptors
@@ -737,21 +763,14 @@ public class GameControllerNode: Node
     {
         let currentValues = controllerValues.withLock { $0 }
 
-        // Send axis values
-        for (name, value) in currentValues.axisValues
+        for (name, outlet) in boundOutlets
         {
-            if let port = findPort(named: name) as? NodePort<Float>
+            switch outlet
             {
-                port.send(value)
-            }
-        }
-
-        // Send button values
-        for (name, value) in currentValues.buttonValues
-        {
-            if let port = findPort(named: name) as? NodePort<Bool>
-            {
-                port.send(value)
+            case .axis(let port):
+                if let value = currentValues.axisValues[name] { port.send(value) }
+            case .button(let port):
+                if let value = currentValues.buttonValues[name] { port.send(value) }
             }
         }
     }

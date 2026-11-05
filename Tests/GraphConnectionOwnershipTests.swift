@@ -200,9 +200,8 @@ struct GraphConnectionOwnershipTests
         let connectionRecords = try #require(object["connections"] as? [[String: Any]])
         #expect(connectionRecords.count == 1)
         #expect(object["portConnectionMap"] == nil)
-
-        let encodedPort = try JSONSerialization.jsonObject(with: JSONEncoder().encode(source.outputNumber)) as? [String: Any]
-        #expect(encodedPort?["connections"] == nil)
+        #expect(connectionRecords.first?["from"] as? [String] == [source.id.uuidString, "outputNumber"])
+        #expect(connectionRecords.first?["to"] as? [String] == [sink.id.uuidString, "inputNumber1"])
 
         object["portConnectionMap"] = [
             source.outputNumber.id.uuidString,
@@ -224,103 +223,23 @@ struct GraphConnectionOwnershipTests
     {
         guard let context = makeContext() else { return }
 
-        let graph = Graph(context: context)
-        let source = NumberBinaryOperator(context: context)
-        let sink = NumberBinaryOperator(context: context)
-        graph.addNode(source)
-        graph.addNode(sink)
-        graph.connect(source.outputNumber, to: sink.inputNumber1)
+        let source = LegacyDocumentFixture.numberBinaryOperator()
+        let sink = LegacyDocumentFixture.numberBinaryOperator()
+        let fixture = LegacyDocumentFixture(nodes: [source.node, sink.node],
+                                            connections: [(source.output.id, sink.inputA.id)],
+                                            asConnectionMap: true)
 
-        var legacyObject = try #require(
-            JSONSerialization.jsonObject(with: JSONEncoder().encode(graph)) as? [String: Any]
-        )
-        legacyObject.removeValue(forKey: "connections")
-        legacyObject["portConnectionMap"] = [
-            source.outputNumber.id.uuidString,
-            [sink.inputNumber1.id.uuidString],
-            sink.inputNumber1.id.uuidString,
-            [source.outputNumber.id.uuidString]
-        ]
-
-        // Legacy documents redundantly stored connected port identifiers in
-        // each port snapshot as well as in the graph-level port map.
-        var legacyNodeMap = try #require(legacyObject["nodeMap"] as? [[String: Any]])
-        var legacyPortConnectionFieldCount = 0
-        for nodeIndex in legacyNodeMap.indices
-        {
-            guard var value = legacyNodeMap[nodeIndex]["value"] as? [String: Any],
-                  var ports = value["ports"] as? [[String: Any]]
-            else { continue }
-
-            for portIndex in ports.indices
-            {
-                guard var payload = ports[portIndex]["payload"] as? [String: Any],
-                      var base = payload["base"] as? [String: Any],
-                      let portID = base["id"] as? String
-                else { continue }
-
-                if portID == source.outputNumber.id.uuidString {
-                    base["connections"] = [sink.inputNumber1.id.uuidString]
-                    legacyPortConnectionFieldCount += 1
-                }
-                else if portID == sink.inputNumber1.id.uuidString {
-                    base["connections"] = [source.outputNumber.id.uuidString]
-                    legacyPortConnectionFieldCount += 1
-                }
-                else {
-                    continue
-                }
-
-                payload["base"] = base
-                ports[portIndex]["payload"] = payload
-            }
-
-            value["ports"] = ports
-            legacyNodeMap[nodeIndex]["value"] = value
-        }
-        #expect(legacyPortConnectionFieldCount == 2)
-        legacyObject["nodeMap"] = legacyNodeMap
-
-        let legacyData = try JSONSerialization.data(withJSONObject: legacyObject)
-        let decoder = JSONDecoder()
-        decoder.context = DecoderContext(documentContext: context)
-        let decoded = try decoder.decode(Graph.self, from: legacyData)
+        let decoded = try fixture.decode(context: context)
         #expect(decoded.connections.count == 1)
-        #expect(decoded.connections[0].graph === decoded)
-        #expect(decoded.connections[0].outletPort?.connections.count == 1)
-        #expect(decoded.connections[0].inletPort?.connections.count == 1)
+        #expect(decoded.droppedConnectionDiagnostics.isEmpty)
 
-        let migratedConnectionID = decoded.connections[0].id
-        let modernData = try JSONEncoder().encode(decoded)
-        let modernObject = try #require(JSONSerialization.jsonObject(with: modernData) as? [String: Any])
-        let modernConnections = try #require(modernObject["connections"] as? [[String: Any]])
-        #expect(modernConnections.count == 1)
-        #expect(modernConnections[0]["id"] as? String == migratedConnectionID.uuidString)
-        #expect(modernObject["portConnectionMap"] == nil)
+        let decodedSource = try #require(decoded.node(forID: source.node.id) as? NumberBinaryOperator)
+        let decodedSink = try #require(decoded.node(forID: sink.node.id) as? NumberBinaryOperator)
+        #expect(decodedSink.inputNumber1.connectedOutlets.first === decodedSource.outputNumber)
 
-        let modernNodeMap = try #require(modernObject["nodeMap"] as? [[String: Any]])
-        for entry in modernNodeMap
-        {
-            guard let value = entry["value"] as? [String: Any],
-                  let ports = value["ports"] as? [[String: Any]]
-            else { continue }
-
-            for port in ports
-            {
-                let payload = port["payload"] as? [String: Any]
-                let base = payload?["base"] as? [String: Any]
-                #expect(base?["connections"] == nil)
-            }
-        }
-
-        let modernDecoder = JSONDecoder()
-        modernDecoder.context = DecoderContext(documentContext: context)
-        let modernGraph = try modernDecoder.decode(Graph.self, from: modernData)
-        #expect(modernGraph.connections.count == 1)
-        #expect(modernGraph.connections[0].id == migratedConnectionID)
-        #expect(modernGraph.connections[0].graph === modernGraph)
-        #expect(modernGraph.connections[0].outletPort?.connections == modernGraph.connections)
-        #expect(modernGraph.connections[0].inletPort?.connections == modernGraph.connections)
+        let reencoded = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(decoded)) as? [String: Any])
+        #expect(reencoded["portConnectionMap"] == nil)
+        #expect((reencoded["connections"] as? [[String: Any]])?.count == 1)
     }
 
     @Test("Dynamic port replacement preserves wires through undo and redo")
@@ -429,7 +348,6 @@ struct GraphConnectionOwnershipTests
         let decodedSubgraph = try #require(decoded.nodes.first { $0.id == subgraphNode.id } as? SubgraphNode)
         let decodedConnection = try #require(decodedSubgraph.subGraph.connections.first)
         #expect(decoded.connections.isEmpty)
-        #expect(decodedConnection.id == connection.id)
         #expect(decodedConnection.graph === decodedSubgraph.subGraph)
         #expect(!decodedConnection.active)
 
@@ -527,8 +445,8 @@ struct GraphConnectionOwnershipTests
         undoManager.undo()
         #expect(incoming.inletPort === moved.inputNumber1)
         #expect(outgoing.outletPort === moved.outputNumber)
-        #expect(!moved.inputNumber1.published)
-        #expect(!moved.outputNumber.published)
+        #expect(!moved.inputNumber1.isPublishedInGraph)
+        #expect(!moved.outputNumber.isPublishedInGraph)
         #expect(moved.inputNumber1.connections == [incoming])
         #expect(moved.outputNumber.connections == [outgoing])
 

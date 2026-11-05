@@ -31,32 +31,29 @@ public class GeometryToTransformArrayNode : StrategyNode
     // The Geometry and Transform inputs are constant across output formats, so
     // they live as static ports and never churn when the format changes — only
     // the outputs are rebuilt by the strategy.
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputPort = NodePort<Geometry>(name: "Geometry", kind: .Inlet, description: "Source geometry to extract vertex positions and normals from")
+    public let inputTransform = NodePort<simd_float4x4>.makeFresh(name: "Transform", kind: .Inlet, description: "Transform to apply to each point")
 
-        return ports +
-        [
-            ("inputPort", NodePort<Geometry>(name: "Geometry", kind: .Inlet, description: "Source geometry to extract vertex positions and normals from")),
-            ("inputTransform", PortType.Transform.makeFreshPort(name: "Transform", kind: .Inlet, description: "Transform to apply to each point")),
-        ]
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundOutputTransforms = findPort(named: "outputTransforms")
+        self.boundOutputPositions = findPort(named: "outputPositions")
+        self.boundOutputOrientations = findPort(named: "outputOrientations")
+        self.boundOutputUVs = findPort(named: "outputUVs")
     }
 
-    // Port Proxy
-    public var inputPort:NodePort<Geometry> { port(named: "inputPort") }
-    public var inputTransform:NodePort<simd_float4x4> { port(named: "inputTransform") }
-
-    private static let allDynamicNames: Set<String> = [
-        "outputTransforms",
-        "outputPositions", "outputOrientations", "outputUVs",
-    ]
-
-    /// `strategy`, typed once per rebuild, so execute never compares strategy strings.
+    /// `strategy`, typed before each reconcile, so execute switches on it without a cast.
     private var typedStrategy: GeometryToTransformMode?
 
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    override public func prepareDeclarations()
     {
-        typedStrategy = strategy as? GeometryToTransformMode
+        super.prepareDeclarations()
+        typedStrategy = strategyOption(as: GeometryToTransformMode.self)
+    }
 
+    override public func declaredPorts() -> [PortDeclaration]
+    {
         let wanted: [(name: String, port: Port)]
         switch typedStrategy
         {
@@ -78,16 +75,16 @@ public class GeometryToTransformArrayNode : StrategyNode
             wanted = []
         }
 
-        let wantedNames = Set(wanted.map(\.name))
-        for name in Self.allDynamicNames.subtracting(wantedNames)
-        {
-            if let p = findPort(named: name) { removePort(p) }
-        }
-        for (name, p) in wanted where findPort(named: name) == nil
-        {
-            addDynamicPort(p, name: name)
-        }
+        return super.declaredPorts() + [
+            PortDeclaration(key: "inputPort", port: self.inputPort),
+            PortDeclaration(key: "inputTransform", port: self.inputTransform),
+        ] + wanted.map { PortDeclaration(key: $0.name, port: $0.port) }
     }
+
+    private var boundOutputTransforms: NodePort<ContiguousArray<simd_float4x4>>?
+    private var boundOutputPositions: NodePort<ContiguousArray<simd_float3>>?
+    private var boundOutputOrientations: NodePort<ContiguousArray<simd_float4>>?
+    private var boundOutputUVs: NodePort<ContiguousArray<simd_float2>>?
 
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
@@ -125,7 +122,7 @@ public class GeometryToTransformArrayNode : StrategyNode
         switch typedStrategy
         {
         case .transform:
-            guard let outputTransforms: NodePort<ContiguousArray<simd_float4x4>> = findPort(named: "outputTransforms") else { return }
+            guard let outputTransforms: NodePort<ContiguousArray<simd_float4x4>> = self.boundOutputTransforms else { return }
 
             var output = ContiguousArray<simd_float4x4>()
             output.reserveCapacity(vertexCount)
@@ -141,9 +138,9 @@ public class GeometryToTransformArrayNode : StrategyNode
             outputTransforms.send(output)
 
         case .components:
-            guard let outputPositions: NodePort<ContiguousArray<simd_float3>> = findPort(named: "outputPositions"),
-                  let outputOrientations: NodePort<ContiguousArray<simd_float4>> = findPort(named: "outputOrientations"),
-                  let outputUVs: NodePort<ContiguousArray<simd_float2>> = findPort(named: "outputUVs")
+            guard let outputPositions: NodePort<ContiguousArray<simd_float3>> = self.boundOutputPositions,
+                  let outputOrientations: NodePort<ContiguousArray<simd_float4>> = self.boundOutputOrientations,
+                  let outputUVs: NodePort<ContiguousArray<simd_float2>> = self.boundOutputUVs
             else { return }
 
             // inputTransform's rotation is constant across vertices, so extract

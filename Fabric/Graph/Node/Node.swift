@@ -8,7 +8,7 @@
 import SwiftUI
 import Metal
 import Satin
-import Combine
+import Synchronization
 import UniformTypeIdentifiers
 
 
@@ -114,7 +114,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         didSet
         {
             if userName?.isEmpty == true { userName = nil }
-            subtitleSubject.send()
+            namingDidChange()
         }
     }
     
@@ -144,10 +144,17 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     public internal(set) weak var graph:Graph?
 
-    // Method to register ports
-    open class func registerPorts(context: Context) -> [(name: String, port: Port)] { [] }
+    /// The node's interface, in order, under the keys the registry finds each
+    /// port by. A node holds each port it always has in a stored property and
+    /// declares that object here, ahead of or after super's, so the property
+    /// and the registry name one port: `public let x = ParameterPort(…)`, then
+    /// `super.declaredPorts() + [PortDeclaration(key: "x", port: x)]`. Ports
+    /// that follow a setting or a source are declared here too, made from the
+    /// state they follow. Called at every reconcile, from init and decode
+    /// onward, after the subclass's stored properties are set. None by default.
+    open func declaredPorts() -> [PortDeclaration] { [] }
     // All port serilization, adding, removing and key value access goes through the port registry
-    private let registry = PortRegistry()
+    internal let registry = PortRegistry()
 
     // Sadly this needs to be observed
     public let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
@@ -186,24 +193,75 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     public var offset: CGSize = .zero
     {
-        didSet { offsetSubject.send(offset) }
+        didSet { self.viewModel?.offsetDidChange() }
     }
 
     // Readable by Node subclasses (e.g. AudioSpectrumNode checks self.showSettings
     // to decide whether to compute visualisation data). Written by NodeViewModel.
     public internal(set) var showSettings: Bool = false
 
-    // MARK: - Combine subjects for NodeViewModel sync
+    // MARK: - Telling the view model
 
-    /// Fires whenever offset changes so NodeViewModel can update its cached copy.
-    internal let offsetSubject = CurrentValueSubject<CGSize, Never>(.zero)
+    /// The view model the graph made for this node, which sets it. Held here
+    /// rather than looked up in the graph so a hop to main reads no graph
+    /// state another thread may be editing.
+    internal weak var viewModel: NodeViewModel?
 
-    /// Fires whenever the port list changes (addDynamicPort / removePort).
-    internal let portsChangedSubject = PassthroughSubject<Void, Never>()
+    /// Tells the node's view model, where its graph has one, that the port
+    /// list changed. Called on the thread that made the change, so the view
+    /// model reads the ports where they were written.
+    internal func portsDidChange()
+    {
+        self.viewModel?.portsDidChange()
+    }
 
-    /// Fires whenever state feeding `title`, `subtitle` or `status` changes.
-    /// NodeViewModel subscribes and refreshes its observable title row mirrors.
-    internal let subtitleSubject = PassthroughSubject<Void, Never>()
+    /// Call whenever state feeding `title`, `subtitle` or `status` changes,
+    /// from any thread. On main the view model refreshes its title row there
+    /// and then; from elsewhere, on main once for however many calls arrive
+    /// before it gets there. The hop holds the node until it runs, so a call on
+    /// main does not take it, or a deleted node would outlive its last turn.
+    internal func namingDidChange()
+    {
+        if Thread.isMainThread
+        {
+            self.viewModel?.namingDidChange()
+            return
+        }
+        guard !self.namingRefreshPending.exchange(true, ordering: .acquiringAndReleasing) else { return }
+        self.performOnMainAsync {
+            self.namingRefreshPending.store(false, ordering: .releasing)
+            self.viewModel?.namingDidChange()
+        }
+    }
+
+    private let namingRefreshPending = Atomic<Bool>(false)
+
+    /// Call whenever state an open settings view shows changes, its settings
+    /// above all, from any thread. On main the settings model refreshes there
+    /// and then; from elsewhere, on main once for however many calls arrive
+    /// before it gets there, as namingDidChange() does. The hop does not hold
+    /// the node.
+    public final func settingsDidChange()
+    {
+        if Thread.isMainThread
+        {
+            MainActor.assumeIsolated { self.refreshSettingsModel() }
+            return
+        }
+        guard !self.settingsRefreshPending.exchange(true, ordering: .acquiringAndReleasing) else { return }
+        self.performOnMainAsync { [weak self] in
+            guard let self else { return }
+            self.settingsRefreshPending.store(false, ordering: .releasing)
+            self.refreshSettingsModel()
+        }
+    }
+
+    private let settingsRefreshPending = Atomic<Bool>(false)
+
+    /// Override where the node holds a settings model a view made: bring it
+    /// to the node. Called through settingsDidChange(), on main; never call it.
+    @MainActor
+    open func refreshSettingsModel() { }
 
     // Dirty Handling
     private var inputsAreDirty = true
@@ -214,8 +272,6 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     /// results in this hook; markDirty()/markClean() still own the underlying input dirty flag.
     open var isDirty: Bool { inputsAreDirty }
 
-    // Input Parameter update tracking:
-    var inputParamCancellables: [AnyCancellable] = []
 
 
     // MARK: - Serialization and Init
@@ -226,6 +282,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         case ports
 
         case userName
+        case lastCompiledSource
 
         // Depreciated...
         case inputParameters
@@ -249,36 +306,18 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         let decodedUserName = try container.decodeIfPresent(String.self, forKey: .userName)
         self.userName = decodedUserName?.isEmpty == true ? nil : decodedUserName
 
-        // Declare, then hydrate: the port set comes from the code — registerPorts
-        // now, subclass rebuilds (strategy, route count, expression, shader) after
-        // this initializer — and the document contributes only the state it owns,
-        // applied per registry key as each port registers. Snapshot keys that
-        // never match a declared or rebuilt port surface via
-        // droppedPortStateKeys instead of resurrecting retired ports.
-        let snaps = try container.decodeIfPresent([PortRegistry.Snapshot].self, forKey: .ports) ?? []
-        self.portHydrationSession = PortHydrationSession(snapshots: snaps)
-
-        let declared = Self.registerPorts(context: context)
-
-        for d in declared
-        {
-            self.portHydrationSession?.hydrate(d.port, registryKey: d.name)
-            self.registry.register(d.port, name: d.name, owner: self)
-        }
-
-        for port in self.registry.all()
-        {
-            if let param = port.parameter
-            {
-                self.parameterGroup.append(param)
-            }
-        }
-        self.synchronizeParameters()
-
-        for port in self.ports
-        {
-            port.node = self
-        }
+        // Declare, then hydrate: the port set comes from the code's
+        // declarations, here and in any reconcile a subclass makes once it has
+        // read its source, and the document contributes only the values of
+        // its parameter inlets, by key, applied as each port is made. A key
+        // that never matches a declared port surfaces via droppedPortStateKeys.
+        // Order is the declarations'.
+        let saved = try container.decodeIfPresent([String: LossyPortValue].self, forKey: .ports) ?? [:]
+        self.lastCompiledSource = try container.decodeIfPresent(String.self, forKey: .lastCompiledSource)
+        self.portHydrationSession = PortHydrationSession(states: saved.compactMap { key, saved in
+            saved.value.map { PortState(key: .own(key), value: $0) }
+        })
+        self.reconcilePorts()
     }
 
     open func encode(to encoder:Encoder) throws
@@ -287,7 +326,17 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
         try container.encode(self.id, forKey: .id)
         try container.encode(self.offset, forKey: .nodeOffset)
-        try container.encode(self.registry.encode(), forKey: .ports)
+        var values: [String: PortValue] = [:]
+        for state in self.registry.states()
+        {
+            guard case .own(let key) = state.key, state.value.hasDocumentForm else { continue }
+            values[key] = state.value
+        }
+        try container.encode(values, forKey: .ports)
+        if let lastCompiledSource, lastCompiledSource != self.compilableSource
+        {
+            try container.encode(lastCompiledSource, forKey: .lastCompiledSource)
+        }
         try container.encodeIfPresent(self.userName, forKey: .userName)
         try self.settings?.encode(to: encoder)
     }
@@ -297,25 +346,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         self.id = UUID()
         self.context = context
 
-        let declared = Self.registerPorts(context: context)
-        for (name, p) in declared {
-            self.registry.register(p, name: name, owner: self)
-        }
-
-        for port in self.registry.all()
-        {
-            if let param = port.parameter
-            {
-                self.parameterGroup.append(param)
-            }
-        }
-
-        self.synchronizeParameters()
-
-        for port in self.ports
-        {
-            port.node = self
-        }
+        self.reconcilePorts()
     }
 
     open class func initWithContext(context: Context) throws -> Node
@@ -325,9 +356,8 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     deinit
     {
-        // Ports and parameter sinks reference this node unowned; clear both
-        // before they can dangle. Subclass ports are still alive here.
-        self.inputParamCancellables.forEach { $0.cancel() }
+        // Ports reference this node unowned; clear them before they can
+        // dangle. Subclass ports are still alive here.
         for port in self.ports { port.node = nil }
     }
 
@@ -347,20 +377,27 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
             }
             port.teardown()
         }
-
-        self.inputParamCancellables.forEach { $0.cancel() }
-        self.inputParamCancellables.removeAll()
     }
 
     // MARK: - Ports
 
-    // Convenience for subclasses: typed lookup (so computed props stay nice)
+    /// The port under `key`, if the node has one.
+    public func port(forKey key: PortKey) -> Port?
+    {
+        self.registry.port(forKey: key) ?? self.ports.first { $0.key == key }
+    }
+
+    /// The port under the node's own key `name`, cast to `T`, trapping when
+    /// there is none or it is another type. For dynamic ports, from
+    /// bindPorts() or from outside execution; a stored port is read through
+    /// its property.
     public func port<T: Port>(named name: String, as type: T.Type = T.self) -> T
     {
         self.registry.port(named: name) as! T
     }
 
-    // Convenience for subclasses: typed lookup (so computed props stay nice)
+    /// The port under the node's own key `name`, if there is one of type `T`.
+    /// For dynamic ports, from bindPorts() or from outside execution.
     public func findPort<T: Port>(named name: String, as type: T.Type = T.self) -> T?
     {
         self.registry.port(named: name) as? T
@@ -380,26 +417,32 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     /// decode rather than discarding silently.
     internal var droppedPortStateKeys: [String] { self.portHydrationSession?.unconsumedKeys ?? [] }
 
-    /// Registers the document's remaining port state as ports in their own
-    /// right. A node whose source cannot rebuild its port set at decode time
-    /// (an unparseable script, a shader that no longer compiles) would
-    /// otherwise decode with none of the ports the document saved, taking
-    /// every wire with them and making the loss permanent at the next save.
-    /// The decoded instances carry their saved identity, value and published
-    /// state, so a later successful rebuild reconciles against them by name
-    /// and keeps the wires whose names and types still agree.
-    ///
-    /// Only ever does anything mid-decode, and must run inside the node's init
-    /// path so Graph still sees the keys as adopted rather than dropped.
-    internal func adoptRemainingSnapshotPortsAsFallback()
-    {
-        guard let session = self.portHydrationSession else { return }
+    /// Whether the node is being decoded: its document's port state is still
+    /// waiting for the ports it belongs to.
+    internal var isDecoding: Bool { self.portHydrationSession != nil }
 
-        for (registryKey, port) in session.drainPendingSnapshots()
-        {
-            self.addDynamicPort(port, name: registryKey)
-        }
-    }
+    // MARK: - Last compiled source
+
+    /// For a node whose ports come from compiling a source (a script, a
+    /// shader, an expression): the last source that compiled, which the node
+    /// sets on each compile that succeeds. Saved as `lastCompiledSource` when
+    /// it differs from `compilableSource`. A node whose source does not
+    /// compile on open declares its ports from this one, read for its
+    /// interface only and never run, so its document's wires and values hold
+    /// until the source compiles again; it then becomes the last compiled one.
+    /// Nil for every other node.
+    public var lastCompiledSource: String?
+
+    /// The source the node saves and compiles, where its document carries it,
+    /// against which `lastCompiledSource` is saved only when it differs. Nil
+    /// for a node without one, or whose source lives outside the document
+    /// (a user's shader file).
+    open var compilableSource: String? { nil }
+
+    /// The source to read a fallback interface from: the last that compiled,
+    /// else, when the document did not save one because it was the source
+    /// itself, the source.
+    internal var interfaceFallbackSource: String? { self.lastCompiledSource ?? self.compilableSource }
 
     /// Ends the decode-time hydration window, returning the registry keys
     /// whose state never found a port.
@@ -410,93 +453,92 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         return droppedKeys
     }
 
-    // Dynamic add/remove (kept by serialization automatically)
-    public func addDynamicPort(_ p: Port, name:String? = nil)
-    {
-        // Dynamic ports created after decode (rebuildPorts and friends) adopt
-        // their persisted state here, before the registry indexes their id.
-        self.portHydrationSession?.hydrate(p, registryKey: name ?? p.name)
+    // MARK: - Declared ports
 
-        self.registry.addDynamic(p, owner: self, name:name)
-        self.invalidatePortCaches()
-        if let param = p.parameter
+    /// Brings the node's ports to declaredPorts(), putting `states` on them. A
+    /// port kept under its key and type keeps its wires and value; a retyped
+    /// one is made afresh under its runtime id and keeps the wires it can
+    /// take; a removed one takes its wires with it, as graph edits. A node
+    /// whose interface follows state it holds, a strategy, a source, a device,
+    /// calls this once it has changed what declaredPorts() reads. Order is the
+    /// declarations'.
+    public final func reconcilePorts(applying states: [PortState] = [])
+    {
+        self.prepareDeclarations()
+        let reconciliation = self.registry.reconcile(to: self.declaredPorts(),
+                                                     applying: states,
+                                                     owner: self,
+                                                     hydrating: self.portHydrationSession,
+                                                     fileReferenceBase: self.graph?.fileReferenceBaseURL)
+        guard !reconciliation.isEmpty else { self.bindPorts(); return }
+
+        let graph = self.graph
+
+        // A retyped port keeps its key, so its address, so its publishing.
+        for port in reconciliation.removed
         {
-            self.parameterGroup.append(param)
-            self.synchronizeParameters()
+            graph?.setPublished(false, port: port)
+            graph?.disconnectAll(fromRetired: port)
         }
 
-        self.graph?.markConnectionsChanged()
-        self.portsChangedSubject.send()
+        for (old, new) in reconciliation.retyped
+        {
+            graph?.rebindWires(from: old, to: new)
+        }
+
+        // A retired port is detached, so a transient view holding it cannot
+        // reconnect it under the id its replacement now has.
+        for port in reconciliation.removed + reconciliation.retyped.map(\.old)
+        {
+            port.node = nil
+        }
+
+        self.invalidatePortCaches()
+        self.rebuildParameterGroup()
+        self.bindPorts()
+
+        if !reconciliation.retyped.isEmpty || !reconciliation.added.isEmpty { graph?.rebuildPublishedParameterGroup() }
+
+        graph?.markConnectionsChanged()
+        self.portsDidChange()
     }
 
-    /// The key the port is registered under: the declared or dynamic name, where
-    /// the port's own `name` is what it displays.
+    /// Runs before every reconcile, before declaredPorts(): resolve here any
+    /// state the declarations and execute read, once, rather than per read.
+    open func prepareDeclarations() { }
+
+    /// Resolves references to the node's dynamic ports, those its declarations
+    /// make from a strategy, a source, a device or records, once its ports
+    /// have changed. The one place a node looks its ports up by key: execute
+    /// reads the references this leaves, never the registry. A node whose
+    /// ports are all stored properties does not override it. An override
+    /// calls super, then assigns its own with findPort(named:).
+    open func bindPorts() { }
+
+    /// The parameters of the node's ports, in port order.
+    private func rebuildParameterGroup()
+    {
+        let parameters = self.ports.compactMap(\.parameter)
+        let current = self.parameterGroup.params
+        guard parameters.count != current.count
+                || zip(parameters, current).contains(where: { $0 !== $1 })
+        else { return }
+
+        self.parameterGroup.clear()
+        self.parameterGroup.append(parameters)
+    }
+
+    /// The key the port is registered under: the declared name, where the
+    /// port's own `name` is what it displays.
     internal func registryKey(of port: Port) -> String?
     {
         self.registry.name(of: port)
     }
 
-    public func removePort(_ p: Port)
-    {
-        self.portHydrationSession?.relinquish(p)
-
-        self.registry.remove(p)
-        self.invalidatePortCaches()
-        if let param = p.parameter
-        {
-            self.parameterGroup.remove(param)
-            self.synchronizeParameters()
-        }
-
-        self.graph?.markConnectionsChanged()
-        self.portsChangedSubject.send()
-    }
-
-    /// Puts `replacement` where `existing` was, under the same registry key,
-    /// carrying the published state across and reconnecting every wire the new
-    /// port still accepts. The caller builds `replacement` on `existing.id`, so
-    /// proxies and views follow it. The old port's value does not carry: it
-    /// cannot convert across types, and the replacement rests at its own default.
-    public func replacePort(_ existing: Port, with replacement: Port)
-    {
-        let registryName = self.registryKey(of: existing) ?? existing.name
-        let oldConnections = existing.connectedPorts
-        replacement.published = existing.published
-        replacement.publishedName = existing.publishedName
-
-        self.removePort(existing)
-        self.addDynamicPort(replacement, name: registryName)
-
-        for connected in oldConnections where replacement.canConnect(to: connected)
-        {
-            if replacement.kind == .Outlet {
-                self.graph?.connect(replacement, to: connected)
-            } else {
-                self.graph?.connect(connected, to: replacement)
-            }
-        }
-    }
-
     internal func replaceParameterOfPort(_ port:Port, withParam param:(any Parameter))
     {
-        // Remove existing param from group
-        if let existingParam = port.parameter
-        {
-            self.parameterGroup.remove(existingParam)
-        }
-
-        // Add new param to group
-        self.parameterGroup.append(param)
-
         port.parameter = param
-        self.synchronizeParameters()
-    }
-
-    /// Reorders registered ports without changing their identities or connections.
-    public func reorderPorts(_ reordered: [Port])
-    {
-        self.registry.reorder(reordered)
-        self.invalidatePortCaches()
+        self.rebuildParameterGroup()
     }
 
     internal func inputPorts() -> [Port]
@@ -528,19 +570,10 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         self.cachedOutputPorts = nil
     }
 
+    /// The node's ports its graph publishes.
     internal func publishedPorts() -> [Port]
     {
-        return self.ports.filter(\.published)
-    }
-
-    internal func publishedInputPorts() -> [Port]
-    {
-        return self.inputPorts().filter(\.published)
-    }
-
-    internal func publishedOutputPorts() -> [Port]
-    {
-        return self.outputPorts().filter(\.published)
+        self.graph?.publishedPorts(of: self) ?? []
     }
 
     // MARK: - Connections
@@ -550,6 +583,12 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         self.inputNodes = calcInputNodes()
         self.outputNodes = calcOutputNodes()
     }
+
+    /// A wire has been attached to `inlet`, from `outlet`: by a connect, an
+    /// undo, or a document opening. Called by the graph on the editing thread,
+    /// inside the edit. A node whose interface follows what is wired to it
+    /// changes it here, never from execute. Does nothing by default.
+    open func inletDidConnect(_ inlet: Port, from outlet: Port) { }
 
     internal func didDisconnectFromNode(_ node: Node)
     {
@@ -588,40 +627,6 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     public func markDirty()
     {
         inputsAreDirty = true
-    }
-
-    /// Rebuild dirty notifications when the parameter/port structure changes.
-    /// Parameters observed by this node's ports already invalidate it; standalone
-    /// and proxy parameters still need a Node subscription.
-    public func synchronizeParameters()
-    {
-        self.inputParamCancellables.forEach { $0.cancel() }
-        self.inputParamCancellables.removeAll(keepingCapacity: true)
-
-        let ports = self.ports
-        for parameter in self.parameterGroup.params
-        {
-            let observedByPort = ports.contains { port in
-                guard let observingPort = port as? any NodeInvalidatingParameterPort,
-                      observingPort.observedParameter === parameter
-                else { return false }
-                return port.node === self
-            }
-            if observedByPort { continue }
-
-            let cancellable = self.makeCancelable(parameter: parameter)
-            self.inputParamCancellables.append(cancellable)
-        }
-    }
-
-    private func makeCancelable(parameter: some Parameter) -> AnyCancellable
-    {
-        // Unowned: this node owns the subscription and cancels it in deinit.
-        let cancellable = parameter.valuePublisher.sink { [unowned self] _ in
-            self.markDirty()
-        }
-
-        return cancellable
     }
 
     open func updateConnectionTopology()
@@ -716,11 +721,11 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     /// as no change, and calls super with the same value.
     ///
     /// Threads: called on the thread that edits the graph, which a host can
-    /// keep off main, and on the render thread as a NumericTypeAgnosticNode
-    /// specialises from execute(). A node whose settings reach main-thread
-    /// state waits for main, so it is applied only from main. A change reaches
-    /// an open settings view's model through performOnMainAsync, from the
-    /// observer of the stored setting.
+    /// keep off main, never from execute(): a NumericTypeAgnosticNode
+    /// specialises inside the connect, from inletDidConnect(_:from:). A node
+    /// whose settings reach main-thread state waits for main, so it is applied
+    /// only from main. A change reaches an open settings view's model through
+    /// settingsDidChange(), from the observer of the stored setting.
     open func apply(_ settings: any NodeSettings)
     {
     }
@@ -756,12 +761,14 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         let inputPorts = self.inputPorts()
         let outputPorts = self.outputPorts()
         
+        // The ports' own names: a published name is the graph's, and a view
+        // model reads this size on main while the graph may be edited elsewhere.
         let longestInputPortTitle = inputPorts.reduce(into: "") { maxTitle, port in
-            maxTitle = (maxTitle.count > port.displayName.count) ? maxTitle : port.displayName
+            maxTitle = (maxTitle.count > port.name.count) ? maxTitle : port.name
         }
 
         let longestOutputPortTitle = outputPorts.reduce(into: "") { maxTitle, port in
-            maxTitle = (maxTitle.count > port.displayName.count) ? maxTitle : port.displayName
+            maxTitle = (maxTitle.count > port.name.count) ? maxTitle : port.name
         }
 
         let horizontalMax = max(inputPorts.count, outputPorts.count)
@@ -776,21 +783,52 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
 }
 
-/// Nodes that are constructed from a file (e.g. Metal shader effect nodes),
-/// or accept a user-dropped file via a file-path parameter port. Conformers
-/// declare which UTTypes they handle and receive the URL after normal
-/// construction via ``setFileURL(_:)``.
+/// A node the canvas can make from a dropped file, found by the file's content
+/// type. `init(context:fileURL:)` makes the node from the file, which means one
+/// of two things: see NodeMadeFromFile and NodeTakingFile.
 ///
-/// For conformers that expose a user-editable file-path parameter, decoding
-/// restores the saved reference but does not load it. Runtime assets load
-/// during execution, so a missing or invalid external file cannot prevent the
-/// node itself from deserializing.
+/// Decoding restores a saved file reference but does not load it. Runtime
+/// assets load during execution, so a missing or invalid external file cannot
+/// prevent the node itself from deserializing.
 public protocol NodeFileLoadingProtocol : Node
 {
     init(context:Context, fileURL:URL) throws
-    func setFileURL(_ url: URL)
 
     static var supportedContentTypes: [UTType] { get }
+}
+
+/// A node whose file is part of what it is, such as a shader effect: the
+/// file decides its interface and is the node's settings, saved with them.
+/// `setFileURL(_:)` is a setter over `setSettings(_:)`.
+public protocol NodeMadeFromFile : NodeFileLoadingProtocol
+{
+    func setFileURL(_ url: URL)
+
+    /// The document's folder is known or moved: a file the node could not
+    /// find relative to it before may resolve now.
+    func fileReferenceBaseDidChange(_ directoryURL: URL?)
+}
+
+public extension NodeMadeFromFile
+{
+    func fileReferenceBaseDidChange(_ directoryURL: URL?) { }
+}
+
+/// A node that takes a file through a file-picker inlet, such as an image or
+/// movie loader. The file is that inlet's value: a dropped file becomes it.
+public protocol NodeTakingFile : NodeFileLoadingProtocol
+{
+    var fileInlet: ParameterPort<String> { get }
+}
+
+public extension NodeTakingFile
+{
+    /// Puts `url` on the file inlet, relative to the document's folder where
+    /// the node's graph has one.
+    func takeFile(_ url: URL)
+    {
+        self.fileInlet.value = url.fileReference(relativeTo: self.graph?.fileReferenceBaseURL)
+    }
 }
 
 public extension NodeFileLoadingProtocol

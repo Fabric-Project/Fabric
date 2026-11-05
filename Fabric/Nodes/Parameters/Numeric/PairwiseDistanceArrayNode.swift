@@ -15,26 +15,31 @@ public final class PairwiseDistanceArrayNode: NumericTypeAgnosticNode
     override public class var nodeDescription: String { "Computes one distance per pair of elements from two numeric arrays using zip-shortest." }
     public override class var supportedPortTypes: [PortType] { singleNumericTypes.map { .Array(portType: $0) } }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    public let inputMetric: ParameterPort<String> = metricParameter("Distance calculation method")
+    public let outputDistances = NodePort<ContiguousArray<Float>>(name: "Distances", kind: .Outlet, description: "Per-element distances")
+
+    override public func bindPorts()
     {
-        super.registerPorts(context: context) + [
-            ("inputMetric", metricParameter("Distance calculation method")),
-            ("outputDistances", NodePort<ContiguousArray<Float>>(name: "Distances", kind: .Outlet, description: "Per-element distances"))
+        super.bindPorts()
+        self.boundInputA = findPort(named: "inputA")
+        self.boundInputB = findPort(named: "inputB")
+    }
+
+    public override func declaredPorts() -> [PortDeclaration]
+    {
+        let portType = selectedNumericPortType
+
+        return [
+            PortDeclaration(key: "inputA", portType: portType, kind: .Inlet, name: "A", description: "First numeric array"),
+            PortDeclaration(key: "inputB", portType: portType, kind: .Inlet, name: "B", description: "Second numeric array"),
+        ] + super.declaredPorts() + [
+            PortDeclaration(key: "inputMetric", port: self.inputMetric),
+            PortDeclaration(key: "outputDistances", port: self.outputDistances),
         ]
     }
 
-    public var inputMetric: ParameterPort<String> { port(named: "inputMetric") }
-    public var outputDistances: NodePort<ContiguousArray<Float>> { port(named: "outputDistances") }
-
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
-    {
-        super.rebuildPorts(forStrategy: strategy)
-        let portType = selectedNumericPortType
-
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputA", displayName: "A", portType: portType, kind: .Inlet, description: "First numeric array")
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputB", displayName: "B", portType: portType, kind: .Inlet, description: "Second numeric array")
-        reorderPorts(named: ["inputA", "inputB", "inputMetric", "outputDistances"])
-    }
+    private var boundInputA: Port?
+    private var boundInputB: Port?
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
@@ -42,9 +47,8 @@ public final class PairwiseDistanceArrayNode: NumericTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputA") || specializeFromConnectedPort(named: "inputB") { return }
-        guard let inputA: Port = findPort(named: "inputA"),
-              let inputB: Port = findPort(named: "inputB"),
+        guard let inputA: Port = self.boundInputA,
+              let inputB: Port = self.boundInputB,
               inputA.valueDidChange || inputB.valueDidChange || inputMetric.valueDidChange,
               case .Array(let elementType) = selectedNumericPortType,
               let valuesA = NumericValueOperations.arrayValues(from: inputA.snapshotValue()),

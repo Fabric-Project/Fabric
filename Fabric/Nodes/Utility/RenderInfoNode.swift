@@ -19,24 +19,19 @@ public class RenderInfoNode : Node
     override public class var nodeDescription: String { "Rendering Destination Info" }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("outputWidth", NodePort<Float>(name: "Width", kind: .Outlet, description: "Render target width in pixels")),
-            ("outputHeight", NodePort<Float>(name: "Height", kind: .Outlet, description: "Render target height in pixels")),
-            ("outputFrameNumber", NodePort<Int>(name: "Frame Number", kind: .Outlet, description: "Current execution frame count")),
+    public let outputWidth = NodePort<Float>(name: "Width", kind: .Outlet, description: "Render target width in pixels")
+    public let outputHeight = NodePort<Float>(name: "Height", kind: .Outlet, description: "Render target height in pixels")
+    public let outputFrameNumber = NodePort<Int>(name: "Frame Number", kind: .Outlet, description: "Current execution frame count")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "outputWidth", port: self.outputWidth),
+            PortDeclaration(key: "outputHeight", port: self.outputHeight),
+            PortDeclaration(key: "outputFrameNumber", port: self.outputFrameNumber),
         ]
     }
-    public var outputWidth:NodePort<Float>  { port(named: "outputWidth") }
-    public var outputHeight:NodePort<Float> { port(named: "outputHeight") }
-    public var outputFrameNumber:NodePort<Int> { port(named: "outputFrameNumber") }
 
-    
-    public var inputTexturePort:NodePort<FabricImage>  { port(named: "inputTexturePort") }
-    public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
-    
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,

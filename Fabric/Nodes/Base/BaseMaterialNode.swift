@@ -19,26 +19,23 @@ public class BaseMaterialNode : Node
     override public class var nodeDescription: String { "Base class for material nodes" }
 
     // Port Registration
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputReceivesLighting", ParameterPort(parameter:BoolParameter("Receives Lighting", true, .button, "When enabled, the material responds to scene lighting") ) ),
-            ("inputWriteDepth", ParameterPort(parameter:BoolParameter("Write Depth", true, .button, "When enabled, writes depth values to the depth buffer") ) ),
-            ("inputDepthTest", ParameterPort(parameter:BoolParameter("Depth Test", true, .button, "When enabled, performs depth testing against existing geometry") ) ),
-            ("inputBlending", ParameterPort(parameter:StringParameter("Blending Mode", "Disabled", ["Disabled", "Alpha", "Additive", "Subtractive"], .dropdown, "Blending mode for combining with background pixels") ) ),
-            ("outputMaterial",  NodePort<Material>(name: "Material", kind: .Outlet, description: "The configured material")),
+    public let inputReceivesLighting = ParameterPort(parameter:BoolParameter("Receives Lighting", true, .button, "When enabled, the material responds to scene lighting") )
+    public let inputWriteDepth = ParameterPort(parameter:BoolParameter("Write Depth", true, .button, "When enabled, writes depth values to the depth buffer") )
+    public let inputDepthTest = ParameterPort(parameter:BoolParameter("Depth Test", true, .button, "When enabled, performs depth testing against existing geometry") )
+    public let inputBlending = ParameterPort(parameter:StringParameter("Blending Mode", "Disabled", ["Disabled", "Alpha", "Additive", "Subtractive"], .dropdown, "Blending mode for combining with background pixels") )
+    public let outputMaterial = NodePort<Material>(name: "Material", kind: .Outlet, description: "The configured material")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputReceivesLighting", port: self.inputReceivesLighting),
+            PortDeclaration(key: "inputWriteDepth", port: self.inputWriteDepth),
+            PortDeclaration(key: "inputDepthTest", port: self.inputDepthTest),
+            PortDeclaration(key: "inputBlending", port: self.inputBlending),
+            PortDeclaration(key: "outputMaterial", port: self.outputMaterial),
         ]
     }
-    
-    // Port Proxy
-    public var inputReceivesLighting:ParameterPort<Bool>    { port(named: "inputReceivesLighting") }
-    public var inputWriteDepth:ParameterPort<Bool>          { port(named: "inputWriteDepth") }
-    public var inputDepthTest:ParameterPort<Bool>           { port(named: "inputDepthTest") }
-    public var inputBlending:ParameterPort<String>          { port(named: "inputBlending") }
-    public var outputMaterial:NodePort<Material>            { port(named: "outputMaterial") }
-    
+
     open var material: Material {
         fatalError("Subclasses must override material")
     }

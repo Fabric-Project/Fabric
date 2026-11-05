@@ -46,18 +46,28 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
     }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        // Position, scale and orientation carry the camera's own defaults and
-        // wording: an object's position default would put the camera on its
-        // subject, and its scale and orientation describe an object in a
-        // scene rather than the view of one.
-        let ports = super.registerPorts(context: context).filter { !["inputPosition", "inputScale", "inputOrientation"].contains($0.name) }
+    // Position, scale and orientation carry the camera's own defaults and
+    // wording: an object's position default would put the camera on its
+    // subject, and its scale and orientation describe an object in a
+    // scene rather than the view of one.
+    override public class func makePlacementPorts() -> (position: ParameterPort<simd_float3>, scale: ParameterPort<simd_float3>, orientation: ParameterPort<simd_float4>)
+    {
+        (
+            position: ParameterPort(parameter:Float3Parameter("Position", defaultPosition, .inputfield, "Position in 3D space (X, Y, Z) in world units")),
+            scale: ParameterPort(parameter:Float3Parameter("Scale", simd_float3(repeating:1), .inputfield, "Scales the camera, so the scene draws smaller as this grows")),
+            orientation: ParameterPort(parameter:Float4Parameter("Orientation", defaultOrientation, .inputfield, "Which way the camera faces, as a quaternion (X, Y, Z, W). Identity looks along -Z"))
+        )
+    }
 
-        return  [
-                    ("inputOrientation", ParameterPort(parameter:Float4Parameter("Orientation", defaultOrientation, .inputfield, "Which way the camera faces, as a quaternion (X, Y, Z, W). Identity looks along -Z")) ),
-                    ("inputScale", ParameterPort(parameter:Float3Parameter("Scale", simd_float3(repeating:1), .inputfield, "Scales the camera, so the scene draws smaller as this grows")) ),
-                    ("inputPosition", ParameterPort(parameter:Float3Parameter("Position", defaultPosition, .inputfield, "Position in 3D space (X, Y, Z) in world units")) ),
-                ] + ports
+    /// Orientation, scale and position first, then the object's other inlets.
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        let placement = [
+            PortDeclaration(key: "inputOrientation", port: self.inputOrientation),
+            PortDeclaration(key: "inputScale", port: self.inputScale),
+            PortDeclaration(key: "inputPosition", port: self.inputPosition),
+        ]
+        return placement + super.declaredPorts().filter { declaration in !placement.contains { $0.key == declaration.key } }
     }
     
     

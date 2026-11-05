@@ -20,21 +20,18 @@ public class StringJoinNode : Node
     override public class var nodeDescription: String { "Join an array of Strings into a single String using a separator. Inverse of String Split. To join two or more string inputs, use String Formatter node."}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputPort = NodePort<ContiguousArray<String>>(name: "Strings", kind: .Inlet, description: "Array of strings to join")
+    public let separatorPort: NodePort<String> = ParameterPort(parameter: StringParameter("Separator", ", ", .inputfield, #"Separator to place between each string. Supports \n, \r, \t, and \\ escape sequences"#))
+    public let outputPort = NodePort<String>(name: "String", kind: .Outlet, description: "Joined string result")
 
-        return ports +
-        [
-            ("inputPort",       NodePort<ContiguousArray<String>>(name: "Strings", kind: .Inlet, description: "Array of strings to join")),
-            ("separatorPort",   ParameterPort(parameter: StringParameter("Separator", ", ", .inputfield, #"Separator to place between each string. Supports \n, \r, \t, and \\ escape sequences"#))),
-            ("outputPort",      NodePort<String>(name: "String", kind: .Outlet, description: "Joined string result")),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputPort", port: self.inputPort),
+            PortDeclaration(key: "separatorPort", port: self.separatorPort),
+            PortDeclaration(key: "outputPort", port: self.outputPort),
         ]
     }
-
-    // Port Proxy
-    public var inputPort:NodePort<ContiguousArray<String>>  { port(named: "inputPort") }
-    public var separatorPort:NodePort<String>               { port(named: "separatorPort") }
-    public var outputPort:NodePort<String>                  { port(named: "outputPort") }
 
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,

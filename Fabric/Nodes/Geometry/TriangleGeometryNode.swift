@@ -15,17 +15,14 @@ public class TriangleGeometryNode : BaseGeometryNode
     public override class var name:String { "Triangle Geometry" }
     public override class var nodeDescription: String { "Generates triangle geometry" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return  [
-        ("inputSize",  ParameterPort(parameter:FloatParameter("Size", 1.0, .inputfield, "Size of the equilateral triangle in world units"))),
+    public let inputSize = ParameterPort(parameter:FloatParameter("Size", 1.0, .inputfield, "Size of the equilateral triangle in world units"))
 
-        ] + ports
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        [
+            PortDeclaration(key: "inputSize", port: self.inputSize),
+        ] + super.declaredPorts()
     }
-    
-    // Proxy Port
-    public var inputSize:ParameterPort<Float> { port(named: "inputSize")  }
 
     public override var geometry: TriangleGeometry { _geometry }
     

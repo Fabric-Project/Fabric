@@ -29,13 +29,13 @@ private final class NamingTestNode: Node
     func setDerivedSubtitle(_ subtitle: String?)
     {
         nodeDerivedSubtitle = subtitle
-        subtitleSubject.send()
+        namingDidChange()
     }
 
     func setDerivedTitle(_ title: String?)
     {
         nodeDerivedTitle = title
-        subtitleSubject.send()
+        namingDidChange()
     }
 
     override func deriveStatuses() -> [NodeStatus]
@@ -46,7 +46,7 @@ private final class NamingTestNode: Node
     func setDerivedStatuses(_ statuses: [NodeStatus])
     {
         nodeDerivedStatuses = statuses
-        subtitleSubject.send()
+        namingDidChange()
     }
 }
 

@@ -274,7 +274,7 @@ public class OSCReceiveNode: Node
         didSet
         {
             updateServer()
-            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+            settingsDidChange()
         }
     }
 
@@ -283,7 +283,7 @@ public class OSCReceiveNode: Node
         didSet
         {
             self.rebuildPorts()
-            performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+            settingsDidChange()
         }
     }
 
@@ -300,7 +300,7 @@ public class OSCReceiveNode: Node
         {
             guard serverStatus != oldValue else { return }
             performOnMainSync { _settingsModelStorage?.serverStatus = serverStatus }
-            self.subtitleSubject.send()
+            self.namingDidChange()
         }
     }
 
@@ -371,6 +371,12 @@ public class OSCReceiveNode: Node
 
     private var _settingsModelStorage: SettingsModel? = nil
 
+    override public func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _settingsModelStorage?.refreshFromNode()
+    }
+
     // MARK: - Lifecycle
 
     // The node listens while started. The server is main-thread state, as the
@@ -409,42 +415,49 @@ public class OSCReceiveNode: Node
         let currentValues = latestValues.withLock { $0 }
 
         // Send latest values to ports
-        for binding in addressBindings
+        for (address, outlet) in boundOutlets
         {
-            let portName = portNameForAddress(binding.address)
-            guard let value = currentValues[binding.address] else { continue }
+            guard let value = currentValues[address] else { continue }
 
+            switch outlet
+            {
+            case .float(let port):
+                if let floatValue = value as? Float { port.send(floatValue) }
+            case .int(let port):
+                if let intValue = value as? Int { port.send(intValue) }
+            case .string(let port):
+                if let stringValue = value as? String { port.send(stringValue) }
+            case .bool(let port):
+                if let boolValue = value as? Bool { port.send(boolValue) }
+            }
+        }
+    }
+
+    private enum BoundOutlet
+    {
+        case float(NodePort<Float>)
+        case int(NodePort<Int>)
+        case string(NodePort<String>)
+        case bool(NodePort<Bool>)
+    }
+
+    /// Each binding's outlet, typed, in binding order.
+    private var boundOutlets: [(address: String, outlet: BoundOutlet)] = []
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundOutlets = addressBindings.compactMap { binding in
+            let name = portNameForAddress(binding.address)
+            let outlet: BoundOutlet?
             switch binding.dataType
             {
-            case .float:
-                if let port = self.findPort(named: portName) as? NodePort<Float>,
-                   let floatValue = value as? Float
-                {
-                    port.send(floatValue)
-                }
-
-            case .int:
-                if let port = self.findPort(named: portName) as? NodePort<Int>,
-                   let intValue = value as? Int
-                {
-                    // Convert to Float for now since we commonly use Float ports
-                    port.send(intValue)
-                }
-
-            case .string:
-                if let port = self.findPort(named: portName) as? NodePort<String>,
-                   let stringValue = value as? String
-                {
-                    port.send(stringValue)
-                }
-
-            case .bool:
-                if let port = self.findPort(named: portName) as? NodePort<Bool>,
-                   let boolValue = value as? Bool
-                {
-                    port.send(boolValue)
-                }
+            case .float: outlet = (findPort(named: name) as NodePort<Float>?).map(BoundOutlet.float)
+            case .int: outlet = (findPort(named: name) as NodePort<Int>?).map(BoundOutlet.int)
+            case .string: outlet = (findPort(named: name) as NodePort<String>?).map(BoundOutlet.string)
+            case .bool: outlet = (findPort(named: name) as NodePort<Bool>?).map(BoundOutlet.bool)
             }
+            return outlet.map { (binding.address, $0) }
         }
     }
 
@@ -550,55 +563,11 @@ public class OSCReceiveNode: Node
 
     // MARK: - Port Management
 
-    private func rebuildPorts()
+    /// An outlet per address binding, in binding order, typed by its data type.
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        let portNamesWeNeed = addressBindings.map { portNameForAddress($0.address) }
-        let existingPortNames = self.outputPorts().map { $0.name }
-
-        let portsNamesToRemove = Set(existingPortNames).subtracting(Set(portNamesWeNeed))
-
-        // Remove ports that are no longer needed
-        for portName in portsNamesToRemove
-        {
-            if let port = self.findPort(named: portName)
-            {
-                self.removePort(port)
-            }
-        }
-
-        // Add or update ports
-        for binding in addressBindings
-        {
+        super.declaredPorts() + addressBindings.map { binding in
             let portName = portNameForAddress(binding.address)
-
-            // Remove existing port if type changed
-            if let existingPort = self.findPort(named: portName)
-            {
-                // Check if type matches, if not remove and recreate
-                let typeMatches: Bool
-                switch binding.dataType
-                {
-                case .float:
-                    typeMatches = existingPort is NodePort<Float>
-                case .int:
-                    typeMatches = existingPort is NodePort<Int>
-                case .string:
-                    typeMatches = existingPort is NodePort<String>
-                case .bool:
-                    typeMatches = existingPort is NodePort<Bool>
-                }
-
-                if !typeMatches
-                {
-                    self.removePort(existingPort)
-                }
-                else
-                {
-                    continue // Port exists and type matches
-                }
-            }
-
-            // Create new port
             let port: Port
             switch binding.dataType
             {
@@ -611,10 +580,13 @@ public class OSCReceiveNode: Node
             case .bool:
                 port = NodePort<Bool>(name: portName, kind: .Outlet, description: "OSC boolean value received at \(binding.address)")
             }
-
-            self.addDynamicPort(port)
-            print("Added OSC port: \(portName)")
+            return PortDeclaration(key: portName, port: port)
         }
+    }
+
+    private func rebuildPorts()
+    {
+        self.reconcilePorts()
     }
 
     private func portNameForAddress(_ address: String) -> String

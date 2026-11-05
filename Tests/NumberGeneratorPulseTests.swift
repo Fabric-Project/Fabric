@@ -13,8 +13,7 @@ struct NumberGeneratorPulseTests
 {
     private func publish(_ port: Fabric.Port, in graph: Graph)
     {
-        port.published = true
-        graph.rebuildPublishedParameterGroup()
+        graph.setPublished(true, port: port)
     }
 
     @Test("Number Generator emits one new value per Pulse period")
@@ -135,7 +134,7 @@ struct NumberGeneratorPulseTests
 
         graph.connect(pulse.outputSignal, to: signal)
         graph.markConnectionsChanged()
-        output.published = true
+        output.publishInGraph(true)
         graph.rebuildPublishedParameterGroup()
 
         let renderer = GraphRenderer(context: harness.context, graph: graph)

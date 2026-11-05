@@ -20,31 +20,45 @@ public final class TweenNode: NumericTypeAgnosticNode
     private var to: PortValue?
     private var current: PortValue?
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    public let inputDuration = ParameterPort(parameter: FloatParameter("Duration", 1.0, .inputfield, "Tween duration in seconds"))
+    public let inputEasing = ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing curve"))
+
+    public var outputProgress: NodePort<Float> { _outputProgress }
+    private var _outputProgress: NodePort<Float>!
+
+    override public func bindPorts()
     {
-        super.registerPorts(context: context) + [
-            ("inputDuration", ParameterPort(parameter: FloatParameter("Duration", 1.0, .inputfield, "Tween duration in seconds"))),
-            ("inputEasing", ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing curve"))),
-            ("outputProgress", NodePort<Float>(name: "Progress", kind: .Outlet, description: "Tween progress (0-1)"))
+        super.bindPorts()
+        self.boundInputTarget = findPort(named: "inputTarget")
+        self.boundOutputValue = findPort(named: "outputValue")
+        self._outputProgress = findPort(named: "outputProgress")
+    }
+
+    public override func declaredPorts() -> [PortDeclaration]
+    {
+        let portType = selectedNumericPortType
+
+        return [
+            PortDeclaration(key: "inputTarget", portType: portType, kind: .Inlet, name: "Target", description: "Target value"),
+        ] + super.declaredPorts() + [
+            PortDeclaration(key: "inputDuration", port: self.inputDuration),
+            PortDeclaration(key: "inputEasing", port: self.inputEasing),
+            PortDeclaration(key: "outputValue", portType: portType, kind: .Outlet, name: "Value", description: "Current tweened value"),
+            PortDeclaration(key: "outputProgress", port: NodePort<Float>(name: "Progress", kind: .Outlet, description: "Tween progress (0-1)")),
         ]
     }
 
-    public var inputDuration: ParameterPort<Float> { port(named: "inputDuration") }
-    public var inputEasing: ParameterPort<String> { port(named: "inputEasing") }
-    public var outputProgress: NodePort<Float> { port(named: "outputProgress") }
-
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    public override func apply(_ settings: any NodeSettings)
     {
-        super.rebuildPorts(forStrategy: strategy)
-        let portType = selectedNumericPortType
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputTarget", displayName: "Target", portType: portType, kind: .Inlet, description: "Target value")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputValue", displayName: "Value", portType: portType, kind: .Outlet, description: "Current tweened value")
-        reorderPorts(named: ["inputTarget", "inputDuration", "inputEasing", "outputValue", "outputProgress"])
+        super.apply(settings)
         from = nil
         to = nil
         current = nil
         tween = TweenState()
     }
+
+    private var boundInputTarget: Port?
+    private var boundOutputValue: Port?
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
@@ -52,9 +66,8 @@ public final class TweenNode: NumericTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputTarget") { return }
-        guard let inputTarget: Port = findPort(named: "inputTarget"),
-              let outputValue: Port = findPort(named: "outputValue")
+        guard let inputTarget: Port = self.boundInputTarget,
+              let outputValue: Port = self.boundOutputValue
         else { return }
 
         let time = executionInfo.timing.time

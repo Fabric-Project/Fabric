@@ -23,24 +23,21 @@ public class NumberClampNode : Node
     override public class var nodeDescription: String { "Clamp a number between two values"}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputNumber", ParameterPort(parameter: FloatParameter("Input Number", 0.0, .inputfield, "The input value to clamp"))),
-            ("inputMinNumber", ParameterPort(parameter: FloatParameter("Min Number", 0.0, .inputfield, "Minimum allowed output value"))),
-            ("inputMaxNumber", ParameterPort(parameter: FloatParameter("Max Number", 1.0,  .inputfield, "Maximum allowed output value"))),
-            ("outputNumber", NodePort<Float>(name: "Number" , kind: .Outlet, description: "The clamped output value")),
+    public let inputNumber = ParameterPort(parameter: FloatParameter("Input Number", 0.0, .inputfield, "The input value to clamp"))
+    public let inputMinNumber = ParameterPort(parameter: FloatParameter("Min Number", 0.0, .inputfield, "Minimum allowed output value"))
+    public let inputMaxNumber = ParameterPort(parameter: FloatParameter("Max Number", 1.0,  .inputfield, "Maximum allowed output value"))
+    public let outputNumber = NodePort<Float>(name: "Number" , kind: .Outlet, description: "The clamped output value")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputNumber", port: self.inputNumber),
+            PortDeclaration(key: "inputMinNumber", port: self.inputMinNumber),
+            PortDeclaration(key: "inputMaxNumber", port: self.inputMaxNumber),
+            PortDeclaration(key: "outputNumber", port: self.outputNumber),
         ]
     }
-    
-    // Port Proxy
-    public var inputNumber:ParameterPort<Float> { port(named: "inputNumber") }
-    public var inputMinNumber:ParameterPort<Float> { port(named: "inputMinNumber") }
-    public var inputMaxNumber:ParameterPort<Float> { port(named: "inputMaxNumber") }
-    public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
-    
+
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,

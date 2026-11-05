@@ -20,21 +20,18 @@ public class NumberEaseNode : Node
     override public class var nodeDescription: String { "Run an easing on an input Number between 0 and 1 and return the resulting Eased Number"}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputNumber = ParameterPort(parameter: FloatParameter("Number", 0.0, .inputfield, "Normalized input value (0-1) to apply easing to"))
+    public let inputParam = ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing function to apply to the input"))
+    public let outputNumber = NodePort<Float>(name: "Number" , kind: .Outlet, description: "The eased output value")
 
-        return ports +
-        [
-            ("inputNumber", ParameterPort(parameter: FloatParameter("Number", 0.0, .inputfield, "Normalized input value (0-1) to apply easing to"))),
-            ("inputParam", ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing function to apply to the input")) ),
-            ("outputNumber", NodePort<Float>(name: "Number" , kind: .Outlet, description: "The eased output value")),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputNumber", port: self.inputNumber),
+            PortDeclaration(key: "inputParam", port: self.inputParam),
+            PortDeclaration(key: "outputNumber", port: self.outputNumber),
         ]
     }
-
-    // Port Proxy
-    public var inputNumber:ParameterPort<Float> { port(named: "inputNumber") }
-    public var inputParam:ParameterPort<String> { port(named: "inputParam") }
-    public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
 
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,

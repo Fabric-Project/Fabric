@@ -15,20 +15,18 @@ public class TimestampFormatterNode: Node {
     override public class var nodeDescription: String { "Format a Unix timestamp as a date String" }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputSeconds = ParameterPort(parameter: IntParameter("Seconds", 0, .inputfield, "Unix timestamp whole seconds (e.g. from Clock Time)"))
+    public let inputFormat = ParameterPort(parameter: StringParameter("Format", "yyyy-MM-dd HH:mm:ss", .inputfield, "Date format pattern (e.g. yyyy-MM-dd HH:mm:ss)"))
+    public let outputPort = NodePort<String>(name: "String", kind: .Outlet, description: "Formatted date string")
 
-        return ports + [
-            ("inputSeconds", ParameterPort(parameter: IntParameter("Seconds", 0, .inputfield, "Unix timestamp whole seconds (e.g. from Clock Time)"))),
-            ("inputFormat", ParameterPort(parameter: StringParameter("Format", "yyyy-MM-dd HH:mm:ss", .inputfield, "Date format pattern (e.g. yyyy-MM-dd HH:mm:ss)"))),
-            ("outputPort", NodePort<String>(name: "String", kind: .Outlet, description: "Formatted date string")),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputSeconds", port: self.inputSeconds),
+            PortDeclaration(key: "inputFormat", port: self.inputFormat),
+            PortDeclaration(key: "outputPort", port: self.outputPort),
         ]
     }
-
-    // Port proxies
-    public var inputSeconds: ParameterPort<Int> { port(named: "inputSeconds") }
-    public var inputFormat: ParameterPort<String> { port(named: "inputFormat") }
-    public var outputPort: NodePort<String> { port(named: "outputPort") }
 
     private let formatter = DateFormatter()
 

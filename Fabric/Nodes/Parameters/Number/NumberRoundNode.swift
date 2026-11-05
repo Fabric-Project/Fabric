@@ -23,22 +23,19 @@ public class NumberRoundNode : Node
     override public class var nodeDescription: String { "Round a Number to an Index"}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputNumber", ParameterPort(parameter: FloatParameter("Number", 0, Float.leastNormalMagnitude, Float.greatestFiniteMagnitude, .inputfield, "Number to round"))),
-            ("inputRoundMethod", ParameterPort(parameter: StringParameter("Round Method", "Round", ["Round", "Floor", "Ceil"], .dropdown, "Rounding method (Round, Floor, or Ceiling)"))),
-            ("outputNumber", NodePort<Int>(name: "Number" , kind: .Outlet, description: "The rounded integer value")),
+    public let inputNumber = ParameterPort(parameter: FloatParameter("Number", 0, Float.leastNormalMagnitude, Float.greatestFiniteMagnitude, .inputfield, "Number to round"))
+    public let inputRoundMethod = ParameterPort(parameter: StringParameter("Round Method", "Round", ["Round", "Floor", "Ceil"], .dropdown, "Rounding method (Round, Floor, or Ceiling)"))
+    public let outputNumber = NodePort<Int>(name: "Number" , kind: .Outlet, description: "The rounded integer value")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputNumber", port: self.inputNumber),
+            PortDeclaration(key: "inputRoundMethod", port: self.inputRoundMethod),
+            PortDeclaration(key: "outputNumber", port: self.outputNumber),
         ]
     }
-    
-    // Port Proxy
-    public var inputNumber:ParameterPort<Float> { port(named: "inputNumber") }
-    public var inputRoundMethod:ParameterPort<String> { port(named: "inputRoundMethod") }
-    public var outputNumber:NodePort<Int> { port(named: "outputNumber") }
-    
+
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,

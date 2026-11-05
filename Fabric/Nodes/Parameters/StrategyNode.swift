@@ -119,7 +119,7 @@ public struct StrategyNodeSettings: StrategySettings
 // MARK: - StrategyNode
 
 /// Open so plugins can define strategy nodes: subclass, override `strategyOptions`, and
-/// rebuild ports in `rebuildPorts(forStrategy:)`.
+/// declare the ports for `strategy` in `declaredPorts()`.
 open class StrategyNode: Node
 {
     /// Ordered strategy options — the single source of truth for the picker and
@@ -189,11 +189,8 @@ open class StrategyNode: Node
         self.strategyName = name
         self.strategy = Self.strategyOption(named: name)
 
+        // Set before super.init, so Node's initializer declares the ports for the saved strategy.
         try super.init(from: decoder)
-
-        // Rebuild from the restored strategy, evicting any dynamic port left
-        // over from whatever strategy the document was saved in.
-        self.rebuildPorts(forStrategy: self.strategy)
     }
 
     override open var settings: (any NodeSettings)? { StrategyNodeSettings(strategy: self.strategyName) }
@@ -208,21 +205,22 @@ open class StrategyNode: Node
         self.strategyName = settings.strategy
         if changed, let graph
         {
-            // A replaced port remakes its connections, so the rebuild registers
-            // nothing of its own; recordSettingsChange records the strategy step.
+            // A retyped port keeps its connections that fit, so the reconcile
+            // registers nothing of its own; recordSettingsChange records the
+            // strategy step. A removed port's disconnects go unrecorded.
             graph.withoutUndoRegistration {
-                self.rebuildPorts(forStrategy: self.strategy)
+                self.reconcilePorts()
             }
         }
         else
         {
-            self.rebuildPorts(forStrategy: self.strategy)
+            self.reconcilePorts()
         }
         super.apply(settings)
         guard changed else { return }
         // `subtitle` is derived from `strategy`; notify so the title refreshes.
-        self.subtitleSubject.send()
-        self.performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+        self.namingDidChange()
+        self.settingsDidChange()
     }
 
     /// A change of strategy in a graph is an undo step that puts back the
@@ -242,8 +240,8 @@ open class StrategyNode: Node
     }
 
     /// Changes the strategy and keeps the rest of the node's settings. The
-    /// strategy picker writes through this, as does a node specialising from
-    /// execute().
+    /// strategy picker writes through this, as does a numeric node specialising
+    /// as a wire is attached.
     public func setStrategy(_ strategy: String)
     {
         guard var settings = self.settings as? any StrategySettings else { return }
@@ -266,16 +264,15 @@ open class StrategyNode: Node
         self.strategyName = name
         self.strategy = Self.strategyOption(named: name)
         super.init(context: context)
-        self.rebuildPorts(forStrategy: self.strategy)
     }
 
-    /// Designated init for programmatic construction with a strategy given by name, as settings hold it.
+    /// Designated init for programmatic construction with a strategy given by name, as settings hold
+    /// it. Set before super.init, so Node's initializer declares the ports for it.
     public init(context: Context, initialStrategy: String)
     {
         self.strategyName = initialStrategy
         self.strategy = Self.strategyOption(named: initialStrategy)
         super.init(context: context)
-        self.rebuildPorts(forStrategy: self.strategy)
     }
 
     /// Convenience init for compile-time-checked programmatic construction. Resolves by name, as
@@ -309,44 +306,6 @@ open class StrategyNode: Node
             let model = SettingsModel(node: self)
             _settingsModelStorage = model
             return model
-        }
-    }
-
-    /// Subclasses: diff current dynamic ports against the wanted set for
-    /// `strategy` (removePort for anything dynamic no longer wanted,
-    /// addDynamicPort for anything wanted not already present) — the same
-    /// name-set-diff pattern MathExpressionNode.syncPorts(to:)
-    /// already uses. Called on creation, on every Settings-view strategy
-    /// change, and once after decode.
-    open func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?) { }
-
-    /// The rebuild step for one port: a port of the wanted type is left alone;
-    /// one of another type is replaced (see `Node.replacePort`) by a fresh port
-    /// of the wanted type on the same id; a missing port is added.
-    public func addOrReplaceDynamicPortPreservingIdentity(name registryName: String,
-                                                          displayName: String,
-                                                          portType: PortType,
-                                                          kind: PortKind,
-                                                          description: String)
-    {
-        if let existing: Port = findPort(named: registryName), existing.portType != portType
-        {
-            replacePort(existing, with: portType.makeFreshPort(name: displayName,
-                                                                kind: kind,
-                                                                description: description,
-                                                                id: existing.id))
-        }
-
-        if findPort(named: registryName) == nil
-        {
-            addDynamicPort(
-                portType.makeFreshPort(
-                    name: displayName,
-                    kind: kind,
-                    description: description
-                ),
-                name: registryName
-            )
         }
     }
 
@@ -384,6 +343,12 @@ open class StrategyNode: Node
 
     /// Nil until a settings view asks for it.
     private var _settingsModelStorage: SettingsModel?
+
+    override open func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _settingsModelStorage?.refreshFromNode()
+    }
 }
 
 public struct StrategyPickerView: View

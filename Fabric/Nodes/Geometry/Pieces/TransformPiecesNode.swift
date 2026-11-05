@@ -21,18 +21,18 @@ public class TransformPiecesNode: Node
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Poses the pieces of a geometry (text split into pieces, the output of a cutting plugin) on the GPU with one transform per piece, in piece order: an animator's Transforms or any Transform array. Each piece also moves with its parent pieces' transforms, so a shorter array from earlier in a chain moves whole groups. Only the matrices are uploaded when the Transforms change. Missing transforms leave their pieces at rest; extras are ignored. Motion reaches the velocity output for motion blur." }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        super.registerPorts(context: context) +
-        [
-            ("inputGeometry", NodePort<Geometry>(name: "Geometry", kind: .Inlet, description: "The pieces to pose: geometry with pieces, or another Transform Pieces output (its rest pieces are used)")),
-            ("inputTransforms", NodePort<ContiguousArray<simd_float4x4>>(name: "Transforms", kind: .Inlet, description: "One transform per piece, in piece order, parents first: a model-space delta from rest")),
-            ("outputGeometry", NodePort<Geometry>(name: "Geometry", kind: .Outlet, description: "The pieces, posed; draw with any Mesh and material")),
+    public let inputGeometry = NodePort<Geometry>(name: "Geometry", kind: .Inlet, description: "The pieces to pose: geometry with pieces, or another Transform Pieces output (its rest pieces are used)")
+    public let inputTransforms = NodePort<ContiguousArray<simd_float4x4>>(name: "Transforms", kind: .Inlet, description: "One transform per piece, in piece order, parents first: a model-space delta from rest")
+    public let outputGeometry = NodePort<Geometry>(name: "Geometry", kind: .Outlet, description: "The pieces, posed; draw with any Mesh and material")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputGeometry", port: self.inputGeometry),
+            PortDeclaration(key: "inputTransforms", port: self.inputTransforms),
+            PortDeclaration(key: "outputGeometry", port: self.outputGeometry),
         ]
     }
-
-    public var inputGeometry: NodePort<Geometry> { port(named: "inputGeometry") }
-    public var inputTransforms: NodePort<ContiguousArray<simd_float4x4>> { port(named: "inputTransforms") }
-    public var outputGeometry: NodePort<Geometry> { port(named: "outputGeometry") }
 
     private var posedPieces: PosedPieces?
     private var poseStatuses: [NodeStatus] = []

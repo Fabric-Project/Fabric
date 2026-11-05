@@ -12,16 +12,16 @@ private class LifecycleRecordingNode: Node
     override class var nodeTimeMode: Node.TimeMode { .None }
     override class var nodeDescription: String { "Records lifecycle calls for tests" }
 
-    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
+    let input = NodePort<Float>(name: "Input", kind: .Inlet)
+    let output = NodePort<Float>(name: "Output", kind: .Outlet)
+
+    override func declaredPorts() -> [PortDeclaration]
     {
-        super.registerPorts(context: context) + [
-            ("input", NodePort<Float>(name: "Input", kind: .Inlet)),
-            ("output", NodePort<Float>(name: "Output", kind: .Outlet)),
+        super.declaredPorts() + [
+            PortDeclaration(key: "input", port: self.input),
+            PortDeclaration(key: "output", port: self.output),
         ]
     }
-
-    var input: NodePort<Float> { port(named: "input") }
-    var output: NodePort<Float> { port(named: "output") }
 
     private(set) var lifecycleCalls: [String] = []
     private(set) var executeCount = 0
@@ -234,12 +234,12 @@ struct GraphNodeLifecycleTests
         graph.addNode(node)
         try renderer.startExecution()
 
-        node.output.published = true
+        node.output.publishInGraph(true)
         graph.rebuildPublishedParameterGroup()
         try renderer.synchronizeLifecycle()
         #expect(node.lifecycleCalls == ["enable", "start"])
 
-        node.output.published = false
+        node.output.publishInGraph(false)
         graph.rebuildPublishedParameterGroup()
         try renderer.synchronizeLifecycle()
         #expect(node.lifecycleCalls == ["enable", "start", "stop"])

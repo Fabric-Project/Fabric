@@ -19,28 +19,24 @@ public class TransposeTransformNode : Node
     override public class var nodeDescription: String { "Transpose a transform"}
     
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputTransform", PortType.Transform.makeFreshPort(name: "Transform", kind: .Inlet, description: "4x4 transform matrix to transpose")),
-            ("outputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Outlet, description: "Transposed 4x4 transform matrix")),
+    public let inputTransform = NodePort<simd_float4x4>.makeFresh(name: "Transform", kind: .Inlet, description: "4x4 transform matrix to transpose")
+    public let outputTransform = NodePort<simd_float4x4>(name: "Transform" , kind: .Outlet, description: "Transposed 4x4 transform matrix")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputTransform", port: self.inputTransform),
+            PortDeclaration(key: "outputTransform", port: self.outputTransform),
         ]
     }
-    
-    // Port Proxy
-    public var inputTransform:NodePort<simd_float4x4> { port(named: "inputTransform") }
-    public var inputTranslation:NodePort<simd_float3> { port(named: "inputTranslation") }
-    public var outputTransform:NodePort<simd_float4x4> { port(named: "outputTransform") }
-    
+
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if self.inputTranslation.valueDidChange || self.inputTransform.valueDidChange,
+        if self.inputTransform.valueDidChange,
            let inputTransform = self.inputTransform.value
         {
             self.outputTransform.send( inputTransform.transpose )

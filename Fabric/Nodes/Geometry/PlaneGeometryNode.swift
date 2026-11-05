@@ -15,26 +15,23 @@ public class PlaneGeometryNode : BaseGeometryNode
     public override class var name:String { "Plane Geometry" }
     public override class var nodeDescription: String { "Generates plane geometry" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return  [
-            ("inputPlane", ParameterPort(parameter:StringParameter("Plane", "XY", ["XY", "YX", "XZ", "ZX", "YZ", "ZY"], .dropdown, "Orientation plane defining which axes the plane spans"))),
-            ("inputWidth", ParameterPort(parameter:FloatParameter("Width", 1.0, .inputfield, "Width of the plane in world units"))),
-            ("inputHeight", ParameterPort(parameter:FloatParameter("Height", 1.0, .inputfield, "Height of the plane in world units"))),
-            ("inputResolutionWidth", ParameterPort(parameter:IntParameter("Width Segments", 1, .inputfield, "Number of segments along the width"))),
-            ("inputResolutionHeight", ParameterPort(parameter:IntParameter("Height Segments", 1, .inputfield, "Number of segments along the height"))),
+    public let inputPlane = ParameterPort(parameter:StringParameter("Plane", "XY", ["XY", "YX", "XZ", "ZX", "YZ", "ZY"], .dropdown, "Orientation plane defining which axes the plane spans"))
+    public let inputWidth = ParameterPort(parameter:FloatParameter("Width", 1.0, .inputfield, "Width of the plane in world units"))
+    public let inputHeight = ParameterPort(parameter:FloatParameter("Height", 1.0, .inputfield, "Height of the plane in world units"))
+    public let inputResolutionWidth = ParameterPort(parameter:IntParameter("Width Segments", 1, .inputfield, "Number of segments along the width"))
+    public let inputResolutionHeight = ParameterPort(parameter:IntParameter("Height Segments", 1, .inputfield, "Number of segments along the height"))
 
-        ] + ports
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        [
+            PortDeclaration(key: "inputPlane", port: self.inputPlane),
+            PortDeclaration(key: "inputWidth", port: self.inputWidth),
+            PortDeclaration(key: "inputHeight", port: self.inputHeight),
+            PortDeclaration(key: "inputResolutionWidth", port: self.inputResolutionWidth),
+            PortDeclaration(key: "inputResolutionHeight", port: self.inputResolutionHeight),
+        ] + super.declaredPorts()
     }
-    
-    // Proxy Port
-    public var inputPlane:ParameterPort<String> { port(named: "inputPlane")  }
-    public var inputWidth:ParameterPort<Float> { port(named: "inputWidth")  }
-    public var inputHeight:ParameterPort<Float> { port(named: "inputHeight")  }
-    public var inputResolutionWidth:ParameterPort<Int> { port(named: "inputResolutionWidth")  }
-    public var inputResolutionHeight:ParameterPort<Int> { port(named: "inputResolutionHeight")  }
-    
+
     public override var geometry: PlaneGeometry { _geometry }
 
     private lazy var _geometry = PlaneGeometry(context:self.context, width: 1, height: 1, orientation: .xy)

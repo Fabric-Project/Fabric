@@ -15,26 +15,34 @@ public final class EasingNode: NumericTypeAgnosticNode
     override public class var nodeDescription: String { "Interpolates between two numeric values using a manually driven easing progress." }
     public override class var supportedPortTypes: [PortType] { interpolatableSingleTypes + interpolatableArrayTypes }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    public let inputProgress = ParameterPort(parameter: FloatParameter("Progress", 0.0, 0.0, 1.0, .inputfield, "Manual interpolation progress"))
+    public let inputEasing = ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing curve"))
+
+    override public func bindPorts()
     {
-        super.registerPorts(context: context) + [
-            ("inputProgress", ParameterPort(parameter: FloatParameter("Progress", 0.0, 0.0, 1.0, .inputfield, "Manual interpolation progress"))),
-            ("inputEasing", ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing curve")))
+        super.bindPorts()
+        self.boundInputFrom = findPort(named: "inputFrom")
+        self.boundInputTo = findPort(named: "inputTo")
+        self.boundOutputValue = findPort(named: "outputValue")
+    }
+
+    public override func declaredPorts() -> [PortDeclaration]
+    {
+        let portType = selectedNumericPortType
+
+        return [
+            PortDeclaration(key: "inputFrom", portType: portType, kind: .Inlet, name: "From", description: "Start value"),
+            PortDeclaration(key: "inputTo", portType: portType, kind: .Inlet, name: "To", description: "End value"),
+        ] + super.declaredPorts() + [
+            PortDeclaration(key: "inputProgress", port: self.inputProgress),
+            PortDeclaration(key: "inputEasing", port: self.inputEasing),
+            PortDeclaration(key: "outputValue", portType: portType, kind: .Outlet, name: "Value", description: "Interpolated value"),
         ]
     }
 
-    public var inputProgress: ParameterPort<Float> { port(named: "inputProgress") }
-    public var inputEasing: ParameterPort<String> { port(named: "inputEasing") }
-
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
-    {
-        super.rebuildPorts(forStrategy: strategy)
-        let portType = selectedNumericPortType
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputFrom", displayName: "From", portType: portType, kind: .Inlet, description: "Start value")
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputTo", displayName: "To", portType: portType, kind: .Inlet, description: "End value")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputValue", displayName: "Value", portType: portType, kind: .Outlet, description: "Interpolated value")
-        reorderPorts(named: ["inputFrom", "inputTo", "inputProgress", "inputEasing", "outputValue"])
-    }
+    private var boundInputFrom: Port?
+    private var boundInputTo: Port?
+    private var boundOutputValue: Port?
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
@@ -42,10 +50,9 @@ public final class EasingNode: NumericTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputFrom") || specializeFromConnectedPort(named: "inputTo") { return }
-        guard let inputFrom: Port = findPort(named: "inputFrom"),
-              let inputTo: Port = findPort(named: "inputTo"),
-              let outputValue: Port = findPort(named: "outputValue"),
+        guard let inputFrom: Port = self.boundInputFrom,
+              let inputTo: Port = self.boundInputTo,
+              let outputValue: Port = self.boundOutputValue,
               inputFrom.valueDidChange || inputTo.valueDidChange || inputProgress.valueDidChange || inputEasing.valueDidChange,
               let from = inputFrom.snapshotValue(),
               let to = inputTo.snapshotValue(),

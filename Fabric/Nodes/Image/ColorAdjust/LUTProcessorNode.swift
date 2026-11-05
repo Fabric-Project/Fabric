@@ -12,7 +12,7 @@ import Metal
 import MetalKit
 import UniformTypeIdentifiers
 
-public class LUTProcessorNode : BaseImageNode
+public class LUTProcessorNode : BaseImageNode, NodeTakingFile
 {
     public override class var name:String { "Color LUT Correction" }
     public override class var nodeType:Node.NodeType { Node.NodeType.Image(imageType: .ColorAdjust) }
@@ -30,30 +30,25 @@ public class LUTProcessorNode : BaseImageNode
     }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the .cube LUT file"))),
+    public let inputFilePathParam = ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the .cube LUT file"))
+
+    override public func fixedPortDeclarations() -> [PortDeclaration]
+    {
+        super.fixedPortDeclarations() + [
+            PortDeclaration(key: "inputFilePathParam", port: self.inputFilePathParam),
         ]
     }
-
-    public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
 
     private var texture: (any MTLTexture)? = nil
     private var url: URL? = nil
 
-    override public func setFileURL(_ url: URL)
-    {
-        self.inputFilePathParam.value = url.fileReference(relativeTo: self.graph?.fileReferenceBaseURL)
-    }
+    public var fileInlet: ParameterPort<String> { self.inputFilePathParam }
     
     public required init(context: Context, fileURL: URL) throws
     {
         super.init(context: context)
 
-        self.setFileURL(fileURL)
+        self.takeFile(fileURL)
         try self.loadLUTFromInputValue()
     }
     

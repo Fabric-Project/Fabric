@@ -16,10 +16,12 @@ struct IteratorRecordTests
         override class var nodeTimeMode: Node.TimeMode { .None }
         override class var nodeDescription: String { "Collects each iteration's image for tests" }
         var images: [FabricImage] = []
-        var inputImage: NodePort<FabricImage> { port(named: "inputImage") }
-        override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)] {
-            super.registerPorts(context: context) + [
-                ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet))
+        let inputImage = NodePort<FabricImage>(name: "Image", kind: .Inlet)
+
+        override func declaredPorts() -> [PortDeclaration]
+        {
+            super.declaredPorts() + [
+                PortDeclaration(key: "inputImage", port: self.inputImage),
             ]
         }
         override func execute(renderer: GraphRenderer, executionInfo: GraphExecutionInfo,
@@ -99,12 +101,14 @@ struct IteratorRecordTests
         override class var nodeExecutionMode: Node.ExecutionMode { .Provider }
         override class var nodeTimeMode: Node.TimeMode { .None }
         override class var nodeDescription: String { "Produces an occurrence-specific colour image" }
-        override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)] {
-            super.registerPorts(context: context) + [
-                ("outputImage", NodePort<FabricImage>(name: "Image", kind: .Outlet))
+        let outputImage = NodePort<FabricImage>(name: "Image", kind: .Outlet)
+
+        override func declaredPorts() -> [PortDeclaration]
+        {
+            super.declaredPorts() + [
+                PortDeclaration(key: "outputImage", port: self.outputImage),
             ]
         }
-        var outputImage: NodePort<FabricImage> { port(named: "outputImage") }
         override func execute(renderer: GraphRenderer, executionInfo: GraphExecutionInfo,
                               renderPassDescriptor: MTLRenderPassDescriptor,
                               commandBuffer: MTLCommandBuffer) throws {

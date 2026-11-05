@@ -20,73 +20,70 @@ public final class ImageDimensions: Node
         "Returns an image's width and height in pixels."
     }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    public let inputImage = NodePort<FabricImage>(
+        name: "Image",
+        kind: .Inlet,
+        description: "Input image to measure"
+    )
+    public let outputWidth = NodePort<Float>(
+        name: "Width",
+        kind: .Outlet,
+        description: "Image width in pixels"
+    )
+    public let outputHeight = NodePort<Float>(
+        name: "Height",
+        kind: .Outlet,
+        description: "Image height in pixels"
+    )
+
+    override public func bindPorts()
     {
-        super.registerPorts(context: context) + [
-            (
-                "inputImage",
-                NodePort<FabricImage>(
-                    name: "Image",
-                    kind: .Inlet,
-                    description: "Input image to measure"
-                )
-            ),
-            (
-                "outputWidth",
-                NodePort<Float>(
-                    name: "Width",
-                    kind: .Outlet,
-                    description: "Image width in pixels"
-                )
-            ),
-            (
-                "outputHeight",
-                NodePort<Float>(
-                    name: "Height",
-                    kind: .Outlet,
-                    description: "Image height in pixels"
-                )
-            ),
-        ]
+        super.bindPorts()
+        self.legacyOutputResolution = findPort(named: "legacyOutputResolution")
     }
 
-    public var inputImage: NodePort<FabricImage> { port(named: "inputImage") }
-    public var outputWidth: NodePort<Float> { port(named: "outputWidth") }
-    public var outputHeight: NodePort<Float> { port(named: "outputHeight") }
-
-    private enum LegacyCodingKeys: String, CodingKey
+    private enum CodingKeys: String, CodingKey
     {
-        case inputTexturePort
-        case outputResolutionPort
+        case legacyOutputResolution
     }
+
+    /// Whether this node came from a document old enough to have had a
+    /// Resolution outlet, which it keeps so that document's wires to it hold.
+    private let hasLegacyResolution: Bool
 
     public required init(context: Context)
     {
+        self.hasLegacyResolution = false
         super.init(context: context)
     }
 
     public required init(from decoder: any Decoder) throws
     {
-        let legacyContainer = try decoder.container(keyedBy: LegacyCodingKeys.self)
-        let legacyInputImage = try legacyContainer.decodeIfPresent(
-            NodePort<FabricImage>.self,
-            forKey: .inputTexturePort
-        )
-        let legacyResolution = try legacyContainer.decodeIfPresent(
-            NodePort<simd_float2>.self,
-            forKey: .outputResolutionPort
-        )
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.hasLegacyResolution = try container.decodeIfPresent(Bool.self, forKey: .legacyOutputResolution) ?? false
 
         try super.init(from: decoder)
+    }
 
-        if let legacyInputImage {
-            self.removePort(self.inputImage)
-            self.addDynamicPort(legacyInputImage, name: "inputImage")
-        }
+    override public func encode(to encoder: any Encoder) throws
+    {
+        try super.encode(to: encoder)
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        if self.hasLegacyResolution { try container.encode(true, forKey: .legacyOutputResolution) }
+    }
 
-        if let legacyResolution {
-            self.addDynamicPort(legacyResolution, name: "legacyOutputResolution")
-        }
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        let storedPorts = [
+            PortDeclaration(key: "inputImage", port: self.inputImage),
+            PortDeclaration(key: "outputWidth", port: self.outputWidth),
+            PortDeclaration(key: "outputHeight", port: self.outputHeight),
+        ]
+
+        guard hasLegacyResolution else { return super.declaredPorts() + storedPorts }
+        return super.declaredPorts() + storedPorts + [
+            PortDeclaration(key: "legacyOutputResolution", port: NodePort<simd_float2>(name: "Resolution", kind: .Outlet)),
+        ]
     }
 
     override public func execute(renderer: GraphRenderer,
@@ -113,7 +110,4 @@ public final class ImageDimensions: Node
     }
 
     private var legacyOutputResolution: NodePort<simd_float2>?
-    {
-        self.findPort(named: "legacyOutputResolution")
-    }
 }

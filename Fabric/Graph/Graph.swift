@@ -14,9 +14,12 @@ internal import AnyCodable
     {
         case alpha1
         case beta
+        /// Ports named by address, values by key, publishing on the graph; no
+        /// port ids or envelopes. See GraphFormatMigration for the older forms.
+        case addressedPorts
     }
     
-    static let currentVersion = Version.beta
+    static let currentVersion = Version.addressedPorts
 
     // Diagnostic types (DroppedPortStateDiagnostic, DroppedConnectionDiagnostic,
     // MissingNodeDiagnostic) and the recording functions that populate the
@@ -180,9 +183,39 @@ internal import AnyCodable
         case version
         case requiredPlugins
         case nodeMap
-        case portConnectionMap
         case connections
+        case published
         case notes
+    }
+
+    /// A wire as the document holds it: its endpoints' addresses.
+    private struct SavedConnection: Codable
+    {
+        let from: PortAddress
+        let to: PortAddress
+        var active: Bool = true
+    }
+
+    /// A published port as the document holds it.
+    private struct SavedPublishing: Codable
+    {
+        let port: PortAddress
+        let name: String?
+    }
+
+    /// Lets one malformed element be skipped rather than fail its array.
+    private struct Lossy<Element: Decodable>: Decodable
+    {
+        let element: Element?
+        init(from decoder: any Decoder) throws { self.element = try? Element(from: decoder) }
+    }
+
+    /// Captures a decoder's top-level container, to decode a graph from data
+    /// the migration produced.
+    private struct ContainerCapture: Decodable
+    {
+        let container: KeyedDecodingContainer<CodingKeys>
+        init(from decoder: any Decoder) throws { self.container = try decoder.container(keyedBy: CodingKeys.self) }
     }
     
     public init(context:Context, fileReferenceBaseURL: URL? = nil)
@@ -190,27 +223,51 @@ internal import AnyCodable
         self.scene = Object(context: context)
         print("Init Graph")
         self.id = UUID()
-        self.version = .beta
+        self.version = Self.currentVersion
         self.context = context
         self.fileReferenceBaseURL = fileReferenceBaseURL?.standardizedFileURL
         self.nodes = []
         self.notes = []
     }
     
-    public required init(from decoder: any Decoder) throws
+    public required convenience init(from decoder: any Decoder) throws
     {
         guard let decodeContext = decoder.context else
         {
             fatalError("Required Decode Context Not set")
         }
-        
+
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let version = try container.decode(Graph.Version.self, forKey: .version)
+
+        guard version != Self.currentVersion else
+        {
+            try self.init(decoding: container, context: decodeContext)
+            return
+        }
+
+        // An older form is read into the current one first, inner graphs with it.
+        let saved = try decoder.singleValueContainer().decode(AnyCodable.self)
+        guard let json = saved.value as? [String: Any] else
+        {
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "A graph is an object"))
+        }
+        let currentVersion = try JSONSerialization.jsonObject(with: JSONEncoder().encode(Self.currentVersion), options: [.fragmentsAllowed])
+        let migrated = GraphFormatMigration.migrate(json, to: currentVersion)
+
+        let migratedDecoder = JSONDecoder()
+        migratedDecoder.context = decodeContext
+        let capture = try migratedDecoder.decode(ContainerCapture.self, from: JSONSerialization.data(withJSONObject: migrated))
+        try self.init(decoding: capture.container, context: decodeContext)
+    }
+
+    private init(decoding container: KeyedDecodingContainer<CodingKeys>, context decodeContext: DecoderContext) throws
+    {
         self.context = decodeContext.documentContext
         self.fileReferenceBaseURL = decodeContext.fileReferenceBaseURL?.standardizedFileURL
 
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
         self.id = try container.decode(UUID.self, forKey: .id)
-        self.version = try container.decode(Graph.Version.self, forKey: .version)
+        self.version = Self.currentVersion
 
         self.nodes = []
         self.scene = Object(context: context)
@@ -220,121 +277,38 @@ internal import AnyCodable
         let nodeRegistry = try NodeRegistry.shared
         try nodeRegistry.validatePluginRequirements(requiredPlugins)
 
-        // For Subgraphs - we capture and reset state
-        // this is needed for ProxyPorts which expose inner graph ports
-        // to parent graph ports
-        // we leverage the decode context current graph to be the subgraph
-        // we we need to 'pop it' - Anton
+        // Nodes decoding under this graph see it as the graph they join.
         let previousGraph = decodeContext.currentGraph
-
         decodeContext.currentGraph = self
+        defer { decodeContext.currentGraph = previousGraph }
 
-        defer
-        {
-            decodeContext.currentGraph = previousGraph
-        }
-        
-        // get a single value container
-        var nestedContainer = try container.nestedUnkeyedContainer( forKey: .nodeMap)
-        
-        // this is stupid but works!
-        // We make a new encoder to re-encode the data
-        // we pass to the intospected types class decoder based initialier
-        // since they all conform to NodeProtocol we can do this
-        // this is better than the alternative switch for each class..
+        var nestedContainer = try container.nestedUnkeyedContainer(forKey: .nodeMap)
+
+        // Each node decodes from its own encoding, with the class the registry
+        // names for its type.
         let encoder = JSONEncoder()
         let decoder = JSONDecoder()
+        decoder.context = decodeContext
 
         while !nestedContainer.isAtEnd
         {
             let anyCodableMap = try nestedContainer.decode(AnyCodableMap.self)
-
             let nodeID = Self.qualifiedNodeID(fromSerializedType: anyCodableMap.type)
 
-            do {
-                if let nodeClass = nodeRegistry.nodeClass(pluginID: nodeID.pluginID, nodeID: nodeID.nodeID)
-                {
-                    let jsonData = try encoder.encode(anyCodableMap.value)
-                    decoder.context = decodeContext
-                    
-                    let node = try decoder.decode(nodeClass, from: jsonData)
-
-                    self.addNode(node)
-                }
-                else if anyCodableMap.type == "BaseImageNode"
-                {
-                    let jsonData = try encoder.encode(anyCodableMap.value)
-                    decoder.context = decodeContext
-                    
-                    let node = try decoder.decode(BaseImageNode.self, from: jsonData)
-                    self.addNode(node)
-                }
-                
-                else if anyCodableMap.type == "LiveEffectNode"
-                {
-                    let encoder = JSONEncoder()
-                    let jsonData = try encoder.encode(anyCodableMap.value)
-                    
-                    let decoder = JSONDecoder()
-                    decoder.context = decodeContext
-                    
-                    let node = try decoder.decode(LiveImageNode.self, from: jsonData)
-                    self.addNode(node)
-                }
-                
-                // MARK: - Deprecated Node Types -> BaseImageNode
-                else if anyCodableMap.type == "BaseEffectThreeChannelNode"
-                {
-                    let jsonData = try encoder.encode(anyCodableMap.value)
-                    decoder.context = decodeContext
-                    
-                    let node = try decoder.decode(BaseImageNode.self, from: jsonData)
-
-                    self.addNode(node)
-                }
-                else if anyCodableMap.type == "BaseEffectTwoChannelNode"
-                {
-                    let jsonData = try encoder.encode(anyCodableMap.value)
-                    decoder.context = decodeContext
-                    
-                    let node = try decoder.decode(BaseImageNode.self, from: jsonData)
-
-                    self.addNode(node)
-                }
-                else if anyCodableMap.type == "BaseEffectNode"
-                {
-                    let encoder = JSONEncoder()
-                    let jsonData = try encoder.encode(anyCodableMap.value)
-                    
-                    let decoder = JSONDecoder()
-                    decoder.context = decodeContext
-                    
-                    let node = try decoder.decode(BaseImageNode.self, from: jsonData)
-
-                    self.addNode(node)
-                }
-
-                else if anyCodableMap.type == "BaseGeneratorNode"
-                {
-                    let encoder = JSONEncoder()
-                    let jsonData = try encoder.encode(anyCodableMap.value)
-                    
-                    let decoder = JSONDecoder()
-                    decoder.context = decodeContext
-                    
-                    let node = try decoder.decode(BaseImageNode.self, from: jsonData)
-
-                    self.addNode(node)
-                }
-               
-                else
+            do
+            {
+                guard let nodeClass = Self.nodeClass(forSerializedType: anyCodableMap.type, registry: nodeRegistry) else
                 {
                     self.missingNodeDiagnostics.append(
                         self.makeMissingNodeDiagnostic(serializedType: anyCodableMap.type,
                                                        reason: .typeNotRegistered,
                                                        summary: "Could not find \(nodeID.nodeID)")
                     )
+                    continue
                 }
+
+                let node = try decoder.decode(nodeClass, from: try encoder.encode(anyCodableMap.value))
+                self.addNode(node)
             }
             catch
             {
@@ -345,102 +319,55 @@ internal import AnyCodable
                 )
             }
         }
-        
-        // Node inits (including their dynamic-port rebuilds) are done; end
-        // each node's hydration window. Whatever state remains unconsumed
-        // matched nothing the code declares, and closing the window here means
-        // ports added later in the document's life cannot resurrect stale
-        // snapshot state.
+
+        // Node inits are done; whatever saved state found no port to land on
+        // matched nothing the code declares.
         self.droppedPortStateDiagnostics = self.makeDroppedPortStateDiagnostics()
 
-        let decodedConnections = try container.decodeIfPresent([Connection].self, forKey: .connections)
-
-        // Restoring a wire resolves both its endpoints, and reporting a dropped
-        // one resolves them again; nodePort(forID:) is a linear scan of every
-        // port in the document, so index once and read from that. Mirror what
-        // it scans, subgraph proxy ports included.
-        let portsByID: [UUID: Port] = self.nodes.reduce(into: [:]) { index, node in
-            for port in node.ports { index[port.id] = port }
-        }
-
-        // The legacy map holds every connection under both endpoints; report
-        // each dropped one once, whichever side surfaces it first.
-        var reportedDroppedPairs = Set<Set<UUID>>()
-
-        func reportDroppedConnection(from portID: UUID, to otherPortID: UUID, reason: DroppedConnectionDiagnostic.Reason)
+        let savedConnections = (try container.decodeIfPresent([Lossy<SavedConnection>].self, forKey: .connections) ?? []).compactMap(\.element)
+        for saved in savedConnections
         {
-            guard let diagnostic = self.makeDroppedConnectionDiagnostic(from: portID,
-                                                                        to: otherPortID,
-                                                                        reason: reason,
-                                                                        portsByID: portsByID,
-                                                                        reportedPairs: &reportedDroppedPairs)
-            else { return }
-
-            self.droppedConnectionDiagnostics.append(diagnostic)
-        }
-
-        if let decodedConnections
-        {
-            // Attach bypasses validatedConnect, so the endpoint and type
-            // checks (and their diagnostics) live here.
-            for connection in decodedConnections
+            guard let outlet = self.port(at: saved.from), let inlet = self.port(at: saved.to) else
             {
-                guard let outlet = portsByID[connection.outletPortID],
-                      let inlet = portsByID[connection.inletPortID]
-                else
-                {
-                    reportDroppedConnection(from: connection.outletPortID, to: connection.inletPortID, reason: .missingEndpoint)
-                    continue
-                }
-
-                guard outlet.canConnect(to: inlet) else
-                {
-                    reportDroppedConnection(from: connection.outletPortID, to: connection.inletPortID, reason: .incompatibleTypes)
-                    continue
-                }
-
-                attachConnection(connection, outlet: outlet, inlet: inlet)
+                self.droppedConnectionDiagnostics.append(self.makeDroppedConnectionDiagnostic(from: saved.from, to: saved.to, reason: .missingEndpoint))
+                continue
             }
-        }
-        else
-        {
-            let portMap = try container.decodeIfPresent([UUID:[UUID]].self, forKey: .portConnectionMap) ?? [:]
 
-            for portID in portMap.keys
+            // Attach bypasses validatedConnect, so the type check and its
+            // diagnostic live here.
+            guard outlet.kind == .Outlet, inlet.kind == .Inlet, outlet.canConnect(to: inlet) else
             {
-                let portConnections = portMap[portID] ?? []
-
-                guard let port = portsByID[portID] else
-                {
-                    for connectedPortID in portConnections
-                    {
-                        reportDroppedConnection(from: portID, to: connectedPortID, reason: .missingEndpoint)
-                    }
-                    continue
-                }
-
-                for connectedPortID in portConnections
-                {
-                    guard let connectedPort = portsByID[connectedPortID] else
-                    {
-                        reportDroppedConnection(from: portID, to: connectedPortID, reason: .missingEndpoint)
-                        continue
-                    }
-
-                    guard port.canConnect(to: connectedPort) else
-                    {
-                        reportDroppedConnection(from: portID, to: connectedPortID, reason: .incompatibleTypes)
-                        continue
-                    }
-
-                    guard port.kind == .Outlet else { continue }
-                    let connection = Connection(outletPortID: port.id, inletPortID: connectedPort.id)
-                    attachConnection(connection, outlet: port, inlet: connectedPort)
-                }
+                self.droppedConnectionDiagnostics.append(self.makeDroppedConnectionDiagnostic(from: saved.from, to: saved.to, reason: .incompatibleTypes))
+                continue
             }
+
+            let connection = Connection(outletPortID: outlet.id, inletPortID: inlet.id, active: saved.active)
+            attachConnection(connection, outlet: outlet, inlet: inlet)
         }
+
+        let savedPublishing = (try container.decodeIfPresent([Lossy<SavedPublishing>].self, forKey: .published) ?? []).compactMap(\.element)
+        self.restorePublishedEntries(savedPublishing.map { PublishedPort(address: $0.port, name: $0.name) })
 
         self.rebuildPublishedParameterGroup()
+    }
+
+    /// The class a serialized node type decodes as: the registry's, or a
+    /// retired base type's successor.
+    private static func nodeClass(forSerializedType serializedType: String, registry: NodeRegistry) -> Node.Type?
+    {
+        let nodeID = Self.qualifiedNodeID(fromSerializedType: serializedType)
+        if let nodeClass = registry.nodeClass(pluginID: nodeID.pluginID, nodeID: nodeID.nodeID) { return nodeClass }
+
+        switch serializedType
+        {
+        // MARK: - Deprecated Node Types -> BaseImageNode
+        case "BaseImageNode", "BaseEffectThreeChannelNode", "BaseEffectTwoChannelNode", "BaseEffectNode", "BaseGeneratorNode":
+            return BaseImageNode.self
+        case "LiveEffectNode":
+            return LiveImageNode.self
+        default:
+            return nil
+        }
     }
 
     deinit
@@ -467,10 +394,13 @@ internal import AnyCodable
         try container.encode(self.notes, forKey: .notes)
         
         try container.encode( nodeMap, forKey: .nodeMap)
-        try container.encode(self.connections.filter { connection in
-            self.nodePort(forID: connection.outletPortID) != nil &&
-            self.nodePort(forID: connection.inletPortID) != nil
+        try container.encode(self.connections.compactMap { connection -> SavedConnection? in
+            guard let outlet = connection.outletPort.flatMap(self.address(of:)),
+                  let inlet = connection.inletPort.flatMap(self.address(of:))
+            else { return nil }
+            return SavedConnection(from: outlet, to: inlet, active: connection.active)
         }, forKey: .connections)
+        try container.encode(self.publishedPortEntries.map { SavedPublishing(port: $0.address, name: $0.name) }, forKey: .published)
     }
  
     //MARK: - Notes API -
@@ -542,7 +472,7 @@ internal import AnyCodable
         {
             var hasFileReference = false
 
-            for port in node.ports where port.parameter?.controlType == .filepicker
+            for port in node.ports where port.control == .filePicker
             {
                 port.valueDidChange = true
                 hasFileReference = true
@@ -552,6 +482,8 @@ internal import AnyCodable
             {
                 node.markDirty()
             }
+
+            (node as? any NodeMadeFromFile)?.fileReferenceBaseDidChange(standardizedURL)
 
             if let subgraphNode = node as? SubgraphNode
             {
@@ -571,7 +503,7 @@ internal import AnyCodable
             for port in node.ports
             {
                 guard let filePort = port as? ParameterPort<String>,
-                      filePort.parameter?.controlType == .filepicker,
+                      filePort.control == .filePicker,
                       filePort.connectedOutlets.isEmpty,
                       let reference = filePort.value,
                       // Without a directory, only absolute references resolve.
@@ -601,6 +533,7 @@ internal import AnyCodable
         guard nodes.contains(where: { $0 === node }) else { return }
 
         let savedOffset = node.offset
+        let savedPublishing = self.removePublishedEntries(of: node)
         let nodePortIDs = Set(node.ports.map(\.id))
         let savedConnections = connections.filter {
             nodePortIDs.contains($0.outletPortID) || nodePortIDs.contains($0.inletPortID)
@@ -625,25 +558,30 @@ internal import AnyCodable
             self.nodeViewModels[node.id] = nil
         }
 
+        // Before registering, as setPublished(_:at:name:) explains.
+        self.rebuildPublishedParameterGroup()
+
         self.undoManager?.registerUndo(withTarget: self) { graph in
             graph.restoreDeletedNode(node,
                                      offset: savedOffset,
-                                     connections: savedConnections)
+                                     connections: savedConnections,
+                                     publishing: savedPublishing)
         }
 
         self.undoManager?.setActionName("Delete Node")
         self.markConnectionsChanged()
 
         self.updateCameraSelection()
-        self.rebuildPublishedParameterGroup()
     }
 
     private func restoreDeletedNode(_ node: Node,
                                     offset: CGSize,
-                                    connections: [Connection])
+                                    connections: [Connection],
+                                    publishing: [PublishedPort])
     {
         withoutUndoRegistration {
             node.offset = offset
+            restorePublishedEntries(publishing)
             nodeViewModels[node.id] = NodeViewModel(node: node)
             nodes.append(node)
             node.graph = self
@@ -798,6 +736,49 @@ internal import AnyCodable
         undoManager?.setActionName("Disconnect Ports")
     }
 
+    /// Takes the wires off a port its node has just retired from its registry,
+    /// as undo steps of the edit in progress.
+    internal func disconnectAll(fromRetired port: Port)
+    {
+        guard port.node?.graph === self else { return }
+
+        for connection in port.connections where connection.graph === self
+        {
+            disconnect(connection)
+        }
+    }
+
+    /// Moves every wire on `old` that `new`, its retyped replacement under the
+    /// same key, can take onto `new`, and disconnects the rest as undo steps.
+    internal func rebindWires(from old: Port, to new: Port)
+    {
+        let wires = old.connections.filter { $0.graph === self }
+        guard !wires.isEmpty else { return }
+
+        for connection in wires
+        {
+            guard let opposite = connection.port(opposite: old),
+                  new.kind == .Outlet ? new.canConnect(to: opposite) : opposite.canConnect(to: new)
+            else
+            {
+                self.disconnect(connection)
+                continue
+            }
+
+            self.rebindConnection(connection, replacing: old, with: new)
+            if let outlet = connection.outletPort { outlet.sendBoxed(outlet.snapshotValue(), force: true) }
+        }
+        self.markConnectionTopologyChanged()
+    }
+
+    /// A control's edit of a port's value. The one way a control writes a
+    /// port: the edit context attaches here to record value edits.
+    public func setControlValue<Value>(_ value: Value, on port: NodePort<Value>)
+    {
+        guard port.node?.graph === self else { return }
+        port.value = value
+    }
+
     @discardableResult
     public func setConnection(_ connection: Connection, active: Bool) -> Bool
     {
@@ -932,19 +913,135 @@ internal import AnyCodable
             inletNode.updateConnectionTopology()
             markNodeForLifecycleReview(outletNode)
             markNodeForLifecycleReview(inletNode)
+            inletNode.inletDidConnect(inlet, from: outlet)
         }
     }
     
     // MARK: - Publish Port API -
-    /// All ports in this graph that have been published.
+
+    /// One published port: where it is, and the name the boundary shows for it,
+    /// nil for the port's own.
+    public struct PublishedPort: Hashable
+    {
+        public let address: PortAddress
+        public let name: String?
+    }
+
+    /// The ports this graph publishes to the graph around it, in the order they
+    /// were published. A relation from address to name, as wires are: the port
+    /// carries none of it.
+    public private(set) var publishedPortEntries: [PublishedPort] = []
+
+    /// Where `port` is in this graph; nil for a port on no node of it.
+    public func address(of port: Port) -> PortAddress?
+    {
+        guard let node = port.node, node.graph === self else { return nil }
+        return PortAddress(node: node.id, key: port.key)
+    }
+
+    /// The port at `address`, if its node is in this graph and declares it.
+    public func port(at address: PortAddress) -> Port?
+    {
+        self.node(forID: address.node)?.port(forKey: address.key)
+    }
+
+    public func isPublished(_ port: Port) -> Bool
+    {
+        guard let address = self.address(of: port) else { return false }
+        return self.publishedPortEntries.contains { $0.address == address }
+    }
+
+    /// The name the boundary shows for `port`, where one was given.
+    public func publishedName(of port: Port) -> String?
+    {
+        guard let address = self.address(of: port) else { return nil }
+        return self.publishedPortEntries.first { $0.address == address }?.name
+    }
+
+    /// Publishes or unpublishes `port`, a port of a node in this graph, as an
+    /// undo step. Publishing gives it `name`; unpublishing forgets its name.
+    public func setPublished(_ published: Bool, port: Port, name: String? = nil)
+    {
+        guard let address = self.address(of: port) else { return }
+        self.setPublished(published, at: address, name: name)
+    }
+
+    /// Renames a published port as an undo step; nil restores its own name.
+    public func setPublishedName(_ name: String?, port: Port)
+    {
+        guard let address = self.address(of: port),
+              let index = self.publishedPortEntries.firstIndex(where: { $0.address == address }),
+              self.publishedPortEntries[index].name != name
+        else { return }
+
+        let previous = self.publishedPortEntries[index].name
+        self.publishedPortEntries[index] = PublishedPort(address: address, name: name)
+        self.rebuildPublishedParameterGroup()
+
+        self.undoManager?.registerUndo(withTarget: self) { graph in
+            guard let port = graph.port(at: address) else { return }
+            graph.setPublishedName(previous, port: port)
+        }
+        self.undoManager?.setActionName("Rename Published Port")
+    }
+
+    /// The enclosing subgraph node reconciles its proxies inside the rebuild,
+    /// registering its own undo steps, such as restoring a retired proxy's
+    /// wires. This step registers after them so it undoes first: the proxy
+    /// is back before its wires are.
+    private func setPublished(_ published: Bool, at address: PortAddress, name: String?)
+    {
+        let existing = self.publishedPortEntries.firstIndex { $0.address == address }
+        switch (published, existing)
+        {
+        case (true, nil):
+            self.publishedPortEntries.append(PublishedPort(address: address, name: name))
+            self.rebuildPublishedParameterGroup()
+            self.undoManager?.registerUndo(withTarget: self) { graph in graph.setPublished(false, at: address, name: nil) }
+            self.undoManager?.setActionName("Publish Port")
+        case (false, let index?):
+            let removed = self.publishedPortEntries.remove(at: index)
+            self.rebuildPublishedParameterGroup()
+            self.undoManager?.registerUndo(withTarget: self) { graph in graph.setPublished(true, at: address, name: removed.name) }
+            self.undoManager?.setActionName("Unpublish Port")
+        default:
+            return
+        }
+    }
+
+
+
+    /// Takes the entries for `node` out of the relation, handing them back in
+    /// order for a restore. Not an undo step: the caller's own step restores.
+    private func removePublishedEntries(of node: Node) -> [PublishedPort]
+    {
+        let removed = self.publishedPortEntries.filter { $0.address.node == node.id }
+        guard !removed.isEmpty else { return [] }
+        self.publishedPortEntries.removeAll { $0.address.node == node.id }
+        return removed
+    }
+
+    private func restorePublishedEntries(_ entries: [PublishedPort])
+    {
+        for entry in entries where !self.publishedPortEntries.contains(where: { $0.address == entry.address })
+        {
+            self.publishedPortEntries.append(entry)
+        }
+    }
+
+    /// All ports in this graph that have been published, in publishing order,
+    /// resolved from their addresses when publishing or the ports change, so
+    /// a frame reads them without a lookup.
     public func getPublishedPorts() -> [Port]
     {
-        return self.nodes.flatMap { $0.publishedPorts() }
+        self.resolvedPublishedPorts
     }
+
+    @ObservationIgnored private var resolvedPublishedPorts: [Port] = []
 
     public func publishedInputPorts() -> [Port]
     {
-        return self.nodesWithPublishedInputs().flatMap { $0.publishedInputPorts() }
+        self.getPublishedPorts().filter { $0.kind == .Inlet }
     }
 
     public func publishedOutputPorts() -> [Port]
@@ -953,7 +1050,7 @@ internal import AnyCodable
             return cachedPublishedOutputPorts
         }
 
-        cachedPublishedOutputPorts = self.nodesWithPublishedOutputs().flatMap { $0.publishedOutputPorts() }
+        cachedPublishedOutputPorts = self.getPublishedPorts().filter { $0.kind == .Outlet }
         cachedPublishedOutputPortsRevision = connectionRevision
 
         return cachedPublishedOutputPorts
@@ -961,23 +1058,10 @@ internal import AnyCodable
 
     public func rebuildPublishedParameterGroup()
     {
+        self.resolvedPublishedPorts = self.publishedPortEntries.compactMap { self.port(at: $0.address) }
+        self.cachedPublishedOutputPortsRevision = nil
         self.publishedParameterGroup.clear()
-
-        let publishedPorts = self.getPublishedPorts()
-
-        // Sync each parameter's label to its port's displayName so the
-        // inspector reflects renames made via PortRenameAlert. The
-        // parameter is the underlying source of truth for label across
-        // all parameter views (sliders, input fields, color pickers
-        // etc.), and the user's rename was a deliberate naming action.
-        let publishedParams: [any Parameter] = publishedPorts.compactMap { port in
-            guard let param = port.parameter else { return nil }
-            let display = port.displayName
-            if param.label != display { param.label = display }
-            return param
-        }
-
-        self.publishedParameterGroup.append( publishedParams )
+        self.publishedParameterGroup.append(self.getPublishedPorts().compactMap(\.parameter))
 
         // A published port connects its node through the enclosing subgraph node.
         let nodesWithPublishedPorts = Set(self.nodesWithPublishedPorts())
@@ -990,28 +1074,18 @@ internal import AnyCodable
         self.markConnectionsChanged()
         self.onPublishedPortsChanged?()
     }
-    
+
     internal func nodesWithPublishedPorts() -> [Node]
     {
-        return self.nodes.filter { node in
-            !node.publishedPorts().isEmpty
-        }
+        let nodeIDs = Set(self.publishedPortEntries.map(\.address.node))
+        return self.nodes.filter { nodeIDs.contains($0.id) }
     }
-    
-    internal func nodesWithPublishedInputs() -> [Node]
+
+    internal func publishedPorts(of node: Node) -> [Port]
     {
-        return self.nodes.filter { node in
-            !node.publishedInputPorts().isEmpty
-        }
+        self.resolvedPublishedPorts.filter { $0.node === node }
     }
-    
-    internal func nodesWithPublishedOutputs() -> [Node]
-    {
-        return self.nodes.filter { node in
-            !node.publishedOutputPorts().isEmpty
-        }
-    }
-     
+
     // MARK: - Rendering Helpers
     internal var latestCamera:Camera? = nil
 
@@ -1217,13 +1291,6 @@ internal import AnyCodable
         }
     }
 
-    private struct PublishedPortState
-    {
-        let port: Port
-        let published: Bool
-        let publishedName: String?
-    }
-
     private struct BoundaryConnectionState
     {
         let connection: Connection
@@ -1237,19 +1304,20 @@ internal import AnyCodable
         let subgraphNode: SubgraphNode
         let internalConnections: [Connection]
         var boundaryConnections: [BoundaryConnectionState]
-        let publishedPortStates: [PublishedPortState]
+        /// What the graph around published of the moved nodes, before the move.
+        let outerPublishing: [PublishedPort]
 
         init(nodes: [Node],
              subgraphNode: SubgraphNode,
              internalConnections: [Connection],
              boundaryConnections: [BoundaryConnectionState],
-             publishedPortStates: [PublishedPortState])
+             outerPublishing: [PublishedPort])
         {
             self.nodes = nodes
             self.subgraphNode = subgraphNode
             self.internalConnections = internalConnections
             self.boundaryConnections = boundaryConnections
-            self.publishedPortStates = publishedPortStates
+            self.outerPublishing = outerPublishing
         }
     }
 
@@ -1307,12 +1375,7 @@ internal import AnyCodable
                 }
                 return movedPort.map { BoundaryConnectionState(connection: connection, innerPort: $0) }
             }
-        let publishedPortStates = Dictionary(
-            boundaryConnections.map { ($0.innerPort.id, $0.innerPort) },
-            uniquingKeysWith: { first, _ in first }
-        ).values.map {
-            PublishedPortState(port: $0, published: $0.published, publishedName: $0.publishedName)
-        }
+        let outerPublishing = self.publishedPortEntries.filter { selectedNodeIDs.contains($0.address.node) }
 
         let subgraphNode = subgraphClass.init(context: context)
         subgraphNode.offset = node.offset
@@ -1321,7 +1384,7 @@ internal import AnyCodable
                                           subgraphNode: subgraphNode,
                                           internalConnections: internalConnections,
                                           boundaryConnections: boundaryConnections,
-                                          publishedPortStates: publishedPortStates)
+                                          outerPublishing: outerPublishing)
 
         applyEmbedding(embedding)
         undoManager?.registerUndo(withTarget: self) { graph in
@@ -1346,9 +1409,13 @@ internal import AnyCodable
                         self.transferConnection(connection, to: embedding.subgraphNode.subGraph)
                     }
 
-                    for state in embedding.publishedPortStates {
-                        state.port.published = true
-                    }
+                    // The moved nodes keep what they published, and every port a
+                    // boundary wire ran to is published so a proxy can carry it.
+                    let innerGraph = embedding.subgraphNode.subGraph
+                    innerGraph.restorePublishedEntries(embedding.outerPublishing)
+                    innerGraph.restorePublishedEntries(embedding.boundaryConnections.compactMap { state in
+                        innerGraph.address(of: state.innerPort).map { PublishedPort(address: $0, name: nil) }
+                    })
                     embedding.subgraphNode.subGraph.rebuildPublishedParameterGroup()
 
                     for index in embedding.boundaryConnections.indices {
@@ -1417,10 +1484,8 @@ internal import AnyCodable
                         }
                     }
 
-                    for state in embedding.publishedPortStates {
-                        state.port.published = state.published
-                        state.port.publishedName = state.publishedName
-                    }
+                    self.restorePublishedEntries(embedding.outerPublishing)
+                    self.rebuildPublishedParameterGroup()
                     embedding.subgraphNode.subGraph.rebuildPublishedParameterGroup()
 
                     self.markConnectionTopologyChanged()
@@ -1489,107 +1554,34 @@ internal import AnyCodable
     }
 
     // MARK: - Private Decode API Helpers -
-    
-    /// Decodes a single node from an AnyCodableMap, replicating the type resolution from Graph.init(from:)
+
+    /// Decodes a single node from an AnyCodableMap, as Graph.init(from:) does,
+    /// and closes its decode window: a port it declares later takes no saved
+    /// state.
     private func decodeNode(from map: AnyCodableMap) -> Node?
-    {
-        // Graph.init(from:) closes each node's hydration window once every node
-        // is decoded; duplicate and paste come through here instead, so the
-        // window has to close before the node is handed back or a port added
-        // later would adopt paste-time state.
-        guard let node = decodeNodeLeavingHydrationOpen(from: map) else { return nil }
-
-        _ = node.finalizePortHydration()
-        return node
-    }
-
-    private func decodeNodeLeavingHydrationOpen(from map: AnyCodableMap) -> Node?
     {
         do
         {
-            let encoder = JSONEncoder()
             let decoder = JSONDecoder()
             decoder.context = DecoderContext(documentContext: self.context)
 
-            let jsonData = try encoder.encode(map.value)
-
-            let nodeID = Self.qualifiedNodeID(fromSerializedType: map.type)
-            let nodeRegistry = try NodeRegistry.shared
-
-            if let nodeClass = nodeRegistry.nodeClass(pluginID: nodeID.pluginID, nodeID: nodeID.nodeID)
-            {
-                return try decoder.decode(nodeClass, from: jsonData)
-            }
-            else if map.type == String(describing: type(of: BaseImageNode.self)).replacing(".Type", with:"")
-            {
-                return try decoder.decode(BaseImageNode.self, from: jsonData)
-            }
-            else if map.type == "BaseEffectThreeChannelNode"
-            {
-                return try decoder.decode(BaseImageNode.self, from: jsonData)
-            }
-            else if map.type == "BaseEffectTwoChannelNode"
-            {
-                return try decoder.decode(BaseImageNode.self, from: jsonData)
-            }
-            else if map.type == "BaseEffectNode"
-            {
-                return try decoder.decode(BaseImageNode.self, from: jsonData)
-            }
-            else if map.type == "BaseGeneratorNode"
-            {
-                return try decoder.decode(BaseImageNode.self, from: jsonData)
-            }
-            else if map.type == "LiveEffectNode"
-            {
-                return try decoder.decode(LiveImageNode.self, from: jsonData)
-            }
-            else
+            guard let nodeClass = Self.nodeClass(forSerializedType: map.type, registry: try NodeRegistry.shared) else
             {
                 print("decodeNode: Failed to find nodeClass for \(map.type)")
+                return nil
             }
+
+            let node = try decoder.decode(nodeClass, from: try JSONEncoder().encode(map.value))
+            _ = node.finalizePortHydration()
+            return node
         }
         catch
         {
             print("decodeNode: Failed to decode node of type \(map.type): \(error)")
-        }
-
-        return nil
-    }
-
-    /// Checks if a string looks like a UUID (36 chars, proper format)
-    private static func isUUIDString(_ string: String) -> Bool
-    {
-        return string.count == 36 && UUID(uuidString: string) != nil
-    }
-
-    /// Recursively collects all UUID-formatted string values from a JSON object
-    private static func collectUUIDs(from object: Any, into uuids: inout Set<String>)
-    {
-        switch object
-        {
-        case let string as String:
-            if isUUIDString(string)
-            {
-                uuids.insert(string)
-            }
-
-        case let array as [Any]:
-            for element in array
-            {
-                collectUUIDs(from: element, into: &uuids)
-            }
-
-        case let dict as [String: Any]:
-            for (_, value) in dict
-            {
-                collectUUIDs(from: value, into: &uuids)
-            }
-
-        default:
-            break
+            return nil
         }
     }
+
 
     private func qualifiedNodeID(for nodeClass: Node.Type) throws -> PluginQualifiedNodeID
     {
@@ -1645,177 +1637,124 @@ internal import AnyCodable
                                      nodeID: String(serializedType[separatorRange.upperBound...]))
     }
 
-    /// Finds all UUID-formatted strings in JSON data by traversing the parsed structure
-    private static func findAllUUIDs(in jsonData: Data) -> Set<String>
+    // MARK: - Copies
+
+    /// Nodes as a copy holds them: their encodings, and the wires and
+    /// publishing among them, by address.
+    private struct NodeCopies: Codable
     {
-        guard let object = try? JSONSerialization.jsonObject(with: jsonData) else { return [] }
-        var uuids = Set<String>()
-        collectUUIDs(from: object, into: &uuids)
-        return uuids
+        let nodeEntries: [AnyCodableMap]
+        let connections: [SavedConnection]
+        let published: [SavedPublishing]
     }
 
-    /// Recursively replaces UUID strings in a JSON object using a remap table
-    private static func remapUUIDs(in object: Any, remap: [String: String]) -> Any
+    private func copies(of nodes: [Node]) throws -> NodeCopies
+    {
+        let nodeIDs = Set(nodes.map(\.id))
+        let entries = try nodes.map { node in
+            AnyCodableMap(type: try self.qualifiedNodeID(for: type(of: node)).description, value: AnyCodable(node))
+        }
+        let connections = self.connections.compactMap { connection -> SavedConnection? in
+            guard let outlet = connection.outletPort.flatMap(self.address(of:)),
+                  let inlet = connection.inletPort.flatMap(self.address(of:)),
+                  nodeIDs.contains(outlet.node), nodeIDs.contains(inlet.node)
+            else { return nil }
+            return SavedConnection(from: outlet, to: inlet, active: connection.active)
+        }
+        let published = self.publishedPortEntries
+            .filter { nodeIDs.contains($0.address.node) }
+            .map { SavedPublishing(port: $0.address, name: $0.name) }
+        return NodeCopies(nodeEntries: entries, connections: connections, published: published)
+    }
+
+    /// Adds `copies` to the graph as new nodes, offset, under fresh node ids:
+    /// node ids are rewritten wherever the copy names them, inner graphs'
+    /// included, and nothing else is. One undo group.
+    private func insert(_ copies: NodeCopies, offset: CGSize, actionName: String) throws -> [Node]
+    {
+        let json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(copies))
+
+        var nodeIDs = Set<String>()
+        Self.collectNodeIDs(in: json, into: &nodeIDs)
+        let remap = Dictionary(uniqueKeysWithValues: nodeIDs.map { ($0, UUID().uuidString) })
+        let rewritten = try JSONDecoder().decode(NodeCopies.self,
+                                                 from: JSONSerialization.data(withJSONObject: Self.remapStrings(in: json, remap: remap)))
+
+        let newNodes = rewritten.nodeEntries.compactMap { self.decodeNode(from: $0) }
+        for node in newNodes { node.offset = node.offset + offset }
+
+        self.undoManager?.beginUndoGrouping()
+        for node in newNodes { self.addNode(node) }
+        for connection in rewritten.connections
+        {
+            guard let outlet = self.port(at: connection.from), let inlet = self.port(at: connection.to) else { continue }
+            if let wire = self.connect(outlet, to: inlet), !connection.active { self.setConnection(wire, active: false) }
+        }
+        for entry in rewritten.published
+        {
+            guard let port = self.port(at: entry.port) else { continue }
+            self.setPublished(true, port: port, name: entry.name)
+        }
+        self.undoManager?.endUndoGrouping()
+        self.undoManager?.setActionName(actionName)
+
+        self.deselectAllNodes()
+        for node in newNodes { nodeViewModels[node.id]?.isSelected = true }
+        self.markConnectionsChanged()
+        return newNodes
+    }
+
+    /// The id of every node in an encoded graph or copy, inner graphs' too.
+    private static func collectNodeIDs(in object: Any, into ids: inout Set<String>)
+    {
+        if let entries = object as? [Any]
+        {
+            for entry in entries { collectNodeIDs(in: entry, into: &ids) }
+        }
+        guard let dictionary = object as? [String: Any] else { return }
+
+        if let value = dictionary["value"] as? [String: Any], dictionary["type"] is String
+        {
+            if let id = value["id"] as? String { ids.insert(id) }
+            if let subGraph = value["subGraph"] { collectNodeIDs(in: subGraph, into: &ids) }
+        }
+        if let entries = dictionary["nodeEntries"] { collectNodeIDs(in: entries, into: &ids) }
+        if let nodeMap = dictionary["nodeMap"] { collectNodeIDs(in: nodeMap, into: &ids) }
+    }
+
+    /// `object` with every string `remap` names replaced.
+    private static func remapStrings(in object: Any, remap: [String: String]) -> Any
     {
         switch object
         {
         case let string as String:
             return remap[string] ?? string
-
         case let array as [Any]:
-            return array.map { remapUUIDs(in: $0, remap: remap) }
-
-        case let dict as [String: Any]:
-            var newDict = [String: Any]()
-            for (key, value) in dict
-            {
-                newDict[key] = remapUUIDs(in: value, remap: remap)
-            }
-            return newDict
-
+            return array.map { remapStrings(in: $0, remap: remap) }
+        case let dictionary as [String: Any]:
+            return dictionary.mapValues { remapStrings(in: $0, remap: remap) }
         default:
             return object
         }
     }
 
-    /// Rewrites UUID strings in JSON data using a remap table
-    private static func rewriteUUIDs(in jsonData: Data, remap: [String: String]) -> Data?
-    {
-        guard let object = try? JSONSerialization.jsonObject(with: jsonData) else { return nil }
-        let remapped = remapUUIDs(in: object, remap: remap)
-        return try? JSONSerialization.data(withJSONObject: remapped)
-    }
-
-    /// Builds a connection map containing only connections where both ports belong to nodes in the given set
-    private func buildInternalConnectionMap(for nodes: [Node]) -> [UUID: [UUID]]
-    {
-        let allPortIDs = Set(nodes.flatMap { $0.ports.map { $0.id } })
-        var connectionMap: [UUID: [UUID]] = [:]
-
-        for node in nodes
-        {
-            for port in node.ports
-            {
-                let internalConnections = port.connectedPorts
-                    .filter { allPortIDs.contains($0.id) }
-                    .map { $0.id }
-
-                if !internalConnections.isEmpty
-                {
-                    connectionMap[port.id] = internalConnections
-                }
-            }
-        }
-
-        return connectionMap
-    }
-
-    /// Duplicates the given nodes, preserving connections between them, and adds them to the graph
+    /// Duplicates the given nodes, preserving the wires and publishing among
+    /// them, and adds them to the graph.
     @discardableResult
     public func duplicateNodes(_ nodesToDuplicate: [Node], offset: CGSize = CGSize(width: 20, height: 20)) -> [Node]
     {
         guard !nodesToDuplicate.isEmpty else { return [] }
 
-        // 1. Capture internal connections before anything changes
-        let internalConnections = self.buildInternalConnectionMap(for: nodesToDuplicate)
-
-        // 2. Encode all nodes and build a unified UUID remap table
-        let encoder = JSONEncoder()
-        var uuidRemap: [String: String] = [:]
-        var encodedEntries: [Data] = []
-
-        for node in nodesToDuplicate
+        do
         {
-            do
-            {
-                let qualifiedNodeID = try self.qualifiedNodeID(for: type(of: node))
-                let map = AnyCodableMap(
-                    type: qualifiedNodeID.description,
-                    value: AnyCodable(node)
-                )
-                let data = try encoder.encode(map)
-                encodedEntries.append(data)
-
-                // Collect all UUIDs from this node's JSON
-                for uuid in Graph.findAllUUIDs(in: data)
-                {
-                    if uuidRemap[uuid] == nil
-                    {
-                        uuidRemap[uuid] = UUID().uuidString
-                    }
-                }
-            }
-            catch
-            {
-                print("duplicateNodes: Failed to encode \(node): \(error)")
-            }
+            return try self.insert(try self.copies(of: nodesToDuplicate), offset: offset, actionName: "Duplicate Nodes")
         }
-
-        // 3. Rewrite UUIDs and decode each node
-        var newNodes: [Node] = []
-
-        for data in encodedEntries
+        catch
         {
-            guard let rewrittenData = Graph.rewriteUUIDs(in: data, remap: uuidRemap) else { continue }
-
-            do
-            {
-                let rewrittenMap = try JSONDecoder().decode(AnyCodableMap.self, from: rewrittenData)
-
-                if let newNode = self.decodeNode(from: rewrittenMap)
-                {
-                    newNode.offset = newNode.offset + offset
-                    newNodes.append(newNode)
-                }
-            }
-            catch
-            {
-                print("duplicateNodes: Failed to decode rewritten node: \(error)")
-            }
+            print("duplicateNodes: Failed: \(error)")
+            return []
         }
-
-        // 4. Add all new nodes (grouped undo)
-        self.undoManager?.beginUndoGrouping()
-
-        for newNode in newNodes
-        {
-            self.addNode(newNode)
-        }
-
-        // 5. Restore internal connections using remapped port IDs
-        for (oldPortID, oldConnectedIDs) in internalConnections
-        {
-            guard let newPortIDString = uuidRemap[oldPortID.uuidString],
-                  let newPortID = UUID(uuidString: newPortIDString),
-                  let newPort = self.nodePort(forID: newPortID)
-            else { continue }
-
-            for oldConnectedID in oldConnectedIDs
-            {
-                guard let newConnectedIDString = uuidRemap[oldConnectedID.uuidString],
-                      let newConnectedID = UUID(uuidString: newConnectedIDString),
-                      let newConnectedPort = self.nodePort(forID: newConnectedID)
-                else { continue }
-
-                if newPort.kind == .Outlet {
-                    self.connect(newPort, to: newConnectedPort)
-                }
-            }
-        }
-
-        self.undoManager?.endUndoGrouping()
-        self.undoManager?.setActionName("Duplicate Nodes")
-
-        // 6. Select only the new nodes
-        self.deselectAllNodes()
-        for newNode in newNodes { nodeViewModels[newNode.id]?.isSelected = true }
-
-        self.markConnectionsChanged()
-
-        return newNodes
     }
-
-   
 }
 
 #if os(macOS)
@@ -1825,50 +1764,15 @@ extension Graph
 
     public static let nodeClipboardType = NSPasteboard.PasteboardType("info.vade.fabric.nodes")
 
-    private struct NodeClipboardData: Codable
-    {
-        let nodeEntries: [AnyCodableMap]
-        let internalConnectionMap: [String: [String]]
-    }
-    
-    /// Copies selected nodes and their internal connections to the system pasteboard
+    /// Copies selected nodes and the wires and publishing among them to the
+    /// system pasteboard.
     public func copyNodesToPasteboard(_ nodes: [Node])
     {
         guard !nodes.isEmpty else { return }
 
-        let internalConnections = buildInternalConnectionMap(for: nodes)
-
-        let nodeEntries: [AnyCodableMap]
-
         do
         {
-            nodeEntries = try nodes.map {
-                let qualifiedNodeID = try self.qualifiedNodeID(for: type(of: $0))
-                return AnyCodableMap(
-                    type: qualifiedNodeID.description,
-                    value: AnyCodable($0)
-                )
-            }
-        }
-        catch
-        {
-            print("copyNodesToPasteboard: Failed to resolve plugin node IDs: \(error)")
-            return
-        }
-
-        // Store connection map with string keys for Codable compatibility
-        let stringConnectionMap: [String: [String]] = internalConnections.reduce(into: [:]) { result, entry in
-            result[entry.key.uuidString] = entry.value.map { $0.uuidString }
-        }
-
-        let clipboardData = NodeClipboardData(
-            nodeEntries: nodeEntries,
-            internalConnectionMap: stringConnectionMap
-        )
-
-        do
-        {
-            let data = try JSONEncoder().encode(clipboardData)
+            let data = try JSONEncoder().encode(try self.copies(of: nodes))
             let pasteboard = NSPasteboard.general
             pasteboard.clearContents()
             pasteboard.setData(data, forType: Graph.nodeClipboardType)
@@ -1881,7 +1785,6 @@ extension Graph
 
     /// Pastes nodes from the system pasteboard into the graph
     @discardableResult
-    
     public func pasteNodesFromPasteboard(offset: CGSize = CGSize(width: 20, height: 20)) -> [Node]
     {
         guard let data = NSPasteboard.general.data(forType: Graph.nodeClipboardType) else
@@ -1891,91 +1794,7 @@ extension Graph
 
         do
         {
-            let clipboardData = try JSONDecoder().decode(NodeClipboardData.self, from: data)
-
-            let encoder = JSONEncoder()
-            var uuidRemap: [String: String] = [:]
-            var encodedEntries: [Data] = []
-
-            // First pass: encode all entries and collect every UUID for remapping
-            for entry in clipboardData.nodeEntries
-            {
-                let entryData = try encoder.encode(entry)
-                encodedEntries.append(entryData)
-
-                for uuid in Graph.findAllUUIDs(in: entryData)
-                {
-                    if uuidRemap[uuid] == nil
-                    {
-                        uuidRemap[uuid] = UUID().uuidString
-                    }
-                }
-            }
-
-            // Also ensure connection map UUIDs are in the remap
-            for (portID, connectedIDs) in clipboardData.internalConnectionMap
-            {
-                if uuidRemap[portID] == nil { uuidRemap[portID] = UUID().uuidString }
-                for cid in connectedIDs
-                {
-                    if uuidRemap[cid] == nil { uuidRemap[cid] = UUID().uuidString }
-                }
-            }
-
-            // Second pass: rewrite UUIDs and decode each node
-            var newNodes: [Node] = []
-
-            for entryData in encodedEntries
-            {
-                guard let rewrittenData = Graph.rewriteUUIDs(in: entryData, remap: uuidRemap) else { continue }
-
-                let rewrittenMap = try JSONDecoder().decode(AnyCodableMap.self, from: rewrittenData)
-
-                if let newNode = self.decodeNode(from: rewrittenMap)
-                {
-                    newNode.offset = newNode.offset + offset
-                    newNodes.append(newNode)
-                }
-            }
-
-            // Add nodes and restore connections
-            self.undoManager?.beginUndoGrouping()
-
-            for newNode in newNodes
-            {
-                self.addNode(newNode)
-            }
-
-            // Restore internal connections using remapped IDs
-            for (oldPortIDString, oldConnectedIDStrings) in clipboardData.internalConnectionMap
-            {
-                guard let newPortIDString = uuidRemap[oldPortIDString],
-                      let newPortID = UUID(uuidString: newPortIDString),
-                      let newPort = self.nodePort(forID: newPortID)
-                else { continue }
-
-                for oldConnectedIDString in oldConnectedIDStrings
-                {
-                    guard let newConnectedIDString = uuidRemap[oldConnectedIDString],
-                          let newConnectedID = UUID(uuidString: newConnectedIDString),
-                          let newConnectedPort = self.nodePort(forID: newConnectedID)
-                    else { continue }
-
-                    if newPort.kind == .Outlet {
-                        self.connect(newPort, to: newConnectedPort)
-                    }
-                }
-            }
-
-            self.undoManager?.endUndoGrouping()
-            self.undoManager?.setActionName("Paste Nodes")
-
-            self.deselectAllNodes()
-            for newNode in newNodes { nodeViewModels[newNode.id]?.isSelected = true }
-
-            self.markConnectionsChanged()
-
-            return newNodes
+            return try self.insert(try JSONDecoder().decode(NodeCopies.self, from: data), offset: offset, actionName: "Paste Nodes")
         }
         catch
         {

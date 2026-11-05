@@ -12,25 +12,30 @@ public final class DictionarySetValueForKeyNode: DictionaryTypeAgnosticNode
     public override class var name: String { "Dictionary Set Value For Key" }
     override public class var nodeDescription: String { "Sets a value for a string key. Choose value type in Settings." }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    private let inputKey = ParameterPort(parameter: StringParameter("Key", "", .inputfield, "Dictionary key to set"))
+
+    override public func bindPorts()
     {
-        super.registerPorts(context: context) + [
-            ("inputKey", ParameterPort(parameter: StringParameter("Key", "", .inputfield, "Dictionary key to set"))),
+        super.bindPorts()
+        self.boundInputDictionary = findPort(named: "inputDictionary")
+        self.boundInputValue = findPort(named: "inputValue")
+        self.boundOutputDictionary = findPort(named: "outputDictionary")
+    }
+
+    public override func declaredPorts() -> [PortDeclaration]
+    {
+        return [
+            PortDeclaration(key: "inputDictionary", portType: dictionaryType, kind: .Inlet, name: "Dictionary", description: "Dictionary to modify"),
+        ] + super.declaredPorts() + [
+            PortDeclaration(key: "inputKey", port: self.inputKey),
+            PortDeclaration(key: "inputValue", portType: valueType, kind: .Inlet, name: "Value", description: "Value to set"),
+            PortDeclaration(key: "outputDictionary", portType: dictionaryType, kind: .Outlet, name: "Dictionary", description: "Modified dictionary"),
         ]
     }
 
-    private var inputKey: ParameterPort<String> { port(named: "inputKey") }
-
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
-    {
-        super.rebuildPorts(forStrategy: strategy)
-
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputDictionary",  displayName: "Dictionary", portType: dictionaryType, kind: .Inlet,  description: "Dictionary to modify")
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputValue",       displayName: "Value",      portType: valueType,      kind: .Inlet,  description: "Value to set")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputDictionary", displayName: "Dictionary", portType: dictionaryType, kind: .Outlet, description: "Modified dictionary")
-
-        reorderPorts(named: ["inputDictionary", "inputKey", "inputValue", "outputDictionary"])
-    }
+    private var boundInputDictionary: Port?
+    private var boundInputValue: Port?
+    private var boundOutputDictionary: Port?
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
@@ -38,9 +43,9 @@ public final class DictionarySetValueForKeyNode: DictionaryTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputDictionary: Port = findPort(named: "inputDictionary"),
-              let inputValue: Port = findPort(named: "inputValue"),
-              let outputDictionary: Port = findPort(named: "outputDictionary"),
+        guard let inputDictionary: Port = self.boundInputDictionary,
+              let inputValue: Port = self.boundInputValue,
+              let outputDictionary: Port = self.boundOutputDictionary,
               inputDictionary.valueDidChange || inputKey.valueDidChange || inputValue.valueDidChange else { return }
 
         var dictionary = inputDictionary.snapshotValue()?.dictionaryValue ?? [:]

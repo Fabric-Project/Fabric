@@ -15,24 +15,30 @@ public final class RepeatNode: NumericTypeAgnosticNode
     override public class var nodeDescription: String { "Repeats one numeric value into an array. Choose the value type in Settings." }
     public override class var supportedPortTypes: [PortType] { singleNumericTypes }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    public let inputCount = ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Number of elements"))
+
+    override public func bindPorts()
     {
-        super.registerPorts(context: context) + [
-            ("inputCount", ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Number of elements")))
+        super.bindPorts()
+        self.boundInputValue = findPort(named: "inputValue")
+        self.boundOutputArray = findPort(named: "outputArray")
+    }
+
+    public override func declaredPorts() -> [PortDeclaration]
+    {
+        let valueType = selectedNumericPortType
+        let arrayType: PortType = valueType == .NumericVirtual ? .NumericVirtual : .Array(portType: valueType)
+
+        return [
+            PortDeclaration(key: "inputValue", portType: valueType, kind: .Inlet, name: "Value", description: "Value to repeat"),
+        ] + super.declaredPorts() + [
+            PortDeclaration(key: "inputCount", port: self.inputCount),
+            PortDeclaration(key: "outputArray", portType: arrayType, kind: .Outlet, name: "Array", description: "Repeated values"),
         ]
     }
 
-    public var inputCount: ParameterPort<Int> { port(named: "inputCount") }
-
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
-    {
-        super.rebuildPorts(forStrategy: strategy)
-        let valueType = selectedNumericPortType
-        let arrayType: PortType = valueType == .NumericVirtual ? .NumericVirtual : .Array(portType: valueType)
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputValue", displayName: "Value", portType: valueType, kind: .Inlet, description: "Value to repeat")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputArray", displayName: "Array", portType: arrayType, kind: .Outlet, description: "Repeated values")
-        reorderPorts(named: ["inputValue", "inputCount", "outputArray"])
-    }
+    private var boundInputValue: Port?
+    private var boundOutputArray: Port?
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
@@ -40,9 +46,8 @@ public final class RepeatNode: NumericTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputValue") { return }
-        guard let inputValue: Port = findPort(named: "inputValue"),
-              let outputArray: Port = findPort(named: "outputArray"),
+        guard let inputValue: Port = self.boundInputValue,
+              let outputArray: Port = self.boundOutputArray,
               inputValue.valueDidChange || inputCount.valueDidChange,
               let value = inputValue.snapshotValue(),
               let count = inputCount.value

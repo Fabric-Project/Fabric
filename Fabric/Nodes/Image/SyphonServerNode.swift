@@ -22,18 +22,16 @@ public class SyphonServerNode : Node
     override public class var nodeDescription: String { "Send an Image stream out to a Syphon Server"}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputServerName", ParameterPort(parameter: StringParameter("Syphon Server", "", .inputfield, "Name of the Syphon server to create"))),
-            ("inputTexture", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Image to publish via Syphon")),
+    public let inputServerName = ParameterPort(parameter: StringParameter("Syphon Server", "", .inputfield, "Name of the Syphon server to create"))
+    public let inputTexture = NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Image to publish via Syphon")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputServerName", port: self.inputServerName),
+            PortDeclaration(key: "inputTexture", port: self.inputTexture),
         ]
     }
-
-    public var inputServerName:ParameterPort<String>  { port(named: "inputServerName") }
-    public var inputTexture:NodePort<FabricImage> { port(named: "inputTexture") }
 
     private var syphonServer: SyphonMetalServer?
     private var needsInitialFrame = false

@@ -16,26 +16,24 @@ public class RingPointsNode : Node
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Generates N points evenly spaced around a ring or arc. Closed distributes points so the first and last don't coincide. Open is endpoint-inclusive: the first and last points sit at the arc's ends (a single point sits at θ=0). The Orientation quaternion rotates a canonical local frame (ring lies in local XY, θ=0 along local +X, normal +Z) into world space. Identity orientation places the ring in the XY plane." }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputCount = ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Number of points to emit"))
+    public let inputRadius = ParameterPort(parameter: FloatParameter("Radius", 1.0, 0.0, 1000.0, .inputfield, "Distance from ring centre"))
+    public let inputArcDegrees = ParameterPort(parameter: FloatParameter("Arc (degrees)", 360.0, 0.0, 360.0, .inputfield, "Angular sweep. 360 gives a full ring."))
+    public let inputClosed = ParameterPort(parameter: BoolParameter("Closed", true, .toggle, "Closed loop (first/last points don't coincide; continuous as Arc animates) vs open arc (endpoint-inclusive, points sit on the arc's ends)"))
+    public let inputOrientation = ParameterPort(parameter: Float4Parameter("Up Orientation", simd_float4(0, 0, 0, 1), .inputfield, "Quaternion rotating the canonical frame (ring in local XY, +X=θ=0, +Z=normal) into world space. Same format as the Look At node's Up Orientation, so one source can drive both."))
+    public let outputPositions = NodePort<ContiguousArray<simd_float3>>(name: "Positions", kind: .Outlet, description: "Array of per-point world-space positions")
 
-        return ports +
-        [
-            ("inputCount", ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Number of points to emit"))),
-            ("inputRadius", ParameterPort(parameter: FloatParameter("Radius", 1.0, 0.0, 1000.0, .inputfield, "Distance from ring centre"))),
-            ("inputArcDegrees", ParameterPort(parameter: FloatParameter("Arc (degrees)", 360.0, 0.0, 360.0, .inputfield, "Angular sweep. 360 gives a full ring."))),
-            ("inputClosed", ParameterPort(parameter: BoolParameter("Closed", true, .toggle, "Closed loop (first/last points don't coincide; continuous as Arc animates) vs open arc (endpoint-inclusive, points sit on the arc's ends)"))),
-            ("inputOrientation", ParameterPort(parameter: Float4Parameter("Up Orientation", simd_float4(0, 0, 0, 1), .inputfield, "Quaternion rotating the canonical frame (ring in local XY, +X=θ=0, +Z=normal) into world space. Same format as the Look At node's Up Orientation, so one source can drive both."))),
-            ("outputPositions", NodePort<ContiguousArray<simd_float3>>(name: "Positions", kind: .Outlet, description: "Array of per-point world-space positions")),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputCount", port: self.inputCount),
+            PortDeclaration(key: "inputRadius", port: self.inputRadius),
+            PortDeclaration(key: "inputArcDegrees", port: self.inputArcDegrees),
+            PortDeclaration(key: "inputClosed", port: self.inputClosed),
+            PortDeclaration(key: "inputOrientation", port: self.inputOrientation),
+            PortDeclaration(key: "outputPositions", port: self.outputPositions),
         ]
     }
-
-    public var inputCount: ParameterPort<Int> { port(named: "inputCount") }
-    public var inputRadius: ParameterPort<Float> { port(named: "inputRadius") }
-    public var inputArcDegrees: ParameterPort<Float> { port(named: "inputArcDegrees") }
-    public var inputClosed: ParameterPort<Bool> { port(named: "inputClosed") }
-    public var inputOrientation: ParameterPort<simd_float4> { port(named: "inputOrientation") }
-    public var outputPositions: NodePort<ContiguousArray<simd_float3>> { port(named: "outputPositions") }
 
     public override func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,

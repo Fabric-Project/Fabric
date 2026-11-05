@@ -7,7 +7,7 @@ import Foundation
 
 public final class NumericVirtualPort: NodePort<PortValue>
 {
-    @ObservationIgnored override public var portType: PortType { .NumericVirtual }
+    override public var portType: PortType { .NumericVirtual }
 
     override internal func sendBoxed(_ boxed: PortValue?)
     {

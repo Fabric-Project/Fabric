@@ -33,7 +33,7 @@ private let MovieProviderNodeInitializer: Void = {
 
 }()
 
-public class MovieProviderNode : Node, NodeFileLoadingProtocol
+public class MovieProviderNode : Node, NodeTakingFile
 {
     fileprivate static let log = Logger(subsystem: "graphics.fabric", category: "MovieProviderNode")
 
@@ -48,9 +48,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
             .filter { $0.conforms(to: .movie) || $0.conforms(to: .video) }
     }
 
-    public func setFileURL(_ url: URL) {
-        self.inputFilePathParam.value = url.fileReference(relativeTo: self.graph?.fileReferenceBaseURL)
-    }
+    public var fileInlet: ParameterPort<String> { self.inputFilePathParam }
 
     override public class var name:String { "Movie Provider" }
     override public class var nodeType:Node.NodeType { Node.NodeType.Image(imageType: .Loader) }
@@ -71,34 +69,32 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     public let seekTolerance: TimeInterval
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputFilePathParam = ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the movie file to play"))
+    public let inputPlayingParam = ParameterPort(parameter: BoolParameter("Playing", true, .toggle, "Play / pause the video"))
+    public let inputRateParam = ParameterPort(parameter: FloatParameter("Rate", 1.0, 0.0, 1.0, .slider, "Playback rate where 0 is paused and 1 is normal speed"))
+    public let inputSeekTimeParam = ParameterPort(parameter: FloatParameter("Seek Time", -1.0, .inputfield, "Write a value to seek the player to that time (seconds). Setting to a different value seeks; setting to the same value is a no-op. Negative values are ignored on first load."))
+    public let inputVolumeParam = ParameterPort(parameter: FloatParameter("Volume", 0.0, 0.0, 1.0, .slider, "Audio playback volume where 0 is silent and 1 is full volume"))
+    public let outputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Current video frame")
+    public let outputCurrentTimePort = NodePort<Float>(name: "Current Time", kind: .Outlet, description: "Current movie playback time in seconds")
+    public let outputDurationPort = NodePort<Float>(name: "Duration", kind: .Outlet, description: "Movie duration in seconds")
+    public let outputNormalizedTimePort = NodePort<Float>(name: "Normalized Time", kind: .Outlet, description: "Current playback position normalized from 0 to 1")
+    public let outputDidPlayToEndPort = NodePort<Bool>(name: "Did Play To End", kind: .Outlet, description: "True for one execution pass when playback reaches the end")
 
-        return ports +
-        [
-            ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the movie file to play"))),
-            ("inputPlayingParam", ParameterPort(parameter: BoolParameter("Playing", true, .toggle, "Play / pause the video"))),
-            ("inputRateParam", ParameterPort(parameter: FloatParameter("Rate", 1.0, 0.0, 1.0, .slider, "Playback rate where 0 is paused and 1 is normal speed"))),
-            ("inputSeekTimeParam", ParameterPort(parameter: FloatParameter("Seek Time", -1.0, .inputfield, "Write a value to seek the player to that time (seconds). Setting to a different value seeks; setting to the same value is a no-op. Negative values are ignored on first load."))),
-            ("inputVolumeParam", ParameterPort(parameter: FloatParameter("Volume", 0.0, 0.0, 1.0, .slider, "Audio playback volume where 0 is silent and 1 is full volume"))),
-            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Current video frame")),
-            ("outputCurrentTimePort", NodePort<Float>(name: "Current Time", kind: .Outlet, description: "Current movie playback time in seconds")),
-            ("outputDurationPort", NodePort<Float>(name: "Duration", kind: .Outlet, description: "Movie duration in seconds")),
-            ("outputNormalizedTimePort", NodePort<Float>(name: "Normalized Time", kind: .Outlet, description: "Current playback position normalized from 0 to 1")),
-            ("outputDidPlayToEndPort", NodePort<Bool>(name: "Did Play To End", kind: .Outlet, description: "True for one execution pass when playback reaches the end")),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputFilePathParam", port: self.inputFilePathParam),
+            PortDeclaration(key: "inputPlayingParam", port: self.inputPlayingParam),
+            PortDeclaration(key: "inputRateParam", port: self.inputRateParam),
+            PortDeclaration(key: "inputSeekTimeParam", port: self.inputSeekTimeParam),
+            PortDeclaration(key: "inputVolumeParam", port: self.inputVolumeParam),
+            PortDeclaration(key: "outputTexturePort", port: self.outputTexturePort),
+            PortDeclaration(key: "outputCurrentTimePort", port: self.outputCurrentTimePort),
+            PortDeclaration(key: "outputDurationPort", port: self.outputDurationPort),
+            PortDeclaration(key: "outputNormalizedTimePort", port: self.outputNormalizedTimePort),
+            PortDeclaration(key: "outputDidPlayToEndPort", port: self.outputDidPlayToEndPort),
         ]
     }
-
-    public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
-    public var inputPlayingParam:ParameterPort<Bool>     { port(named: "inputPlayingParam") }
-    public var inputRateParam:ParameterPort<Float>       { port(named: "inputRateParam") }
-    public var inputSeekTimeParam:ParameterPort<Float>   { port(named: "inputSeekTimeParam") }
-    public var inputVolumeParam:ParameterPort<Float>     { port(named: "inputVolumeParam") }
-    public var outputTexturePort:NodePort<FabricImage>   { port(named: "outputTexturePort") }
-    public var outputCurrentTimePort:NodePort<Float>     { port(named: "outputCurrentTimePort") }
-    public var outputDurationPort:NodePort<Float>        { port(named: "outputDurationPort") }
-    public var outputNormalizedTimePort:NodePort<Float>  { port(named: "outputNormalizedTimePort") }
-    public var outputDidPlayToEndPort:NodePort<Bool>     { port(named: "outputDidPlayToEndPort") }
 
     private var url: URL? = nil
     private var asset:AVURLAsset? = nil
@@ -364,7 +360,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
 
         super.init(context: context)
 
-        self.setFileURL(fileURL)
+        self.takeFile(fileURL)
     }
 
 

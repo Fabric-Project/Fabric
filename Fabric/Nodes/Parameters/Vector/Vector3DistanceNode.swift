@@ -46,24 +46,23 @@ public class Vector3Distance : Node
     override public class var nodeDescription: String { "Computes a distance metric between two Vector 3s"}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputMetricParam",   ParameterPort(parameter:StringParameter("Distance Metric", Vector3Distance.Eucledian.rawValue, Vector3Distance.allCases.map({ $0.rawValue }), .dropdown, "Distance calculation method"))),
-            ("inputVectorAParam",   ParameterPort(parameter:Float3Parameter("Vector 3", .zero, .inputfield, "First vector for distance calculation"))),
-            ("inputVectorBParam",   ParameterPort(parameter:Float3Parameter("Vector 3", .zero, .inputfield, "Second vector for distance calculation"))),
-            ("outputDistancePort",   NodePort<Float>(name: "Distance" , kind: .Outlet, description: "Calculated distance between the two vectors") ),
+    public let inputMetricParam = ParameterPort(parameter:StringParameter("Distance Metric", Vector3Distance.Eucledian.rawValue, Vector3Distance.allCases.map({ $0.rawValue }), .dropdown, "Distance calculation method"))
+    public let inputVectorAParam = ParameterPort(parameter:Float3Parameter("Vector 3", .zero, .inputfield, "First vector for distance calculation"))
+    public let inputVectorBParam = ParameterPort(parameter:Float3Parameter("Vector 3", .zero, .inputfield, "Second vector for distance calculation"))
+    public let outputDistancePort = NodePort<Float>(name: "Distance" , kind: .Outlet, description: "Calculated distance between the two vectors")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputMetricParam", port: self.inputMetricParam),
+            PortDeclaration(key: "inputVectorAParam", port: self.inputVectorAParam),
+            PortDeclaration(key: "inputVectorBParam", port: self.inputVectorBParam),
+            PortDeclaration(key: "outputDistancePort", port: self.outputDistancePort),
         ]
     }
 
     // Port Proxies
-    public var inputMetricParam:ParameterPort<String> { port(named: "inputMetricParam") }
-    public var inputVectorAParam:ParameterPort<simd_float3> { port(named: "inputVectorAParam") }
-    public var inputVectorBParam:ParameterPort<simd_float3> { port(named: "inputVectorBParam") }
-    public var outputDistancePort:NodePort<Float> { port(named: "outputDistancePort") }
-    
+
     private var metric = Vector3Distance.Eucledian
     
     override public func execute(renderer:GraphRenderer,

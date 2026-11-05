@@ -693,7 +693,7 @@ public class HIDNode: Node
         updateMonitoring()
         updateDeviceStatus()
 
-        performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
+        settingsDidChange()
     }
 
     // MARK: - Device Status
@@ -711,7 +711,7 @@ public class HIDNode: Node
                 Self.log.error("\(deviceStatus.message, privacy: .public)")
             }
             performOnMainSync { _settingsModelStorage?.deviceStatus = deviceStatus }
-            self.subtitleSubject.send()
+            self.namingDidChange()
         }
     }
 
@@ -805,6 +805,12 @@ public class HIDNode: Node
     }
 
     private var _settingsModelStorage: SettingsModel? = nil
+
+    override public func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _settingsModelStorage?.refreshFromNode()
+    }
 
     // MARK: - Lifecycle
 
@@ -956,27 +962,19 @@ public class HIDNode: Node
     {
         let currentValues = latestValues.withLock { $0 }
 
-        for element in deviceElements
+        for (element, outlet) in boundOutlets
         {
-            guard let portName = portNameForElement(element),
-                  let value = currentValues[element.id] else { continue }
+            guard let value = currentValues[element.id] else { continue }
 
-            if element.isButton
+            switch outlet
             {
-                if let port = self.findPort(named: portName) as? NodePort<Bool>
-                {
-                    port.send(value != 0)
-                }
-            }
-            else
-            {
-                if let port = self.findPort(named: portName) as? NodePort<Float>
-                {
-                    // Normalize axis values to 0.0 - 1.0
-                    let range = element.max - element.min
-                    let normalized = range > 0 ? Float(value - element.min) / Float(range) : 0.0
-                    port.send(normalized)
-                }
+            case .button(let port):
+                port.send(value != 0)
+            case .axis(let port):
+                // Normalize axis values to 0.0 - 1.0
+                let range = element.max - element.min
+                let normalized = range > 0 ? Float(value - element.min) / Float(range) : 0.0
+                port.send(normalized)
             }
         }
     }
@@ -985,6 +983,28 @@ public class HIDNode: Node
 
     // Cache for current port names mapping
     @ObservationIgnored private var currentPortNames: [String: String] = [:]
+
+    /// Each element's outlet, in element order.
+    @ObservationIgnored private var boundOutlets: [(element: HIDElementInfo, outlet: DeviceOutlet)] = []
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundOutlets = deviceElements.compactMap { element in
+            guard let portName = portNameForElement(element) else { return nil }
+            return deviceOutlet(for: DeviceOutputPortDescriptor(name: portName, isButton: element.isButton)).map { (element, $0) }
+        }
+    }
+
+    /// The outlets the device's elements ask for, which the ports follow.
+    @ObservationIgnored private var outputPortDescriptors: [DeviceOutputPortDescriptor] = []
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + Self.deviceOutputPortDeclarations(for: outputPortDescriptors,
+                                                                  buttonDescription: "HID button state (true when pressed)",
+                                                                  axisDescription: "HID axis value normalized from 0 to 1")
+    }
 
     private func rebuildPorts()
     {
@@ -996,9 +1016,9 @@ public class HIDNode: Node
             return DeviceOutputPortDescriptor(name: portName, isButton: element.isButton)
         }
 
-        let created = synchronizeDeviceOutputPorts(to: descriptors,
-                                                   buttonDescription: "HID button state (true when pressed)",
-                                                   axisDescription: "HID axis value normalized from 0 to 1")
+        let created = deviceOutputDescriptorsNeedingPorts(descriptors)
+        outputPortDescriptors = descriptors
+        reconcilePorts()
 
         for descriptor in created
         {

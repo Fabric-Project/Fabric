@@ -10,7 +10,7 @@ import Metal
 import simd
 import UniformTypeIdentifiers
 
-public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
+public class BaseTextureComputeProcessorNode: Node, NodeMadeFromFile
 {
     public static var supportedContentTypes: [UTType] { [] }
     
@@ -30,18 +30,9 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
     private var pipelineURL: URL?
     
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to process")),
-            ("outputImage", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Processed output image")),
-        ]
-    }
+    public let inputImage = NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to process")
+    public let outputImage = NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Processed output image")
 
-    public var inputImage:NodePort<FabricImage>  { port(named: "inputImage") }
-    public var outputImage:NodePort<FabricImage> { port(named: "outputImage") }
     private var url:URL? = nil
 
     private enum CodingKeys: String, CodingKey
@@ -114,13 +105,18 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
         
         self.compute = TextureComputeProcessor(device: context.device,
                                       pipelineURL: url)
-//        
-        for param in self.compute.parameters.params {
+        self.reconcilePorts()
+    }
 
-            if let port = PortType.port(for: param)
-            {
-                self.addDynamicPort(port)
-            }
+    /// The image ports, then a port for each of the compute shader's
+    /// parameters, once the shader has been read.
+    override public func declaredPorts() -> [PortDeclaration] {
+        let parameters = self.compute?.parameters.params ?? []
+        return super.declaredPorts() + [
+            PortDeclaration(key: "inputImage", port: self.inputImage),
+            PortDeclaration(key: "outputImage", port: self.outputImage),
+        ] + parameters.compactMap { parameter in
+            PortType.port(for: parameter).map { PortDeclaration(key: $0.name, port: $0) }
         }
     }
 

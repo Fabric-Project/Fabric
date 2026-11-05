@@ -90,7 +90,7 @@ For all development:
   - `var title` — the normalized result of `deriveTitle()`, falling back to `Self.name` when empty.
   - `var subtitle` — `userName ?? deriveSubtitle()`, normalized so empty values and values equal to `title` read as nil. General consumers read this rather than `userName`.
   - `var debugDescription` — the title plus resolved subtitle, e.g. `Math Expression (My Rename)`. `print(node)` and `"\(node)"` give it; diagnostic labels and traces use it when they need both values.
-- Fire `subtitleSubject.send()` whenever state feeding `deriveTitle()`, `deriveSubtitle()` or `deriveStatuses()` changes; `NodeViewModel` mirrors the node's `title` / `subtitle` / `status` observably and keeps `userName` only for rename editing, clearing, and undo.
+- Call `namingDidChange()` whenever state feeding `deriveTitle()`, `deriveSubtitle()` or `deriveStatuses()` changes, from any thread; `NodeViewModel` mirrors the node's `title` / `subtitle` / `status` observably and keeps `userName` only for rename editing, clearing, and undo.
 - Execution is **pull-based**; one execute per node per pass.
 - `GraphRenderer` (executor and scheduler) today does not use `nodeExecutionMode` or `nodeTimeMode` but will in the future.
 - **Iterator (QC-style)** remains the multi-evaluation macro; refinements allowed, paradigm fixed.
@@ -103,10 +103,11 @@ For all development:
   - Any Node whose execution logic would change the  type, or number of ports should have only have that logic fire via changing a Setting, NOT at runtime
   - Settings should have a custom Init override, and be exposed as a enum or struct that can be set via the procedural Node / Graph API. This avoids UI only configuration.
   - The settings are one `NodeSettings` value: what the settings view edits and the ports do not hold. Two node types share a value type only where each can take the other's value. A node gives it through `settings`, takes it through `apply(_:)`, and offers `init(context:settings:)`. A `StrategyNode` subclass's value conforms to `StrategySettings`.
-  - Override `apply(_:)`; never call it. `setSettings(_:)` is the final entry for views, the procedural API and undo. A public setter is a wrapper over it that changes part of a value of several fields, as `setStrategy` and `setRouteCount` are. The value's initialiser takes no default arguments, so a caller cannot reset a field by leaving it out. In `apply`, cast the existential to your own type and return on any other, bring the ports in line so a port whose registry key survives keeps its identity, then call super.
-  - The value saves flattened into the node's container, so its coding keys must not be `Node.CodingKeys`. Decode it in `init(from:)`, before `super.init` where the ports depend on it. What the view does not edit, such as a device's reconnect record, stays out of the value.
-  - A setting's side effects live in the stored property's observer, or in `apply` where several settings share them, so they run once: the port rebuild, `subtitleSubject`, and the settings model's `refreshFromNode()` through `performOnMainAsync`. Settings models are `@MainActor`.
-  - `apply` runs on the thread that edits the graph, which a host can keep off main, and on the render thread as a `NumericTypeAgnosticNode` specialises from `execute`. A node whose settings reach main-thread state is applied from main only.
+  - Override `apply(_:)`; never call it. `setSettings(_:)` is the final entry for views, the procedural API and undo. A public setter is a wrapper over it that changes part of a value of several fields, as `setStrategy`, `setRouteCount` and `setFileURL` are. The value's initialiser takes no default arguments, so a caller cannot reset a field by leaving it out. In `apply`, cast the existential to your own type and return on any other, change what `declaredPorts()` reads, call `reconcilePorts()`, then call super; state that follows the new ports (a held value, a range) resets after super.
+  - A settings change's undo step registers in `recordSettingsChange(from:)`, which `setSettings` calls after `apply`, never in `apply`, which undo itself goes through. Only `StrategyNode` registers one today, the strategy alone; the reconcile under it registers nothing, so the wires a removed port loses do not come back on undo.
+  - The value saves flattened into the node's container, beside `ports` and `lastCompiledSource`, so its coding keys must not be `Node.CodingKeys`. Node's initialiser declares the ports, so set what `declaredPorts()` reads before `super.init`, in `init(context:settings:)` and `init(from:)` alike; a node that can read its source only afterwards reconciles again while decoding, and its saved values still land by key. What the view does not edit, such as a device's reconnect record, stays out of the value.
+  - A setting's side effects live in the stored property's observer, or in `apply` where several settings share them, so they run once: the reconcile, `namingDidChange()`, and `settingsDidChange()`, which refreshes an open settings model. Settings models are `@MainActor`.
+  - `apply` runs on the thread that edits the graph, inside an edit, which a host can keep off main (see §2.2). A node whose settings reach main-thread state is applied from main only.
   - `NodeSettingsTests` checks every registered node with settings at its default value. A new node also needs a case with non-default values in `nonDefaultSettingsSaveAndOpen`, as a misnamed key falls back to the default and passes unseen otherwise.
 
 - Important Node subclasses
@@ -114,10 +115,13 @@ For all development:
     
 
 ### 2.2  Ports & Registration
-- **Registry = source of truth.**  
-- Subclasses implement `class func registerPorts(context:)`, call `super`, preserve order.
-- **Dynamic ports are supported through the Registry.** See TypeAgnosticNode
-- UI and serialization order derive from registration.
+- **Declarations are the source of truth.** A node's interface is `declaredPorts() -> [PortDeclaration]`, a function of its settings and what it reads at runtime (a shader, a script, a device), never of the document. A port the node always has is a stored property (`public let x = ParameterPort(…)`, made at property initialisation, before `Node.init`) declared as `PortDeclaration(key: "x", port: x)`; overrides call `super` and preserve order.
+- A declaration names a `PortKey` (the node's own `.own(String)`; a subgraph proxy's `.proxy(node:inner:)`), its kind, type, name, description, and a `control` for a parameter inlet. The key is the port's identity across saves and settings changes: give a dynamic port a key that names it stably.
+- **Ports change only through `reconcilePorts()`.** It brings the registry to the declarations: a port kept under its key and type keeps its wires and value; a retyped one is replaced under the same runtime id and keeps the wires that fit; an undeclared one is retired, wires and publishing removed as graph edits. There is no imperative add, remove, replace or reorder. Call it when settings or a runtime read change the interface, never from `execute`.
+- `prepareDeclarations()` runs before every reconcile: resolve there, once, what execute would otherwise cast or parse per frame, such as the strategy's concrete type. `bindPorts()` runs after. A node whose ports are all stored properties does not override it; a node with dynamic ports (a strategy, a source, a device, records) assigns its references to them there, the one place a node looks its ports up by key.
+- **No port lookup by name, key or cast in `execute`** (#449). Execute reads stored ports through their properties and dynamic ones through references bound in `bindPorts()`; nodes with data-driven ports hold arrays aligned with their records. The same holds for `respondToPull`.
+- UI and serialization order derive from the declarations' order.
+- **Structure changes only on the editing thread, inside an edit.** Nodes, wires, publishing, settings and a node's ports change through edits made on the thread that edits the graph. Execute reads and writes port values, nothing else. A node that learns during execute that its interface should change records that, and the change is applied as an edit; a node whose interface follows its wires changes it in `inletDidConnect(_:from:)`, which the graph calls inside the connect: a Numeric type-agnostic node specialises there through `setStrategy`, a settings change whose undo step joins the connect's. What a node tells its views, `namingDidChange()` and `settingsDidChange()`, can start on any thread: on main the view model or settings model refreshes in place, from elsewhere it hops to main once. It changes what a view shows, not structure.
 - `NodeRegistry` should support this as it’s the single source of truth for nodes.
 - **Typed ports only** (for now).  
   Any “virtual” or generic ports must remain type-safe and backward-compatible.
@@ -125,13 +129,15 @@ For all development:
 ### 2.3  Parameters & ParameterPort
 - Input Ports should be backed by Parameters as a Parameter Port if the type is a Parameter
      - ie avoid raw Ports unless type demands it. 
-- Always seed `value` from the backing parameter on init/decode (hydration).
-- Maintain bi-directional sync: parameter ↔ port.
-- Parameter changes mark dirty only; heavy work deferred to `execute`.
+- **The port's value is canonical; the parameter mirrors it, one way.** A value change writes the parameter through its setter; nothing reads the parameter to learn the value, and writing a parameter does not reach its port. The parameter gives a control its range, options and label, and for a material-backed port it is the uniform the material uploads.
+- A port starts at its parameter's value, the declaration's default; a document restores its saved value by key.
+- Controls write a port through `Graph.setControlValue(_:on:)` and follow it through `Port.addValueObserver(_:)`, hopping to main once per turn. Nodes observe no parameters.
+- Value changes mark dirty only; heavy work deferred to `execute`.
 - Published parameter surface mirrors published ports; inlets auto-unpublish on connect.
 
 ### 2.4  Graph, Subgraphs & Rendering
-- Graph owns nodes, connections (by port UUID), and published params.
+- Graph owns nodes, connections and publishing, each naming ports by `PortAddress` (node id and port key). Publishing is a graph relation from address to name; ports do not know whether they are published.
+- A subgraph node's proxies are declarations from what its sub graph publishes, in publishing order; a publishing change inside reconciles the subgraph node.
 - **Subgraphs** inherit `BaseObjectNode`, expose an Satin object.
 - `GraphRenderer` handles traversal, caching, single-execute per frame, resize propagation. 
 - `GraphRenderer` handles discovery of cameras (only one supported now), and if none are found, leverages its own cached camera.
@@ -155,7 +161,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 
 - Default to `PortType.Virtual`, which accepts any connection and requires no configuration.
 - Virtual appears first in the type picker, separated from concrete types.
-- Switching type rebuilds the dynamic ports; port order must be explicit and stable.
+- Switching type reconciles the dynamic ports to the declarations for it; their order is the declarations'.
 - When a concrete type is active, the node's display name reflects it (e.g. `"Sample and Hold Float"`).
 - `snapshotValue()` / `sendBoxed()` are the runtime-polymorphic read/write API for ports whose type is only known at runtime.
 
@@ -172,11 +178,12 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 - Avoid allocations; reuse materials, geometry, textures.
 
 ### 3.2  Ports & Publishing
-- Initialize `ParameterPorts` on init/decode and subscribe once.
+- Publish through `Graph.setPublished(_:port:name:)` and `setPublishedName(_:port:)`; read with `isPublished(_:)` and `publishedName(of:)`.
 
 ### 3.3  Serialization
-- Serialize via registry snapshots; connections by UUID; reconstruct types through `PortType`.
-- Keep decode shims until an official migration step.
+- A node saves its settings, flattened under its own keys, and its parameter inlets' values, by key (`"ports": {key: PortValue}`); its interface comes from its declarations for those settings on open. Graphs save wires and publishing by address. Port and connection ids are runtime-only.
+- A node whose ports come from compiling a source (JavaScript, Live Image, a user's shader file, Math Expression, Parametric Geometry) sets `lastCompiledSource` on each compile that succeeds; `Node` saves it when it differs from `compilableSource`. When the source does not compile on open (or a shader file has not resolved), the node declares its ports from the last compiled source, read for its interface only and never run. The document carries no port structure.
+- Older documents are read through `GraphFormatMigration`, once at open; keep decode shims until an official migration step.
 
 ### 3.4  Subgraph Behavior
 - Iterator applies per-iteration params before subgraph execute.
@@ -187,38 +194,39 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 ## 4. Common Pitfalls & Preventions
 | Issue | Root Cause | Prevention |
 |-------|-------------|------------|
-| Nothing renders until tweak | Ports not seeded from params | Always set `self.value = param.value` on init/decode |
+| Nothing renders until tweak | Port not given its declared default | Declare the default on the parameter; the port starts at it |
 | Iterator/Processor slow | Excess publisher churn | Dirty-flag only; do heavy work in execute |
 | Topology recomputed each frame | No caching | Recompute only on connect/disconnect |
 | Type-erasure confusion | Mixing `any` with Equatable generics | Stay typed; use Utility/Log node for debug |
-| Serialization drift | Ad-hoc encoders | Always through registry + `PortType` |
-| Stale node title on canvas/inspector | `subtitle` input changed without notifying | Fire `subtitleSubject.send()` in the `didSet` of any state `subtitle` derives from |
+| Serialization drift | Ad-hoc encoders | Ports save only their values, by key; the interface comes from declarations |
+| Stale node title on canvas/inspector | `subtitle` input changed without notifying | Call `namingDidChange()` in the `didSet` of any state `subtitle` derives from |
+| Port lookup in `execute` | Finding ports by name or cast per frame | Hold the port in a stored property; bind dynamic ones in `bindPorts()` |
 
 ---
 
 ## 5. Developer & Plugin Ergonomics
 - Registration API must be readable and deterministic.
-- Provide var-proxy helpers (`port<Value>("Color")`, `portOrDefault("Scale",1.0)`).
+- Typed port access is the stored property itself; a node needs no lookup helpers for the ports it always has.
 - Extend `PortType` centrally for new types.
-- Lifecycle: `init → registerPorts → attachParams → decode → subscribe → execute → send`.
+- Lifecycle: `init (settings set) → declaredPorts → reconcilePorts → bindPorts → (decode: values by key) → execute → send`; a settings change is `setSettings → apply → reconcilePorts → recordSettingsChange`.
 
 ---
 
 ## 6. Code Review Checklist
 - [ ] Node has semantically correct type, execution mode, and time mode. 
 - [ ] Node metadata present and stable  
-- [ ] `registerPorts(context:)` calls `super`, order intentional  
+- [ ] Fixed ports are stored properties; `declaredPorts()` calls `super`, order intentional, keys stable  
+- [ ] Execute reads ports through stored properties or references bound in `bindPorts()`, never by name, key or cast
 - [ ] Lifecycle overrides call `super` after their own work; editing code never calls them
-- [ ] ParameterPorts seed and subscribe once  
 - [ ] `execute` idempotent per frame, no allocations  
 - [ ] Outputs use `send(force:true)` appropriately  
 - [ ] No recursive topology recompute
 - [ ] Subgraph nodes discover cameras and apply state before execute
-- [ ] Serialization via registry + UUID
-- [ ] If Node dynamically changes port count or type, we should only trigger via Setting in Settings View, not within the graph
+- [ ] Serialization by port key and address, no port ids
+- [ ] If Node dynamically changes port count or type, it does so from a setting: `apply(_:)` changes what `declaredPorts()` reads and reconciles, never `execute`
 - [ ] If we have a Settings View, we should have a custom initializer so procedural graph creation has an entry to settings.
 - [ ] A node with settings exposes them as one `NodeSettings` value through `settings` and `apply(_:)`, and offers `init(context:settings:)` (`NodeSettingsTests` checks that every core node applies and gives back its own value with its ports, and saves and opens it unchanged)
-- [ ] If the Node overrides `deriveSubtitle()`, every mutation of the state it derives from fires `subtitleSubject.send()` (StrategyNode’s `strategy` already does)
+- [ ] If the Node overrides `deriveSubtitle()`, every mutation of the state it derives from calls `namingDidChange()` (StrategyNode’s `strategy` already does)
 - [ ] New Nodes should live in an appropriate spot in the NodeRegistry
 
 ---

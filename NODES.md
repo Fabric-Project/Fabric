@@ -551,6 +551,25 @@ Array nodes are type-agnostic and can work with any compatible Fabric port type 
  
 
 
+### Declaring ports
+
+A node holds each port it always has in a stored property and declares that object in `declaredPorts()`, under the key documents save it by:
+
+```swift
+public let inputAmount = ParameterPort(parameter: FloatParameter("Amount", 0.5, 0, 1, .slider, "How much"))
+public let outputImage = NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Result")
+
+override public func declaredPorts() -> [PortDeclaration]
+{
+    super.declaredPorts() + [
+        PortDeclaration(key: "inputAmount", port: inputAmount),
+        PortDeclaration(key: "outputImage", port: outputImage),
+    ]
+}
+```
+
+`execute` reads the properties. Ports whose type or number follows a setting, a source, a device or records are declared in the same function, made from the state they follow, and the node assigns its references to them in `bindPorts()`, which runs after every reconcile. A setting changes them in the node's `apply(_:)`, which updates what `declaredPorts()` reads and calls `reconcilePorts()`. A shader-backed image node adds its stored ports in `fixedPortDeclarations()` instead, so the base can order them among the shader's.
+
 ### Frame command buffers and image ownership
 
 The display renderer and `GraphRenderer.makeCommandBuffer()` provide an MPS-compatible command buffer. Offscreen hosts should use that factory when nodes may continue a frame across command-buffer segments. Caller-created MPS wrappers are rejected at graph entry because their internal continuations cannot participate in Fabric's image-lifetime tracking. Ordinary Metal command buffers remain usable for graph execution that does not require MPS continuation/readback.
@@ -569,7 +588,7 @@ Contour Path uses the scoped `commandBuffer.addCompletion` mechanism below for n
 
 Contour Path allocates independently owned counter/segment buffers for each request, caps capacity by the image's possible segment count and the device's buffer limit, and keeps unchanged completed output without re-running GPU analysis. This migration covers Fabric's direct GPU-buffer-to-CPU analyzer. Sight's matching feature branch adopts the shared handoff for MPS numerical inference and calibration; Fabric's Vision-based Face/Hand analysis remains a separate migration.
 
-Plugin processors can override the read-only `Node.isDirty` getter to include pending result delivery, combining it with `super.isDirty`. `markDirty()` and `markClean()` continue to own Fabric's input dirty flag. `Node.reorderPorts(_:)` and `Graph.withoutUndoRegistration(_:)` are public so plugin settings can preserve port identities/order and register one coherent undo operation for a topology change.
+Plugin processors can override the read-only `Node.isDirty` getter to include pending result delivery, combining it with `super.isDirty`. `markDirty()` and `markClean()` continue to own Fabric's input dirty flag. `Graph.withoutUndoRegistration(_:)` is public so plugin settings can register one coherent undo operation for a topology change. A plugin node changes its ports by declaring them (`declaredPorts()`) and calling `reconcilePorts()`; order and identity follow from the declarations' order and keys.
 
 ### Deferred GPU results, including Iterators
 

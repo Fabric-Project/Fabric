@@ -15,8 +15,8 @@ struct ProxyPortValueSyncTests
         let inner = ParameterPort(parameter: parameter)
         let proxy = ProxyPort(wrapping: inner)
 
-        parameter.value = 4
-        #expect(inner.value == 4)
+        inner.value = 4
+        #expect(parameter.value == 4)
         #expect(proxy.value == 4)
 
         inner.value = 6

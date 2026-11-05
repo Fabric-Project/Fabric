@@ -18,19 +18,17 @@ public class ComposeTransformNode: StrategyNode
 
     public override class var strategyOptions: [any NodeStrategyOption] { TransformCompositionMode.allCases }
 
-    private static let allDynamicNames: Set<String> = [
-        "inputPosition", "inputOrientation", "inputScale",
-        "inputColumn0", "inputColumn1", "inputColumn2", "inputColumn3",
-        "outputTransform",
-    ]
-
-    /// `strategy`, typed once per rebuild, so execute never compares strategy strings.
+    /// `strategy`, typed before each reconcile, so execute switches on it without a cast.
     private var typedStrategy: TransformCompositionMode?
 
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    override public func prepareDeclarations()
     {
-        typedStrategy = strategy as? TransformCompositionMode
+        super.prepareDeclarations()
+        typedStrategy = strategyOption(as: TransformCompositionMode.self)
+    }
 
+    override public func declaredPorts() -> [PortDeclaration]
+    {
         let wanted: [(name: String, port: Port)]
         switch typedStrategy
         {
@@ -57,15 +55,29 @@ public class ComposeTransformNode: StrategyNode
             wanted = []
         }
 
-        let wantedNames = Set(wanted.map(\.name))
-        for name in Self.allDynamicNames.subtracting(wantedNames)
-        {
-            if let p = findPort(named: name) { removePort(p) }
-        }
-        for (name, p) in wanted where findPort(named: name) == nil
-        {
-            addDynamicPort(p, name: name)
-        }
+        return super.declaredPorts() + wanted.map { PortDeclaration(key: $0.name, port: $0.port) }
+    }
+
+    private var boundOutputTransform: NodePort<simd_float4x4>?
+    private var boundInputPosition: ParameterPort<simd_float3>?
+    private var boundInputOrientation: ParameterPort<simd_float4>?
+    private var boundInputScale: ParameterPort<simd_float3>?
+    private var boundInputColumn0: ParameterPort<simd_float4>?
+    private var boundInputColumn1: ParameterPort<simd_float4>?
+    private var boundInputColumn2: ParameterPort<simd_float4>?
+    private var boundInputColumn3: ParameterPort<simd_float4>?
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundOutputTransform = findPort(named: "outputTransform")
+        self.boundInputPosition = findPort(named: "inputPosition")
+        self.boundInputOrientation = findPort(named: "inputOrientation")
+        self.boundInputScale = findPort(named: "inputScale")
+        self.boundInputColumn0 = findPort(named: "inputColumn0")
+        self.boundInputColumn1 = findPort(named: "inputColumn1")
+        self.boundInputColumn2 = findPort(named: "inputColumn2")
+        self.boundInputColumn3 = findPort(named: "inputColumn3")
     }
 
     public override func execute(renderer: GraphRenderer,
@@ -74,14 +86,14 @@ public class ComposeTransformNode: StrategyNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let outputTransform: NodePort<simd_float4x4> = findPort(named: "outputTransform") else { return }
+        guard let outputTransform: NodePort<simd_float4x4> = self.boundOutputTransform else { return }
 
         switch typedStrategy
         {
         case .trs:
-            guard let inputPosition: ParameterPort<simd_float3> = findPort(named: "inputPosition"),
-                  let inputOrientation: ParameterPort<simd_float4> = findPort(named: "inputOrientation"),
-                  let inputScale: ParameterPort<simd_float3> = findPort(named: "inputScale")
+            guard let inputPosition: ParameterPort<simd_float3> = self.boundInputPosition,
+                  let inputOrientation: ParameterPort<simd_float4> = self.boundInputOrientation,
+                  let inputScale: ParameterPort<simd_float3> = self.boundInputScale
             else { return }
             guard inputPosition.valueDidChange || inputOrientation.valueDidChange || inputScale.valueDidChange else { return }
 
@@ -92,10 +104,10 @@ public class ComposeTransformNode: StrategyNode
             outputTransform.send(simd_float4x4(translation: position, rotation: orientation, scale: scale))
 
         case .columns:
-            guard let inputColumn0: ParameterPort<simd_float4> = findPort(named: "inputColumn0"),
-                  let inputColumn1: ParameterPort<simd_float4> = findPort(named: "inputColumn1"),
-                  let inputColumn2: ParameterPort<simd_float4> = findPort(named: "inputColumn2"),
-                  let inputColumn3: ParameterPort<simd_float4> = findPort(named: "inputColumn3")
+            guard let inputColumn0: ParameterPort<simd_float4> = self.boundInputColumn0,
+                  let inputColumn1: ParameterPort<simd_float4> = self.boundInputColumn1,
+                  let inputColumn2: ParameterPort<simd_float4> = self.boundInputColumn2,
+                  let inputColumn3: ParameterPort<simd_float4> = self.boundInputColumn3
             else { return }
             guard inputColumn0.valueDidChange || inputColumn1.valueDidChange
                 || inputColumn2.valueDidChange || inputColumn3.valueDidChange

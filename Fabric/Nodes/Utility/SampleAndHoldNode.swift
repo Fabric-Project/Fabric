@@ -18,35 +18,41 @@ public class SampleAndHoldNode: TypeAgnosticNode
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Samples any value type when enabled and holds it until reset. Choose the value type in Settings." }
 
-    private static let dynamicPortNames: Set<String> = ["inputValue", "outputValue"]
-
-    public var inputSample: ParameterPort<Bool> { port(named: "inputSample") }
-    public var inputReset: ParameterPort<Bool>  { port(named: "inputReset") }
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputValue = findPort(named: "inputValue")
+        self.boundOutputValue = findPort(named: "outputValue")
+    }
 
     private var heldValue: PortValue?
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    public let inputSample = ParameterPort(parameter: BoolParameter("Sample", true,  .button, "When enabled, samples and holds the input value"))
+    public let inputReset = ParameterPort(parameter: BoolParameter("Reset",  false, .button, "Reset the held value to nil"))
+
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.registerPorts(context: context) + [
-            ("inputSample", ParameterPort(parameter: BoolParameter("Sample", true,  .button, "When enabled, samples and holds the input value"))),
-            ("inputReset",  ParameterPort(parameter: BoolParameter("Reset",  false, .button, "Reset the held value to nil"))),
+        let storedPorts = [
+            PortDeclaration(key: "inputSample", port: self.inputSample),
+            PortDeclaration(key: "inputReset", port: self.inputReset),
         ]
+
+        guard let portType = strategy as? PortType else { return super.declaredPorts() + storedPorts }
+
+        return [
+            PortDeclaration(key: "inputValue",  portType: portType, kind: .Inlet,  name: "Value", description: "Value to sample and hold"),
+            PortDeclaration(key: "outputValue", portType: portType, kind: .Outlet, name: "Value", description: "The last sampled value"),
+        ] + super.declaredPorts() + storedPorts
     }
 
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    public override func apply(_ settings: any NodeSettings)
     {
-        super.rebuildPorts(forStrategy: strategy)
-        guard let portType = strategy as? PortType else { return }
-
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputValue",  displayName: "Value", portType: portType, kind: .Inlet,  description: "Value to sample and hold")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputValue", displayName: "Value", portType: portType, kind: .Outlet, description: "The last sampled value")
-
+        super.apply(settings)
         heldValue = nil
-
-        let portOrder = ["inputValue", "outputValue", "inputSample", "inputReset"]
-        let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }
-        if reordered.count == self.ports.count { reorderPorts(reordered) }
     }
+
+    private var boundInputValue: Port?
+    private var boundOutputValue: Port?
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
@@ -54,8 +60,8 @@ public class SampleAndHoldNode: TypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputValue:  Port = findPort(named: "inputValue"),
-              let outputValue: Port = findPort(named: "outputValue") else { return }
+        guard let inputValue:  Port = self.boundInputValue,
+              let outputValue: Port = self.boundOutputValue else { return }
 
         if inputValue.valueDidChange,
            let sampling = inputSample.value, sampling

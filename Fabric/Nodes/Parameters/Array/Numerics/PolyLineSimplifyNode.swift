@@ -20,22 +20,19 @@ public class PolyLineSimplifyNode: Node
     override public class var nodeDescription: String { "Simplify an array of points using the Duglas Peucker algorithm."}
     
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputPort",  NodePort<ContiguousArray<simd_float2>>(name: "Array", kind: .Inlet, description: "Input polyline as array of 2D points")),
-            ("inputTolerance", ParameterPort(parameter: FloatParameter("Tolerance", 0, .inputfield, "Simplification tolerance for the Douglas-Peucker algorithm")) ),
-            ("outputPort", NodePort<ContiguousArray<simd_float2>>(name: "Array", kind: .Outlet, description: "Simplified polyline with reduced point count")),
+    public let inputPort = NodePort<ContiguousArray<simd_float2>>(name: "Array", kind: .Inlet, description: "Input polyline as array of 2D points")
+    public let inputTolerance = ParameterPort(parameter: FloatParameter("Tolerance", 0, .inputfield, "Simplification tolerance for the Douglas-Peucker algorithm"))
+    public let outputPort = NodePort<ContiguousArray<simd_float2>>(name: "Array", kind: .Outlet, description: "Simplified polyline with reduced point count")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputPort", port: self.inputPort),
+            PortDeclaration(key: "inputTolerance", port: self.inputTolerance),
+            PortDeclaration(key: "outputPort", port: self.outputPort),
         ]
     }
-    
-    // Port Proxy
-    public var inputPort:NodePort<ContiguousArray<simd_float2>> { port(named: "inputPort") }
-    public var inputTolerance:ParameterPort<Float> { port(named: "inputTolerance") }
-    public var outputPort:NodePort<ContiguousArray<simd_float2>> { port(named: "outputPort") }
-    
+
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,

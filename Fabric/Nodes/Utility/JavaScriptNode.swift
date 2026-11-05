@@ -375,7 +375,7 @@ private final class JavaScriptNodeRuntime
     }
 
     func execute(signature: JavaScriptNodeSignature,
-                 node: JavaScriptNode,
+                 inputPorts: [Port?],
                  executionInfo: GraphExecutionInfo) throws -> [String: PortValue?]
     {
         self.latestDiagnostic = nil
@@ -383,8 +383,8 @@ private final class JavaScriptNodeRuntime
         self.context.exception = nil
         self.context.setObject(JavaScriptExecutionContextValue(executionInfo: executionInfo), forKeyedSubscript: "context" as NSString)
 
-        let arguments = signature.inputs.map { definition in
-            bridge.javaScriptArgument(for: node.findPort(named: definition.name, as: Port.self)?.snapshotValue())
+        let arguments = signature.inputs.indices.map { index in
+            bridge.javaScriptArgument(for: inputPorts.indices.contains(index) ? inputPorts[index]?.snapshotValue() : nil)
         }
 
         let result = self.mainFunction.call(withArguments: arguments)
@@ -536,9 +536,10 @@ public final class JavaScriptNode: Node
         case selectedTimeMode
     }
 
+
     @ObservationIgnored private(set) var scriptSource: String = JavaScriptNode.defaultScriptSource()
     {
-        didSet { self.performOnMainAsync { [weak self] in self?._editorModelStorage?.refreshFromNode() } }
+        didSet { self.settingsDidChange() }
     }
     @ObservationIgnored private var compiledSignature: JavaScriptNodeSignature?
     @ObservationIgnored private var runtime: JavaScriptNodeRuntime?
@@ -562,14 +563,16 @@ public final class JavaScriptNode: Node
             // Sent with the lock given up, and not only to keep a frame off the
             // canvas's wake: a subscriber's first move is to read the statuses
             // back, and this lock is not recursive.
-            if changed { self.subtitleSubject.send() }
+            if changed { self.namingDidChange() }
         }
     }
 
     public private(set) var selectedTimeMode: Node.TimeMode = .None
     {
-        didSet { self.performOnMainAsync { [weak self] in self?._editorModelStorage?.refreshFromNode() } }
+        didSet { self.settingsDidChange() }
     }
+
+    override public var compilableSource: String? { self.scriptSource }
 
     /// The role the signature puts the node in, on the same reading of it that
     /// gives the node its ports. A script with nothing to return is a script
@@ -671,6 +674,12 @@ public final class JavaScriptNode: Node
 
     private var _editorModelStorage: JavaScriptNodeEditorModel?
 
+    override public func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _editorModelStorage?.refreshFromNode()
+    }
+
     override public var settingsSize: SettingsViewSize
     {
         .Custom(size: CGSize(width: 980, height: 700))
@@ -713,12 +722,11 @@ public final class JavaScriptNode: Node
         }
 
         do {
-            let outputValues = try runtime.execute(signature: compiledSignature, node: self, executionInfo: executionInfo)
+            let outputValues = try runtime.execute(signature: compiledSignature, inputPorts: self.boundInputs, executionInfo: executionInfo)
             self.diagnostics = runtime.outputDiagnostics
 
-            for definition in compiledSignature.outputs {
-                guard let port = self.findPort(named: definition.name) else { continue }
-                port.sendBoxed(outputValues[definition.name] ?? nil, force: true)
+            for (name, port) in self.boundOutputs {
+                port.sendBoxed(outputValues[name] ?? nil, force: true)
             }
         }
         catch {
@@ -774,7 +782,9 @@ public final class JavaScriptNode: Node
             self.runtime = runtime
             self.diagnostics = []
 
-            self.synchronizeDynamicPorts(with: signature)
+            self.portSignature = signature
+            self.lastCompiledSource = signature.canonicalSource
+            self.reconcilePorts()
         }
         catch {
             let summary = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
@@ -785,51 +795,54 @@ public final class JavaScriptNode: Node
             // from a script the editor no longer shows, and the next clean run
             // clears the compile error along with it. `execute` throws this
             // diagnostic for as long as there is nothing to run, as
-            // MathExpressionNode's does. The ports are left where they are:
-            // every one of them came from the last signature that parsed, and a
-            // half-typed script is no reason to take an author's wires down.
+            // MathExpressionNode's does. The ports stay with the last signature
+            // that parsed: a half-typed script is no reason to take an author's
+            // wires down.
             self.compiledSignature = nil
             self.runtime = nil
 
             // Every port here is minted from the script's signature, so a saved
-            // script that no longer parses leaves the node with none at all.
-            self.adoptRemainingSnapshotPortsAsFallback()
+            // script that no longer parses would leave the node with none at
+            // all. The last script that compiled gives the ports instead, read
+            // for its signature only: there is still no runtime, so nothing
+            // runs until the script compiles.
+            if self.portSignature == nil,
+               let fallback = self.interfaceFallbackSource,
+               let signature = try? JavaScriptNodeSourceParser.parse(source: fallback)
+            {
+                self.portSignature = signature
+                self.reconcilePorts()
+            }
         }
     }
 
-    private func synchronizeDynamicPorts(with signature: JavaScriptNodeSignature)
+    /// The signature of the last script that parsed, which the ports follow.
+    private var portSignature: JavaScriptNodeSignature?
+
+    /// The signature's input ports, by argument position, and its outputs'.
+    private var boundInputs: [Port?] = []
+    private var boundOutputs: [(name: String, port: Port)] = []
+
+    override public func bindPorts()
     {
-        let desiredPorts = signature.inputs + signature.outputs
-        let desiredNames = Set(desiredPorts.map(\.name))
-
-        for port in self.ports where !desiredNames.contains(port.name) {
-            self.removePort(port)
+        super.bindPorts()
+        self.boundInputs = (self.portSignature?.inputs ?? []).map { findPort(named: $0.name) }
+        self.boundOutputs = (self.portSignature?.outputs ?? []).compactMap { definition in
+            (findPort(named: definition.name) as Port?).map { (definition.name, $0) }
         }
+    }
 
-        var reorderedPorts: [Port] = []
-        for definition in desiredPorts {
-            let expectedKind: PortKind = definition.direction == .input ? .Inlet : .Outlet
-
-            if let existingPort = self.findPort(named: definition.name, as: Port.self),
-               existingPort.kind == expectedKind,
-               existingPort.portType == definition.portType
-            {
-                reorderedPorts.append(existingPort)
-                continue
-            }
-
-            if let existingPort = self.findPort(named: definition.name, as: Port.self) {
-                let replacement = definition.portType.makeFreshPort(name: definition.name, kind: expectedKind, id: existingPort.id)
-                self.replacePort(existingPort, with: replacement)
-                reorderedPorts.append(replacement)
-            } else {
-                let added = definition.portType.makeFreshPort(name: definition.name, kind: expectedKind)
-                self.addDynamicPort(added, name: definition.name)
-                reorderedPorts.append(added)
-            }
+    /// The signature's inputs as inlets, then its outputs as outlets, in the
+    /// order the script gives them.
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        let definitions = self.portSignature.map { $0.inputs + $0.outputs } ?? []
+        return super.declaredPorts() + definitions.map { definition in
+            PortDeclaration(key: definition.name,
+                            portType: definition.portType,
+                            kind: definition.direction == .input ? .Inlet : .Outlet,
+                            name: definition.name)
         }
-
-        self.reorderPorts(reorderedPorts)
     }
 
     private static func defaultScriptSource() -> String

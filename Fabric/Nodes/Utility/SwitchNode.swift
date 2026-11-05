@@ -20,39 +20,43 @@ public final class SwitchNode: RoutingNode
         "input\(index)"
     }
 
-    public var output: Port { port(named: Self.outputPortName) }
+    public var output: Port { _output }
+    private var _output: Port!
+    /// The route inlets, by route index.
+    private var routeInputs: [Port] = []
 
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    override public func bindPorts()
     {
-        super.rebuildPorts(forStrategy: strategy)
-        let portType = (strategy as? PortType) ?? .Virtual
+        super.bindPorts()
+        self._output = findPort(named: Self.outputPortName)
+        self.routeInputs = (0..<routeCount).compactMap { findPort(named: Self.inputPortName($0)) }
+    }
 
-        for index in 0..<routeCount
-        {
-            addOrReplaceDynamicPortPreservingIdentity(name: Self.inputPortName(index),
-                                                      displayName: "Input \(index)",
-                                                      portType: portType,
-                                                      kind: .Inlet,
-                                                      description: "Value for route \(index)")
-        }
+    private func routeInput(_ index: Int) -> Port?
+    {
+        routeInputs.indices.contains(index) ? routeInputs[index] : nil
+    }
 
-        removeRoutingPortsAboveRouteCount(named: Self.inputPortName)
-
-        addOrReplaceDynamicPortPreservingIdentity(name: Self.outputPortName,
-                                                  displayName: "Output",
-                                                  portType: portType,
-                                                  kind: .Outlet,
-                                                  description: "Selected input value")
-
-        let orderedPortNames = ["inputIndex"] + (0..<routeCount).map(Self.inputPortName) + [Self.outputPortName]
-        applyPortOrder(orderedPortNames)
+    public override func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts()
+            + (0..<routeCount).map { index in
+                routePortDeclaration(key: Self.inputPortName(index),
+                                     name: "Input \(index)",
+                                     kind: .Inlet,
+                                     description: "Value for route \(index)")
+            }
+            + [routePortDeclaration(key: Self.outputPortName,
+                                    name: "Output",
+                                    kind: .Outlet,
+                                    description: "Selected input value")]
     }
 
     public override func respondToPull(requestedOutputPort: Port?) -> Node.PullResponse
     {
         let routeIndex = selectedRouteIndex()
 
-        guard let selectedInput: Port = findPort(named: Self.inputPortName(routeIndex))
+        guard let selectedInput = routeInput(routeIndex)
         else { return .evaluate(pulling: [inputIndex]) }
 
         return .evaluate(pulling: [inputIndex, selectedInput])
@@ -64,7 +68,7 @@ public final class SwitchNode: RoutingNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let selectedInput: Port = findPort(named: Self.inputPortName(selectedRouteIndex()))
+        guard let selectedInput = routeInput(selectedRouteIndex())
         else { return }
 
         output.sendBoxed(selectedInput.snapshotValue(), force: true)
@@ -74,13 +78,10 @@ public final class SwitchNode: RoutingNode
     {
         graph?.setConnections(from: inputIndex, active: true)
 
-        for index in 0..<routeCount
+        let selected = selectedRouteIndex()
+        for (index, inputPort) in routeInputs.enumerated()
         {
-            let inputPort: Port? = findPort(named: Self.inputPortName(index))
-            if let inputPort
-            {
-                graph?.setConnections(from: inputPort, active: index == selectedRouteIndex())
-            }
+            graph?.setConnections(from: inputPort, active: index == selected)
         }
     }
 }

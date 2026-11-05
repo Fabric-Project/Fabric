@@ -22,22 +22,19 @@ public class NumberUnaryOperator : Node
     override public class var nodeDescription: String { "Run an operation on an input Number and return the resulting Number"}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputNumber", ParameterPort(parameter: FloatParameter("Number", 0.0, .inputfield, "Input value for the unary operation"))),
-            ("inputParam", ParameterPort(parameter: StringParameter("Operator", "Sine", UnaryMathOperator.allCases.map(\.rawValue), .dropdown, "Mathematical function to apply")) ),
-            ("outputNumber", NodePort<Float>(name: "Number" , kind: .Outlet, description: "Result of the unary operation")),
+    public let inputNumber = ParameterPort(parameter: FloatParameter("Number", 0.0, .inputfield, "Input value for the unary operation"))
+    public let inputParam = ParameterPort(parameter: StringParameter("Operator", "Sine", UnaryMathOperator.allCases.map(\.rawValue), .dropdown, "Mathematical function to apply"))
+    public let outputNumber = NodePort<Float>(name: "Number" , kind: .Outlet, description: "Result of the unary operation")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputNumber", port: self.inputNumber),
+            PortDeclaration(key: "inputParam", port: self.inputParam),
+            PortDeclaration(key: "outputNumber", port: self.outputNumber),
         ]
     }
-    
-    // Port Proxy
-    public var inputNumber:ParameterPort<Float> { port(named: "inputNumber") }
-    public var inputParam:ParameterPort<String> { port(named: "inputParam") }
-    public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
-        
+
     private var mathOperator = UnaryMathOperator.Sine
     
     override public func execute(renderer:GraphRenderer,

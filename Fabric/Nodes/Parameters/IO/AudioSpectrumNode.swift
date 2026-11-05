@@ -277,35 +277,32 @@ public class AudioSpectrumNode : Node
     override public class var nodeDescription: String { "Captures audio from the selected input device and emits a normalized per-band spectrum. Sensitivity controls how responsive the analyzer is to quiet sounds — 0 analyses only louder audio, 1 is full sensitivity. Gain multiplies the bar values after normalization, clamped to [0, 1] — a visual 'overdrive' that pushes bars toward full-scale without touching the underlying signal." }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputAudioDevice = ParameterPort(parameter: StringParameter("Device Name", AudioSpectrumNode.defaultDeviceName, .dropdown, "Audio input device to capture from, or Default for the system's default input"))
+    public let inputBands = ParameterPort(parameter: IntParameter("Bands", 8, 1, 256, .inputfield, "Number of frequency bands in the spectrum output"))
+    public let inputSensitivity = ParameterPort(parameter: FloatParameter("Sensitivity", 0.5, 0.0, 1.0, .slider, "How sensitive the analyzer is to quiet sounds. 0 = analyses only louder sounds (quiet audio is ignored). 1 = full sensitivity (picks up even very faint audio). Turn up to make the display react to subtle input; turn down if you only care about peaks."))
+    public let inputGain = ParameterPort(parameter: FloatParameter("Gain", 1.0, 0.0, 10.0, .slider, "Multiplier applied to the output band values after normalization, clamped to [0, 1]. 1 = pass-through; values > 1 push bars toward full-scale ('visual overdrive' — the bars saturate earlier); values < 1 scale bars down. Purely affects the output, not the underlying audio analysis."))
+    public let inputSmoothing = ParameterPort(parameter: FloatParameter("Smoothing", 0.0, 0.0, 1.0, .slider, "Smoothing factor for frequency band transitions"))
+    public let inputAttack = ParameterPort(parameter: FloatParameter("Attack", 0.0, 0.0, 100.0, .slider, "Attack time in milliseconds for rising levels"))
+    public let inputRelease = ParameterPort(parameter: FloatParameter("Release", 0.0, 0.0, 100.0, .slider, "Release time in milliseconds for falling levels"))
+    public let outputSpectrum = NodePort<ContiguousArray<Float>>(name: "Spectrum", kind: .Outlet, description: "Array of frequency band values from 0 to 1")
 
-        return ports +
-        [
-            ("inputAudioDevice", ParameterPort(parameter: StringParameter("Device Name", AudioSpectrumNode.defaultDeviceName, .dropdown, "Audio input device to capture from, or Default for the system's default input"))),
-            ("inputBands", ParameterPort(parameter: IntParameter("Bands", 8, 1, 256, .inputfield, "Number of frequency bands in the spectrum output"))),
-            ("inputSensitivity", ParameterPort(parameter: FloatParameter("Sensitivity", 0.5, 0.0, 1.0, .slider, "How sensitive the analyzer is to quiet sounds. 0 = analyses only louder sounds (quiet audio is ignored). 1 = full sensitivity (picks up even very faint audio). Turn up to make the display react to subtle input; turn down if you only care about peaks."))),
-            ("inputGain", ParameterPort(parameter: FloatParameter("Gain", 1.0, 0.0, 10.0, .slider, "Multiplier applied to the output band values after normalization, clamped to [0, 1]. 1 = pass-through; values > 1 push bars toward full-scale ('visual overdrive' — the bars saturate earlier); values < 1 scale bars down. Purely affects the output, not the underlying audio analysis."))),
-            ("inputSmoothing", ParameterPort(parameter: FloatParameter("Smoothing", 0.0, 0.0, 1.0, .slider, "Smoothing factor for frequency band transitions"))),
-            ("inputAttack", ParameterPort(parameter: FloatParameter("Attack", 0.0, 0.0, 100.0, .slider, "Attack time in milliseconds for rising levels"))),
-            ("inputRelease", ParameterPort(parameter: FloatParameter("Release", 0.0, 0.0, 100.0, .slider, "Release time in milliseconds for falling levels"))),
-            ("outputSpectrum", NodePort<ContiguousArray<Float>>(name: "Spectrum", kind: .Outlet, description: "Array of frequency band values from 0 to 1")),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputAudioDevice", port: self.inputAudioDevice),
+            PortDeclaration(key: "inputBands", port: self.inputBands),
+            PortDeclaration(key: "inputSensitivity", port: self.inputSensitivity),
+            PortDeclaration(key: "inputGain", port: self.inputGain),
+            PortDeclaration(key: "inputSmoothing", port: self.inputSmoothing),
+            PortDeclaration(key: "inputAttack", port: self.inputAttack),
+            PortDeclaration(key: "inputRelease", port: self.inputRelease),
+            PortDeclaration(key: "outputSpectrum", port: self.outputSpectrum),
         ]
     }
-
-    public var inputAudioDevice:ParameterPort<String> { port(named: "inputAudioDevice") }
 
     /// The dropdown entry for the system's default input. An empty name, as
     /// documents saved before it have, means the same.
     fileprivate static let defaultDeviceName = "Default"
-    public var inputBands:ParameterPort<Int> { port(named: "inputBands") }
-    public var inputSensitivity:ParameterPort<Float> { port(named: "inputSensitivity") }
-    public var inputGain:ParameterPort<Float> { port(named: "inputGain") }
-    public var inputSmoothing:ParameterPort<Float> { port(named: "inputSmoothing") }
-    public var inputAttack:ParameterPort<Float> { port(named: "inputAttack") }
-    public var inputRelease:ParameterPort<Float> { port(named: "inputRelease") }
-    public var outputSpectrum:NodePort<ContiguousArray<Float>> { port(named: "outputSpectrum") }
-
     // Delegate receives CMSampleBuffers on the capture queue and forwards
     // them into the owner's tripleBuffer. Weak reference breaks the
     // otherwise self-retaining delegate/owner cycle.
@@ -506,7 +503,7 @@ public class AudioSpectrumNode : Node
                 // Retry is for failures; a warning says what the node is doing instead.
                 _settingsModel.canRetry = if case .error = captureStatus { true } else { false }
             }
-            self.subtitleSubject.send()
+            self.namingDidChange()
         }
     }
 

@@ -16,21 +16,26 @@ public class ArrayReverseNode: TypeAgnosticNode
     override public class var nodeDescription: String { "Reverses the element order of an array. Choose element type in Settings." }
     override public class var includesArrayTypesInStrategy: Bool { false }
 
-    private static let dynamicPortNames: Set<String> = ["inputPort", "outputPort"]
-
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
-        guard let elementType = strategy as? PortType else { return }
+        guard let elementType = strategy as? PortType else { return super.declaredPorts() }
 
         let arrayType: PortType = .Array(portType: elementType)
 
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputPort", displayName: "Array", portType: arrayType, kind: .Inlet, description: "Input array")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputPort", displayName: "Array", portType: arrayType, kind: .Outlet, description: "Reversed array")
+        return [
+            PortDeclaration(key: "inputPort", portType: arrayType, kind: .Inlet, name: "Array", description: "Input array"),
+            PortDeclaration(key: "outputPort", portType: arrayType, kind: .Outlet, name: "Array", description: "Reversed array"),
+        ] + super.declaredPorts()
+    }
 
-        let portOrder = ["inputPort", "outputPort"]
-        let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }
-        if reordered.count == self.ports.count { reorderPorts(reordered) }
+    private var boundInputPort: Port?
+    private var boundOutputPort: Port?
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputPort = findPort(named: "inputPort")
+        self.boundOutputPort = findPort(named: "outputPort")
     }
 
     override public func execute(renderer: GraphRenderer,
@@ -39,8 +44,8 @@ public class ArrayReverseNode: TypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputPort:  Port = findPort(named: "inputPort"),
-              let outputPort: Port = findPort(named: "outputPort") else { return }
+        guard let inputPort:  Port = self.boundInputPort,
+              let outputPort: Port = self.boundOutputPort else { return }
 
         guard inputPort.valueDidChange else { return }
 

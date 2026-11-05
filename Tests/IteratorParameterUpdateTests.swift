@@ -80,12 +80,11 @@ struct IteratorParameterUpdateTests {
 
         var previousDepthState: MTLDepthStencilState?
         for (frameNumber, radius) in [Float(0.1), 0.4, 0.2].enumerated() {
-            let size = try #require(geometry.inputSize.parameter as? FloatParameter)
-            let depthTest = try #require(material.inputDepthTest.parameter as? BoolParameter)
-            let depthWrite = try #require(material.inputWriteDepth.parameter as? BoolParameter)
-            size.value = radius
-            depthTest.value = frameNumber == 1
-            depthWrite.value = frameNumber == 1
+            // As a control edits them: through the ports, which the
+            // parameters mirror.
+            geometry.inputSize.value = radius
+            material.inputDepthTest.value = frameNumber == 1
+            material.inputWriteDepth.value = frameNumber == 1
             _ = try harness.execute(graph: graph,
                                     executionInfo: harness.makeExecutionInfo(frameNumber: frameNumber),
                                     drawScene: true)

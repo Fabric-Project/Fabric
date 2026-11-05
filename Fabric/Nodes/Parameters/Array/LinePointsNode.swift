@@ -16,22 +16,20 @@ public class LinePointsNode : Node
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Generates N points evenly spaced along a line of total length Spread, with the first and last points at the ends. A single point sits at the centre. The Orientation quaternion rotates a canonical local frame (line runs along local +X) into world space. Identity orientation places the line along the world +X axis." }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputCount = ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Number of points to emit"))
+    public let inputSpread = ParameterPort(parameter: FloatParameter("Spread", 1.0, 0.0, 1000.0, .inputfield, "Total length of the line"))
+    public let inputOrientation = ParameterPort(parameter: Float4Parameter("Up Orientation", simd_float4(0, 0, 0, 1), .inputfield, "Quaternion rotating the canonical frame (line along local +X) into world space. Same format as the Look At node's Up Orientation, so one source can drive both."))
+    public let outputPositions = NodePort<ContiguousArray<simd_float3>>(name: "Positions", kind: .Outlet, description: "Array of per-point world-space positions")
 
-        return ports +
-        [
-            ("inputCount", ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Number of points to emit"))),
-            ("inputSpread", ParameterPort(parameter: FloatParameter("Spread", 1.0, 0.0, 1000.0, .inputfield, "Total length of the line"))),
-            ("inputOrientation", ParameterPort(parameter: Float4Parameter("Up Orientation", simd_float4(0, 0, 0, 1), .inputfield, "Quaternion rotating the canonical frame (line along local +X) into world space. Same format as the Look At node's Up Orientation, so one source can drive both."))),
-            ("outputPositions", NodePort<ContiguousArray<simd_float3>>(name: "Positions", kind: .Outlet, description: "Array of per-point world-space positions")),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputCount", port: self.inputCount),
+            PortDeclaration(key: "inputSpread", port: self.inputSpread),
+            PortDeclaration(key: "inputOrientation", port: self.inputOrientation),
+            PortDeclaration(key: "outputPositions", port: self.outputPositions),
         ]
     }
-
-    public var inputCount: ParameterPort<Int> { port(named: "inputCount") }
-    public var inputSpread: ParameterPort<Float> { port(named: "inputSpread") }
-    public var inputOrientation: ParameterPort<simd_float4> { port(named: "inputOrientation") }
-    public var outputPositions: NodePort<ContiguousArray<simd_float3>> { port(named: "outputPositions") }
 
     public override func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,

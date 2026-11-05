@@ -6,8 +6,7 @@ import CoreImage
 import Satin
 
 private func publish(_ port: Fabric.Port, in graph: Graph) {
-    port.published = true
-    graph.rebuildPublishedParameterGroup()
+    graph.setPublished(true, port: port)
 }
 
 private func floatPort(named name: String, kind: PortKind, on node: Node) throws -> NodePort<Float> {
@@ -43,9 +42,12 @@ private final class RecursiveArrayDictionaryPortNode: Node {
 
     static let recursivePortType: PortType = .Array(portType: .Dictionary(valueType: .Array(portType: .Float)))
 
-    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)] {
-        super.registerPorts(context: context) + [
-            ("output", recursivePortType.makeFreshPort(name: "Recursive", kind: .Outlet)),
+    let output = recursivePortType.makeFreshPort(name: "Recursive", kind: .Outlet)
+
+    override func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "output", port: self.output),
         ]
     }
 
@@ -894,8 +896,8 @@ struct GraphExecutionTests {
         graph.addNode(subgraphNode)
 
         subgraphNode.subGraph.addNode(innerAdd)
-        innerAdd.inputNumber1.published = true
-        innerAdd.outputNumber.published = true
+        innerAdd.inputNumber1.publishInGraph(true)
+        innerAdd.outputNumber.publishInGraph(true)
         subgraphNode.subGraph.rebuildPublishedParameterGroup()
 
         let proxyInput = try floatPort(named: "Number A", kind: .Inlet, on: subgraphNode)
@@ -922,7 +924,7 @@ struct GraphExecutionTests {
         let innerNode = RecursiveArrayDictionaryPortNode(context: harness.context)
 
         subgraphNode.subGraph.addNode(innerNode)
-        innerNode.port(named: "output").published = true
+        innerNode.port(named: "output").publishInGraph(true)
         subgraphNode.subGraph.rebuildPublishedParameterGroup()
 
         guard let proxyPort = subgraphNode.ports.first(where: { $0.name == "Recursive" && $0.kind == .Outlet }) else {
@@ -945,9 +947,9 @@ struct GraphExecutionTests {
 
         iterator.inputIteratonCount.value = 4
 
-        iteratorInfo.outputIndex.published = true
-        iteratorInfo.outputIterationCount.published = true
-        iteratorInfo.outputProgress.published = true
+        iteratorInfo.outputIndex.publishInGraph(true)
+        iteratorInfo.outputIterationCount.publishInGraph(true)
+        iteratorInfo.outputProgress.publishInGraph(true)
         iterator.subGraph.rebuildPublishedParameterGroup()
 
         let indexProxy = try intPort(named: "Current Iteration", kind: .Outlet, on: iterator)
@@ -991,7 +993,7 @@ struct GraphExecutionTests {
         graph.addNode(deferred)
 
         // Render to Image only produces secondary outputs something uses.
-        deferred.outputDepthTexture.published = true
+        deferred.outputDepthTexture.publishInGraph(true)
         let context = harness.makeExecutionContext(time: 500, deltaTime: 0, frameNumber: 0)
 
         try harness.graphRenderer(for: graph).startExecution()
@@ -1060,7 +1062,7 @@ struct GraphExecutionTests {
         graph.addNode(deferred)
 
         // Render to Image only produces secondary outputs something uses.
-        for name in ["Albedo Texture", "Normals Texture", "PBR Texture", "Velocity Texture", "Emissive Texture"] { try imagePort(named: name, kind: .Outlet, on: deferred).published = true }
+        for name in ["Albedo Texture", "Normals Texture", "PBR Texture", "Velocity Texture", "Emissive Texture"] { try imagePort(named: name, kind: .Outlet, on: deferred).publishInGraph(true) }
         let context = harness.makeExecutionContext(time: 550, deltaTime: 0, frameNumber: 0)
 
         try harness.graphRenderer(for: graph).startExecution()
@@ -1110,7 +1112,7 @@ struct GraphExecutionTests {
 
         #expect(decodedAddNode.inputNumber1.connections.count == 1)
         #expect(decodedAddNode.inputNumber2.connections.count == 1)
-        #expect(decodedAddNode.outputNumber.published)
+        #expect(decodedAddNode.outputNumber.isPublishedInGraph)
 
         let context = harness.makeExecutionContext(time: 600, deltaTime: 0, frameNumber: 0)
 
@@ -1168,8 +1170,8 @@ struct GraphExecutionTests {
         graph.addNode(subgraphNode)
 
         subgraphNode.subGraph.addNode(innerAdd)
-        innerAdd.inputNumber1.published = true
-        innerAdd.outputNumber.published = true
+        innerAdd.inputNumber1.publishInGraph(true)
+        innerAdd.outputNumber.publishInGraph(true)
         subgraphNode.subGraph.rebuildPublishedParameterGroup()
 
         let proxyInput = try floatPort(named: "Number A", kind: .Inlet, on: subgraphNode)
@@ -1188,7 +1190,7 @@ struct GraphExecutionTests {
         let decodedProxyOutput = try floatPort(named: "Number", kind: .Outlet, on: decodedSubgraph)
 
         #expect(decodedProxyInput.connections.count == 1)
-        #expect(decodedProxyOutput.published)
+        #expect(decodedProxyOutput.isPublishedInGraph)
         #expect(decodedSubgraph.subGraph.nodes.count == 1)
 
         let context = harness.makeExecutionContext(time: 700, deltaTime: 0, frameNumber: 0)
@@ -1218,16 +1220,15 @@ struct GraphExecutionTests {
         graph.addNode(outerSubgraph)
 
         innerSubgraph.subGraph.addNode(innerAdd)
-        innerAdd.inputNumber1.published = true
-        innerAdd.outputNumber.published = true
+        innerAdd.inputNumber1.publishInGraph(true)
+        innerAdd.outputNumber.publishInGraph(true)
         innerSubgraph.subGraph.rebuildPublishedParameterGroup()
 
         let innerProxyInput = try floatPort(named: "Number A", kind: .Inlet, on: innerSubgraph)
         let innerProxyOutput = try floatPort(named: "Number", kind: .Outlet, on: innerSubgraph)
-        innerProxyInput.published = true
-        innerProxyOutput.published = true
-
         outerSubgraph.subGraph.addNode(innerSubgraph)
+        innerProxyInput.publishInGraph(true)
+        innerProxyOutput.publishInGraph(true)
         outerSubgraph.subGraph.rebuildPublishedParameterGroup()
 
         let outerProxyInput = try floatPort(named: "Number A", kind: .Inlet, on: outerSubgraph)
@@ -1252,9 +1253,9 @@ struct GraphExecutionTests {
         let decodedInnerProxyOutput = try floatPort(named: "Number", kind: .Outlet, on: decodedInnerSubgraph)
 
         #expect(decodedOuterProxyInput.connections.count == 1)
-        #expect(decodedOuterProxyOutput.published)
-        #expect(decodedInnerProxyInput.published)
-        #expect(decodedInnerProxyOutput.published)
+        #expect(decodedOuterProxyOutput.isPublishedInGraph)
+        #expect(decodedInnerProxyInput.isPublishedInGraph)
+        #expect(decodedInnerProxyOutput.isPublishedInGraph)
         #expect(decodedOuterProxyInput.id == decodedInnerProxyInput.id)
         #expect(decodedOuterProxyOutput.id == decodedInnerProxyOutput.id)
 
@@ -1300,7 +1301,7 @@ struct GraphExecutionTests {
         #expect(decodedDeferred.inputHeight.value == 24)
         #expect(decodedDeferred.subGraph.nodes.compactMap { $0 as? MeshNode }.count == 1)
 
-        decodedDeferred.outputDepthTexture.published = true
+        decodedDeferred.outputDepthTexture.publishInGraph(true)
         let context = harness.makeExecutionContext(time: 800, deltaTime: 0, frameNumber: 0)
 
         try harness.graphRenderer(for: decodedGraph).startExecution()
@@ -1352,7 +1353,7 @@ struct GraphExecutionTests {
         _ = try imagePort(named: "Velocity Texture", kind: .Outlet, on: decodedDeferred)
         _ = try imagePort(named: "Emissive Texture", kind: .Outlet, on: decodedDeferred)
 
-        for name in ["Albedo Texture", "Normals Texture", "PBR Texture", "Velocity Texture", "Emissive Texture"] { try imagePort(named: name, kind: .Outlet, on: decodedDeferred).published = true }
+        for name in ["Albedo Texture", "Normals Texture", "PBR Texture", "Velocity Texture", "Emissive Texture"] { try imagePort(named: name, kind: .Outlet, on: decodedDeferred).publishInGraph(true) }
         let context = harness.makeExecutionContext(time: 850, deltaTime: 0, frameNumber: 0)
 
         try harness.graphRenderer(for: decodedGraph).startExecution()

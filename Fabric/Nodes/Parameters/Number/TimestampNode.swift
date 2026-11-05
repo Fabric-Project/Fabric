@@ -15,18 +15,16 @@ public class TimestampNode: Node {
     override public class var nodeDescription: String { "Wall-clock time as a Unix timestamp" }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let outputSeconds = NodePort<Int>(name: "Seconds", kind: .Outlet, description: "Unix timestamp whole seconds since 1970-01-01")
+    public let outputFraction = NodePort<Float>(name: "Fraction", kind: .Outlet, description: "Fractional second (0.0 to 1.0)")
 
-        return ports + [
-            ("outputSeconds", NodePort<Int>(name: "Seconds", kind: .Outlet, description: "Unix timestamp whole seconds since 1970-01-01")),
-            ("outputFraction", NodePort<Float>(name: "Fraction", kind: .Outlet, description: "Fractional second (0.0 to 1.0)")),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "outputSeconds", port: self.outputSeconds),
+            PortDeclaration(key: "outputFraction", port: self.outputFraction),
         ]
     }
-
-    // Port proxies
-    public var outputSeconds: NodePort<Int> { port(named: "outputSeconds") }
-    public var outputFraction: NodePort<Float> { port(named: "outputFraction") }
 
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,

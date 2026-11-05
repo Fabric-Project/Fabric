@@ -18,24 +18,24 @@ public class PieceInfoNode: Node
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Outputs a geometry's per-piece data as arrays in piece order, parents first, in its local rest coordinates: rest centers, true volumes, each piece's parent and its generation (how many parents it has above it). Feed Centers (and Volumes) to an animator, or build your own Transforms from them for Transform Pieces." }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        super.registerPorts(context: context) +
-        [
-            ("inputGeometry", NodePort<Geometry>(name: "Geometry", kind: .Inlet, description: "Geometry with pieces, or a Transform Pieces output (its rest pieces are used)")),
-            ("outputPieceCount", NodePort<Int>(name: "Piece Count", kind: .Outlet, description: "Number of pieces of every generation: the length of a Transforms array for Transform Pieces")),
-            ("outputCenters", NodePort<ContiguousArray<simd_float3>>(name: "Centers", kind: .Outlet, description: "Each piece's pivot at rest")),
-            ("outputVolumes", NodePort<ContiguousArray<Float>>(name: "Volumes", kind: .Outlet, description: "Each piece's volume; a parent's is the sum of its children's. Flat pieces, such as 2D text, have none and report 0")),
-            ("outputParentIndices", NodePort<ContiguousArray<Int>>(name: "Parent Indices", kind: .Outlet, description: "Each piece's parent piece, or -1 for a top-level piece")),
-            ("outputGenerations", NodePort<ContiguousArray<Float>>(name: "Generations", kind: .Outlet, description: "Each piece's generation: 0 for a top-level piece (such as a piece of the first cut), 1 for a piece cut from one of those, and so on. Whole numbers, as Floats for Math Expression")),
+    public let inputGeometry = NodePort<Geometry>(name: "Geometry", kind: .Inlet, description: "Geometry with pieces, or a Transform Pieces output (its rest pieces are used)")
+    public let outputPieceCount = NodePort<Int>(name: "Piece Count", kind: .Outlet, description: "Number of pieces of every generation: the length of a Transforms array for Transform Pieces")
+    public let outputCenters = NodePort<ContiguousArray<simd_float3>>(name: "Centers", kind: .Outlet, description: "Each piece's pivot at rest")
+    public let outputVolumes = NodePort<ContiguousArray<Float>>(name: "Volumes", kind: .Outlet, description: "Each piece's volume; a parent's is the sum of its children's. Flat pieces, such as 2D text, have none and report 0")
+    public let outputParentIndices = NodePort<ContiguousArray<Int>>(name: "Parent Indices", kind: .Outlet, description: "Each piece's parent piece, or -1 for a top-level piece")
+    public let outputGenerations = NodePort<ContiguousArray<Float>>(name: "Generations", kind: .Outlet, description: "Each piece's generation: 0 for a top-level piece (such as a piece of the first cut), 1 for a piece cut from one of those, and so on. Whole numbers, as Floats for Math Expression")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputGeometry", port: self.inputGeometry),
+            PortDeclaration(key: "outputPieceCount", port: self.outputPieceCount),
+            PortDeclaration(key: "outputCenters", port: self.outputCenters),
+            PortDeclaration(key: "outputVolumes", port: self.outputVolumes),
+            PortDeclaration(key: "outputParentIndices", port: self.outputParentIndices),
+            PortDeclaration(key: "outputGenerations", port: self.outputGenerations),
         ]
     }
-
-    public var inputGeometry: NodePort<Geometry> { port(named: "inputGeometry") }
-    public var outputPieceCount: NodePort<Int> { port(named: "outputPieceCount") }
-    public var outputCenters: NodePort<ContiguousArray<simd_float3>> { port(named: "outputCenters") }
-    public var outputVolumes: NodePort<ContiguousArray<Float>> { port(named: "outputVolumes") }
-    public var outputParentIndices: NodePort<ContiguousArray<Int>> { port(named: "outputParentIndices") }
-    public var outputGenerations: NodePort<ContiguousArray<Float>> { port(named: "outputGenerations") }
 
     private var infoStatuses: [NodeStatus] = []
 

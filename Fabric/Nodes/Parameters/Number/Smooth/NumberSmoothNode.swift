@@ -101,16 +101,20 @@ public class NumberSmoothNode : StrategyNode
     private static let springMaxStepAngle: Double = 0.25
     private static let springMaxSubsteps: Int = 64
 
-    private static let allDynamicNames: Set<String> = [
-        "inputNumber", "inputSmoothing", "inputResponsiveness", "inputDamping", "inputDirection", "outputNumber",
-    ]
-
     private let oneEuroFilter = OneEuroFilter(freq: 120.0)
     private var heldValue: Float = 0
     private var velocity: Float = 0
     private var hasValue: Bool = false
+    private var mode: SmoothFilterMode = .oneEuro
 
-    override public func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    override public func prepareDeclarations()
+    {
+        super.prepareDeclarations()
+        self.mode = self.strategyOption(as: SmoothFilterMode.self) ?? .oneEuro
+    }
+
+
+    override public func declaredPorts() -> [PortDeclaration]
     {
         let mode = (strategy as? SmoothFilterMode) ?? .oneEuro
 
@@ -133,16 +137,12 @@ public class NumberSmoothNode : StrategyNode
         wanted.append(("inputDirection", ParameterPort(parameter: StringParameter("Direction", SmoothDirection.upDown.rawValue, SmoothDirection.allCases.map(\.rawValue), .dropdown, "Which direction is smoothed; the other tracks instantly. Down is VU-meter style."))))
         wanted.append(("outputNumber", NodePort<Float>(name: "Number", kind: .Outlet, description: "Smoothed value")))
 
-        let wantedNames = Set(wanted.map(\.name))
-        for name in Self.allDynamicNames.subtracting(wantedNames)
-        {
-            if let p = findPort(named: name) { removePort(p) }
-        }
-        for (name, p) in wanted where findPort(named: name) == nil
-        {
-            addDynamicPort(p, name: name)
-        }
+        return super.declaredPorts() + wanted.map { PortDeclaration(key: $0.name, port: $0.port) }
+    }
 
+    override public func apply(_ settings: any NodeSettings)
+    {
+        super.apply(settings)
         self.resetSmoothingState()
     }
 
@@ -160,18 +160,36 @@ public class NumberSmoothNode : StrategyNode
         self.oneEuroFilter.reset(to: 0)
     }
 
+    private var boundInputNumber: ParameterPort<Float>?
+    private var boundOutputNumber: NodePort<Float>?
+    private var boundInputSmoothing: ParameterPort<Float>?
+    private var boundInputResponsiveness: ParameterPort<Float>?
+    private var boundInputDamping: ParameterPort<Float>?
+    private var boundInputDirection: ParameterPort<String>?
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputNumber = findPort(named: "inputNumber")
+        self.boundOutputNumber = findPort(named: "outputNumber")
+        self.boundInputSmoothing = findPort(named: "inputSmoothing")
+        self.boundInputResponsiveness = findPort(named: "inputResponsiveness")
+        self.boundInputDamping = findPort(named: "inputDamping")
+        self.boundInputDirection = findPort(named: "inputDirection")
+    }
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputNumber: ParameterPort<Float> = findPort(named: "inputNumber"),
-              let outputNumber: NodePort<Float> = findPort(named: "outputNumber"),
+        guard let inputNumber: ParameterPort<Float> = self.boundInputNumber,
+              let outputNumber: NodePort<Float> = self.boundOutputNumber,
               let input = inputNumber.value
         else { return }
 
-        let mode = self.strategyOption(as: SmoothFilterMode.self) ?? .oneEuro
+        let mode = self.mode
 
         // Seed on the first value so the output starts on the input rather than
         // smoothing up from zero.
@@ -272,25 +290,25 @@ public class NumberSmoothNode : StrategyNode
 
     private func smoothingValue() -> Float
     {
-        let port: ParameterPort<Float>? = findPort(named: "inputSmoothing")
+        let port: ParameterPort<Float>? = self.boundInputSmoothing
         return port?.value ?? 0.5
     }
 
     private func responsivenessValue() -> Float
     {
-        let port: ParameterPort<Float>? = findPort(named: "inputResponsiveness")
+        let port: ParameterPort<Float>? = self.boundInputResponsiveness
         return port?.value ?? 0
     }
 
     private func dampingValue() -> Float
     {
-        let port: ParameterPort<Float>? = findPort(named: "inputDamping")
+        let port: ParameterPort<Float>? = self.boundInputDamping
         return port?.value ?? 0.5
     }
 
     private func directionValue() -> SmoothDirection
     {
-        let port: ParameterPort<String>? = findPort(named: "inputDirection")
+        let port: ParameterPort<String>? = self.boundInputDirection
         return SmoothDirection(rawValue: port?.value ?? "") ?? .upDown
     }
 }

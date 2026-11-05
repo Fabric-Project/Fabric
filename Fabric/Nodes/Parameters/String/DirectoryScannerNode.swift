@@ -15,24 +15,22 @@ public class DirectoryScannerNode: Node {
     override public class var nodeDescription: String { "Scan a directory and output file paths as an Array of Strings" }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputPath = ParameterPort(parameter: StringParameter("Directory", "", .filepicker, "Path to the directory to scan"))
+    public let inputExtension = ParameterPort(parameter: StringParameter("Extension", "", .inputfield, "File extension filter (e.g. png), leave empty for all files"))
+    public let inputRescan = ParameterPort(parameter: BoolParameter("Rescan", false, .button, "Signal to rescan the directory"))
+    public let outputPaths = NodePort<ContiguousArray<String>>(name: "Paths", kind: .Outlet, description: "Array of file paths found in the directory")
+    public let outputCount = NodePort<Int>(name: "Count", kind: .Outlet, description: "Number of files found")
 
-        return ports + [
-            ("inputPath", ParameterPort(parameter: StringParameter("Directory", "", .filepicker, "Path to the directory to scan"))),
-            ("inputExtension", ParameterPort(parameter: StringParameter("Extension", "", .inputfield, "File extension filter (e.g. png), leave empty for all files"))),
-            ("inputRescan", ParameterPort(parameter: BoolParameter("Rescan", false, .button, "Signal to rescan the directory"))),
-            ("outputPaths", NodePort<ContiguousArray<String>>(name: "Paths", kind: .Outlet, description: "Array of file paths found in the directory")),
-            ("outputCount", NodePort<Int>(name: "Count", kind: .Outlet, description: "Number of files found")),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputPath", port: self.inputPath),
+            PortDeclaration(key: "inputExtension", port: self.inputExtension),
+            PortDeclaration(key: "inputRescan", port: self.inputRescan),
+            PortDeclaration(key: "outputPaths", port: self.outputPaths),
+            PortDeclaration(key: "outputCount", port: self.outputCount),
         ]
     }
-
-    // Port proxies
-    public var inputPath: ParameterPort<String> { port(named: "inputPath") }
-    public var inputExtension: ParameterPort<String> { port(named: "inputExtension") }
-    public var inputRescan: ParameterPort<Bool> { port(named: "inputRescan") }
-    public var outputPaths: NodePort<ContiguousArray<String>> { port(named: "outputPaths") }
-    public var outputCount: NodePort<Int> { port(named: "outputCount") }
 
     private var lastRescan: Bool = false
 

@@ -116,7 +116,7 @@ struct NodeSettingsTests
         #expect(failures.isEmpty, "\(failures.joined(separator: "\n"))")
     }
 
-    @Test("Non-default settings of every kind save and open as they were, and the ports keep their ids")
+    @Test("Non-default settings of every kind save and open as they were, and the ports keep their keys, types and order")
     func nonDefaultSettingsSaveAndOpen() throws
     {
         guard let context = makeContext() else { return }
@@ -129,6 +129,8 @@ struct NodeSettingsTests
         let element = HIDElementInfo(id: "axis-x", cookie: 1, usagePage: 1, usage: 0x30,
                                      displayName: "X", min: 0, max: 255, isRelative: false)
         let shader = (LiveImageNode(context: context).settings as? LiveImageSettings)?.shaderSource ?? ""
+        let effect = try BaseImageNode(context: context,
+                                       fileURL: try #require(BaseImageNode.resolveBundleResource(path: "Effects/ColorSpace/XYZ to RGB.metal")))
         let cases: [(name: String, node: Node, settings: any NodeSettings)] = [
             ("Strategy", SampleAndHoldNode(context: context), StrategyNodeSettings(strategy: PortType.String.rawValue)),
             ("Routing", SwitchNode(context: context), RoutingSettings(portType: .Int, routeCount: 5)),
@@ -139,6 +141,7 @@ struct NodeSettingsTests
              ParametricExpressionSettings(expressionX: "a * u", expressionY: "v", expressionZ: "b")),
             ("JavaScript", JavaScriptNode(context: context), JavaScriptSettings(scriptSource: script, selectedTimeMode: .TimeBase)),
             ("Live Image", LiveImageNode(context: context), LiveImageSettings(shaderSource: shader + "\n// edited\n")),
+            ("Shader File", effect, ShaderFileSettings(effectPath: "Effects/ColorSpace/XYZ to LAB.metal", effectFile: nil)),
             ("Timeline", TimelineNode(context: context),
              TimelineSettings(duration: 2, tracks: [TimelineTrack(name: "A", duration: 2), TimelineTrack(name: "B", duration: 2)])),
             ("OSC Receive", OSCReceiveNode(context: context),
@@ -156,7 +159,8 @@ struct NodeSettingsTests
             ("Local VLM", LocalVLMNode(context: context),
              LocalVLMSettings(selectedModelID: "model", temperature: 0.3, updateIntervalSeconds: 1, systemPromptOverride: "s", chatModeEnabled: false, desiredMaxContextTokens: 1_024)),
         ]
-        func identities(_ node: Node) -> [String] { node.ports.map { "\($0.name) \($0.id)" }.sorted() }
+        // Port ids are runtime-only; a port is the same port across a save by its key.
+        func identities(_ node: Node) -> [String] { node.ports.map { "\(String(describing: $0.key)) \($0.kind) \($0.portType) \($0.name)" } }
 
         for (name, node, settings) in cases
         {
@@ -169,7 +173,7 @@ struct NodeSettingsTests
             decoder.context = DecoderContext(documentContext: context)
             let opened = try decoder.decode(Graph.self, from: JSONEncoder().encode(graph)).node(forID: node.id)
             #expect(opened?.settings?.isEqual(to: settings) == true, "\(name): opens as saved")
-            #expect(opened.map(identities) == identities(node), "\(name): ports keep their ids")
+            #expect(opened.map(identities) == identities(node), "\(name): ports keep their keys, types and order")
         }
     }
 
@@ -395,7 +399,7 @@ struct NodeSettingsTests
         graph.undoManager = undoManager
         let model = node.strategySettingsModel
 
-        // The model follows the node on a later turn of main.
+        // The model follows the node: at once on main, on main from elsewhere.
         func runMainLoop() async throws { try await Task.sleep(for: .milliseconds(50)) }
 
         undoManager.beginUndoGrouping()
@@ -457,10 +461,8 @@ struct NodeSettingsTests
         }
         """, selectedTimeMode: .Idle))
         let applied = node.scriptSource
-        #expect(applied != editor.content)
 
-        // The editor takes the value on a later turn of main.
-        try await Task.sleep(for: .milliseconds(50))
+        // Applied on main, the value reaches the open editor at once.
         #expect(editor.content == applied)
         #expect(editor.selectedTimeMode == .Idle)
 

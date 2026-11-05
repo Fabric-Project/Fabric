@@ -133,45 +133,42 @@ class SuperShapeGeometryNode : BaseGeometryNode
     override public class var nodeDescription: String { "Provides parametric Geometry based off of the Super Shape formula."}
     
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("r1Param",  ParameterPort(parameter:FloatParameter("R1", 1.0, 0, 2, .slider, "Radial scale factor for the first supershape formula"))),
-            ("a1Param",  ParameterPort(parameter:FloatParameter("A1", 1.0, 0.0, 5.0, .slider, "Horizontal stretch factor for the first supershape"))),
-            ("b1Param",  ParameterPort(parameter:FloatParameter("B1", 1.0, 0.0, 5.0, .slider, "Vertical stretch factor for the first supershape"))),
-            ("m1Param",  ParameterPort(parameter:FloatParameter("M1", 10, 0, 20, .slider, "Rotational symmetry count for the first supershape"))),
-            ("n11Param", ParameterPort(parameter:FloatParameter("N11", 1.087265, 0.0, 100.0, .slider, "First shape exponent n1 for the first supershape"))),
-            ("n21Param", ParameterPort(parameter:FloatParameter("N21", 0.938007, 0.0, 100.0, .slider, "Second shape exponent n2 for the first supershape"))),
-            ("n31Param", ParameterPort(parameter:FloatParameter("N31", -0.615898, 0.0, 100.0, .slider, "Third shape exponent n3 for the first supershape"))),
-            ("r2Param",  ParameterPort(parameter:FloatParameter("R2", 0.984062, 0, 2, .slider, "Radial scale factor for the second supershape formula"))),
-            ("a2Param",  ParameterPort(parameter:FloatParameter("A2", 1.513944, 0.0, 5.0, .slider, "Horizontal stretch factor for the second supershape"))),
-            ("b2Param",  ParameterPort(parameter:FloatParameter("B2", 0.642890, 0.0, 5.0, .slider, "Vertical stretch factor for the second supershape"))),
-            ("m2Param",  ParameterPort(parameter:FloatParameter("M2", 5.225158, 0, 20, .slider, "Rotational symmetry count for the second supershape"))),
-            ("n12Param", ParameterPort(parameter:FloatParameter("N12", 1.0, 0.0, 100.0, .slider, "First shape exponent n1 for the second supershape"))),
-            ("n22Param", ParameterPort(parameter:FloatParameter("N22", 1.371561, 0.0, 100.0, .slider, "Second shape exponent n2 for the second supershape"))),
-            ("n32Param", ParameterPort(parameter:FloatParameter("N32", 0.651718, 0.0, 100.0, .slider, "Third shape exponent n3 for the second supershape"))),
-            ("resParam", ParameterPort(parameter:IntParameter("Segments", 300, 3, 300, .inputfield, "Mesh segment count (resolution) for both angular and vertical divisions"))),
+    public let r1Param = ParameterPort(parameter:FloatParameter("R1", 1.0, 0, 2, .slider, "Radial scale factor for the first supershape formula"))
+    public let a1Param = ParameterPort(parameter:FloatParameter("A1", 1.0, 0.0, 5.0, .slider, "Horizontal stretch factor for the first supershape"))
+    public let b1Param = ParameterPort(parameter:FloatParameter("B1", 1.0, 0.0, 5.0, .slider, "Vertical stretch factor for the first supershape"))
+    public let m1Param = ParameterPort(parameter:FloatParameter("M1", 10, 0, 20, .slider, "Rotational symmetry count for the first supershape"))
+    public let n11Param = ParameterPort(parameter:FloatParameter("N11", 1.087265, 0.0, 100.0, .slider, "First shape exponent n1 for the first supershape"))
+    public let n21Param = ParameterPort(parameter:FloatParameter("N21", 0.938007, 0.0, 100.0, .slider, "Second shape exponent n2 for the first supershape"))
+    public let n31Param = ParameterPort(parameter:FloatParameter("N31", -0.615898, 0.0, 100.0, .slider, "Third shape exponent n3 for the first supershape"))
+    public let r2Param = ParameterPort(parameter:FloatParameter("R2", 0.984062, 0, 2, .slider, "Radial scale factor for the second supershape formula"))
+    public let a2Param = ParameterPort(parameter:FloatParameter("A2", 1.513944, 0.0, 5.0, .slider, "Horizontal stretch factor for the second supershape"))
+    public let b2Param = ParameterPort(parameter:FloatParameter("B2", 0.642890, 0.0, 5.0, .slider, "Vertical stretch factor for the second supershape"))
+    public let m2Param = ParameterPort(parameter:FloatParameter("M2", 5.225158, 0, 20, .slider, "Rotational symmetry count for the second supershape"))
+    public let n12Param = ParameterPort(parameter:FloatParameter("N12", 1.0, 0.0, 100.0, .slider, "First shape exponent n1 for the second supershape"))
+    public let n22Param = ParameterPort(parameter:FloatParameter("N22", 1.371561, 0.0, 100.0, .slider, "Second shape exponent n2 for the second supershape"))
+    public let n32Param = ParameterPort(parameter:FloatParameter("N32", 0.651718, 0.0, 100.0, .slider, "Third shape exponent n3 for the second supershape"))
+    public let resParam = ParameterPort(parameter:IntParameter("Segments", 300, 3, 300, .inputfield, "Mesh segment count (resolution) for both angular and vertical divisions"))
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "r1Param", port: self.r1Param),
+            PortDeclaration(key: "a1Param", port: self.a1Param),
+            PortDeclaration(key: "b1Param", port: self.b1Param),
+            PortDeclaration(key: "m1Param", port: self.m1Param),
+            PortDeclaration(key: "n11Param", port: self.n11Param),
+            PortDeclaration(key: "n21Param", port: self.n21Param),
+            PortDeclaration(key: "n31Param", port: self.n31Param),
+            PortDeclaration(key: "r2Param", port: self.r2Param),
+            PortDeclaration(key: "a2Param", port: self.a2Param),
+            PortDeclaration(key: "b2Param", port: self.b2Param),
+            PortDeclaration(key: "m2Param", port: self.m2Param),
+            PortDeclaration(key: "n12Param", port: self.n12Param),
+            PortDeclaration(key: "n22Param", port: self.n22Param),
+            PortDeclaration(key: "n32Param", port: self.n32Param),
+            PortDeclaration(key: "resParam", port: self.resParam),
         ]
     }
-
-    // Proxy Ports
-    public var r1Param:ParameterPort<Float>  { port(named: "r1Param") }
-    public var a1Param:ParameterPort<Float>  { port(named: "a1Param") }
-    public var b1Param:ParameterPort<Float>  { port(named: "b1Param") }
-    public var m1Param:ParameterPort<Float>  { port(named: "m1Param") }
-    public var n11Param:ParameterPort<Float>  { port(named: "n11Param") }
-    public var n21Param:ParameterPort<Float>  { port(named: "n21Param") }
-    public var n31Param:ParameterPort<Float>  { port(named: "n31Param") }
-    public var r2Param:ParameterPort<Float>  { port(named: "r2Param") }
-    public var a2Param:ParameterPort<Float>  { port(named: "a2Param") }
-    public var b2Param:ParameterPort<Float>  { port(named: "b2Param") }
-    public var m2Param:ParameterPort<Float>  { port(named: "m2Param") }
-    public var n12Param:ParameterPort<Float>  { port(named: "n12Param") }
-    public var n22Param:ParameterPort<Float>  { port(named: "n22Param") }
-    public var n32Param:ParameterPort<Float>  { port(named: "n32Param") }
-    public var resParam:ParameterPort<Int>  { port(named: "resParam") }
 
     public override var geometry: SuperShapeGeometry { _geometry }
 

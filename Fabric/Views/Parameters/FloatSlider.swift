@@ -82,12 +82,10 @@ struct FloatSlider: View, Equatable
     @Bindable var vmMin: ParameterObservableModel<Float>
     @Bindable var vmMax: ParameterObservableModel<Float>
 
-    init(param: FloatParameter)
+    init(param: FloatParameter, port: NodePort<Float>? = nil)
     {
-        self.vm = ParameterObservableModel(label: param.label,
-                                           get: { param.value },
-                                           set: { param.value = $0 },
-                                           publisher:param.valuePublisher )
+        self.vm = ParameterObservableModel(control: ControlValue(parameter: param, port: port),
+                                           publisher: param.valuePublisher)
         
         self.vmMin = ParameterObservableModel(label: param.label,
                                               get: { param.min },
@@ -115,12 +113,10 @@ struct Float2Slider: View, Equatable
     @Bindable var vmMin: ParameterObservableModel<simd_float2>
     @Bindable var vmMax: ParameterObservableModel<simd_float2>
 
-    init(param: Float2Parameter)
+    init(param: Float2Parameter, port: NodePort<simd_float2>? = nil)
     {
-        self.vm = ParameterObservableModel(label: param.label,
-                                           get: { param.value },
-                                           set: { param.value = $0 },
-                                           publisher:param.valuePublisher )
+        self.vm = ParameterObservableModel(control: ControlValue(parameter: param, port: port),
+                                           publisher: param.valuePublisher)
         
         self.vmMin = ParameterObservableModel(label: param.label,
                                               get: { param.min },
@@ -154,12 +150,10 @@ struct Float3Slider: View, Equatable
     @Bindable var vmMin: ParameterObservableModel<simd_float3>
     @Bindable var vmMax: ParameterObservableModel<simd_float3>
 
-    init(param: Float3Parameter)
+    init(param: Float3Parameter, port: NodePort<simd_float3>? = nil)
     {
-        self.vm = ParameterObservableModel(label: param.label,
-                                           get: { param.value },
-                                           set: { param.value = $0 },
-                                           publisher:param.valuePublisher )
+        self.vm = ParameterObservableModel(control: ControlValue(parameter: param, port: port),
+                                           publisher: param.valuePublisher)
         
         self.vmMin = ParameterObservableModel(label: param.label,
                                               get: { param.min },
@@ -192,12 +186,10 @@ struct Float4Slider: View, Equatable
     @Bindable var vmMin: ParameterObservableModel<simd_float4>
     @Bindable var vmMax: ParameterObservableModel<simd_float4>
 
-    init(param: Float4Parameter)
+    init(param: Float4Parameter, port: NodePort<simd_float4>? = nil)
     {
-        self.vm = ParameterObservableModel(label: param.label,
-                                           get: { param.value },
-                                           set: { param.value = $0 },
-                                           publisher:param.valuePublisher )
+        self.vm = ParameterObservableModel(control: ControlValue(parameter: param, port: port),
+                                           publisher: param.valuePublisher)
         
         self.vmMin = ParameterObservableModel(label: param.label,
                                               get: { param.min },

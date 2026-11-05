@@ -19,22 +19,19 @@ public class ScaleTransformNode : Node
     override public class var nodeDescription: String { "Scale a transform"}
     
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputTransform", PortType.Transform.makeFreshPort(name: "Transform", kind: .Inlet, description: "4x4 transform matrix to scale")),
-            ("inputScale", ParameterPort(parameter: Float3Parameter("Scale", simd_float3(1, 1, 1), .inputfield, "XYZ scale factors to apply"))),
-            ("outputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Outlet, description: "Scaled 4x4 transform matrix")),
+    public let inputTransform = NodePort<simd_float4x4>.makeFresh(name: "Transform", kind: .Inlet, description: "4x4 transform matrix to scale")
+    public let inputScale = ParameterPort(parameter: Float3Parameter("Scale", simd_float3(1, 1, 1), .inputfield, "XYZ scale factors to apply"))
+    public let outputTransform = NodePort<simd_float4x4>(name: "Transform" , kind: .Outlet, description: "Scaled 4x4 transform matrix")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputTransform", port: self.inputTransform),
+            PortDeclaration(key: "inputScale", port: self.inputScale),
+            PortDeclaration(key: "outputTransform", port: self.outputTransform),
         ]
     }
 
-    // Port Proxy
-    public var inputTransform:NodePort<simd_float4x4> { port(named: "inputTransform") }
-    public var inputScale:ParameterPort<simd_float3> { port(named: "inputScale") }
-    public var outputTransform:NodePort<simd_float4x4> { port(named: "outputTransform") }
-    
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,

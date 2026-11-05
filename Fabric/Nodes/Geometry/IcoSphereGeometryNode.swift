@@ -14,19 +14,16 @@ public class IcoSphereGeometryNode : BaseGeometryNode
     public override class var name:String { "IcoSphere Geometry" }
     public override class var nodeDescription: String { "Generates icosphere geometry" }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return  [
-        ("inputRadius",  ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield, "Radius of the icosphere in world units"))),
-        ("inputResolution",  ParameterPort(parameter:IntParameter("Segments", 1, .inputfield, "Subdivision level for mesh detail (higher = more triangles)"))),
+    public let inputRadius = ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield, "Radius of the icosphere in world units"))
+    public let inputResolution = ParameterPort(parameter:IntParameter("Segments", 1, .inputfield, "Subdivision level for mesh detail (higher = more triangles)"))
 
-        ] + ports
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        [
+            PortDeclaration(key: "inputRadius", port: self.inputRadius),
+            PortDeclaration(key: "inputResolution", port: self.inputResolution),
+        ] + super.declaredPorts()
     }
-    
-    // Proxy Port
-    public var inputRadius:ParameterPort<Float> { port(named: "inputRadius")  }
-    public var inputResolution:ParameterPort<Int> { port(named: "inputResolution")  }
 
     public override var geometry: IcoSphereGeometry { _geometry }
     private lazy var _geometry = IcoSphereGeometry(context:self.context, radius: 1.0, resolution: 1)

@@ -8,21 +8,20 @@ private final class PluginGeometryNode: BaseGeometryNode
     override class var name: String { "Plugin Geometry" }
     override class var nodeTimeMode: Node.TimeMode { .TimeBase }
 
-    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
+    let inputSize = ParameterPort(
+        parameter: FloatParameter(
+            "Size",
+            1,
+            .inputfield,
+            "Geometry size"
+        )
+    )
+
+    override func declaredPorts() -> [PortDeclaration]
     {
         [
-            (
-                "inputSize",
-                ParameterPort(
-                    parameter: FloatParameter(
-                        "Size",
-                        1,
-                        .inputfield,
-                        "Geometry size"
-                    )
-                )
-            ),
-        ] + super.registerPorts(context: context)
+            PortDeclaration(key: "inputSize", port: self.inputSize),
+        ] + super.declaredPorts()
     }
 
     override var geometry: Geometry { triangleGeometry }

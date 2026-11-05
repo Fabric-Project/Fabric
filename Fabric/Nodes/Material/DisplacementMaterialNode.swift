@@ -18,25 +18,30 @@ public class DisplacementMaterialNode: BaseMaterialNode
     override public class var nodeDescription: String { "Displace Geometry using an Images luminance or rgb values."}
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return [
-            ("inputTexture", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Color texture to apply to displaced geometry")),
-            ("inputDisplacementTexture", NodePort<FabricImage>(name: "Displacement Image", kind: .Inlet, description: "Grayscale image for vertex displacement")),
-            ("inputPointSpriteTexture", NodePort<FabricImage>(name: "Point Sprite Image", kind: .Inlet, description: "Texture for point sprite rendering")),
-        ] + ports
-    }
+    public let inputTexture = NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Color texture to apply to displaced geometry")
+    public let inputDisplacementTexture = NodePort<FabricImage>(name: "Displacement Image", kind: .Inlet, description: "Grayscale image for vertex displacement")
+    public let inputPointSpriteTexture = NodePort<FabricImage>(name: "Point Sprite Image", kind: .Inlet, description: "Texture for point sprite rendering")
 
-    // Proxy Params
-    public var inputTexture:NodePort<FabricImage> { port(named: "inputTexture") }
-    public var inputDisplacementTexture:NodePort<FabricImage> { port(named: "inputDisplacementTexture") }
-    public var inputPointSpriteTexture:NodePort<FabricImage> { port(named: "inputPointSpriteTexture") }
-    public var inputAmount:ParameterPort<Float> { port(named: "Amount") }
-    public var inputLumaVsRGBAmount:ParameterPort<Float> { port(named: "Luma Vs RGB") }
-    public var inputMinPointSize:ParameterPort<Float> { port(named: "Min Point Size") }
-    public var inputMaxPointSize:ParameterPort<Float> { port(named: "Max Point Size") }
-    public var inputBrightness:ParameterPort<Float> { port(named: "Brightness") }
+    public var inputAmount: ParameterPort<Float> { _inputAmount }
+    private var _inputAmount: ParameterPort<Float>!
+    public var inputLumaVsRGBAmount: ParameterPort<Float> { _inputLumaVsRGBAmount }
+    private var _inputLumaVsRGBAmount: ParameterPort<Float>!
+    public var inputMinPointSize: ParameterPort<Float> { _inputMinPointSize }
+    private var _inputMinPointSize: ParameterPort<Float>!
+    public var inputMaxPointSize: ParameterPort<Float> { _inputMaxPointSize }
+    private var _inputMaxPointSize: ParameterPort<Float>!
+    public var inputBrightness: ParameterPort<Float> { _inputBrightness }
+    private var _inputBrightness: ParameterPort<Float>!
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self._inputAmount = findPort(named: "Amount")
+        self._inputLumaVsRGBAmount = findPort(named: "Luma Vs RGB")
+        self._inputMinPointSize = findPort(named: "Min Point Size")
+        self._inputMaxPointSize = findPort(named: "Max Point Size")
+        self._inputBrightness = findPort(named: "Brightness")
+    }
     
     
     public override var material: DisplacementMaterial {
@@ -62,7 +67,6 @@ public class DisplacementMaterialNode: BaseMaterialNode
     required public init(context: Context) {
         self._material = Self.makeMaterial(context: context)
         super.init(context: context)
-        self.addMaterialParameterPorts()
     }
 
     public required init(from decoder: any Decoder) throws {
@@ -70,21 +74,24 @@ public class DisplacementMaterialNode: BaseMaterialNode
 
         self._material = Self.makeMaterial(context: context)
         try super.init(from: decoder)
-        self.addMaterialParameterPorts()
     }
 
-    private func addMaterialParameterPorts() {
-        // Only shader-authored controls become ports; texture transforms stay internal.
-        // The port wraps the material's parameter directly, including during hydration.
-        let inheritedPorts = self.ports.filter { $0.parameter != nil || $0.kind == .Outlet }
-        for parameter in self.material.parameters.params where parameter.controlType != .none {
-            if let port = PortType.port(for: parameter) {
-                self.addDynamicPort(port)
-            }
-        }
-        self.reorderPorts(self.ports.filter { port in
-            !inheritedPorts.contains(where: { $0.id == port.id })
-        } + inheritedPorts)
+    /// The image inlets, then the shader's controls, then the inherited
+    /// parameters and the outlet. Only shader-authored controls become ports;
+    /// texture transforms stay internal. Each port wraps the material's
+    /// parameter directly, hydration included.
+    override public func declaredPorts() -> [PortDeclaration] {
+        let fixedPorts = [
+            PortDeclaration(key: "inputTexture", port: self.inputTexture),
+            PortDeclaration(key: "inputDisplacementTexture", port: self.inputDisplacementTexture),
+            PortDeclaration(key: "inputPointSpriteTexture", port: self.inputPointSpriteTexture),
+        ] + super.declaredPorts()
+        let isMaterialSetting: (PortDeclaration) -> Bool = { $0.control != nil || $0.kind == .Outlet }
+        let controls = self._material.parameters.params
+            .filter { $0.controlType != .none }
+            .compactMap { parameter in PortType.port(for: parameter).map { PortDeclaration(key: $0.name, port: $0) } }
+
+        return fixedPorts.filter { !isMaterialSetting($0) } + controls + fixedPorts.filter(isMaterialSetting)
     }
 
     override public func evaluate(material: Material, atTime: TimeInterval) -> Bool

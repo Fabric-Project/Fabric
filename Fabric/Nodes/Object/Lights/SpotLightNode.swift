@@ -19,35 +19,34 @@ public class SpotLightNode : ObjectNode<SpotLight>
     override public class var nodeDescription: String { "Adds a Spot Light to the scene with optional cookie or projector image support."}
 
     private static let projectionModeOptions = ["Mask", "Color"]
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputLookAt = ParameterPort(parameter:Float3Parameter("Look At", simd_float3(repeating:0), .inputfield, "Target position the light points toward"))
+    public let inputColor = ParameterPort(parameter:Float3Parameter("Color", simd_float3(repeating:1), .inputfield, "RGB color of the light"))
+    public let inputIntensity = ParameterPort(parameter: FloatParameter("Intensity", 1.0, 0.0, 300.0, .slider, "Brightness multiplier for the light"))
+    public let inputRadius = ParameterPort(parameter: FloatParameter("Radius", 10.0, 0.0, 1000.0, .slider, "Distance at which the light falls off to zero"))
+    public let inputAngleInner = ParameterPort(parameter: FloatParameter("Inner Angle", 15.0, 0.0, 89.0, .slider, "Fully lit cone angle in degrees"))
+    public let inputAngleOuter = ParameterPort(parameter: FloatParameter("Outer Angle", 25.0, 0.0, 89.0, .slider, "Falloff cone angle in degrees"))
+    public let inputProjectionImage = NodePort<FabricImage>(name: "Projection Image", kind: .Inlet, description: "Optional image used as a spotlight cookie or projector texture")
+    public let inputProjectionMode = ParameterPort(parameter: StringParameter("Projection Mode", "Mask", SpotLightNode.projectionModeOptions, .dropdown, "How the projection image is applied to the scene"))
+    public let inputShadowStrength = ParameterPort(parameter: FloatParameter("Shadow Strength", 0.5, 0.0, 2.0, .slider, "Opacity of cast shadows (0 = invisible, higher values darken more)"))
+    public let inputShadowRadius = ParameterPort(parameter: FloatParameter("Shadow Radius", 1.0, 0.0, 10.0, .slider, "Blur radius for soft shadow edges"))
+    public let inputShadowBias = ParameterPort(parameter: FloatParameter("Shadow Bias", 0.0001, 0.0, 0.01, .slider, "Offset to prevent shadow acne artifacts"))
 
-        return  [
-            ("inputLookAt", ParameterPort(parameter:Float3Parameter("Look At", simd_float3(repeating:0), .inputfield, "Target position the light points toward")) ),
-            ("inputColor", ParameterPort(parameter:Float3Parameter("Color", simd_float3(repeating:1), .inputfield, "RGB color of the light")) ),
-            ("inputIntensity", ParameterPort(parameter: FloatParameter("Intensity", 1.0, 0.0, 300.0, .slider, "Brightness multiplier for the light"))),
-            ("inputRadius", ParameterPort(parameter: FloatParameter("Radius", 10.0, 0.0, 1000.0, .slider, "Distance at which the light falls off to zero"))),
-            ("inputAngleInner", ParameterPort(parameter: FloatParameter("Inner Angle", 15.0, 0.0, 89.0, .slider, "Fully lit cone angle in degrees"))),
-            ("inputAngleOuter", ParameterPort(parameter: FloatParameter("Outer Angle", 25.0, 0.0, 89.0, .slider, "Falloff cone angle in degrees"))),
-            ("inputProjectionImage", NodePort<FabricImage>(name: "Projection Image", kind: .Inlet, description: "Optional image used as a spotlight cookie or projector texture")),
-            ("inputProjectionMode", ParameterPort(parameter: StringParameter("Projection Mode", "Mask", Self.projectionModeOptions, .dropdown, "How the projection image is applied to the scene"))),
-            ("inputShadowStrength", ParameterPort(parameter: FloatParameter("Shadow Strength", 0.5, 0.0, 2.0, .slider, "Opacity of cast shadows (0 = invisible, higher values darken more)"))),
-            ("inputShadowRadius", ParameterPort(parameter: FloatParameter("Shadow Radius", 1.0, 0.0, 10.0, .slider, "Blur radius for soft shadow edges"))),
-            ("inputShadowBias", ParameterPort(parameter: FloatParameter("Shadow Bias", 0.0001, 0.0, 0.01, .slider, "Offset to prevent shadow acne artifacts"))),
-        ] + ports
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        [
+            PortDeclaration(key: "inputLookAt", port: self.inputLookAt),
+            PortDeclaration(key: "inputColor", port: self.inputColor),
+            PortDeclaration(key: "inputIntensity", port: self.inputIntensity),
+            PortDeclaration(key: "inputRadius", port: self.inputRadius),
+            PortDeclaration(key: "inputAngleInner", port: self.inputAngleInner),
+            PortDeclaration(key: "inputAngleOuter", port: self.inputAngleOuter),
+            PortDeclaration(key: "inputProjectionImage", port: self.inputProjectionImage),
+            PortDeclaration(key: "inputProjectionMode", port: self.inputProjectionMode),
+            PortDeclaration(key: "inputShadowStrength", port: self.inputShadowStrength),
+            PortDeclaration(key: "inputShadowRadius", port: self.inputShadowRadius),
+            PortDeclaration(key: "inputShadowBias", port: self.inputShadowBias),
+        ] + super.declaredPorts()
     }
-
-    public var inputLookAt:ParameterPort<simd_float3> { port(named: "inputLookAt") }
-    public var inputColor: ParameterPort<simd_float3> { port(named: "inputColor") }
-    public var inputIntensity: ParameterPort<Float> { port(named: "inputIntensity") }
-    public var inputRadius: ParameterPort<Float> { port(named: "inputRadius") }
-    public var inputAngleInner: ParameterPort<Float> { port(named: "inputAngleInner") }
-    public var inputAngleOuter: ParameterPort<Float> { port(named: "inputAngleOuter") }
-    public var inputProjectionImage: NodePort<FabricImage> { port(named: "inputProjectionImage") }
-    public var inputProjectionMode: ParameterPort<String> { port(named: "inputProjectionMode") }
-    public var inputShadowStrength: ParameterPort<Float> { port(named: "inputShadowStrength") }
-    public var inputShadowRadius: ParameterPort<Float> { port(named: "inputShadowRadius") }
-    public var inputShadowBias: ParameterPort<Float> { port(named: "inputShadowBias") }
 
     public override var object: SpotLight? {
         return light

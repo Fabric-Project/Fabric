@@ -56,13 +56,16 @@ public class LiveImageNode: BaseImageNode
     enum CodingKeys: String, CodingKey {
         case shaderSource
     }
+
     private static let rootWorkspaceURL = URL(filePath: "/tmp/fabric-live-shaders", directoryHint: .isDirectory)
     private static let staleWorkspaceTTL: TimeInterval = 24 * 60 * 60
 
     private(set) var shaderSource: String = LiveImageNode.defaultShaderSource()
     {
-        didSet { self.performOnMainAsync { [weak self] in self?._editorModelStorage?.refreshFromNode() } }
+        didSet { self.settingsDidChange() }
     }
+
+    override public var compilableSource: String? { self.shaderSource }
 
     // A decoded copy of a node carries the document and node UUIDs of the
     // original, so keying the workspace on those alone puts two live instances
@@ -77,7 +80,7 @@ public class LiveImageNode: BaseImageNode
     private var shaderFileURL: URL?
     private var workspaceError: (any Error)?
     {
-        didSet { self.subtitleSubject.send() }
+        didSet { self.namingDidChange() }
     }
 
     /// Set for the duration of super.init(from:) — see init(from:).
@@ -116,15 +119,15 @@ public class LiveImageNode: BaseImageNode
 
         // The single sync: uniform ports the saved shader declares are created
         // and adopt their persisted identity and state by registry key. On
-        // compile failure the document's own ports stand in — see
+        // compile failure the last compiled source's do — see
         // recompileAndResyncPorts.
         self.postInit()
     }
 
-    override public func postSetupSynchronizePorts(allowReplace: Bool) {
+    override public func postSetupSynchronizePorts() {
         guard self.suppressesTemplateShaderPortSync == false else { return }
 
-        super.postSetupSynchronizePorts(allowReplace: allowReplace)
+        super.postSetupSynchronizePorts()
     }
 
     deinit {
@@ -170,6 +173,12 @@ public class LiveImageNode: BaseImageNode
     }
 
     private var _editorModelStorage: LiveImageNodeEditorModel?
+
+    override public func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _editorModelStorage?.refreshFromNode()
+    }
 
     override public var settingsSize: SettingsViewSize {
         .Custom(size: CGSize(width: 900, height: 620))
@@ -234,7 +243,7 @@ public class LiveImageNode: BaseImageNode
         }
         catch {
             self.workspaceError = error
-            self.adoptRemainingSnapshotPortsAsFallback()
+            self.declareLastCompiledInterfaceIfUndeclared()
         }
     }
 
@@ -302,21 +311,21 @@ public class LiveImageNode: BaseImageNode
 
     private func recompileAndResyncPorts() {
         // Whether the shader compiled is the node's status, and it just changed.
-        defer { self.subtitleSubject.send() }
+        defer { self.namingDidChange() }
 
         if let sourceShader = self.postMaterial.shader as? SourceShader {
             sourceShader.reloadFromSource()
 
             if sourceShader.pipelineError == nil {
-                self.postSetupSynchronizePorts(allowReplace: false)
+                self.postSetupSynchronizePorts()
                 return
             }
         }
 
         // The saved shader declares the uniform ports; without a compiled one
-        // there is nothing to rebuild them from, so let the document's own
-        // stand in until the user fixes the source.
-        self.adoptRemainingSnapshotPortsAsFallback()
+        // the last source that compiled stands in, until the user fixes this
+        // one.
+        self.declareLastCompiledInterfaceIfUndeclared()
     }
 
     public override func execute(renderer: GraphRenderer,

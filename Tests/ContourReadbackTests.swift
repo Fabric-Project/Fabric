@@ -12,12 +12,14 @@ struct ContourReadbackTests {
         override class var nodeExecutionMode: Node.ExecutionMode { .Consumer }
         override class var nodeTimeMode: Node.TimeMode { .None }
         override class var nodeDescription: String { "Consumes contour results for tests" }
-        override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)] {
-            super.registerPorts(context: context) + [
-                ("input", NodePort<ContiguousArray<SIMD2<Float>>>(name: "Contour", kind: .Inlet))
+        let input = NodePort<ContiguousArray<SIMD2<Float>>>(name: "Contour", kind: .Inlet)
+
+        override func declaredPorts() -> [PortDeclaration]
+        {
+            super.declaredPorts() + [
+                PortDeclaration(key: "input", port: self.input),
             ]
         }
-        var input: NodePort<ContiguousArray<SIMD2<Float>>> { port(named: "input") }
         var pointCount = 0
         var observedCenters: [Float?] = []
         override func execute(renderer: GraphRenderer, executionInfo: GraphExecutionInfo,
@@ -37,10 +39,14 @@ struct ContourReadbackTests {
         override class var nodeExecutionMode: Node.ExecutionMode { .Provider }
         override class var nodeTimeMode: Node.TimeMode { .None }
         override class var nodeDescription: String { "Supplies a distinct mask for each iteration" }
-        override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)] {
-            super.registerPorts(context: context) + [("output", NodePort<FabricImage>(name: "Mask", kind: .Outlet))]
+        let output = NodePort<FabricImage>(name: "Mask", kind: .Outlet)
+
+        override func declaredPorts() -> [PortDeclaration]
+        {
+            super.declaredPorts() + [
+                PortDeclaration(key: "output", port: self.output),
+            ]
         }
-        var output: NodePort<FabricImage> { port(named: "output") }
         var masks: [FabricImage] = []
         override func execute(renderer: GraphRenderer, executionInfo: GraphExecutionInfo,
                               renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws {

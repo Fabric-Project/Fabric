@@ -10,9 +10,12 @@ import SwiftUI
 import Satin
 import UniformTypeIdentifiers
 
+/// The controls for the parameter inlets among `ports`, in port order. Each
+/// control edits its port; the port's parameter supplies the range, options
+/// and kind of control.
 struct ParameterGroupView : View
 {
-    let parameterGroup:ParameterGroup
+    let ports: [Port]
     var fileContentTypes: [UTType] = [.data]
 
     var body: some View
@@ -21,64 +24,65 @@ struct ParameterGroupView : View
         {
             Spacer()
             
-            ForEach(self.parameterGroup.params.filter(Self.hasEditor), id:\.self.id) { param in
+            ForEach(self.ports.filter(Self.hasEditor), id: \.id) { port in
                 
-                Self.editor(for: param, fileContentTypes: self.fileContentTypes)
+                Self.editor(for: port, fileContentTypes: self.fileContentTypes)
             }
             
             Spacer(minLength: 0)
         }
     }
 
-    /// Whether the view has a control for the parameter. One it has none for
-    /// is left out rather than shown as a bare label: a Transform's inlet is
-    /// fed from the graph, and an unannotated uniform's name is on its inlet.
-    static func hasEditor(_ param: any Parameter) -> Bool
+    /// Whether the view has a control for the port. One it has none for is
+    /// left out rather than shown as a bare label: a Transform's inlet is fed
+    /// from the graph, and an unannotated uniform's name is on its inlet.
+    static func hasEditor(_ port: Port) -> Bool
     {
-        Self.editor(for: param) != nil
+        Self.editor(for: port) != nil
     }
 
-    /// The control for the parameter, or nil where the view has none for its
-    /// control type and value type.
-    private static func editor(for param: any Parameter, fileContentTypes: [UTType] = [.data]) -> AnyView?
+    /// The control for the port, or nil where the view has none for its
+    /// parameter's control type and value type, or it has no parameter.
+    private static func editor(for port: Port, fileContentTypes: [UTType] = [.data]) -> AnyView?
     {
+        guard let param = port.parameter else { return nil }
         let view: (any View)?
 
         switch param.controlType
         {
         case .xypad:
-            view = buildXYPad(param: param)
+            view = buildXYPad(param: param, port: port)
 
         case .slider:
-            view = buildSlider(param: param)
+            view = buildSlider(param: param, port: port)
 
         case .multislider:
             switch param.type
             {
-            case .float2, .int2: view = build2Slider(param: param)
-            case .float3, .int3: view = build3Slider(param: param)
-            case .float4, .int4: view = build4Slider(param: param)
+            case .float2, .int2: view = build2Slider(param: param, port: port)
+            case .float3, .int3: view = build3Slider(param: param, port: port)
+            case .float4, .int4: view = build4Slider(param: param, port: port)
             default:             view = nil
             }
 
         case .dropdown:
-            view = buildDropDown(param: param)
+            view = buildDropDown(param: param, port: port)
 
         case .filepicker:
-            view = buildFilePicker(param: param, fileContentTypes: fileContentTypes)
+            view = buildFilePicker(param: param, port: port, fileContentTypes: fileContentTypes)
 
         case .colorpicker:
-            view = buildColorPicker(param: param)
+            view = buildColorPicker(param: param, port: port)
 
         case .inputfield:
-            view = buildInputField(param: param)
+            view = buildInputField(param: param, port: port)
 
         case .toggle, .button:
-            view = buildToggleButton(param: param)
+            view = buildToggleButton(param: param, port: port)
 
         // A shader uniform with no annotation.
         case .none:
-            view = buildSlider(param: param)
+            view = buildSlider(param: param, port: port)
 
         default:
             view = nil
@@ -87,33 +91,33 @@ struct ParameterGroupView : View
         return view.map { AnyView($0) }
     }
 
-    private static func buildToggleButton(param: any Satin.Parameter) -> (any View)?
+    private static func buildToggleButton(param: any Satin.Parameter, port: Port) -> (any View)?
     {
         guard let boolParam = param as? BoolParameter else { return nil }
 
-        return EquatableView<ButtonParameterView>( content: ButtonParameterView(param:boolParam) )
+        return EquatableView<ButtonParameterView>( content: ButtonParameterView(param: boolParam, port: port as? NodePort<Bool>) )
     }
     
-    private static func buildSlider(param:any Satin.Parameter) -> (any View)?
+    private static func buildSlider(param: any Satin.Parameter, port: Port) -> (any View)?
     {
         if let floatParam = param as? FloatParameter
         {
-            return EquatableView<FloatSlider>( content: FloatSlider(param:floatParam) )
+            return EquatableView<FloatSlider>( content: FloatSlider(param: floatParam, port: port as? NodePort<Float>) )
         }
         
         if let intParam = param as? IntParameter
         {
-            return EquatableView<IntSlider>( content: IntSlider(param:intParam) )
+            return EquatableView<IntSlider>( content: IntSlider(param: intParam, port: port as? NodePort<Int>) )
         }
         
         return nil
     }
     
-    private static func build2Slider(param:any Satin.Parameter) -> (any View)?
+    private static func build2Slider(param: any Satin.Parameter, port: Port) -> (any View)?
     {
         if let floatParam = param as? Float2Parameter
         {
-            return EquatableView<Float2Slider>( content: Float2Slider(param:floatParam) )
+            return EquatableView<Float2Slider>( content: Float2Slider(param: floatParam, port: port as? NodePort<simd_float2>) )
         }
 
         if let intParam = param as? Int2Parameter
@@ -124,11 +128,11 @@ struct ParameterGroupView : View
         return nil
     }
     
-    private static func build3Slider(param:any Satin.Parameter) -> (any View)?
+    private static func build3Slider(param: any Satin.Parameter, port: Port) -> (any View)?
     {
         if let floatParam = param as? Float3Parameter
         {
-            return EquatableView<Float3Slider>( content: Float3Slider(param:floatParam) )
+            return EquatableView<Float3Slider>( content: Float3Slider(param: floatParam, port: port as? NodePort<simd_float3>) )
         }
         
         if let intParam = param as? Int3Parameter
@@ -139,11 +143,11 @@ struct ParameterGroupView : View
         return nil
     }
     
-    private static func build4Slider(param:any Satin.Parameter) -> (any View)?
+    private static func build4Slider(param: any Satin.Parameter, port: Port) -> (any View)?
     {
         if let floatParam = param as? Float4Parameter
         {
-            return EquatableView<Float4Slider>( content: Float4Slider(param:floatParam) )
+            return EquatableView<Float4Slider>( content: Float4Slider(param: floatParam, port: port as? NodePort<simd_float4>) )
         }
         
         if let intParam = param as? Int4Parameter
@@ -154,60 +158,60 @@ struct ParameterGroupView : View
         return nil
     }
     
-    private static func buildXYPad(param:any Satin.Parameter) -> (any View)?
+    private static func buildXYPad(param: any Satin.Parameter, port: Port) -> (any View)?
     {
         guard let float2Param = param as? Float2Parameter else { return nil }
 
-        return EquatableView<XYPad>(content: XYPad(param: float2Param) )
+        return EquatableView<XYPad>(content: XYPad(param: float2Param, port: port as? NodePort<simd_float2>) )
     }
     
-    private static func buildDropDown(param:any Satin.Parameter) -> (any View)?
+    private static func buildDropDown(param: any Satin.Parameter, port: Port) -> (any View)?
     {
         guard let stringParam = param as? StringParameter else { return nil }
         
-        return StringMenu(parameter: stringParam)
+        return StringMenu(parameter: stringParam, port: port as? NodePort<String>)
             .frame(height:20)
     }
     
-    private static func buildColorPicker(param:any Satin.Parameter) -> (any View)?
+    private static func buildColorPicker(param: any Satin.Parameter, port: Port) -> (any View)?
     {
         if let float4Param = param as? Float4Parameter
         {
-            return Color4ParameterView(parameter: float4Param).frame(height:20)
+            return Color4ParameterView(parameter: float4Param, port: port as? NodePort<simd_float4>).frame(height:20)
         }
         
         if let float3Param = param as? Float3Parameter
         {
-            return Color3ParameterView(parameter: float3Param).frame(height:20)
+            return Color3ParameterView(parameter: float3Param, port: port as? NodePort<simd_float3>).frame(height:20)
         }
         
         return nil
     }
     
-    private static func buildInputField(param:any Satin.Parameter) -> (any View)?
+    private static func buildInputField(param: any Satin.Parameter, port: Port) -> (any View)?
     {
         if let stringParam = param as? StringParameter {
-            return InputFieldView(param: stringParam)
+            return InputFieldView(param: stringParam, port: port as? NodePort<String>)
         }
         
         if let floatParam = param as? GenericParameter<Float> {
-            return FloatInputFieldView(param: floatParam)
+            return FloatInputFieldView(param: floatParam, port: port as? NodePort<Float>)
         }
         
         if let floatParam = param as? GenericParameter<simd_float2> {
-            return Float2InputFieldView(param: floatParam)
+            return Float2InputFieldView(param: floatParam, port: port as? NodePort<simd_float2>)
         }
 
         if let floatParam = param as? GenericParameter<simd_float3> {
-            return Float3InputFieldView(param: floatParam)
+            return Float3InputFieldView(param: floatParam, port: port as? NodePort<simd_float3>)
         }
 
         if let floatParam = param as? GenericParameter<simd_float4> {
-            return Float4InputFieldView(param: floatParam)
+            return Float4InputFieldView(param: floatParam, port: port as? NodePort<simd_float4>)
         }
         
         if let intParam = param as? GenericParameter<Int> {
-            return IntInputFieldView(param: intParam)
+            return IntInputFieldView(param: intParam, port: port as? NodePort<Int>)
         }
         
         if let intParam = param as? GenericParameter<simd_int2> {
@@ -225,11 +229,11 @@ struct ParameterGroupView : View
         return nil
     }
     
-    private static func buildFilePicker(param:any Satin.Parameter, fileContentTypes: [UTType]) -> (any View)?
+    private static func buildFilePicker(param: any Satin.Parameter, port: Port, fileContentTypes: [UTType]) -> (any View)?
     {
         guard let stringParam = param as? StringParameter else { return nil }
 
-        return FileImportParameterView(parameter: stringParam, allowedContentTypes: fileContentTypes)
+        return FileImportParameterView(parameter: stringParam, port: port as? NodePort<String>, allowedContentTypes: fileContentTypes)
             .equatable()
     }
 }

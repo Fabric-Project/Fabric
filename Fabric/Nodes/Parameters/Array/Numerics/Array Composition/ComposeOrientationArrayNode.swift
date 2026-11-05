@@ -18,20 +18,17 @@ public class ComposeOrientationArrayNode: StrategyNode
 
     public override class var strategyOptions: [any NodeStrategyOption] { OrientationCompositionMode.allCases }
 
-    private static let allDynamicNames: Set<String> = [
-        "inputEulerAngles",
-        "inputAxes", "inputAngles",
-        "inputPositions", "inputTargets", "inputUpOrientations", "inputAimOffsets",
-        "outputOrientations",
-    ]
-
-    /// `strategy`, typed once per rebuild, so execute never compares strategy strings.
+    /// `strategy`, typed before each reconcile, so execute switches on it without a cast.
     private var typedStrategy: OrientationCompositionMode?
 
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    override public func prepareDeclarations()
     {
-        typedStrategy = strategy as? OrientationCompositionMode
+        super.prepareDeclarations()
+        typedStrategy = strategyOption(as: OrientationCompositionMode.self)
+    }
 
+    override public func declaredPorts() -> [PortDeclaration]
+    {
         let wanted: [(name: String, port: Port)]
         switch typedStrategy
         {
@@ -64,15 +61,29 @@ public class ComposeOrientationArrayNode: StrategyNode
             wanted = []
         }
 
-        let wantedNames = Set(wanted.map(\.name))
-        for name in Self.allDynamicNames.subtracting(wantedNames)
-        {
-            if let p = findPort(named: name) { removePort(p) }
-        }
-        for (name, p) in wanted where findPort(named: name) == nil
-        {
-            addDynamicPort(p, name: name)
-        }
+        return super.declaredPorts() + wanted.map { PortDeclaration(key: $0.name, port: $0.port) }
+    }
+
+    private var boundOutputOrientations: NodePort<ContiguousArray<simd_float4>>?
+    private var boundInputEulerAngles: NodePort<ContiguousArray<simd_float3>>?
+    private var boundInputAxes: NodePort<ContiguousArray<simd_float3>>?
+    private var boundInputAngles: NodePort<ContiguousArray<Float>>?
+    private var boundInputPositions: NodePort<ContiguousArray<simd_float3>>?
+    private var boundInputTargets: NodePort<ContiguousArray<simd_float3>>?
+    private var boundInputUpOrientations: NodePort<ContiguousArray<simd_float4>>?
+    private var boundInputAimOffsets: NodePort<ContiguousArray<simd_float4>>?
+
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundOutputOrientations = findPort(named: "outputOrientations")
+        self.boundInputEulerAngles = findPort(named: "inputEulerAngles")
+        self.boundInputAxes = findPort(named: "inputAxes")
+        self.boundInputAngles = findPort(named: "inputAngles")
+        self.boundInputPositions = findPort(named: "inputPositions")
+        self.boundInputTargets = findPort(named: "inputTargets")
+        self.boundInputUpOrientations = findPort(named: "inputUpOrientations")
+        self.boundInputAimOffsets = findPort(named: "inputAimOffsets")
     }
 
     public override func execute(renderer: GraphRenderer,
@@ -81,12 +92,12 @@ public class ComposeOrientationArrayNode: StrategyNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let outputOrientations: NodePort<ContiguousArray<simd_float4>> = findPort(named: "outputOrientations") else { return }
+        guard let outputOrientations: NodePort<ContiguousArray<simd_float4>> = self.boundOutputOrientations else { return }
 
         switch typedStrategy
         {
         case .euler:
-            guard let inputEulerAngles: NodePort<ContiguousArray<simd_float3>> = findPort(named: "inputEulerAngles") else { return }
+            guard let inputEulerAngles: NodePort<ContiguousArray<simd_float3>> = self.boundInputEulerAngles else { return }
             guard inputEulerAngles.valueDidChange else { return }
             guard let eulerAngles = inputEulerAngles.value else {
                 outputOrientations.send(ContiguousArray<simd_float4>())
@@ -110,8 +121,8 @@ public class ComposeOrientationArrayNode: StrategyNode
             outputOrientations.send(output)
 
         case .axisAngle:
-            guard let inputAxes: NodePort<ContiguousArray<simd_float3>> = findPort(named: "inputAxes"),
-                  let inputAngles: NodePort<ContiguousArray<Float>> = findPort(named: "inputAngles")
+            guard let inputAxes: NodePort<ContiguousArray<simd_float3>> = self.boundInputAxes,
+                  let inputAngles: NodePort<ContiguousArray<Float>> = self.boundInputAngles
             else { return }
             guard inputAxes.valueDidChange || inputAngles.valueDidChange else { return }
 
@@ -142,10 +153,10 @@ public class ComposeOrientationArrayNode: StrategyNode
             outputOrientations.send(output)
 
         case .target:
-            guard let inputPositions: NodePort<ContiguousArray<simd_float3>> = findPort(named: "inputPositions"),
-                  let inputTargets: NodePort<ContiguousArray<simd_float3>> = findPort(named: "inputTargets"),
-                  let inputUpOrientations: NodePort<ContiguousArray<simd_float4>> = findPort(named: "inputUpOrientations"),
-                  let inputAimOffsets: NodePort<ContiguousArray<simd_float4>> = findPort(named: "inputAimOffsets")
+            guard let inputPositions: NodePort<ContiguousArray<simd_float3>> = self.boundInputPositions,
+                  let inputTargets: NodePort<ContiguousArray<simd_float3>> = self.boundInputTargets,
+                  let inputUpOrientations: NodePort<ContiguousArray<simd_float4>> = self.boundInputUpOrientations,
+                  let inputAimOffsets: NodePort<ContiguousArray<simd_float4>> = self.boundInputAimOffsets
             else { return }
             guard inputPositions.valueDidChange || inputTargets.valueDidChange
                 || inputUpOrientations.valueDidChange || inputAimOffsets.valueDidChange

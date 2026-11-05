@@ -12,15 +12,25 @@ public final class DecomposeDictionaryNode: DictionaryTypeAgnosticNode
     public override class var name: String { "Decompose Dictionary" }
     override public class var nodeDescription: String { "Outputs dictionary keys and values sorted by key. Choose value type in Settings." }
 
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
+        return [
+            PortDeclaration(key: "inputDictionary", portType: dictionaryType, kind: .Inlet, name: "Dictionary", description: "Dictionary to decompose"),
+            PortDeclaration(key: "outputKeys", portType: .Array(portType: .String), kind: .Outlet, name: "Keys", description: "Dictionary keys sorted by key"),
+            PortDeclaration(key: "outputValues", portType: valuesArrayType, kind: .Outlet, name: "Values", description: "Values sorted by key"),
+        ] + super.declaredPorts()
+    }
 
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputDictionary", displayName: "Dictionary", portType: dictionaryType,            kind: .Inlet,  description: "Dictionary to decompose")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputKeys",      displayName: "Keys",       portType: .Array(portType: .String), kind: .Outlet, description: "Dictionary keys sorted by key")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputValues",    displayName: "Values",     portType: valuesArrayType,           kind: .Outlet, description: "Values sorted by key")
+    private var boundInputDictionary: Port?
+    private var boundOutputKeys: Port?
+    private var boundOutputValues: Port?
 
-        reorderPorts(named: ["inputDictionary", "outputKeys", "outputValues"])
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputDictionary = findPort(named: "inputDictionary")
+        self.boundOutputKeys = findPort(named: "outputKeys")
+        self.boundOutputValues = findPort(named: "outputValues")
     }
 
     override public func execute(renderer: GraphRenderer,
@@ -29,9 +39,9 @@ public final class DecomposeDictionaryNode: DictionaryTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputDictionary: Port = findPort(named: "inputDictionary"),
-              let outputKeys: Port = findPort(named: "outputKeys"),
-              let outputValues: Port = findPort(named: "outputValues"),
+        guard let inputDictionary: Port = self.boundInputDictionary,
+              let outputKeys: Port = self.boundOutputKeys,
+              let outputValues: Port = self.boundOutputValues,
               inputDictionary.valueDidChange else { return }
 
         let dictionary = inputDictionary.snapshotValue()?.dictionaryValue ?? [:]

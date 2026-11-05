@@ -12,15 +12,25 @@ public final class ComposeDictionaryNode: DictionaryTypeAgnosticNode
     public override class var name: String { "Compose Dictionary" }
     override public class var nodeDescription: String { "Builds a dictionary from string keys and values. Choose value type in Settings." }
 
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
+        return [
+            PortDeclaration(key: "inputKeys", portType: .Array(portType: .String), kind: .Inlet, name: "Keys", description: "String keys"),
+            PortDeclaration(key: "inputValues", portType: valuesArrayType, kind: .Inlet, name: "Values", description: "Values matching the keys"),
+            PortDeclaration(key: "outputDictionary", portType: dictionaryType, kind: .Outlet, name: "Dictionary", description: "Dictionary built from keys and values"),
+        ] + super.declaredPorts()
+    }
 
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputKeys",        displayName: "Keys",       portType: .Array(portType: .String), kind: .Inlet,  description: "String keys")
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputValues",      displayName: "Values",     portType: valuesArrayType,           kind: .Inlet,  description: "Values matching the keys")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputDictionary", displayName: "Dictionary", portType: dictionaryType,            kind: .Outlet, description: "Dictionary built from keys and values")
+    private var boundInputKeys: Port?
+    private var boundInputValues: Port?
+    private var boundOutputDictionary: Port?
 
-        reorderPorts(named: ["inputKeys", "inputValues", "outputDictionary"])
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputKeys = findPort(named: "inputKeys")
+        self.boundInputValues = findPort(named: "inputValues")
+        self.boundOutputDictionary = findPort(named: "outputDictionary")
     }
 
     override public func execute(renderer: GraphRenderer,
@@ -29,9 +39,9 @@ public final class ComposeDictionaryNode: DictionaryTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputKeys: Port = findPort(named: "inputKeys"),
-              let inputValues: Port = findPort(named: "inputValues"),
-              let outputDictionary: Port = findPort(named: "outputDictionary") else { return }
+        guard let inputKeys: Port = self.boundInputKeys,
+              let inputValues: Port = self.boundInputValues,
+              let outputDictionary: Port = self.boundOutputDictionary else { return }
 
         guard inputKeys.valueDidChange || inputValues.valueDidChange else { return }
 

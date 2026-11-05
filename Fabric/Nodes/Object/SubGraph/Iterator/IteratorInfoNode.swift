@@ -20,49 +20,19 @@ public class IteratorInfoNode : Node
     public override var isDirty:Bool { get {  true  } set { } }
     
     // Ports
-    public let outputProgress:NodePort<Float>
-    public let outputIndex:NodePort<Int>
-    public let outputIterationCount:NodePort<Int>
-    public override var ports: [Port] { [ outputProgress, outputIndex, outputIterationCount] + super.ports}
-    
-    public required init(context: Context)
-    {
-        self.outputProgress =  NodePort<Float>(name: "Iterator Progress" , kind: .Outlet)
-        self.outputIndex =  NodePort<Int>(name: "Current Iteration" , kind: .Outlet)
-        self.outputIterationCount =  NodePort<Int>(name: "Number of Iterations" , kind: .Outlet)
+    public let outputProgress = NodePort<Float>(name: "Iterator Progress", kind: .Outlet)
+    public let outputIndex = NodePort<Int>(name: "Current Iteration", kind: .Outlet)
+    public let outputIterationCount = NodePort<Int>(name: "Number of Iterations", kind: .Outlet)
 
-        super.init(context: context)
-    }
-        
-    enum CodingKeys : String, CodingKey
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        case outputProgressPort
-        case outputIndexPort
-        case outputIterationCountPort
+        [
+            PortDeclaration(key: "outputProgressPort", port: self.outputProgress),
+            PortDeclaration(key: "outputIndexPort", port: self.outputIndex),
+            PortDeclaration(key: "outputIterationCountPort", port: self.outputIterationCount),
+        ] + super.declaredPorts()
     }
-    
-    public override func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.outputProgress, forKey: .outputProgressPort)
-        try container.encode(self.outputIndex, forKey: .outputIndexPort)
-        try container.encode(self.outputIterationCount, forKey: .outputIterationCountPort)
 
-        try super.encode(to: encoder)
-    }
-    
-    public required init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        self.outputProgress = try container.decode(NodePort<Float>.self, forKey: .outputProgressPort)
-        self.outputIndex = try container.decode(NodePort<Int>.self, forKey: .outputIndexPort)
-        self.outputIterationCount = try container.decode(NodePort<Int>.self, forKey: .outputIterationCountPort)
-
-        try super.init(from: decoder)
-    }
-    
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,

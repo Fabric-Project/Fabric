@@ -324,6 +324,8 @@ public class MathExpressionNode: Node
         }
     }
 
+    override public var compilableSource: String? { self.stringExpression }
+
     /// The last compile. Recomputed only when `stringExpression` changes.
     private var compiled: CompileResult?
 
@@ -429,6 +431,12 @@ public class MathExpressionNode: Node
     /// Nil until a settings view, or settingsSize, asks for it.
     private var _settingsModelStorage: SettingsModel?
 
+    override public func refreshSettingsModel()
+    {
+        super.refreshSettingsModel()
+        _settingsModelStorage?.refreshFromNode()
+    }
+
     internal var _settingsModel: SettingsModel
     {
         performOnMainSync
@@ -467,8 +475,23 @@ public class MathExpressionNode: Node
         if result.isValid
         {
             self.portInterface = result.interface
-            self.syncPorts(to: result.interface)
+            self.lastCompiledSource = self.stringExpression
+            self.reconcilePorts()
             self.needsEvaluation = true
+        }
+        // An expression that does not compile on open would leave the node
+        // with no ports; the last one that compiled declares them instead,
+        // for its interface only. `compiled` stays the failing one, so the
+        // node does not evaluate until its own expression compiles.
+        else if self.portInterface.inputs.isEmpty && self.portInterface.outputs.isEmpty,
+                let fallback = self.interfaceFallbackSource
+        {
+            let fallbackResult = compile(fallback)
+            if fallbackResult.isValid
+            {
+                self.portInterface = fallbackResult.interface
+                self.reconcilePorts()
+            }
         }
 
         self.evaluatedSubtitle = Self.salientTitle(from: self.stringExpression)
@@ -480,58 +503,42 @@ public class MathExpressionNode: Node
                      ? Self.invalidExpressionMessage
                      : errors.map(\.message).joined(separator: "\n"))
 
-        self.performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
-        self.subtitleSubject.send()
+        self.settingsDidChange()
+        self.namingDidChange()
     }
 
-    /// Diff the compiled interface against the current dynamic ports, adding,
-    /// removing, and retyping to match. A port whose name *and* type are
-    /// unchanged is left completely untouched, so its wires survive. On a
-    /// genuine retype, wires the new type can still accept are re-established;
-    /// the rest are dropped.
-    private func syncPorts(to interface: Interface)
+    /// The ports of the last valid compile: its inputs then its outputs, each
+    /// under its name. A port whose name and type are unchanged keeps its
+    /// wires; a retyped one keeps those the new type accepts.
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        self.syncPorts(desired: interface.inputs.map { ($0.name, $0.type) },
-                       existing: self.inputPorts(),
-                       kind: .Inlet)
-        self.syncPorts(desired: interface.outputs.map { ($0.name, $0.type) },
-                       existing: self.outputPorts(),
-                       kind: .Outlet)
+        super.declaredPorts()
+            + self.portInterface.inputs.map { self.declaration(name: $0.name, type: $0.type, kind: .Inlet) }
+            + self.portInterface.outputs.map { self.declaration(name: $0.name, type: $0.type, kind: .Outlet) }
     }
 
-    private func syncPorts(desired: [(name: String, type: ValueType)], existing: [Port], kind: PortKind)
-    {
-        let desiredNames = Set(desired.map(\.name))
-        var existingByName: [String: Port] = [:]
-        for port in existing { existingByName[port.name] = port }
+    /// The interface's inputs, each with a reader of its port, and its
+    /// outputs' writers by output index.
+    private var boundInputs: [(name: String, read: () -> EngineValue?)] = []
+    private var boundOutputs: [((EngineValue) -> Void)?] = []
 
-        // Remove ports the expression no longer references.
-        for port in existing where !desiredNames.contains(port.name)
-        {
-            self.removePort(port)
+    override public func bindPorts()
+    {
+        super.bindPorts()
+        self.boundInputs = self.portInterface.inputs.compactMap { input in
+            guard let port: Port = findPort(named: input.name),
+                  let read = EnginePortMarshalling.reader(for: port, as: input.type)
+            else { return nil }
+            return (input.name, read)
         }
-
-        // Add new ports, and retype ports whose type changed.
-        for (portName, valueType) in desired
-        {
-            let wantType = EnginePortMarshalling.portType(for: valueType)
-
-            if let port = existingByName[portName]
-            {
-                if port.portType == wantType { continue } // unchanged — keep wires
-
-                self.replacePort(port, with: self.makePort(name: portName, type: valueType, kind: kind, id: port.id))
-            }
-            else
-            {
-                self.addDynamicPort(self.makePort(name: portName, type: valueType, kind: kind), name: portName)
-            }
+        self.boundOutputs = self.portInterface.outputs.map { output in
+            (findPort(named: output.name) as Port?).flatMap { EnginePortMarshalling.writer(for: $0, as: output.type) }
         }
     }
 
-    private func makePort(name: String, type: ValueType, kind: PortKind, id: UUID = UUID()) -> Port
+    private func declaration(name: String, type: ValueType, kind: PortKind) -> PortDeclaration
     {
-        EnginePortMarshalling.portType(for: type).makeFreshPort(name: name, kind: kind, id: id)
+        PortDeclaration(key: name, portType: EnginePortMarshalling.portType(for: type), kind: kind, name: name)
     }
 
     // MARK: - Execution
@@ -559,13 +566,9 @@ public class MathExpressionNode: Node
         // `.missingInput`, which we treat as "don't emit yet", exactly like the
         // previous node's unresolved-variable guard.
         var inputs: [String: EngineValue] = [:]
-        for input in self.portInterface.inputs
+        for (name, read) in self.boundInputs
         {
-            guard let port = self.findPort(named: input.name, as: Port.self) else { continue }
-            if let value = EnginePortMarshalling.readEngineValue(from: port, as: input.type)
-            {
-                inputs[input.name] = value
-            }
+            if let value = read() { inputs[name] = value }
         }
 
         let outputs: [EngineValue]
@@ -586,15 +589,14 @@ public class MathExpressionNode: Node
                               underlyingError: error)
         }
 
-        for (index, output) in self.portInterface.outputs.enumerated()
+        for (index, write) in self.boundOutputs.enumerated()
         {
             guard index < outputs.count else { break }
             let value = outputs[index]
             // Scrub non-finite results (0/0, log(-1), asin out of range, …)
             // exactly as the previous node did — skip rather than emit garbage.
             guard EnginePortMarshalling.isFinite(value) else { continue }
-            guard let port = self.findPort(named: output.name, as: Port.self) else { continue }
-            EnginePortMarshalling.send(value, to: port)
+            write?(value)
         }
     }
 }

@@ -5,31 +5,28 @@
 //  Created by Anton Marini on 10/19/25.
 //
 
-import Combine
 import Foundation
 import Satin
 
-/// Internal coverage for Node's parameter invalidation. Proxies deliberately do
-/// not conform: their inner port invalidates a different node.
-protocol NodeInvalidatingParameterPort: AnyObject {
-    var observedParameter: any Parameter { get }
-}
-
-// A Port that wraps a parameter - use for input ports you want to have as a UI
-public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hashable> : NodePort<ParamValue>, NodeInvalidatingParameterPort
+/// An inlet with a control: it rests at a value of its own when unwired, and
+/// a document saves that value. The port's value is canonical. Its parameter
+/// mirrors it, one way, written through the parameter's setter whenever the
+/// value changes: for a control to draw its range and options from, and, for
+/// a material-backed port, as the uniform the material uploads. Nothing reads
+/// the parameter to learn the port's value.
+public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hashable> : NodePort<ParamValue>
 {
-    private var subscription:AnyCancellable? = nil
     private var _parameter: GenericParameter<ParamValue>
-    private var isUpdatingParameterValue = false
+
+    /// The value the inlet holds when nothing gives it one: its last value.
+    private var restingValue: ParamValue
 
     override internal func restoreValue(from boxed: PortValue?)
     {
         // A parameter-backed port has no valueless state. Resolve its resting
         // value before assigning so restoration reports one final value change.
-        super.restoreValue(from: boxed ?? _parameter.value.toPortValue())
+        super.restoreValue(from: boxed ?? restingValue.toPortValue())
     }
-
-    internal var observedParameter: any Parameter { self._parameter }
 
     // Proxy the parameter's description
     // Setter ignores empty values to preserve parameter's description during decoding of old files
@@ -49,131 +46,58 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
     // presentation choices within their type. Ideally ports would declare .Color
     // explicitly and the picker would be derived from that, but until Color has its
     // own value type this is the pragmatic bridge.
-    @ObservationIgnored override public var portType: PortType {
+    override public var portType: PortType {
         if _parameter.controlType == .colorpicker || _parameter.controlType == .colorpalette {
             return .Color
         }
         return super.portType
     }
 
+    /// Setting another parameter, a material's after a shader reload, has it
+    /// mirror this port's value from then on.
     override public var parameter: (any Parameter)?
     {
         get { return _parameter }
         set {
             if let newParam = newValue as? GenericParameter<ParamValue>
             {
-                self.subscription?.cancel()
-                self.subscription = nil
-                newParam.value = self._parameter.value
-                // A replacement parameter arrives with an id of its own; re-key
-                // it to keep the invariant hydrate(from:) describes.
-                newParam.id = self.id
+                newParam.value = self.value ?? self.restingValue
                 self._parameter = newParam
-                self.value = self._parameter.value
-
-                self.subscribeToParameter()
             }
         }
     }
 
-    /// A port takes its id from its parameter, so a port rebuilt in place of
-    /// another keys the parameter to the id it is taking over.
-    public convenience init(parameter: GenericParameter<ParamValue>, id: UUID)
-    {
-        parameter.id = id
-        self.init(parameter: parameter)
-    }
-
-    public init(parameter: GenericParameter<ParamValue>)
+    /// The port starts at its parameter's value, the declaration's default.
+    public init(parameter: GenericParameter<ParamValue>, id: UUID = UUID())
     {
         self._parameter = parameter
-        super.init(name: parameter.label, kind: .Inlet, id:parameter.id)
+        self.restingValue = parameter.value
+        super.init(name: parameter.label, kind: .Inlet, id: id)
 
-        self.value = self._parameter.value
-
-        self.subscribeToParameter()
+        self.value = parameter.value
     }
 
-    enum CodingKeys : String, CodingKey
+    /// A file picker's absolute reference inside the document's folder becomes
+    /// relative to it, as NodeFileLoadingProtocol.normalizeFileReference has a
+    /// picked file. A value put on the port from a document or a carried state
+    /// takes the declared range again, but only for a control that enforces its range in
+    /// the UI: a slider can only ever have produced in-range values, so an
+    /// out-of-range one means the declared range changed since. Input fields
+    /// and wired inlets legitimately hold values outside min/max (many
+    /// parameters carry FloatParameter's default 0...1 as a placeholder), so
+    /// those are left alone.
+    override internal func correctAppliedValue(fileReferenceBase: URL?)
     {
-        case parameter
-    }
-
-    /// AnyParameter's own key for the parameter's type.
-    private enum EncodedParameterTypeKey : String, CodingKey
-    {
-        case type
-    }
-    
-    required public init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        // A parameter Satin has no type for, a quaternion's say, encodes as
-        // .generic, and Satin's decoder traps on it. Throwing first lets the
-        // port envelope re-read the port as a plain one (see AnyPort).
-        if let typeContainer = try? container.nestedContainer(keyedBy: EncodedParameterTypeKey.self, forKey: .parameter),
-           try typeContainer.decodeIfPresent(ParameterType.self, forKey: .type) == .generic
+        if self._parameter.controlType == .filepicker,
+           self.connectedOutlets.isEmpty,
+           let fileReferenceBase,
+           let reference = self.value as? String, reference.hasPrefix("file://"),
+           let url = URL(fileReference: reference, relativeTo: fileReferenceBase),
+           let relative = url.fileReference(relativeTo: fileReferenceBase) as? ParamValue,
+           relative != self.value
         {
-            throw DecodingError.dataCorruptedError(forKey: .parameter, in: container,
-                                                   debugDescription: "A .generic parameter cannot be decoded")
+            self.value = relative
         }
-
-        // backwards compat for port update
-        if let anyparam = try container.decodeIfPresent(AnyParameter.self, forKey: .parameter),
-           let param = anyparam.base as? GenericParameter<ParamValue>
-        {
-            self._parameter = param
-        }
-        else
-        {
-            self._parameter = try GenericParameter(from: decoder)
-        }
-        
-        try super.init(from: decoder)
-
-        self.value = self._parameter.value
-
-        self.subscribeToParameter()
-    }
-    
-    private func subscribeToParameter()
-    {
-        // Unowned: this port owns the subscription and cancels it in deinit.
-        self.subscription = self._parameter.valuePublisher.sink { [unowned self] value in
-            // Port edits already uploaded this value. Do not feed the parameter's
-            // synchronous notification back through the port setter a second time.
-            if self.isUpdatingParameterValue, self.value == value { return }
-            self.value = value
-        }
-    }
-
-    deinit
-    {
-        self.subscription?.cancel()
-        self.subscription = nil
-    }
-    
-    override public func encode(to encoder: any Encoder) throws {
-
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(AnyParameter(self._parameter), forKey: .parameter)
-
-        try super.encode(to: encoder)
-    }
-    
-    /// After adopting the document's value, re-impose the declared range — but
-    /// only for controls that enforce their range in the UI (a slider can only
-    /// ever have produced in-range values, so out-of-range persisted state
-    /// means the declared range changed since the save). Input fields and
-    /// connected inlets legitimately hold values outside min/max — many
-    /// parameters carry FloatParameter's default 0...1 range as a placeholder —
-    /// so those are left untouched.
-    override internal func hydrate(from decoded: Port)
-    {
-        super.hydrate(from: decoded)
-
-        self._parameter.id = self.id
 
         guard self._parameter.controlType == .slider,
               let value = self.value,
@@ -210,25 +134,21 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
 
     override internal func valueDidSet()
     {
-        // A parameter-backed inlet has no valueless state: the parameter is
-        // its resting value. Disconnecting an upstream port force-sends nil
-        // downstream so the inlet doesn't keep stale data, which would
-        // otherwise leave this port — and everything reading it — with a
-        // missing value for as long as it stays unwired. Re-seat on the
-        // parameter instead; the re-entrant assignment runs this hook again.
+        // Disconnecting an upstream port force-sends nil downstream so the
+        // inlet doesn't keep stale data; a parameter inlet has no valueless
+        // state, so it goes back to resting at its last value. The re-entrant
+        // assignment runs this hook again.
         guard let value = self.value
         else
         {
-            self.value = self._parameter.value
+            self.value = self.restingValue
             return
         }
 
+        self.restingValue = value
         // Change flags, node invalidation and callbacks belong to NodePort.value.
         if self._parameter.value != value
         {
-            let wasUpdatingParameterValue = self.isUpdatingParameterValue
-            self.isUpdatingParameterValue = true
-            defer { self.isUpdatingParameterValue = wasUpdatingParameterValue }
             self._parameter.value = value
         }
 

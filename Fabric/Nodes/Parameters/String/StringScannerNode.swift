@@ -19,11 +19,6 @@ public class StringScannerNode: BaseFormatStringNode {
 
     override public class var defaultFormatString: String { "Frame {n:d} at {t:f}s" }
 
-    /// Placeholders are what the scan captures, so each builds an outlet —
-    /// alongside Matched, which the format string does not own.
-    override public class var placeholderPortKind: PortKind { .Outlet }
-    override public class var staticPortNames: Set<String> { ["Matched"] }
-
     override public class var settingsGuidance: String {
         "Use `{name}` for String, `{name:s}` String, `{name:d}` or `{name:i}` Int, `{name:b}` Bool, `{name:f}` Float.\n\nExample: `Frame {n:d} at {t:f}s`\n\nEscapes: `\\n`, `\\r`, `\\t`, `\\\\`, and `\\{` `\\}` for literal braces.\n\nThe format string is converted to a regex that captures values from the input string."
     }
@@ -32,16 +27,16 @@ public class StringScannerNode: BaseFormatStringNode {
 
     // MARK: - Ports
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        return ports + [
-            ("inputString", ParameterPort(parameter: StringParameter("String", "", .inputfield, "The string to scan"))),
-            ("outputMatched", NodePort<Bool>(name: "Matched", kind: .Outlet, description: "True if the input string matched the format")),
-        ]
-    }
+    public let inputString = ParameterPort(parameter: StringParameter("String", "", .inputfield, "The string to scan"))
+    public let outputMatched = NodePort<Bool>(name: "Matched", kind: .Outlet, description: "True if the input string matched the format")
 
-    public var inputString: ParameterPort<String> { port(named: "inputString") }
-    public var outputMatched: NodePort<Bool> { port(named: "outputMatched") }
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        [
+            PortDeclaration(key: "inputString", port: self.inputString),
+            PortDeclaration(key: "outputMatched", port: self.outputMatched),
+        ] + super.declaredPorts()
+    }
 
     // MARK: - Execution
 
@@ -68,37 +63,16 @@ public class StringScannerNode: BaseFormatStringNode {
         // capture group per placeholder *occurrence*, so the groups are walked in
         // that same order — a name written twice captures twice, independently,
         // and its port takes the last of them.
-        var captureIndex = 0  // Index 0 is the whole match
+        for (index, occurrence) in boundOccurrences.enumerated() {
+            let captureIndex = index + 1  // Index 0 is the whole match
+            guard captureIndex < match.output.count, let port = occurrence.port else { continue }
+            let captured = String(match.output[captureIndex].substring ?? "")
 
-        for token in parsedFormatString.tokens {
-            guard case .placeholder(let occurrence) = token else { continue }
-
-            captureIndex += 1
-            guard captureIndex < match.output.count else { continue }
-
-            send(String(match.output[captureIndex].substring ?? ""), toPortNamed: occurrence.name)
-        }
-    }
-
-    /// Sends captured text to the port `name` owns, converted to that port's type.
-    private func send(_ captured: String, toPortNamed name: String) {
-        switch parsedFormatString.placeholder(named: name)?.portType ?? .String {
-        case .Float:
-            if let port = self.findPort(named: name) as? NodePort<Float> {
-                port.send(Float(captured) ?? 0.0)
-            }
-        case .Int:
-            if let port = self.findPort(named: name) as? NodePort<Int> {
-                port.send(Int(captured) ?? 0)
-            }
-        case .Bool:
-            if let port = self.findPort(named: name) as? NodePort<Bool> {
-                let value = captured == "true" || captured == "1" || captured == "yes"
-                port.send(value)
-            }
-        default: // .String
-            if let port = self.findPort(named: name) as? NodePort<String> {
-                port.send(captured)
+            switch port {
+            case .float(let port): port.send(Float(captured) ?? 0.0)
+            case .int(let port): port.send(Int(captured) ?? 0)
+            case .bool(let port): port.send(captured == "true" || captured == "1" || captured == "yes")
+            case .string(let port): port.send(captured)
             }
         }
     }

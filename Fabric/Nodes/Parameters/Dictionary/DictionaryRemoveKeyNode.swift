@@ -12,24 +12,27 @@ public final class DictionaryRemoveKeyNode: DictionaryTypeAgnosticNode
     public override class var name: String { "Dictionary Remove Key" }
     override public class var nodeDescription: String { "Removes a string key from a dictionary. Choose value type in Settings." }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    private let inputKey = ParameterPort(parameter: StringParameter("Key", "", .inputfield, "Dictionary key to remove"))
+
+    override public func bindPorts()
     {
-        super.registerPorts(context: context) + [
-            ("inputKey", ParameterPort(parameter: StringParameter("Key", "", .inputfield, "Dictionary key to remove"))),
+        super.bindPorts()
+        self.boundInputDictionary = findPort(named: "inputDictionary")
+        self.boundOutputDictionary = findPort(named: "outputDictionary")
+    }
+
+    public override func declaredPorts() -> [PortDeclaration]
+    {
+        return [
+            PortDeclaration(key: "inputDictionary", portType: dictionaryType, kind: .Inlet, name: "Dictionary", description: "Dictionary to modify"),
+        ] + super.declaredPorts() + [
+            PortDeclaration(key: "inputKey", port: self.inputKey),
+            PortDeclaration(key: "outputDictionary", portType: dictionaryType, kind: .Outlet, name: "Dictionary", description: "Modified dictionary"),
         ]
     }
 
-    private var inputKey: ParameterPort<String> { port(named: "inputKey") }
-
-    public override func rebuildPorts(forStrategy strategy: (any NodeStrategyOption)?)
-    {
-        super.rebuildPorts(forStrategy: strategy)
-
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputDictionary",  displayName: "Dictionary", portType: dictionaryType, kind: .Inlet,  description: "Dictionary to modify")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputDictionary", displayName: "Dictionary", portType: dictionaryType, kind: .Outlet, description: "Modified dictionary")
-
-        reorderPorts(named: ["inputDictionary", "inputKey", "outputDictionary"])
-    }
+    private var boundInputDictionary: Port?
+    private var boundOutputDictionary: Port?
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
@@ -37,8 +40,8 @@ public final class DictionaryRemoveKeyNode: DictionaryTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputDictionary: Port = findPort(named: "inputDictionary"),
-              let outputDictionary: Port = findPort(named: "outputDictionary"),
+        guard let inputDictionary: Port = self.boundInputDictionary,
+              let outputDictionary: Port = self.boundOutputDictionary,
               inputDictionary.valueDidChange || inputKey.valueDidChange else { return }
 
         var dictionary = inputDictionary.snapshotValue()?.dictionaryValue ?? [:]

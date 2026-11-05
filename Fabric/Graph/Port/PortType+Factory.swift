@@ -11,138 +11,6 @@ import simd
 
 extension PortType
 {
-    public static func portForType(_ type: PortType, isParameterPort: Bool, decoder: Decoder) throws -> Port?
-    {
-        switch type
-        {
-        case .Bool:       return try isParameterPort ? ParameterPort<Bool>.init(from: decoder)          : NodePort<Bool>.init(from: decoder)
-        case .Float:      return try isParameterPort ? ParameterPort<Float>.init(from: decoder)         : NodePort<Float>.init(from: decoder)
-        case .Int:        return try isParameterPort ? ParameterPort<Int>.init(from: decoder)           : NodePort<Int>.init(from: decoder)
-        case .String:     return try isParameterPort ? ParameterPort<String>.init(from: decoder)        : NodePort<String>.init(from: decoder)
-        case .Vector2:    return try isParameterPort ? ParameterPort<simd_float2>.init(from: decoder)   : NodePort<simd_float2>.init(from: decoder)
-        case .Vector3:    return try isParameterPort ? ParameterPort<simd_float3>.init(from: decoder)   : NodePort<simd_float3>.init(from: decoder)
-        case .Vector4:    return try isParameterPort ? ParameterPort<simd_float4>.init(from: decoder)   : NodePort<simd_float4>.init(from: decoder)
-        case .Color:      return try isParameterPort ? ParameterPort<simd_float4>.init(from: decoder)   : ColorNodePort.init(from: decoder)
-        case .Quaternion: return try isParameterPort ? ParameterPort<simd_quatf>.init(from: decoder)    : NodePort<simd_quatf>.init(from: decoder)
-        case .Transform:  return try isParameterPort ? ParameterPort<simd_float4x4>.init(from: decoder) : NodePort<simd_float4x4>.init(from: decoder)
-        case .Geometry:   return try NodePort<Satin.Geometry>.init(from: decoder)
-        case .Material:   return try NodePort<Satin.Material>.init(from: decoder)
-        case .Image:      return try NodePort<FabricImage>.init(from: decoder)
-        case .NumericVirtual: return try NumericVirtualPort.init(from: decoder)
-        case .Virtual:    return try NodePort<PortValue>.init(from: decoder)
-
-        case .Array(portType: let elementType):
-            return try Self.arrayPort(elementType: elementType, isParameterPort: isParameterPort, decoder: decoder)
-
-        case .Dictionary(valueType: let valueType):
-            return try Self.dictionaryPort(dictionaryType: type, valueType: valueType, isParameterPort: isParameterPort, decoder: decoder)
-        }
-    }
-
-    /// Constructs the concrete port for ContiguousArray<Element> given the element PortType.
-    /// Leaf element types produce strongly-typed ports. Any non-leaf element (nested Array or
-    /// unknown type) falls back to ContiguousArray<PortValue> boxing, which handles arbitrary
-    /// nesting depth without enumerating combinations.
-    private static func arrayPort(elementType: PortType, isParameterPort: Bool, decoder: Decoder) throws -> Port
-    {
-        switch elementType
-        {
-        case .Bool:
-            return try isParameterPort ? ParameterPort<ContiguousArray<Bool>>.init(from: decoder)        : NodePort<ContiguousArray<Bool>>.init(from: decoder)
-        case .Int:
-            return try isParameterPort ? ParameterPort<ContiguousArray<Int>>.init(from: decoder)         : NodePort<ContiguousArray<Int>>.init(from: decoder)
-        case .Float:
-            return try isParameterPort ? ParameterPort<ContiguousArray<Float>>.init(from: decoder)       : NodePort<ContiguousArray<Float>>.init(from: decoder)
-        case .String:
-            return try isParameterPort ? ParameterPort<ContiguousArray<String>>.init(from: decoder)      : NodePort<ContiguousArray<String>>.init(from: decoder)
-        case .Vector2:
-            return try isParameterPort ? ParameterPort<ContiguousArray<simd_float2>>.init(from: decoder) : NodePort<ContiguousArray<simd_float2>>.init(from: decoder)
-        case .Vector3:
-            return try isParameterPort ? ParameterPort<ContiguousArray<simd_float3>>.init(from: decoder) : NodePort<ContiguousArray<simd_float3>>.init(from: decoder)
-        case .Vector4:
-            return try isParameterPort ? ParameterPort<ContiguousArray<simd_float4>>.init(from: decoder) : NodePort<ContiguousArray<simd_float4>>.init(from: decoder)
-        case .Color:
-            return try isParameterPort ? ParameterPort<ContiguousArray<simd_float4>>.init(from: decoder) : ColorArrayNodePort.init(from: decoder)
-        case .Quaternion:
-            return try NodePort<ContiguousArray<simd_quatf>>.init(from: decoder)
-        case .Transform:
-            return try NodePort<ContiguousArray<simd_float4x4>>.init(from: decoder)
-        case .Geometry:
-            return try NodePort<ContiguousArray<Satin.Geometry>>.init(from: decoder)
-        case .Material:
-            return try NodePort<ContiguousArray<Satin.Material>>.init(from: decoder)
-        case .Image:
-            return try NodePort<ContiguousArray<FabricImage>>.init(from: decoder)
-
-        default:
-            // Nested arrays (Array of Array of T) and unrecognised element types fall back to
-            // PortValue boxing. ContiguousArray<PortValue> round-trips correctly for any structure.
-            return try DeclaredNodePort<ContiguousArray<PortValue>>.init(from: decoder)
-        }
-    }
-
-    private static func dictionaryPort(dictionaryType: PortType, valueType: PortType, isParameterPort: Bool, decoder: Decoder) throws -> Port
-    {
-        switch valueType
-        {
-        case .Bool:
-            return try NodePort<Dictionary<String, Bool>>.init(from: decoder)
-        case .Int:
-            return try NodePort<Dictionary<String, Int>>.init(from: decoder)
-        case .Float:
-            return try NodePort<Dictionary<String, Float>>.init(from: decoder)
-        case .String:
-            return try NodePort<Dictionary<String, String>>.init(from: decoder)
-        case .Vector2:
-            return try NodePort<Dictionary<String, simd_float2>>.init(from: decoder)
-        case .Vector3:
-            return try NodePort<Dictionary<String, simd_float3>>.init(from: decoder)
-        case .Vector4:
-            return try NodePort<Dictionary<String, simd_float4>>.init(from: decoder)
-        case .Color:
-            return try DeclaredNodePort<Dictionary<String, simd_float4>>.init(from: decoder)
-        case .Quaternion:
-            return try NodePort<Dictionary<String, simd_quatf>>.init(from: decoder)
-        case .Transform:
-            return try NodePort<Dictionary<String, simd_float4x4>>.init(from: decoder)
-        case .Geometry:
-            return try NodePort<Dictionary<String, Satin.Geometry>>.init(from: decoder)
-        case .Material:
-            return try NodePort<Dictionary<String, Satin.Material>>.init(from: decoder)
-        case .Image:
-            return try NodePort<Dictionary<String, FabricImage>>.init(from: decoder)
-        case .Array(portType: let elementType):
-            return try Self.dictionaryOfArrayPort(dictionaryType: dictionaryType, elementType: elementType, decoder: decoder)
-        case .Virtual:
-            return try NodePort<Dictionary<String, PortValue>>.init(from: decoder)
-        default:
-            return try DeclaredNodePort<Dictionary<String, PortValue>>.init(from: decoder)
-        }
-    }
-
-    private static func dictionaryOfArrayPort(dictionaryType: PortType, elementType: PortType, decoder: Decoder) throws -> Port
-    {
-        switch elementType
-        {
-        case .Bool:        return try NodePort<Dictionary<String, ContiguousArray<Bool>>>.init(from: decoder)
-        case .Int:         return try NodePort<Dictionary<String, ContiguousArray<Int>>>.init(from: decoder)
-        case .Float:       return try NodePort<Dictionary<String, ContiguousArray<Float>>>.init(from: decoder)
-        case .String:      return try NodePort<Dictionary<String, ContiguousArray<String>>>.init(from: decoder)
-        case .Vector2:     return try NodePort<Dictionary<String, ContiguousArray<simd_float2>>>.init(from: decoder)
-        case .Vector3:     return try NodePort<Dictionary<String, ContiguousArray<simd_float3>>>.init(from: decoder)
-        case .Vector4:
-                            return try NodePort<Dictionary<String, ContiguousArray<simd_float4>>>.init(from: decoder)
-        case .Color:
-                            return try DeclaredNodePort<Dictionary<String, ContiguousArray<simd_float4>>>.init(from: decoder)
-        case .Quaternion:  return try NodePort<Dictionary<String, ContiguousArray<simd_quatf>>>.init(from: decoder)
-        case .Transform:   return try NodePort<Dictionary<String, ContiguousArray<simd_float4x4>>>.init(from: decoder)
-        case .Geometry:    return try NodePort<Dictionary<String, ContiguousArray<Satin.Geometry>>>.init(from: decoder)
-        case .Material:    return try NodePort<Dictionary<String, ContiguousArray<Satin.Material>>>.init(from: decoder)
-        case .Image:       return try NodePort<Dictionary<String, ContiguousArray<FabricImage>>>.init(from: decoder)
-        default:           return try DeclaredNodePort<Dictionary<String, PortValue>>.init(from: decoder)
-        }
-    }
-
     /// A port carrying an editable parameter of its own, or nil for a type that
     /// has none to offer. Only an inlet gets one: an outlet's value is the
     /// node's to write.
@@ -167,8 +35,7 @@ extension PortType
 
     /// Creates a new port of this type. An inlet whose type can be a parameter
     /// (see `ParameterValueType`) is a parameter port, so it holds a value of its
-    /// own when unwired; every other port is plain. For deserialization use
-    /// `portForType(_:isParameterPort:decoder:)` instead.
+    /// own when unwired; every other port is plain.
     public func makeFreshPort(name: String, kind: PortKind, description: String = "", id: UUID = UUID()) -> Port
     {
         if let parameterPort = makeFreshParameterPort(name: name, kind: kind, description: description, id: id)
@@ -350,5 +217,18 @@ extension PortType
     {
         if let id { return ParameterPort(parameter: parameter, id: id) }
         return ParameterPort(parameter: parameter)
+    }
+}
+
+extension NodePort
+{
+    /// A port of `Value`'s type as `PortType.makeFreshPort(name:kind:description:id:)`
+    /// makes it, a parameter port where the type can carry one, typed for a
+    /// node that holds it in a stored property.
+    public static func makeFresh(name: String, kind: PortKind, description: String = "") -> NodePort<Value>
+    {
+        // The factory makes a NodePort<Value>, or a subclass of one, for every
+        // PortValueRepresentable type; anything else is a programming error.
+        Value.portType.makeFreshPort(name: name, kind: kind, description: description) as! NodePort<Value>
     }
 }

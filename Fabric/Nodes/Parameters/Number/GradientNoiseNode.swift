@@ -19,22 +19,19 @@ public class GradientNoiseNode : Node
     override public class var nodeDescription: String { "Provide a Smooth Gradient based Random Number"}
    
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputTime", ParameterPort(parameter:  FloatParameter("Time", 0.0, .inputfield, "Time value to sample the noise function"))),
-            ("inputFrequency", ParameterPort(parameter:  FloatParameter("Frequency", 1.0, 0.0, 10.0, .slider, "Frequency of the noise pattern (higher = more variation)"))),
-            ("outputNumber", NodePort<Float>(name: "Number" , kind: .Outlet, description: "Smooth random noise value")),
+    public let inputTime = ParameterPort(parameter:  FloatParameter("Time", 0.0, .inputfield, "Time value to sample the noise function"))
+    public let inputFrequency = ParameterPort(parameter:  FloatParameter("Frequency", 1.0, 0.0, 10.0, .slider, "Frequency of the noise pattern (higher = more variation)"))
+    public let outputNumber = NodePort<Float>(name: "Number" , kind: .Outlet, description: "Smooth random noise value")
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputTime", port: self.inputTime),
+            PortDeclaration(key: "inputFrequency", port: self.inputFrequency),
+            PortDeclaration(key: "outputNumber", port: self.outputNumber),
         ]
     }
-    
-    // Port Proxy
-    public var inputTime:ParameterPort<Float> { port(named: "inputTime") }
-    public var inputFrequency:ParameterPort<Float> { port(named: "inputFrequency") }
-    public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
-    
+
     // Ensure we always render!
     public override var isDirty:Bool { get {  true  } set { } }
 

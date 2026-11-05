@@ -16,23 +16,22 @@ public class DepthMaterialNode : BaseMaterialNode
     public override class var name:String {  "Depth Material" }
     override public class var nodeDescription: String { "Visualizes Geometry depth as seen by the active camera."}
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return  [
-                    ("inputNear", ParameterPort(parameter:FloatParameter("Near", 0.001, 0.0, 1000.0, .slider, "Near clipping distance for depth visualization")) ),
-                    ("inputFar", ParameterPort(parameter:FloatParameter("Far", 500.0, 0.0, 1000.0, .slider, "Far clipping distance for depth visualization")) ),
-                    ("inputInvert", ParameterPort(parameter:BoolParameter("Invert", false, .toggle, "When enabled, inverts the depth gradient")) ),
-                    ("inputColor", ParameterPort(parameter:BoolParameter("Color", true, .toggle, "When enabled, renders depth as color gradient")) ),
-                    ("inputPointSize", ParameterPort(parameter:FloatParameter("Point Size", 1.0, 0.5, 64.0, .slider, "Point Size") ) ),
-                ] + ports
+    public let inputNear = ParameterPort(parameter:FloatParameter("Near", 0.001, 0.0, 1000.0, .slider, "Near clipping distance for depth visualization"))
+    public let inputFar = ParameterPort(parameter:FloatParameter("Far", 500.0, 0.0, 1000.0, .slider, "Far clipping distance for depth visualization"))
+    public let inputInvert = ParameterPort(parameter:BoolParameter("Invert", false, .toggle, "When enabled, inverts the depth gradient"))
+    public let inputColor = ParameterPort(parameter:BoolParameter("Color", true, .toggle, "When enabled, renders depth as color gradient"))
+    public let inputPointSize = ParameterPort(parameter:FloatParameter("Point Size", 1.0, 0.5, 64.0, .slider, "Point Size") )
+
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        [
+            PortDeclaration(key: "inputNear", port: self.inputNear),
+            PortDeclaration(key: "inputFar", port: self.inputFar),
+            PortDeclaration(key: "inputInvert", port: self.inputInvert),
+            PortDeclaration(key: "inputColor", port: self.inputColor),
+            PortDeclaration(key: "inputPointSize", port: self.inputPointSize),
+        ] + super.declaredPorts()
     }
-    
-    public var inputNear:ParameterPort<Float> { port(named: "inputNear") }
-    public var inputFar:ParameterPort<Float> { port(named: "inputFar") }
-    public var inputInvert:ParameterPort<Bool> { port(named: "inputInvert") }
-    public var inputColor:ParameterPort<Bool> { port(named: "inputColor") }
-    public var inputPointSize:ParameterPort<Float> { port(named: "inputPointSize") }
 
     public override var material: DepthMaterial {
         return _material

@@ -61,25 +61,24 @@ public class ColorTweenNode : Node
     override public class var nodeDescription: String { "Tween toward a target color over a duration using an easing curve, interpolated in Oklab perceptual color space" }
 
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let inputTarget = ParameterPort(parameter: Float4Parameter("Target", simd_float4(0, 0, 0, 1), .colorpicker, "Target color (RGBA)"))
+    public let inputDuration = ParameterPort(parameter: FloatParameter("Duration", 1.0, .inputfield, "Tween duration in seconds"))
+    public let inputEasing = ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing curve"))
+    public let outputColor = NodePort<simd_float4>(name: "Color", kind: .Outlet, description: "Current tweened color (RGBA)")
+    public let outputProgress = NodePort<Float>(name: "Progress", kind: .Outlet, description: "Tween progress (0-1)")
 
-        return ports +
-        [
-            ("inputTarget", ParameterPort(parameter: Float4Parameter("Target", simd_float4(0, 0, 0, 1), .colorpicker, "Target color (RGBA)"))),
-            ("inputDuration", ParameterPort(parameter: FloatParameter("Duration", 1.0, .inputfield, "Tween duration in seconds"))),
-            ("inputEasing", ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing curve"))),
-            ("outputColor", NodePort<simd_float4>(name: "Color", kind: .Outlet, description: "Current tweened color (RGBA)")),
-            ("outputProgress", NodePort<Float>(name: "Progress", kind: .Outlet, description: "Tween progress (0-1)")),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "inputTarget", port: self.inputTarget),
+            PortDeclaration(key: "inputDuration", port: self.inputDuration),
+            PortDeclaration(key: "inputEasing", port: self.inputEasing),
+            PortDeclaration(key: "outputColor", port: self.outputColor),
+            PortDeclaration(key: "outputProgress", port: self.outputProgress),
         ]
     }
 
     // Port Proxies
-    public var inputTarget:ParameterPort<simd_float4> { port(named: "inputTarget") }
-    public var inputDuration:ParameterPort<Float> { port(named: "inputDuration") }
-    public var inputEasing:ParameterPort<String> { port(named: "inputEasing") }
-    public var outputColor:NodePort<simd_float4> { port(named: "outputColor") }
-    public var outputProgress:NodePort<Float> { port(named: "outputProgress") }
 
     // Tween state
     private var tween = TweenState()

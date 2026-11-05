@@ -25,13 +25,14 @@ public class PassThroughNode<T: PortValueRepresentable>: Node
     override public var nodeExecutionMode: Node.ExecutionMode { self.input.connections.isEmpty ? .Provider : .Processor }
     
     // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public let input = NodePort<T>.makeFresh(name: T.portType.rawValue, kind: .Inlet, description: "Input \(T.portType.rawValue)")
+    public let output = NodePort<T>.makeFresh(name: T.portType.rawValue, kind: .Outlet, description: "Output \(T.portType.rawValue)")
 
-        return ports +
-        [
-            ("input", T.portType.makeFreshPort(name: T.portType.rawValue, kind: .Inlet, description: "Input \(T.portType.rawValue)")),
-            ("output", T.portType.makeFreshPort(name: T.portType.rawValue, kind: .Outlet, description: "Output \(T.portType.rawValue)")),
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + [
+            PortDeclaration(key: "input", port: self.input),
+            PortDeclaration(key: "output", port: self.output),
         ]
     }
     
@@ -42,10 +43,6 @@ public class PassThroughNode<T: PortValueRepresentable>: Node
     public required init(context: Context) {
         super.init(context: context)
     }
-    
-    // Port Proxy
-    public var input: NodePort<T> { port(named: "input") }
-    public var output: NodePort<T> { port(named: "output") }
 
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,

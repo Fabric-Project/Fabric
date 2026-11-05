@@ -188,4 +188,63 @@ enum EnginePortMarshalling
             return // nested arrays unsupported
         }
     }
+
+    // MARK: - Bound readers and writers
+
+    /// Reads `port` as `type`, the cast made once here: the closure reads a
+    /// typed port. Nil where the port is not of the type. For a node's
+    /// bindPorts(), so execute neither looks up nor casts.
+    static func reader(for port: Port, as type: ValueType) -> (() -> EngineValue?)?
+    {
+        switch type
+        {
+        case .float:     return typedReader(port, EngineValue.float)
+        case .vec2:      return typedReader(port, EngineValue.vec2)
+        case .vec3:      return typedReader(port, EngineValue.vec3)
+        case .vec4:      return typedReader(port, EngineValue.vec4)
+        case .transform: return typedReader(port, EngineValue.transform)
+        case .quat:      return typedReader(port, EngineValue.quat)
+        case .array(let elementType):
+            switch elementType
+            {
+            case .float:     return typedReader(port) { (array: ContiguousArray<Float>) in .array(array.map(EngineValue.float)) }
+            case .vec2:      return typedReader(port) { (array: ContiguousArray<simd_float2>) in .array(array.map(EngineValue.vec2)) }
+            case .vec3:      return typedReader(port) { (array: ContiguousArray<simd_float3>) in .array(array.map(EngineValue.vec3)) }
+            case .vec4:      return typedReader(port) { (array: ContiguousArray<simd_float4>) in .array(array.map(EngineValue.vec4)) }
+            case .transform: return typedReader(port) { (array: ContiguousArray<simd_float4x4>) in .array(array.map(EngineValue.transform)) }
+            case .quat:      return typedReader(port) { (array: ContiguousArray<simd_quatf>) in .array(array.map(EngineValue.quat)) }
+            case .array:     return nil
+            }
+        }
+    }
+
+    /// Sends to `port` as `type`, the cast made once here. Nil where the port
+    /// is not of the type.
+    static func writer(for port: Port, as type: ValueType) -> ((EngineValue) -> Void)?
+    {
+        switch type
+        {
+        case .float:     return typedWriter(port) { (value: EngineValue) -> Float? in if case .float(let v) = value { v } else { nil } }
+        case .vec2:      return typedWriter(port) { (value: EngineValue) -> simd_float2? in if case .vec2(let v) = value { v } else { nil } }
+        case .vec3:      return typedWriter(port) { (value: EngineValue) -> simd_float3? in if case .vec3(let v) = value { v } else { nil } }
+        case .vec4:      return typedWriter(port) { (value: EngineValue) -> simd_float4? in if case .vec4(let v) = value { v } else { nil } }
+        case .transform: return typedWriter(port) { (value: EngineValue) -> simd_float4x4? in if case .transform(let v) = value { v } else { nil } }
+        case .quat:      return typedWriter(port) { (value: EngineValue) -> simd_quatf? in if case .quat(let v) = value { v } else { nil } }
+        case .array:
+            // Arrays keep the per-send dispatch on their element type.
+            return { value in send(value, to: port) }
+        }
+    }
+
+    private static func typedReader<T: PortValueRepresentable>(_ port: Port, _ wrap: @escaping (T) -> EngineValue) -> (() -> EngineValue?)?
+    {
+        guard let typed = port as? NodePort<T> else { return nil }
+        return { typed.value.map(wrap) }
+    }
+
+    private static func typedWriter<T: PortValueRepresentable>(_ port: Port, _ unwrap: @escaping (EngineValue) -> T?) -> ((EngineValue) -> Void)?
+    {
+        guard let typed = port as? NodePort<T> else { return nil }
+        return { value in if let unwrapped = unwrap(value) { typed.send(unwrapped) } }
+    }
 }
