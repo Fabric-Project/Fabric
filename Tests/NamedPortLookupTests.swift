@@ -101,4 +101,41 @@ struct NamedPortLookupTests {
         #expect(decoded.inputParam.id == node.inputParam.id)
         #expect(decoded.outputNumber.id == node.outputNumber.id)
     }
+
+    /// Small registries scan their names, large ones hash them; both must answer identically.
+    @Test("Small and large registries answer named lookups the same way", arguments: [0, 20])
+    func smallAndLargeRegistriesAgree(extraPortCount: Int) throws {
+        let node = NumberBinaryOperator(context: try context())
+        let extras = (0 ..< extraPortCount).map { NodePort<Float>(name: "Extra \($0)", kind: .Inlet) }
+        for (index, port) in extras.enumerated() { node.addDynamicPort(port, name: "extra\(index)") }
+
+        #expect(node.findPort(named: "inputNumber2", as: ParameterPort<Float>.self) === node.inputNumber2)
+        #expect(node.findPort(named: "missing", as: Port.self) == nil)
+        for (index, port) in extras.enumerated() {
+            #expect(node.findPort(named: "extra\(index)", as: NodePort<Float>.self) === port)
+        }
+
+        // Removing an earlier port keeps every later name reachable.
+        if let first = extras.first {
+            node.removePort(first)
+            #expect(node.findPort(named: "extra0", as: Port.self) == nil)
+            for (index, port) in extras.enumerated().dropFirst() {
+                #expect(node.findPort(named: "extra\(index)", as: NodePort<Float>.self) === port)
+            }
+        }
+
+        // Reordering keeps registry keys.
+        let output = node.outputNumber
+        node.reorderPorts(Array(node.ports.reversed()))
+        #expect(node.outputNumber === output)
+
+        // The most recent duplicate wins; removing it leaves the shadowed one unreachable, as before.
+        let original = node.inputNumber1
+        let replacement = ParameterPort(parameter: FloatParameter("Latest", 9))
+        node.addDynamicPort(replacement, name: "inputNumber1")
+        #expect(node.inputNumber1 === replacement)
+        node.removePort(replacement)
+        #expect(node.findPort(named: "inputNumber1", as: ParameterPort<Float>.self) == nil)
+        #expect(node.ports.contains { $0 === original })
+    }
 }

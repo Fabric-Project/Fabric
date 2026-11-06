@@ -30,6 +30,13 @@ final class PortRegistry
     // integer first so optimized reads can borrow the port from this storage.
     private(set) var ordered: ContiguousArray<Port> = []
     private var byName: [String: Int] = [:]
+    // Each port's registry key while that key reaches it (nil when a later
+    // duplicate shadows it): `byName` inverted, kept in step with it. Small
+    // registries scan this instead of hashing the name.
+    private var names: ContiguousArray<String?> = []
+    // Measured: a backwards scan of typical port names beats hashing up to
+    // about 16 ports and breaks even near 24.
+    private static let linearLookupLimit = 16
     // lookup by UUID for connections remap
     private var byID: [UUID: Port] = [:]
     
@@ -37,7 +44,9 @@ final class PortRegistry
     {
         port.node = owner
         self.ordered.append(port)
+        if let shadowed = self.byName[name] { self.names[shadowed] = nil }
         self.byName[name] = self.ordered.count - 1
+        self.names.append(name)
         self.byID[port.id] = port
     }
 
@@ -65,6 +74,7 @@ final class PortRegistry
                 }
             }
             self.ordered.remove(at: removedIndex)
+            self.rebuildNames()
         }
         // Dynamic type changes replace a Port instance while preserving its
         // UUID. Detach the retired instance so a transient SwiftUI view cannot
@@ -93,17 +103,37 @@ final class PortRegistry
             self.byName[name] = index
             self.byID[port.id] = port
         }
+        self.rebuildNames()
+    }
+
+    /// Re-derives `names` from `byName` after a structural edit.
+    private func rebuildNames()
+    {
+        self.names = ContiguousArray(repeating: nil, count: self.ordered.count)
+        for (name, index) in self.byName { self.names[index] = name }
     }
     
     func port(named name: String) -> Port?
     {
+        if self.names.count <= Self.linearLookupLimit
+        {
+            // Backwards, like `byName`: a shadowed duplicate's key is nil.
+            var index = self.names.endIndex
+            while index > self.names.startIndex
+            {
+                index -= 1
+                if self.names[index] == name { return self.ordered[index] }
+            }
+            return nil
+        }
         guard let index = self.byName[name] else { return nil }
         return self.ordered[index]
     }
 
     func name(of port: Port) -> String?
     {
-        self.byName.first { self.ordered[$0.value].id == port.id }?.key
+        guard let index = self.ordered.firstIndex(where: { $0.id == port.id }) else { return nil }
+        return self.names[index]
     }
 
     // Native Array and ContiguousArray share storage here. Preserve the public
@@ -121,13 +151,9 @@ final class PortRegistry
     }
 
     func encode() -> [Snapshot] {
-        self.ordered.map { port in
-
-            let name = byName.first(where: { (key, value) in
-                port.id == self.ordered[value].id
-            })?.key ?? port.name
-
-            return Snapshot(name: name, payload: AnyPort(port))
+        self.ordered.indices.map { index in
+            let port = self.ordered[index]
+            return Snapshot(name: self.names[index] ?? port.name, payload: AnyPort(port))
         }
     }
 }
