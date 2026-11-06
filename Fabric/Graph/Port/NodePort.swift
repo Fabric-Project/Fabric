@@ -134,10 +134,12 @@ public class NodePort<Value : PortValueRepresentable>: Port
         if self.value != v || force
         {
             self.value = v
-            
+
+            // Read once, not once per connection: a stored property read is a checked access.
+            let portID = self.id
             for connection in connections
             {
-                guard connection.outletPortID == id,
+                guard connection.outletPortID == portID,
                       let inlet = connection.inletPort
                 else { continue }
 
