@@ -333,11 +333,12 @@ public class AudioSpectrumNode : Node
     // Device enumeration. AVCaptureDevice.DiscoverySession gives us the raw
     // AVCaptureDevice instances which feed straight into AVCaptureDeviceInput
     // — no UID→AudioDeviceID translation needed.
-    private let discoverySession = AVCaptureDevice.DiscoverySession(
-        deviceTypes: [.microphone, .external],
-        mediaType: .audio,
-        position: .unspecified
-    )
+    //
+    // Made at the first enable, not at init: discovering devices is a call into
+    // CoreMediaIO that can block for a second, and a node is made far more
+    // often than it runs (the node browser, opening a document, every-node
+    // sweeps). Written before the device observers exist, so they only read it.
+    private var discoverySession: AVCaptureDevice.DiscoverySession? = nil
 
     /// Available audio devices, populated from `AVCaptureDevice`
     /// connect/disconnect notifications.
@@ -376,6 +377,13 @@ public class AudioSpectrumNode : Node
 
     override public func enableExecution(renderer:GraphRenderer) throws
     {
+        if self.discoverySession == nil
+        {
+            self.discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone, .external],
+                                                                     mediaType: .audio,
+                                                                     position: .unspecified)
+        }
+
         self.wasConnectedObserver = NotificationCenter.default.addObserver(
             forName: AVCaptureDevice.wasConnectedNotification, object: nil, queue: .main
         ) { [weak self] _ in
@@ -422,7 +430,7 @@ public class AudioSpectrumNode : Node
 
     private func refreshAudioDeviceOptions()
     {
-        let fresh = self.discoverySession.devices
+        let fresh = self.discoverySession?.devices ?? []
         self.devicesLock.withLock { $0.devices = fresh }
 
         // Enable can run on the render thread; options are main-thread state (see DeviceList).
