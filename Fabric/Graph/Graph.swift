@@ -445,6 +445,11 @@ internal import AnyCodable
 
     deinit
     {
+        // Nodes and connections reference this graph unowned. Clear them first, as weak
+        // references would already read nil here, and before teardown reads them.
+        let identifier = ObjectIdentifier(self)
+        for node in self.nodes where node.graphIdentifier == identifier { node.graph = nil }
+        for connection in self.connections where connection.graphIdentifier == identifier { connection.graph = nil }
         self.nodes.forEach { $0.teardown() }
         print("Deinit Graph: \(self.id)")
     }

@@ -17,7 +17,7 @@ xcuserdata/
 Config/Local.xcconfig
 
 # Swift Package Manager
-.build/
+.build*/
 .swiftpm/
 Package.resolved
 

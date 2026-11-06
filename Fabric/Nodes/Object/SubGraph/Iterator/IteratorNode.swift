@@ -115,6 +115,9 @@ public class IteratorNode: SubgraphNode
         // uniforms, instances and poses are snapshotted, so the next iteration's changes don't reach it.
         let submission = renderer.frameSubmission(frame: executionInfo.timing)
         let encodingContext = submission.encodingContext(commandBuffer: commandBuffer)
+        // Read once per frame, not once per iteration: each read is a retain and a release.
+        let subGraph = self.subGraph
+        let subGraphNodes = subGraph.nodes
 
         for iteration in 0..<iterationCount
         {
@@ -130,21 +133,23 @@ public class IteratorNode: SubgraphNode
                                  renderPassDescriptor: renderPassDescriptor,
                                  commandBuffer: commandBuffer,
                                  clearFlags: false,
-                                 forceEvaluationForTheseNodes: subGraph.nodes)
+                                 forceEvaluationForTheseNodes: subGraphNodes)
 
             if needsSceneSync
             {
                 subGraph.syncNodesToScene()
             }
 
-            // Recording neither updates nor encodes: do both first.
-            subGraph.scene.update()
-            try subGraph.scene.encode(in: encodingContext)
-            for entry in subGraph.scene.sceneIndex.entries {
+            // Recording neither updates nor encodes: do both first. Read per iteration: a
+            // scene sync can change the scene's contents.
+            let scene = subGraph.scene
+            scene.update()
+            try scene.encode(in: encodingContext)
+            for entry in scene.sceneIndex.entries {
                 entry.object.update()
                 try entry.object.encode(in: encodingContext)
             }
-            try submission.record(scene: subGraph.scene)
+            try submission.record(scene: scene)
         }
 
         // We need to call this to ensure any published port values also get forwarded.
