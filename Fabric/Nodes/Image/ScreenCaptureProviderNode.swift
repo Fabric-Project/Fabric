@@ -180,13 +180,23 @@ public class ScreenCaptureProviderNode: Node
     public required init(context: Context)
     {
         super.init(context: context)
-        self.listTargets(startingCaptureFor: nil)
     }
 
     public required init(from decoder: any Decoder) throws
     {
         try super.init(from: decoder)
+    }
+
+    /// Lists the sources for the dropdown at enable, not at init: listing asks
+    /// the system for every screen and window and checks Screen Recording
+    /// access, and a node is made far more often than it runs (the node
+    /// browser, opening a document, every-node sweeps). Start lists again
+    /// before it captures.
+    override public func enableExecution(renderer: GraphRenderer)
+    throws
+    {
         self.listTargets(startingCaptureFor: nil)
+        try super.enableExecution(renderer: renderer)
     }
 
     override public func startExecution(renderer: GraphRenderer)

@@ -104,7 +104,11 @@ public class CameraProviderNode : Node
     public var inputCamera:ParameterPort<String>  { port(named: "inputCamera") }
     public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
     
-    private let discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInWideAngleCamera, .continuityCamera, .external,], mediaType: nil, position:.unspecified)
+    /// Made at the first enable, not at init: discovering cameras is a call into
+    /// CoreMediaIO that can block for a second, and a node is made far more
+    /// often than it runs (the node browser, opening a document, every-node
+    /// sweeps). Written before the device observers exist, so they only read it.
+    private var discoverySession: AVCaptureDevice.DiscoverySession? = nil
     private var device: AVCaptureDevice? = nil
     private var captureSession: AVCaptureSession
     private let captureDelegate = CaptureDelegate()
@@ -148,6 +152,11 @@ public class CameraProviderNode : Node
 
     override public func enableExecution(renderer:GraphRenderer) throws
     {
+        if self.discoverySession == nil
+        {
+            self.discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInWideAngleCamera, .continuityCamera, .external,], mediaType: nil, position:.unspecified)
+        }
+
         self.wasConnectedObserver = NotificationCenter.default.addObserver(forName: AVCaptureDevice.wasConnectedNotification, object: nil, queue: .main)
         { [weak self] _ in
             guard let self else { return }
@@ -193,7 +202,7 @@ public class CameraProviderNode : Node
 
     private func refreshDevices()
     {
-        let fresh = self.discoverySession.devices
+        let fresh = self.discoverySession?.devices ?? []
         self.devices.withLock { $0 = fresh }
 
         // Enable can run on the render thread; parameter options are observable, main-thread state.
