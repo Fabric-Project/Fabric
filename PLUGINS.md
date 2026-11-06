@@ -61,6 +61,7 @@ Optional:
 - `FabricPluginDescription`
 - `CFBundleShortVersionString`
 - `NSPrincipalClass`
+- `SUFeedURL`, `SUPublicEDKey`, `SUEnableAutomaticChecks` — see [Updates](#updates)
 
 Example:
 
@@ -72,6 +73,43 @@ Example:
     <string>MyPlugin.MyCustomNode</string>
 </array>
 ```
+
+## Updates
+
+A plugin can opt in to updates through [Sparkle](https://sparkle-project.org), using Sparkle's own Info.plist keys:
+
+- `SUFeedURL` (required): the plugin's appcast. Must be `https`.
+- `SUPublicEDKey` (required): the EdDSA public key the plugin's updates are signed with.
+- `SUEnableAutomaticChecks` (optional).
+
+A plugin with only one of the two required keys, or a non-https feed, is not opted in. Fabric exposes the values as `PluginInfo.updateFeedURL`, `updatePublicEDKey` and `automaticallyChecksForUpdates`, and does nothing else with them, so each host chooses its own update mechanism.
+
+Fabric Editor keeps a Sparkle updater for each opted-in plugin, with the plugin bundle as Sparkle's host bundle:
+
+- The appcast is compared against the **plugin's own** `CFBundleVersion`, not the editor's or Fabric's. Each plugin versions independently, and the plugin author is responsible for only publishing builds that load in current Fabric (matching `FabricPluginAPIVersion`).
+- Updates download in the background and install when the editor quits, because loaded plugin code cannot be unloaded. Installing from a manual check relaunches the editor, which goes through the usual document save prompts.
+- **Check for Plugin Updates…** in the app menu checks every opted-in plugin. Each plugin shows its own result.
+- Plugins inside the application's own `Contents/PlugIns/` never self-update. They update with the application, and changing the app bundle would break its signature. Copies that lost to a higher-precedence copy are not loaded, so they are not updated either.
+
+Plugins must not embed Sparkle. The host provides it.
+
+A standard appcast item, where `sparkle:version` is the plugin's `CFBundleVersion`:
+
+```xml
+<item>
+    <title>MyPlugin 1.1</title>
+    <sparkle:version>12</sparkle:version>
+    <sparkle:shortVersionString>1.1</sparkle:shortVersionString>
+    <enclosure url="https://example.com/MyPlugin-1.1.zip"
+               sparkle:edSignature="…"
+               length="123456"
+               type="application/octet-stream"/>
+</item>
+```
+
+## Signing
+
+Fabric Editor is built with the hardened runtime and `com.apple.security.cs.disable-library-validation`, so it loads plugins signed by any Team ID. Plugins should still be signed and notarized.
 
 ## Lifecycle
 
