@@ -342,6 +342,7 @@ public final class FabricCoreNodesPlugin: NSObject, FabricPlugin
         LinePointsNode.self,
         RingPointsNode.self,
         GridPointsNode.self,
+        GradientNoise3DNode.self,
         PolyLineSimplifyNode.self,
     ]
 

@@ -498,6 +498,7 @@ Array nodes are type-agnostic and can work with any compatible Fabric port type 
 - [x] Line Points
 - [x] Ring Points
 - [x] Grid Points
+- [x] Gradient Noise 3D (FBM sampled at an array of positions)
 - [x] Repeat Value
 - [x] Simplify Polyline (Simplification of Array of Vector 2 Points via Ramer-Douglas-Peucker algo)
 - [ ] Multiplexer
