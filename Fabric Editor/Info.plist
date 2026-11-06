@@ -20,8 +20,9 @@
 			<key>NSUbiquitousDocumentUserActivityType</key>
 			<string>$(PRODUCT_BUNDLE_IDENTIFIER).exampledocument</string>
 		</dict>
-
 	</array>
+	<key>LSSupportsGameMode</key>
+	<true/>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 	<key>SUFeedURL</key>
@@ -30,7 +31,6 @@
 	<string>LS/B4r0KdYmY6Xs1UiQ5dcKdUugyv6gu3z2GxESju6c=</string>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
-
 		<dict>
 			<key>UTTypeConformsTo</key>
 			<array>
