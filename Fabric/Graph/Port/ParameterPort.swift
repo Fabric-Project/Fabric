@@ -18,7 +18,6 @@ protocol NodeInvalidatingParameterPort: AnyObject {
 // A Port that wraps a parameter - use for input ports you want to have as a UI
 public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hashable> : NodePort<ParamValue>, NodeInvalidatingParameterPort
 {
-    private var subscription:AnyCancellable? = nil
     private var _parameter: GenericParameter<ParamValue>
     private var isUpdatingParameterValue = false
 
@@ -62,8 +61,7 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
         set {
             if let newParam = newValue as? GenericParameter<ParamValue>
             {
-                self.subscription?.cancel()
-                self.subscription = nil
+                self._parameter.stopObservingValueChanges(by: self)
                 newParam.value = self._parameter.value
                 // A replacement parameter arrives with an id of its own; re-key
                 // it to keep the invariant hydrate(from:) describes.
@@ -137,10 +135,14 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
         self.subscribeToParameter()
     }
     
+    /// The port mirrors its parameter as one of its owners: synchronously, without a Combine
+    /// subscription. UI and clients keep using `valuePublisher`.
     private func subscribeToParameter()
     {
-        // Unowned: this port owns the subscription and cancels it in deinit.
-        self.subscription = self._parameter.valuePublisher.sink { [unowned self] value in
+        // Unowned: the port stops observing before it goes or swaps parameters, and the
+        // parameter may outlive it (UI and clients can hold it).
+        self._parameter.observeValueChanges(by: self) { [unowned self] in
+            let value = self._parameter.value
             // Port edits already uploaded this value. Do not feed the parameter's
             // synchronous notification back through the port setter a second time.
             if self.isUpdatingParameterValue, self.value == value { return }
@@ -150,8 +152,7 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
 
     deinit
     {
-        self.subscription?.cancel()
-        self.subscription = nil
+        self._parameter.stopObservingValueChanges(by: self)
     }
     
     override public func encode(to encoder: any Encoder) throws {
