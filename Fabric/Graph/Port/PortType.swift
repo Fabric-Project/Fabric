@@ -29,6 +29,8 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
     case Geometry
     case Material
     case Image
+    /// Published points (`Satin.Points`): per-point attributes and how the points connect.
+    case Points
     case Array(portType:PortType)
     case Dictionary(valueType:PortType)
 
@@ -58,6 +60,7 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         .Geometry,
         .Material,
         .Image,
+        .Points,
         
         // Collections
         .Array(portType:.Virtual),
@@ -118,6 +121,7 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         .Geometry,
         .Material,
         .Image,
+        .Points,
     ]
     
     public init?(rawValue: String)
@@ -140,6 +144,7 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         case "Geometry":      self = .Geometry;  return
         case "Material":      self = .Material;  return
         case "Image":         self = .Image;     return
+        case "Points":        self = .Points;    return
         case "Numeric Virtual": self = .NumericVirtual; return
         case "Virtual":       self = .Virtual;    return
             
@@ -221,6 +226,8 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
             return Satin.Material.self
         case .Image:
             return FabricImage.self
+        case .Points:
+            return Satin.Points.self
             
         case .Array(portType: let portType):
             return contiguousArrayMetatype(of: portType.type)
@@ -262,6 +269,8 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
             return "Material"
         case .Image:
             return "Image"
+        case .Points:
+            return "Points"
         case .Array(portType: let type):
             return "Array of \(type.rawValue)"
         case .Dictionary(valueType: let type):
@@ -391,6 +400,9 @@ extension PortType {
         case .Image(let value):
             Self.appendLine(firstLinePrefix + Swift.String(describing: value), into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
 
+        case .Points(let value):
+            Self.appendLine(firstLinePrefix + "\(value.count) points, version \(value.version)", into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
         case .Transform(let value):
             let columns: [PortValue] = [
                 .Vector4(value.columns.0),
@@ -519,6 +531,7 @@ extension PortType {
         case .Geometry:     return PassThroughNode<Geometry>.self
         case .Material:     return PassThroughNode<Material>.self
         case .Image:        return PassThroughNode<FabricImage>.self
+        case .Points:       return PassThroughNode<Satin.Points>.self
         case .Array(portType: let elementType):
             return Self.arrayParameterNodeClass(for: elementType)
         case .Dictionary(valueType: let valueType):
@@ -550,6 +563,7 @@ extension PortType {
         case .Geometry:  return PassThroughNode<ContiguousArray<Geometry>>.self
         case .Material:  return PassThroughNode<ContiguousArray<Material>>.self
         case .Image:     return PassThroughNode<ContiguousArray<FabricImage>>.self
+        case .Points:    return PassThroughNode<ContiguousArray<Satin.Points>>.self
         default:         return PassThroughNode<ContiguousArray<PortValue>>.self
         }
     }
@@ -571,6 +585,7 @@ extension PortType {
         case .Geometry:  return PassThroughNode<Dictionary<String, Geometry>>.self
         case .Material:  return PassThroughNode<Dictionary<String, Material>>.self
         case .Image:     return PassThroughNode<Dictionary<String, FabricImage>>.self
+        case .Points:    return PassThroughNode<Dictionary<String, Satin.Points>>.self
         default:         return PassThroughNode<Dictionary<String, PortValue>>.self
         }
     }

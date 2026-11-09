@@ -48,6 +48,7 @@ open class AnyPort: Codable {
             case .Geometry: self.base = try ProxyPort<Geometry>(from: portDecoder)
             case .Material: self.base = try ProxyPort<Material>(from: portDecoder)
             case .Image: self.base = try ProxyPort<FabricImage>(from: portDecoder)
+            case .Points: self.base = try ProxyPort<Satin.Points>(from: portDecoder)
             case .NumericVirtual, .Virtual: self.base = try ProxyPort<PortValue>(from: portDecoder)
             case .Array(portType: let elementType):
                 switch elementType {
@@ -63,6 +64,7 @@ open class AnyPort: Codable {
                 case .Geometry:         self.base = try ProxyPort<ContiguousArray<Geometry>>(from: portDecoder)
                 case .Material:         self.base = try ProxyPort<ContiguousArray<Material>>(from: portDecoder)
                 case .Image:            self.base = try ProxyPort<ContiguousArray<FabricImage>>(from: portDecoder)
+                case .Points:           self.base = try ProxyPort<ContiguousArray<Satin.Points>>(from: portDecoder)
                 default:                self.base = try ProxyPort<ContiguousArray<PortValue>>(from: portDecoder)
                 }
             case .Dictionary(valueType: let valueType):
@@ -109,6 +111,7 @@ open class AnyPort: Codable {
         case .Geometry:   return try ProxyPort<Dictionary<String, Geometry>>(from: decoder)
         case .Material:   return try ProxyPort<Dictionary<String, Material>>(from: decoder)
         case .Image:      return try ProxyPort<Dictionary<String, FabricImage>>(from: decoder)
+        case .Points:     return try ProxyPort<Dictionary<String, Satin.Points>>(from: decoder)
         case .Array(portType: let elementType):
             return try Self.decodeDictionaryOfArrayProxy(elementType: elementType, from: decoder)
         default:
@@ -133,6 +136,7 @@ open class AnyPort: Codable {
         case .Geometry:   return try ProxyPort<Dictionary<String, ContiguousArray<Geometry>>>(from: decoder)
         case .Material:   return try ProxyPort<Dictionary<String, ContiguousArray<Material>>>(from: decoder)
         case .Image:      return try ProxyPort<Dictionary<String, ContiguousArray<FabricImage>>>(from: decoder)
+        case .Points:     return try ProxyPort<Dictionary<String, ContiguousArray<Satin.Points>>>(from: decoder)
         default:          return try ProxyPort<Dictionary<String, PortValue>>(from: decoder)
         }
     }

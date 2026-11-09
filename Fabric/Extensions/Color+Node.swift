@@ -13,9 +13,14 @@ extension Color {
         Color("NodeTextureColor", bundle: Bundle.module)
     }
 
-    /// Color for geometry nodes
+    /// Color for point nodes
     public static var nodeGeometry: Color {
         Color("NodeGeometryColor", bundle: Bundle.module)
+    }
+    
+    /// Color for geometry nodes
+    public static var nodePoints: Color {
+        Color("NodePointColor", bundle: Bundle.module)
     }
 
     /// Color for camera nodes

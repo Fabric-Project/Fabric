@@ -137,6 +137,13 @@ struct NodeSettingsTests
             ("Math Expression", MathExpressionNode(context: context), MathExpressionSettings(stringExpression: "a + b")),
             ("Parametric Geometry", MathExpressionParametricGeometryNode(context: context),
              ParametricExpressionSettings(expressionX: "a * u", expressionY: "v", expressionZ: "b")),
+            ("Points Compute", PointsComputeNode(context: context),
+             PointsComputeSettings(hasNormals: true, hasColors: false, hasSizes: true, hasTexcoords: false,
+                                   customAttributes: [PointsCustomAttribute(name: "age", components: 1)],
+                                   kernelSource: PointsComputeNode.defaultKernelSource + "\n// edited\n")),
+            ("Points", PointsNode(context: context),
+             PointsSettings(hasNormals: true, hasColors: true, hasSizes: false, hasTexcoords: true, hasStrips: true,
+                            customAttributes: [PointsCustomAttribute(name: "heat", components: 1), PointsCustomAttribute(name: "wind", components: 3)])),
             ("JavaScript", JavaScriptNode(context: context), JavaScriptSettings(scriptSource: script, selectedTimeMode: .TimeBase)),
             ("Live Image", LiveImageNode(context: context), LiveImageSettings(shaderSource: shader + "\n// edited\n")),
             ("Timeline", TimelineNode(context: context),
@@ -194,6 +201,8 @@ struct NodeSettingsTests
         let timeline = TimelineSettings(duration: 2, tracks: [TimelineTrack(name: "A", duration: 2), TimelineTrack(name: "B", duration: 2)])
         let osc = OSCReceiveSettings(listenPort: 9100, addressBindings: [OSCAddressBinding(address: "/x", dataType: .float)])
         let midi = MIDIInputSettings(selectedInputID: nil, configuredInputs: [DetectedMIDIInput(type: .controlChange, channel: 0, number: 7)])
+        let points = PointsSettings(hasNormals: false, hasColors: true, hasSizes: true, hasTexcoords: false, hasStrips: true,
+                                    customAttributes: [PointsCustomAttribute(name: "age", components: 2)])
         let cases: [(name: String, built: Node, fresh: Node, settings: any NodeSettings)] = [
             ("Strategy",
              SampleAndHoldNode(context: context, settings: StrategyNodeSettings(strategy: PortType.String.rawValue)),
@@ -219,6 +228,10 @@ struct NodeSettingsTests
              MathExpressionParametricGeometryNode(context: context, settings: ParametricExpressionSettings(expressionX: "a * u", expressionY: "v", expressionZ: "b")),
              MathExpressionParametricGeometryNode(context: context),
              ParametricExpressionSettings(expressionX: "a * u", expressionY: "v", expressionZ: "b")),
+            ("Points",
+             PointsNode(context: context, settings: points),
+             PointsNode(context: context),
+             points),
             ("JavaScript",
              JavaScriptNode(context: context, settings: JavaScriptSettings(scriptSource: script, selectedTimeMode: .TimeBase)),
              JavaScriptNode(context: context),

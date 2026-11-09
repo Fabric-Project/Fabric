@@ -201,7 +201,7 @@ enum NumericValueOperations
     {
         let l = 0.4122214708 * color.x + 0.5363325363 * color.y + 0.0514459929 * color.z
         let m = 0.2119034982 * color.x + 0.6806995451 * color.y + 0.1073969566 * color.z
-        let s = 0.0883024619 * color.x + 0.2220049073 * color.y + 0.6896926158 * color.z
+        let s = 0.0883024619 * color.x + 0.2817188376 * color.y + 0.6299787005 * color.z
 
         let lRoot = cbrtf(l)
         let mRoot = cbrtf(m)

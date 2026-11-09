@@ -28,6 +28,7 @@ extension PortType
         case .Geometry:   return try NodePort<Satin.Geometry>.init(from: decoder)
         case .Material:   return try NodePort<Satin.Material>.init(from: decoder)
         case .Image:      return try NodePort<FabricImage>.init(from: decoder)
+        case .Points:     return try NodePort<Satin.Points>.init(from: decoder)
         case .NumericVirtual: return try NumericVirtualPort.init(from: decoder)
         case .Virtual:    return try NodePort<PortValue>.init(from: decoder)
 
@@ -73,6 +74,8 @@ extension PortType
             return try NodePort<ContiguousArray<Satin.Material>>.init(from: decoder)
         case .Image:
             return try NodePort<ContiguousArray<FabricImage>>.init(from: decoder)
+        case .Points:
+            return try NodePort<ContiguousArray<Satin.Points>>.init(from: decoder)
 
         default:
             // Nested arrays (Array of Array of T) and unrecognised element types fall back to
@@ -111,6 +114,8 @@ extension PortType
             return try NodePort<Dictionary<String, Satin.Material>>.init(from: decoder)
         case .Image:
             return try NodePort<Dictionary<String, FabricImage>>.init(from: decoder)
+        case .Points:
+            return try NodePort<Dictionary<String, Satin.Points>>.init(from: decoder)
         case .Array(portType: let elementType):
             return try Self.dictionaryOfArrayPort(dictionaryType: dictionaryType, elementType: elementType, decoder: decoder)
         case .Virtual:
@@ -139,6 +144,7 @@ extension PortType
         case .Geometry:    return try NodePort<Dictionary<String, ContiguousArray<Satin.Geometry>>>.init(from: decoder)
         case .Material:    return try NodePort<Dictionary<String, ContiguousArray<Satin.Material>>>.init(from: decoder)
         case .Image:       return try NodePort<Dictionary<String, ContiguousArray<FabricImage>>>.init(from: decoder)
+        case .Points:      return try NodePort<Dictionary<String, ContiguousArray<Satin.Points>>>.init(from: decoder)
         default:           return try DeclaredNodePort<Dictionary<String, PortValue>>.init(from: decoder)
         }
     }
@@ -215,6 +221,7 @@ extension PortType
         case .Geometry:   return NodePort<Satin.Geometry>(name: name, kind: kind, description: description, id: id)
         case .Material:   return NodePort<Satin.Material>(name: name, kind: kind, description: description, id: id)
         case .Image:      return NodePort<FabricImage>(name: name, kind: kind, description: description, id: id)
+        case .Points:     return NodePort<Satin.Points>(name: name, kind: kind, description: description, id: id)
         case .NumericVirtual: return NumericVirtualPort(name: name, kind: kind, description: description, id: id)
         case .Virtual:    return NodePort<PortValue>(name: name, kind: kind, description: description, id: id)
         case .Array(portType: let elementType):
@@ -241,6 +248,7 @@ extension PortType
         case .Geometry:    return NodePort<ContiguousArray<Satin.Geometry>>(name: name, kind: kind, description: description, id: id)
         case .Material:    return NodePort<ContiguousArray<Satin.Material>>(name: name, kind: kind, description: description, id: id)
         case .Image:       return NodePort<ContiguousArray<FabricImage>>(name: name, kind: kind, description: description, id: id)
+        case .Points:      return NodePort<ContiguousArray<Satin.Points>>(name: name, kind: kind, description: description, id: id)
         default:           return DeclaredNodePort<ContiguousArray<PortValue>>(declaredPortType: .Array(portType: elementType), name: name, kind: kind, description: description, id: id)
         }
     }
@@ -262,6 +270,7 @@ extension PortType
         case .Geometry:    return NodePort<Dictionary<String, Satin.Geometry>>(name: name, kind: kind, description: description, id: id)
         case .Material:    return NodePort<Dictionary<String, Satin.Material>>(name: name, kind: kind, description: description, id: id)
         case .Image:       return NodePort<Dictionary<String, FabricImage>>(name: name, kind: kind, description: description, id: id)
+        case .Points:      return NodePort<Dictionary<String, Satin.Points>>(name: name, kind: kind, description: description, id: id)
         case .Array(portType: let elementType):
             return Self.makeFreshDictionaryOfArrayPort(dictionaryType: dictionaryType, elementType: elementType, name: name, kind: kind, description: description, id: id)
         case .Virtual:
@@ -288,6 +297,7 @@ extension PortType
         case .Geometry:    return NodePort<Dictionary<String, ContiguousArray<Satin.Geometry>>>(name: name, kind: kind, description: description, id: id)
         case .Material:    return NodePort<Dictionary<String, ContiguousArray<Satin.Material>>>(name: name, kind: kind, description: description, id: id)
         case .Image:       return NodePort<Dictionary<String, ContiguousArray<FabricImage>>>(name: name, kind: kind, description: description, id: id)
+        case .Points:      return NodePort<Dictionary<String, ContiguousArray<Satin.Points>>>(name: name, kind: kind, description: description, id: id)
         default:           return DeclaredNodePort<Dictionary<String, PortValue>>(declaredPortType: dictionaryType, name: name, kind: kind, description: description, id: id)
         }
     }

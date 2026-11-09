@@ -247,6 +247,9 @@ private final class JavaScriptValueBridge
             return JavaScriptMaterialValue(material: value)
         case .Image(let value):
             return JavaScriptImageValue(image: value)
+        case .Points:
+            // Not exposed to scripts yet.
+            return NSNull()
         case .Array(let values):
             return values.map { javaScriptArgument(for: $0) }
         case .Dictionary(let values):
@@ -293,6 +296,8 @@ private final class JavaScriptValueBridge
             )))
         case .Geometry, .Material, .Image:
             return (value.toObject() as? JavaScriptOpaqueValueBoxing)?.boxedPortValue
+        case .Points:
+            return nil
         case .NumericVirtual:
             return nil
         case .Virtual:

@@ -58,6 +58,7 @@ public indirect enum PortValue : PortValueRepresentable
     case Geometry(Satin.Geometry)
     case Material(Satin.Material)
     case Image(FabricImage)
+    case Points(Satin.Points)
     case Array(ContiguousArray<PortValue>)
     case Dictionary(Swift.Dictionary<Swift.String, PortValue>)
     
@@ -558,6 +559,39 @@ extension Satin.Geometry : PortValueRepresentable
         {
         case let .Geometry(v):
             return v as? Self
+        default:
+            return nil
+        }
+    }
+
+    public func canConvertTo(other:PortType) -> Bool
+    {
+        return false
+    }
+
+    public func convertTo(other:PortType) -> (any PortValueRepresentable)?
+    {
+        return nil
+    }
+}
+
+extension Satin.Points : PortValueRepresentable
+{
+    public static var defaultValue: Self? { nil }
+    public static var portType: PortType { .Points }
+    public var portType: PortType { .Points }
+
+    public func toPortValue() -> PortValue
+    {
+        .Points(self)
+    }
+
+    public static func fromPortValue(_ value: PortValue) -> Self?
+    {
+        switch value
+        {
+        case let .Points(v):
+            return v
         default:
             return nil
         }

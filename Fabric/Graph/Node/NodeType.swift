@@ -27,7 +27,7 @@ extension Node
             {
             case .All: return Node.NodeType.allCases
             case .SceneGraph: return Node.NodeType.ObjectType.nodeTypes() + [.Subgraph]
-            case .Mesh: return [.Geometery, .Material]
+            case .Mesh: return [.Points, .Geometery, .Material]
             case .Image: return Node.NodeType.ImageType.nodeTypes()
             case .Parameter: return Node.NodeType.ParameterType.nodeTypes()
             case .Utility: return [Node.NodeType.Utility]
@@ -123,6 +123,7 @@ extension Node
         case Renderer // Renders a scene graph
         case Subgraph
         case Object(objectType:ObjectType) // Scene graph, owns transforms
+        case Points
         case Geometery
         case Material
         case Image(imageType:ImageType)
@@ -145,6 +146,7 @@ extension Node
             case .Subgraph: return "Sub Graph"
             case .Renderer: return "Renderer"
             case .Object(let objectType): return objectType.rawValue
+            case .Points: return "Points"
             case .Geometery: return "Geometery"
             case .Material: return "Material"
             case .Image(imageType: let imageType): return "Image \(imageType.rawValue.titleCase)"
@@ -162,6 +164,9 @@ extension Node
             case .Image:
                 return Color.nodeTexture
 
+            case .Points:
+                return Color.nodePoints
+                
             case .Geometery:
                 return Color.nodeGeometry
 

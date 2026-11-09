@@ -42,6 +42,12 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Tesselated Text (2D)
 - [x] Extruded Text (3D)
 - [x] Stroke Geometry
+- [x] Points (arrays → published points, with optional normals, colors, sizes, texture coordinates, custom attributes and strips)
+- [x] Points Geometry (published points → geometry, as points, lines or triangles)
+- [x] Points Compute (a Metal function writes points every frame on the GPU)
+- [x] Points from Image (one point per pixel or step, colored by the image)
+- [x] Transform Points (moves positions and normals on the GPU, shares the rest)
+- [x] Stroke Points (points → ribbon triangles on the GPU, with joins and caps; no readback)
 - [x] Super Shape (3D Supershape formula)
 - [x] Geometry Compose (Pixel Array → Geometry)
 - [x] Parametric Expression Geometry
