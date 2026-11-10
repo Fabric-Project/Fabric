@@ -19,7 +19,7 @@ public final class PointsFromImageNode: BaseGPUPointsNode
     override public class var name: String { "Points from Image" }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Makes one point per pixel, or every Step pixels, on the GPU. Points lie across the image's aspect, 2 high, take its colors, and move toward the camera by brightness times Depth." }
+    override public class var nodeDescription: String { "Makes one point per pixel, or every Step pixels, on the GPU. Points lie across the image's aspect, 2 high, take its colors, and move toward the camera by brightness, from 0 to 1, times Depth." }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
     {
@@ -45,11 +45,14 @@ public final class PointsFromImageNode: BaseGPUPointsNode
 
     private struct PointsFromImageUniforms
     {
+        var textureTransform: simd_float4x4
         var count: UInt32
         var columns: UInt32
         var step: UInt32
         var width: UInt32
         var height: UInt32
+        var storedWidth: UInt32
+        var storedHeight: UInt32
         var aspect: Float
         var depth: Float
     }
@@ -57,22 +60,33 @@ public final class PointsFromImageNode: BaseGPUPointsNode
     override public func publish(pipeline: MTLComputePipelineState, executionInfo: GraphExecutionInfo,
                                  commandBuffer: MTLCommandBuffer) throws -> Satin.Points?
     {
-        guard let texture = inputImage.value?.texture, texture.width > 0, texture.height > 0 else { return nil }
+        guard let image = inputImage.value, image.texture.width > 0, image.texture.height > 0 else { return nil }
+        let texture = image.texture
+        // Laid out as the image is presented, whatever its stored orientation.
+        let presented = image.presentationPixelSize
         let step = max(inputStep.value ?? 4, 1)
         let depth = inputDepth.value ?? 0
-        let columns = (texture.width + step - 1) / step
-        let rows = (texture.height + step - 1) / step
+        let columns = (presented.width + step - 1) / step
+        let rows = (presented.height + step - 1) / step
         let count = columns * rows
-        let aspect = Float(texture.width) / Float(texture.height)
+        let aspect = Float(presented.width) / Float(presented.height)
 
         let elementStride = MemoryLayout<simd_float4>.stride
         let positions = try context.gpuAllocator.makeBuffer(length: count * elementStride, memoryClass: .gpuOnly, label: "Image Point Positions")
         let colors = try context.gpuAllocator.makeBuffer(length: count * elementStride, memoryClass: .gpuOnly, label: "Image Point Colors")
 
-        if let encoder = commandBuffer.makeComputeCommandEncoder()
+        // Fresh buffers hold nothing until the kernel runs, so with no encoder nothing is published.
+        guard let encoder = commandBuffer.makeComputeCommandEncoder() else
         {
-            var uniforms = PointsFromImageUniforms(count: UInt32(count), columns: UInt32(columns), step: UInt32(step),
-                                                   width: UInt32(texture.width), height: UInt32(texture.height), aspect: aspect, depth: depth)
+            throw FabricError(.execution(.gpu), severity: .recoverable, message: "Unable to encode Points from Image")
+        }
+        do
+        {
+            var uniforms = PointsFromImageUniforms(textureTransform: image.textureTransform,
+                                                   count: UInt32(count), columns: UInt32(columns), step: UInt32(step),
+                                                   width: UInt32(presented.width), height: UInt32(presented.height),
+                                                   storedWidth: UInt32(texture.width), storedHeight: UInt32(texture.height),
+                                                   aspect: aspect, depth: depth)
             encoder.label = "Points from Image"
             encoder.setTexture(texture, index: 0)
             encoder.setBuffer(positions, offset: 0, index: 0)
@@ -95,12 +109,18 @@ public final class PointsFromImageNode: BaseGPUPointsNode
     #include <metal_stdlib>
     using namespace metal;
 
+    \(FabricImage.presentationSamplingSource)
+
+    // width and height are the image's as presented; storedWidth and storedHeight its texture's.
     struct PointsFromImageUniforms {
+        float4x4 textureTransform;
         uint count;
         uint columns;
         uint step;
         uint width;
         uint height;
+        uint storedWidth;
+        uint storedHeight;
         float aspect;
         float depth;
     };
@@ -113,9 +133,10 @@ public final class PointsFromImageNode: BaseGPUPointsNode
         if (id >= uniforms.count) { return; }
         const uint2 pixel = uint2(min((id % uniforms.columns) * uniforms.step, uniforms.width - 1),
                                   min((id / uniforms.columns) * uniforms.step, uniforms.height - 1));
-        const float4 color = image.read(pixel);
         const float2 uv = (float2(pixel) + 0.5) / float2(uniforms.width, uniforms.height);
-        const float brightness = dot(color.rgb, float3(0.2126, 0.7152, 0.0722));
+        const float4 color = image.read(fabricStoredPixel(uv, uniforms.textureTransform, uint2(uniforms.storedWidth, uniforms.storedHeight)));
+        // Clamped, so HDR pixels stay within the bounds the node gives: 0 to Depth.
+        const float brightness = saturate(dot(color.rgb, float3(0.2126, 0.7152, 0.0722)));
         positions[id] = float4((uv.x - 0.5) * 2.0 * uniforms.aspect, (0.5 - uv.y) * 2.0, brightness * uniforms.depth, 1.0);
         colors[id] = color;
     }

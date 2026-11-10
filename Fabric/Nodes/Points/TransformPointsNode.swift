@@ -73,7 +73,7 @@ public final class TransformPointsNode: BaseGPUPointsNode
         case let .known(known): bounds = .known(transformBounds(known, transform))
         case .unknown: bounds = .unknown
         }
-        return try Satin.Points(attributes: attributes, topology: points.topology, bounds: bounds)
+        return try Satin.Points(attributes: attributes, topology: points.topology, bounds: bounds, drawArguments: points.drawArguments)
     }
 
     private struct TransformPointsUniforms
@@ -99,8 +99,13 @@ public final class TransformPointsNode: BaseGPUPointsNode
         let count = attribute.count
         let outputStride = MemoryLayout<simd_float4>.stride
         let output = try context.gpuAllocator.makeBuffer(length: max(count, 1) * outputStride, memoryClass: .gpuOnly, label: "Transformed Points")
-        if count > 0, let encoder = commandBuffer.makeComputeCommandEncoder()
+        if count > 0
         {
+            // A fresh buffer holds nothing until the kernel runs, so with no encoder nothing is published.
+            guard let encoder = commandBuffer.makeComputeCommandEncoder() else
+            {
+                throw FabricError(.execution(.gpu), severity: .recoverable, message: "Unable to encode Transform Points")
+            }
             var uniforms = TransformPointsUniforms(matrix: matrix, count: UInt32(count), byteStride: UInt32(layout.byteStride),
                                                    byteOffset: UInt32(layout.byteOffset), isDirection: isDirection ? 1 : 0)
             encoder.label = "Transform Points"

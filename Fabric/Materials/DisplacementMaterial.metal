@@ -9,6 +9,7 @@
 using namespace metal;
 
 typedef struct {
+    float pointSize;
     float amount; // slider, 0.0, 2.0, 0.0, Amount
     float minPointSize; // slider, 0.5, 128.0, 1.0, Min Point Size
     float maxPointSize; // slider, 0.5, 128.0, 1.0, Max Point Size
@@ -16,11 +17,9 @@ typedef struct {
     float lumaVPosMix; // slider, 0.0, 1.0, 0.0, Luma vs RGB
     float4x4 displacementTextureTransform;
     float4x4 colorTextureTransform;
-    float4x4 pointSpriteTextureTransform;
 } DisplacementUniforms;
 
 constexpr sampler s( min_filter::linear, mag_filter::linear);
-constexpr sampler p( min_filter::linear, mag_filter::linear, mip_filter::linear );
 
 constant half4 lumcoeff = half4(0.299,0.587,0.114,0.);
 
@@ -53,48 +52,21 @@ vertex CustomVertexData displacementVertex(Vertex in [[stage_in]],
     out.position = vertexUniforms[amp_id].modelViewProjectionMatrix * float4( final, 1.0 );
 #endif
     
-    out.pointSize =  mix(uniforms.minPointSize, uniforms.maxPointSize, float(luma));
+    out.pointSize = uniforms.pointSize * mix(uniforms.minPointSize, uniforms.maxPointSize, float(luma));
     out.uv = in.texcoord;
     
     return out;
 }
 
-//[[early_fragment_tests]]
+// The material's Point Sprite setting shapes each point (SATIN_POINT_SPRITE); meshes of
+// triangles draw unshaped.
 fragment half4 displacementFragment( CustomVertexData in [[stage_in]],
-                                                             const float2 puv [[point_coord]],
-//                                                                uint stencilValue [[stencil_value]],
-//                                                                uint refValue [[stencil_ref_value]],
-
-                                                             //                                     const half4 existingColor [[color(0)]],
-                                                             
-                                                             constant DisplacementUniforms &uniforms [[buffer( FragmentBufferMaterialUniforms )]],
-                                                             texture2d<half, access::sample> colorTex [[texture( FragmentTextureCustom0 )]],
-                                                             texture2d<half, access::sample> pointSpriteTex [[texture( FragmentTextureCustom1 )]] )
+                                     constant DisplacementUniforms &uniforms [[buffer( FragmentBufferMaterialUniforms )]],
+                                     texture2d<half, access::sample> colorTex [[texture( FragmentTextureCustom0 )]]
+                                     SATIN_POINT_SPRITE_FRAGMENT_DATA )
 {
-    
-//    if (length(puv - float2(0.5)) > 0.5)
-//    {
-//        discard_fragment();
-//    }
-    
-//    const uint width = colorTex.get_width();
-//    const uint height = colorTex.get_height();
-//    const float2 resolution = float2(width, height);
-//
-//    const half4 color = colorTex.read( uint2(in.uv * resolution) );
-    
-//    if ( length(existingColor) > 1.0 )
-//          discard_fragment();
-//    
-    
-//    const half4 blendFactor = 1.0 - half4(stencilValue) / half4(refValue); // fade out at limit
-
     const float2 colorUV =
         (uniforms.colorTextureTransform * float4(in.uv, 0.0, 1.0)).xy;
-    const float2 pointSpriteUV =
-        (uniforms.pointSpriteTextureTransform * float4(puv, 0.0, 1.0)).xy;
     const half4 color = colorTex.sample(s, colorUV);
-    const half4 sprite = pointSpriteTex.sample(p, pointSpriteUV);
-        
-    return sprite * color * uniforms.brightness;
+    return SATIN_POINT_SPRITE(color * half(uniforms.brightness));
 }

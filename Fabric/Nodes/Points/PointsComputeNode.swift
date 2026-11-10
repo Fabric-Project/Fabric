@@ -20,30 +20,41 @@ public struct PointsComputeSettings: NodeSettings
     public var hasTexcoords: Bool
     /// In order: they take the custom slots in this order, and become fields of the output.
     public var customAttributes: [PointsCustomAttribute]
+    /// Each is an input port and `inputs.<name>`, read with `read(id)` and `count()`.
+    public var streamInputs: [StreamKernelField]
+    /// A stream input's name, to write as many points as it has, a GPU-written count included;
+    /// empty for the Count input.
+    public var countSource: String
     /// Metal source defining `pointsCompute`, which fills one point (see `PointsComputeNode`).
     public var kernelSource: String
 
     public init(hasNormals: Bool, hasColors: Bool, hasSizes: Bool, hasTexcoords: Bool,
-                customAttributes: [PointsCustomAttribute], kernelSource: String)
+                customAttributes: [PointsCustomAttribute], streamInputs: [StreamKernelField], countSource: String, kernelSource: String)
     {
         self.hasNormals = hasNormals
         self.hasColors = hasColors
         self.hasSizes = hasSizes
         self.hasTexcoords = hasTexcoords
         self.customAttributes = customAttributes
+        self.streamInputs = streamInputs
+        self.countSource = countSource
         self.kernelSource = kernelSource
     }
 
     /// Colored, sized points on a breathing sphere.
     public static let standard = PointsComputeSettings(hasNormals: false, hasColors: true, hasSizes: true, hasTexcoords: false,
-                                                       customAttributes: [], kernelSource: PointsComputeNode.defaultKernelSource)
+                                                       customAttributes: [], streamInputs: [], countSource: "",
+                                                       kernelSource: PointsComputeNode.defaultKernelSource)
 
-    /// Custom attributes named as shader fields that don't clash with the standard ones.
+    /// Custom attributes named as shader fields that don't clash with the standard ones, stream
+    /// inputs a kernel can declare, and a count source among them.
     func normalized() -> PointsComputeSettings
     {
         var result = self
         result.customAttributes = PointsCustomAttribute.normalized(customAttributes, requiringIdentifiers: true)
             .filter { !Self.standardFieldNames.contains($0.name) }
+        result.streamInputs = StreamKernelField.normalized(streamInputs, reserved: [], limit: StreamKernel.maximumInputs)
+        if !result.streamInputs.contains(where: { $0.name == countSource }) { result.countSource = "" }
         return result
     }
 
@@ -59,7 +70,7 @@ public final class PointsComputeNode: BaseGPUPointsNode
     override public class var name: String { "Points Compute" }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
     override public class var nodeTimeMode: Node.TimeMode { .TimeBase }
-    override public class var nodeDescription: String { "Writes points every frame on the GPU with a Metal function you write: pointsCompute fills one point's position and the attributes the settings turn on, from its index, the time and Parameters. Bounds are unknown, so the points are never culled." }
+    override public class var nodeDescription: String { "Writes points every frame on the GPU with a Metal function you write: pointsCompute fills one point's position and the attributes the settings turn on, from its index, the streams it reads, the time and Parameters. Bounds are unknown, so the points are never culled." }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
     {
@@ -75,22 +86,51 @@ public final class PointsComputeNode: BaseGPUPointsNode
 
     private(set) var computeSettings: PointsComputeSettings
 
+    /// Binds a missing stream input with no elements.
+    private lazy var placeholder: MTLBuffer? = context.device.makeBuffer(length: 16, options: .storageModeShared)
+
+    // Resolved when the settings change, so execution parses, looks up and allocates nothing for them.
+    private var pointOutputs: [Output] = []
+    private var pointOutputLabels: [String] = []
+    private var resolvedInputs: [(any GPUStreamPort)?] = []
+    private var countSourceIndex: Int?
+    // Scratch kept across executions.
+    private var layoutScratch = ContiguousArray<StreamKernel.Layout>()
+    private var outputBufferScratch = ContiguousArray<MTLBuffer>()
+
     public required init(context: Context)
     {
         self.computeSettings = .standard
         super.init(context: context)
+        rebuildStreamPorts()
     }
 
     public init(context: Context, settings: PointsComputeSettings)
     {
         self.computeSettings = settings.normalized()
         super.init(context: context)
+        rebuildStreamPorts()
     }
 
     public required init(from decoder: any Decoder) throws
     {
         self.computeSettings = ((try? PointsComputeSettings(from: decoder)) ?? .standard).normalized()
         try super.init(from: decoder)
+        rebuildStreamPorts()
+    }
+
+    /// Stream inputs after Count and Parameters, before the output.
+    private func rebuildStreamPorts()
+    {
+        StreamKernel.syncInputPorts(of: self, fields: computeSettings.streamInputs)
+        let order = ["inputCount", "inputParameters"] + computeSettings.streamInputs.map(StreamKernel.inputPortName) + ["outputPoints"]
+        let ordered: [Port] = order.compactMap { name in let port: Port? = findPort(named: name); return port }
+        if ordered.count == ports.count { reorderPorts(ordered) }
+
+        pointOutputs = Self.outputs(for: computeSettings)
+        pointOutputLabels = pointOutputs.map { "Points Compute " + $0.field }
+        resolvedInputs = StreamKernel.resolveInputs(of: self, fields: computeSettings.streamInputs)
+        countSourceIndex = computeSettings.streamInputs.firstIndex { $0.name == computeSettings.countSource }
     }
 
     override public var kernelSource: String { Self.generatedSource(for: computeSettings) }
@@ -102,7 +142,8 @@ public final class PointsComputeNode: BaseGPUPointsNode
     {
         guard let settings = settings as? PointsComputeSettings else { return }
         computeSettings = settings.normalized()
-        invalidateKernel()
+        rebuildStreamPorts()
+        recompileKernel()
         performOnMainAsync { [weak self] in self?._settingsModelStorage?.refreshFromNode() }
         super.apply(settings)
     }
@@ -130,6 +171,8 @@ public final class PointsComputeNode: BaseGPUPointsNode
         let store: String
         let components: Int
         let byteStride: Int
+
+        var layout: AttributeLayout { AttributeLayout(scalar: .float32, components: components, byteOffset: 0, byteStride: byteStride) }
     }
 
     private static func outputs(for settings: PointsComputeSettings) -> [Output]
@@ -184,30 +227,36 @@ public final class PointsComputeNode: BaseGPUPointsNode
         let outputs = outputs(for: settings)
         let fields = outputs.map { "    \($0.fieldType) \($0.field);" }.joined(separator: "\n")
         let buffers = outputs.enumerated().map { "    device \($0.element.bufferType) *\($0.element.field)Buffer [[buffer(\($0.offset + 1))]]," }.joined(separator: "\n")
+        let countLimit = settings.countSource.isEmpty ? "uniforms.count" : "inputs.\(settings.countSource).count()"
         let defaults = outputs.map { "    point.\($0.field) = \($0.defaultValue);" }.joined(separator: "\n")
         let stores = outputs.map { "    \($0.field)Buffer[id] = \($0.store);" }.joined(separator: "\n")
         return """
         #include <metal_stdlib>
         using namespace metal;
 
-        \(declarations(fields: fields))
+        \(StreamKernel.preamble)
+
+        \(declarations(fields: fields, streamInputs: settings.streamInputs))
 
         \(settings.kernelSource)
 
         kernel void pointsComputeKernel(constant PointsComputeUniforms &uniforms [[buffer(0)]],
         \(buffers)
+        \(StreamKernel.inputParameters(settings.streamInputs, firstBuffer: outputs.count + 1))
             uint id [[thread_position_in_grid]]) {
-            if (id >= uniforms.count) { return; }
+        \(StreamKernel.inputsInitializer(structName: "PointsComputeInputs", fields: settings.streamInputs))
+            if (id >= \(countLimit)) { return; }
             PointsComputeOutput point;
         \(defaults)
-            pointsCompute(id, uniforms, point);
+            pointsCompute(id, uniforms, inputs, point);
         \(stores)
         }
         """
     }
 
-    /// What `pointsCompute` sees, shown in the settings view as well.
-    static func declarations(fields: String) -> String
+    /// What `pointsCompute` sees, shown in the settings view as well; the stream readers it uses
+    /// come before them.
+    static func declarations(fields: String, streamInputs: [StreamKernelField]) -> String
     {
         """
         struct PointsComputeUniforms {
@@ -218,6 +267,8 @@ public final class PointsComputeNode: BaseGPUPointsNode
             float4 parameters;
         };
 
+        \(StreamKernel.inputsStruct(named: "PointsComputeInputs", fields: streamInputs))
+
         struct PointsComputeOutput {
         \(fields)
         };
@@ -226,49 +277,62 @@ public final class PointsComputeNode: BaseGPUPointsNode
 
     static func declarations(for settings: PointsComputeSettings) -> String
     {
-        declarations(fields: outputs(for: settings).map { "    \($0.fieldType) \($0.field);" }.joined(separator: "\n"))
+        declarations(fields: outputs(for: settings).map { "    \($0.fieldType) \($0.field);" }.joined(separator: "\n"),
+                     streamInputs: settings.streamInputs)
     }
 
     override public func publish(pipeline: MTLComputePipelineState, executionInfo: GraphExecutionInfo,
                                  commandBuffer: MTLCommandBuffer) throws -> Satin.Points?
     {
-        let count = max(inputCount.value ?? 0, 0)
-        guard count > 0 else { return nil }
+        guard let placeholder,
+              let pointCount = StreamKernel.count(from: resolvedInputs, countSourceIndex: countSourceIndex, fallback: max(inputCount.value ?? 0, 0))
+        else { return nil }
+        let count = pointCount.capacity
 
-        let outputs = Self.outputs(for: computeSettings)
-        let buffers = try outputs.map { output in
-            try context.gpuAllocator.makeBuffer(length: count * output.byteStride, memoryClass: .gpuOnly, label: "Points Compute \(output.field)")
-        }
-
-        if let encoder = commandBuffer.makeComputeCommandEncoder()
+        outputBufferScratch.removeAll(keepingCapacity: true)
+        for (output, label) in zip(pointOutputs, pointOutputLabels)
         {
-            var uniforms = PointsComputeUniforms(count: UInt32(count),
-                                                 time: Float(executionInfo.timing.time),
-                                                 deltaTime: Float(executionInfo.timing.deltaTime),
-                                                 parameters: inputParameters.value ?? .zero)
-            encoder.label = "Points Compute"
-            encoder.setBytes(&uniforms, length: MemoryLayout<PointsComputeUniforms>.stride, index: 0)
-            for (index, buffer) in buffers.enumerated()
-            {
-                encoder.setBuffer(buffer, offset: 0, index: index + 1)
-            }
-            Self.dispatchPerPoint(encoder, pipeline: pipeline, count: count)
-            encoder.endEncoding()
+            outputBufferScratch.append(try context.gpuAllocator.makeBuffer(length: count * output.byteStride, memoryClass: .gpuOnly, label: label))
         }
 
-        let attributes: [(PointAttribute, PublishedAttribute)] = zip(outputs, buffers).map { output, buffer in
-            (output.key, PublishedAttribute(adopting: buffer,
-                                            layout: AttributeLayout(scalar: .float32, components: output.components,
-                                                                    byteOffset: 0, byteStride: output.byteStride),
-                                            count: count))
+        // Fresh buffers hold nothing until the kernel runs, so with no encoder nothing is published.
+        guard let encoder = commandBuffer.makeComputeCommandEncoder() else
+        {
+            throw FabricError(.execution(.gpu), severity: .recoverable, message: "Unable to encode Points Compute")
         }
-        return try Satin.Points(attributes: attributes, topology: .implicit, bounds: .unknown)
+        var uniforms = PointsComputeUniforms(count: UInt32(count),
+                                             time: Float(executionInfo.timing.time),
+                                             deltaTime: Float(executionInfo.timing.deltaTime),
+                                             parameters: inputParameters.value ?? .zero)
+        encoder.label = "Points Compute"
+        encoder.setBytes(&uniforms, length: MemoryLayout<PointsComputeUniforms>.stride, index: 0)
+        for (index, buffer) in outputBufferScratch.enumerated()
+        {
+            encoder.setBuffer(buffer, offset: 0, index: index + 1)
+        }
+        StreamKernel.bind(resolvedInputs, encoder: encoder, firstBuffer: pointOutputs.count + 1, placeholder: placeholder, layouts: &layoutScratch)
+        Self.dispatchPerPoint(encoder, pipeline: pipeline, count: count)
+        encoder.endEncoding()
+
+        let attributes: [(PointAttribute, PublishedAttribute)] = zip(pointOutputs, outputBufferScratch).map { output, buffer in
+            (output.key, PublishedAttribute(adopting: buffer, layout: output.layout, count: count))
+        }
+        // A counted input's GPU count is a whole set of draw arguments, so the points draw by it.
+        switch pointCount
+        {
+        case .known:
+            return try Satin.Points(attributes: attributes, topology: .implicit, bounds: .unknown)
+        case let .gpu(arguments, _):
+            return try Satin.Points(attributes: attributes, topology: .implicit, bounds: .unknown,
+                                    drawArguments: arguments)
+        }
     }
 
     static let defaultKernelSource = """
     // Fill one point. Its index is id, of uniforms.count; uniforms.time and uniforms.deltaTime are in
-    // seconds; uniforms.parameters is the Parameters input. Unset fields keep their defaults.
-    void pointsCompute(uint id, constant PointsComputeUniforms &uniforms, thread PointsComputeOutput &point)
+    // seconds; uniforms.parameters is the Parameters input. Read a stream input with
+    // inputs.<name>.read(id). Unset fields keep their defaults.
+    void pointsCompute(uint id, constant PointsComputeUniforms &uniforms, thread const PointsComputeInputs &inputs, thread PointsComputeOutput &point)
     {
         const float fraction = (float(id) + 0.5) / float(uniforms.count);
         const float y = 1.0 - 2.0 * fraction;
@@ -286,28 +350,33 @@ public final class PointsComputeNode: BaseGPUPointsNode
     @MainActor
     @Observable final class SettingsModel
     {
-        /// Edits wait here until applied, so typing doesn't recompile on every keystroke.
-        var draft: PointsComputeSettings
+        /// The outputs, inputs and count, applied as they change; the function is the editor's.
+        var settings: PointsComputeSettings
+        {
+            didSet
+            {
+                guard let node, settings != node.computeSettings else { return }
+                var applied = settings
+                applied.kernelSource = node.computeSettings.kernelSource
+                node.setSettings(applied)
+            }
+        }
+        let editor: MetalKernelEditorModel
 
         private weak var node: PointsComputeNode?
 
         init(node: PointsComputeNode)
         {
             self.node = node
-            self.draft = node.computeSettings
-        }
-
-        var hasChanges: Bool { node.map { draft != $0.computeSettings } ?? false }
-
-        func applyDraft()
-        {
-            node?.setSettings(draft)
+            self.settings = node.computeSettings
+            self.editor = MetalKernelEditorModel(node: node)
         }
 
         func refreshFromNode()
         {
             guard let node else { return }
-            draft = node.computeSettings
+            if settings != node.computeSettings { settings = node.computeSettings }
+            editor.refreshFromNode()
         }
     }
 
@@ -332,7 +401,24 @@ public final class PointsComputeNode: BaseGPUPointsNode
         performOnMainSync { AnyView(PointsComputeSettingsView(model: settingsModel)) }
     }
 
-    override public var settingsSize: SettingsViewSize { .Large }
+    override public var settingsSize: SettingsViewSize
+    {
+        .Custom(size: CGSize(width: 980, height: 700))
+    }
+}
+
+extension PointsComputeNode: MetalKernelSourceEditing
+{
+    var editableKernelSource: String { computeSettings.kernelSource }
+
+    func applyEditedKernelSource(_ source: String)
+    {
+        var settings = computeSettings
+        settings.kernelSource = source
+        setSettings(settings)
+    }
+
+    var kernelCompileFailure: String? { kernelFailure }
 }
 
 struct PointsComputeSettingsView: View
@@ -341,36 +427,32 @@ struct PointsComputeSettingsView: View
 
     var body: some View
     {
-        VStack(alignment: .leading)
+        VStack(alignment: .leading, spacing: 12)
         {
-            HStack
-            {
-                Toggle("Normals", isOn: $model.draft.hasNormals)
-                Toggle("Colors", isOn: $model.draft.hasColors)
-                Toggle("Sizes", isOn: $model.draft.hasSizes)
-                Toggle("Texture Coordinates", isOn: $model.draft.hasTexcoords)
-            }
-
-            PointsCustomAttributesEditor(attributes: $model.draft.customAttributes)
-
-            Text(PointsComputeNode.declarations(for: model.draft.normalized()))
-                .font(.caption.monospaced())
-                .foregroundStyle(.secondary)
-                .textSelection(.enabled)
-
-            TextEditor(text: $model.draft.kernelSource)
-                .font(.body.monospaced())
+            CodeEditorGuidance(
+                "Write points on the GPU with a Metal function. `pointsCompute(id, uniforms, inputs, point)` fills point `id` of `uniforms.count`: its position and the attributes turned on below. `uniforms.time`, `uniforms.deltaTime` and `uniforms.parameters` come from the node; read a stream input with `inputs.name.read(id)`, and its length with `inputs.name.count()`.",
+                guide: "[Metal Shading Language specification ↗](https://developer.apple.com/metal/Metal-Shading-Language-Specification.pdf)")
 
             HStack
             {
-                Text("A function that doesn't compile shows as the node's status.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button("Apply", action: model.applyDraft)
-                    .disabled(!model.hasChanges)
+                Toggle("Normals", isOn: $model.settings.hasNormals)
+                Toggle("Colors", isOn: $model.settings.hasColors)
+                Toggle("Sizes", isOn: $model.settings.hasSizes)
+                Toggle("Texture Coordinates", isOn: $model.settings.hasTexcoords)
             }
+
+            HStack(alignment: .top)
+            {
+                PointsCustomAttributesEditor(attributes: $model.settings.customAttributes)
+                StreamKernelFieldsEditor(title: "Stream Inputs", fields: $model.settings.streamInputs)
+            }
+
+            StreamKernelCountSourcePicker(countSource: $model.settings.countSource, inputs: model.settings.normalized().streamInputs)
+
+            MetalKernelDeclarations(declarations: PointsComputeNode.declarations(for: model.settings.normalized()))
+
+            MetalKernelCodeEditor(model: model.editor)
         }
-        .padding()
+        .padding(10)
     }
 }

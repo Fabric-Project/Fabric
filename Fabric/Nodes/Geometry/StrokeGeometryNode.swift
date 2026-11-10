@@ -25,17 +25,17 @@ public final class StrokeGeometryNode: BaseGeometryNode
     public override class var name: String { "Stroke Geometry" }
     public override class var nodeDescription: String { "Draws an array of positions as ribbons, with a width, joins and caps. Stroke Lengths splits the positions into separate lines with gaps between them. A stroke of one point with a Round cap is a dot. Per-point colors show in materials that read vertex color, such as Standard and PBR." }
 
-    private static let joinTitles = ["Miter", "Bevel", "Round"]
-    private static let capTitles = ["Butt", "Square", "Round"]
-    private static let piecesNone = "None"
-    private static let piecesStrokes = "Strokes"
-    private static let piecesStrokesAndDashes = "Strokes and Dashes"
-    private static let trimEachStroke = "Each Stroke"
-    private static let trimAllInOrder = "All Strokes in Order"
-    private static let textureStretch = "Stretch"
-    private static let textureReveal = "Reveal"
-    private static let textureEachPiece = "Each Piece"
-    private static let textureWholePath = "Whole Path"
+    static let joinTitles = ["Miter", "Bevel", "Round"]
+    static let capTitles = ["Butt", "Square", "Round"]
+    static let piecesNone = "None"
+    static let piecesStrokes = "Strokes"
+    static let piecesStrokesAndDashes = "Strokes and Dashes"
+    static let trimEachStroke = "Each Stroke"
+    static let trimAllInOrder = "All Strokes in Order"
+    static let textureStretch = "Stretch"
+    static let textureReveal = "Reveal"
+    static let textureEachPiece = "Each Piece"
+    static let textureWholePath = "Whole Path"
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
@@ -125,32 +125,77 @@ public final class StrokeGeometryNode: BaseGeometryNode
                                                        colorMode: ColorMode(rawValue: self.inputColorMode.value ?? "") ?? .allPoints,
                                                        closed: self.inputClosed.value ?? false,
                                                        style: style)
-            let dashLength = self.inputDashLength.value ?? 0
-            let gapLength = self.inputGapLength.value ?? 0
-            let dashOffset = self.inputDashOffset.value ?? 0
-            let layered = Self.layered(strokes, depth: self.inputLayerDepth.value ?? 0)
-            let revealingTexture = self.inputTextureMode.value == Self.textureReveal
-            let spansWholePath = self.inputTextureSpan.value == Self.textureWholePath
-            // Revealing holds the whole path's texture still under the cuts. Stretching fits it to what they leave.
-            var dashed = Self.dashed(spansWholePath && revealingTexture ? Self.spanningTexture(layered) : layered,
-                                     length: dashLength, gap: gapLength, offset: dashOffset,
-                                     trimStart: self.inputTrimStart.value ?? 0,
-                                     trimEnd: self.inputTrimEnd.value ?? 1,
-                                     trimInOrder: self.inputTrimMode.value == Self.trimAllInOrder,
-                                     revealingTexture: revealingTexture)
-            if spansWholePath && !revealingTexture { dashed.strokes = Self.spanningTexture(dashed.strokes) }
-            let pieces: StrokePieces
-            switch self.inputPieces.value
-            {
-            case Self.piecesStrokes: pieces = .mergedGroups(dashed.origins)
-            case Self.piecesStrokesAndDashes: pieces = .groups(dashed.origins)
-            default: pieces = .none
-            }
-            self.geometry.update(strokes: dashed.strokes, pieces: pieces)
+            let finished = Self.finished(strokes, options: StrokeOptions(
+                layerDepth: self.inputLayerDepth.value ?? 0,
+                dashLength: self.inputDashLength.value ?? 0,
+                gapLength: self.inputGapLength.value ?? 0,
+                dashOffset: self.inputDashOffset.value ?? 0,
+                trimStart: self.inputTrimStart.value ?? 0,
+                trimEnd: self.inputTrimEnd.value ?? 1,
+                trimMode: self.inputTrimMode.value,
+                textureMode: self.inputTextureMode.value,
+                textureSpan: self.inputTextureSpan.value,
+                pieces: self.inputPieces.value))
+            self.geometry.update(strokes: finished.strokes, pieces: finished.pieces)
             shouldOutputGeometry = true
         }
 
         return shouldOutputGeometry
+    }
+
+    /// What happens to strokes after they are built: layering, trim, dashes, texture and pieces,
+    /// as the inputs' titles name them. Shared with Points to Line Geometry's CPU tessellator.
+    public struct StrokeOptions
+    {
+        public var layerDepth: Float
+        public var dashLength: Float
+        public var gapLength: Float
+        public var dashOffset: Float
+        public var trimStart: Float
+        public var trimEnd: Float
+        public var trimMode: String?
+        public var textureMode: String?
+        public var textureSpan: String?
+        public var pieces: String?
+
+        public init(layerDepth: Float, dashLength: Float, gapLength: Float, dashOffset: Float, trimStart: Float, trimEnd: Float,
+                    trimMode: String?, textureMode: String?, textureSpan: String?, pieces: String?)
+        {
+            self.layerDepth = layerDepth
+            self.dashLength = dashLength
+            self.gapLength = gapLength
+            self.dashOffset = dashOffset
+            self.trimStart = trimStart
+            self.trimEnd = trimEnd
+            self.trimMode = trimMode
+            self.textureMode = textureMode
+            self.textureSpan = textureSpan
+            self.pieces = pieces
+        }
+    }
+
+    /// `strokes` layered, trimmed, dashed and textured as `options` say, and the pieces they make.
+    public static func finished(_ strokes: [Stroke], options: StrokeOptions) -> (strokes: [Stroke], pieces: StrokePieces)
+    {
+        let layered = Self.layered(strokes, depth: options.layerDepth)
+        let revealingTexture = options.textureMode == Self.textureReveal
+        let spansWholePath = options.textureSpan == Self.textureWholePath
+        // Revealing holds the whole path's texture still under the cuts. Stretching fits it to what they leave.
+        var dashed = Self.dashed(spansWholePath && revealingTexture ? Self.spanningTexture(layered) : layered,
+                                 length: options.dashLength, gap: options.gapLength, offset: options.dashOffset,
+                                 trimStart: options.trimStart,
+                                 trimEnd: options.trimEnd,
+                                 trimInOrder: options.trimMode == Self.trimAllInOrder,
+                                 revealingTexture: revealingTexture)
+        if spansWholePath && !revealingTexture { dashed.strokes = Self.spanningTexture(dashed.strokes) }
+        let pieces: StrokePieces
+        switch options.pieces
+        {
+        case Self.piecesStrokes: pieces = .mergedGroups(dashed.origins)
+        case Self.piecesStrokesAndDashes: pieces = .groups(dashed.origins)
+        default: pieces = .none
+        }
+        return (dashed.strokes, pieces)
     }
 
     /// Splits flat per-point arrays into strokes. Empty lengths make one stroke of every point;
@@ -307,7 +352,7 @@ public final class StrokeGeometryNode: BaseGeometryNode
         return ContiguousArray(array[start ..< min(end, array.count)])
     }
 
-    private static func join(named name: String?) -> Stroke.Join
+    static func join(named name: String?) -> Stroke.Join
     {
         switch name
         {
@@ -317,7 +362,7 @@ public final class StrokeGeometryNode: BaseGeometryNode
         }
     }
 
-    private static func cap(named name: String?) -> Stroke.Cap
+    static func cap(named name: String?) -> Stroke.Cap
     {
         switch name
         {

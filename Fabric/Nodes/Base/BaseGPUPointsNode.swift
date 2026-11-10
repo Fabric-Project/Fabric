@@ -10,16 +10,17 @@ import Metal
 /// Base for nodes that publish Points from a compute kernel.
 ///
 /// A subclass registers an `outputPoints` port, gives its kernel's source and function name,
-/// reports when its inputs changed, and encodes and publishes in `publish`. The kernel compiles
-/// synchronously the first time it is needed, and again after `invalidateKernel()`. A kernel that
-/// doesn't compile is the node's status, and the node publishes nothing until it changes.
+/// reports when its inputs changed, and encodes and publishes in `publish`. The kernel compiles,
+/// synchronously, when the node is enabled and when `recompileKernel()` says its source changed,
+/// never in `execute`. A kernel that doesn't compile is the node's status, and the node publishes
+/// nothing until it changes.
 open class BaseGPUPointsNode: Node
 {
     override open class var nodeType: Node.NodeType { .Points }
 
     public var outputPoints: NodePort<Satin.Points> { port(named: "outputPoints") }
 
-    /// The Metal source holding the kernel.
+    /// The Metal source holding the kernel. Read only to compile it.
     open var kernelSource: String { "" }
 
     /// The kernel's function name in `kernelSource`.
@@ -35,20 +36,41 @@ open class BaseGPUPointsNode: Node
         nil
     }
 
-    private var compiledPipeline: MTLComputePipelineState?
-    private var compileFailure: String?
-    /// The kernel changed, so the next execution compiles and publishes.
+    private let kernel = ComputeKernel()
+    /// The kernel changed, so the next execution publishes whatever the inputs say.
     private var kernelChanged = true
 
-    /// Compiles the kernel again on the next execution, for a subclass whose source changed.
-    public func invalidateKernel()
+    /// Compiles the kernel again now, for a subclass whose source changed, if the node is enabled;
+    /// a disabled node compiles when it is enabled.
+    public func recompileKernel()
     {
-        compiledPipeline = nil
-        compileFailure = nil
-        kernelChanged = true
+        guard executionState != .disabled else { return }
+        compileKernel()
     }
 
-    override open func deriveStatuses() -> [NodeStatus] { compileFailure.map { [NodeStatus.error($0)] } ?? [] }
+    private func compileKernel()
+    {
+        kernel.compile(source: kernelSource, functionNames: [kernelFunctionName], device: context.device)
+        kernelChanged = true
+        subtitleSubject.send()
+    }
+
+    override open func enableExecution(renderer: GraphRenderer) throws
+    {
+        compileKernel()
+        try super.enableExecution(renderer: renderer)
+    }
+
+    override open func disableExecution(renderer: GraphRenderer) throws
+    {
+        kernel.release()
+        try super.disableExecution(renderer: renderer)
+    }
+
+    override open func deriveStatuses() -> [NodeStatus] { kernel.failure.map { [NodeStatus.error($0)] } ?? [] }
+
+    /// What the last compile reported, or nil when it compiled or hasn't run.
+    public var kernelFailure: String? { kernel.failure }
 
     override open func execute(renderer: GraphRenderer,
                                executionInfo: GraphExecutionInfo,
@@ -59,36 +81,12 @@ open class BaseGPUPointsNode: Node
         kernelChanged = false
         guard kernelJustChanged || inputsChanged() else { return }
 
-        if compiledPipeline == nil, compileFailure == nil
-        {
-            compileKernel()
-        }
-        guard let compiledPipeline else
+        guard let pipeline = kernel.pipelines?.first else
         {
             outputPoints.send(nil, force: true)
             return
         }
-        outputPoints.send(try publish(pipeline: compiledPipeline, executionInfo: executionInfo, commandBuffer: commandBuffer), force: true)
-    }
-
-    private func compileKernel()
-    {
-        do
-        {
-            let library = try context.device.makeLibrary(source: kernelSource, options: nil)
-            guard let function = library.makeFunction(name: kernelFunctionName) else
-            {
-                compileFailure = "The kernel \(kernelFunctionName) was not found."
-                subtitleSubject.send()
-                return
-            }
-            compiledPipeline = try context.device.makeComputePipelineState(function: function)
-        }
-        catch
-        {
-            compileFailure = error.localizedDescription
-        }
-        subtitleSubject.send()
+        outputPoints.send(try publish(pipeline: pipeline, executionInfo: executionInfo, commandBuffer: commandBuffer), force: true)
     }
 
     /// Encodes one thread per point, `count` in all.

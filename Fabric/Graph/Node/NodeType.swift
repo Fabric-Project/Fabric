@@ -27,7 +27,7 @@ extension Node
             {
             case .All: return Node.NodeType.allCases
             case .SceneGraph: return Node.NodeType.ObjectType.nodeTypes() + [.Subgraph]
-            case .Mesh: return [.Points, .Geometery, .Material]
+            case .Mesh: return [.Points, .Streams, .Geometery, .Material]
             case .Image: return Node.NodeType.ImageType.nodeTypes()
             case .Parameter: return Node.NodeType.ParameterType.nodeTypes()
             case .Utility: return [Node.NodeType.Utility]
@@ -124,6 +124,8 @@ extension Node
         case Subgraph
         case Object(objectType:ObjectType) // Scene graph, owns transforms
         case Points
+        /// Typed GPU arrays: making, computing, converting and reading back streams.
+        case Streams
         case Geometery
         case Material
         case Image(imageType:ImageType)
@@ -133,7 +135,7 @@ extension Node
         public static var allCases: [Node.NodeType] { return
             [.Renderer ]
             + ObjectType.nodeTypes()
-            + [ .Subgraph, .Geometery, .Material, ]
+            + [ .Subgraph, .Points, .Streams, .Geometery, .Material, ]
             + ImageType.nodeTypes()
             + ParameterType.nodeTypes()
             + [ .Utility ]
@@ -147,6 +149,7 @@ extension Node
             case .Renderer: return "Renderer"
             case .Object(let objectType): return objectType.rawValue
             case .Points: return "Points"
+            case .Streams: return "Streams"
             case .Geometery: return "Geometery"
             case .Material: return "Material"
             case .Image(imageType: let imageType): return "Image \(imageType.rawValue.titleCase)"
@@ -166,6 +169,9 @@ extension Node
 
             case .Points:
                 return Color.nodePoints
+
+            case .Streams:
+                return Color.nodeStream
                 
             case .Geometery:
                 return Color.nodeGeometry

@@ -249,6 +249,11 @@ public class NodePort<Value : PortValueRepresentable>: Port
             return Color.nodePoints
         }
 
+        else if forType is any GPUStreamValue.Type
+        {
+            return Color.nodeStream
+        }
+
         else if forType == Satin.Geometry.self || forType == Satin.SatinGeometry.self
         {
             return Color.nodeGeometry

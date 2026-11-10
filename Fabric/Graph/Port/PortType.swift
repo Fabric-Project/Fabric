@@ -31,6 +31,8 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
     case Image
     /// Published points (`Satin.Points`): per-point attributes and how the points connect.
     case Points
+    /// A typed GPU array (`GPUStream<Element>`) of one of `streamElementTypes`.
+    case Stream(elementType:PortType)
     case Array(portType:PortType)
     case Dictionary(valueType:PortType)
 
@@ -61,6 +63,12 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         .Material,
         .Image,
         .Points,
+        .Stream(elementType: .Float),
+        .Stream(elementType: .Int),
+        .Stream(elementType: .Vector2),
+        .Stream(elementType: .Vector3),
+        .Stream(elementType: .Vector4),
+        .Stream(elementType: .Quaternion),
         
         // Collections
         .Array(portType:.Virtual),
@@ -122,8 +130,17 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         .Material,
         .Image,
         .Points,
+        .Stream(elementType: .Float),
+        .Stream(elementType: .Int),
+        .Stream(elementType: .Vector2),
+        .Stream(elementType: .Vector3),
+        .Stream(elementType: .Vector4),
+        .Stream(elementType: .Quaternion),
     ]
-    
+
+    /// The element types a stream can carry. Colors travel as Vector 4 streams.
+    public static let streamElementTypes: [PortType] = [.Float, .Int, .Vector2, .Vector3, .Vector4, .Quaternion]
+
     public init?(rawValue: String)
     {
         let s = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -179,6 +196,19 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
                 }
             }
 
+        if s.hasPrefix("Stream of")
+        {
+            let prefix = "Stream of"
+            let startIdx = s.index(s.startIndex, offsetBy: prefix.count)
+            let inner = Swift.String(s[startIdx..<s.endIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if let elementType = PortType(rawValue: inner), Self.streamElementTypes.contains(elementType)
+            {
+                self = .Stream(elementType: elementType)
+                return
+            }
+        }
+
         if s.hasPrefix("Dictionary of")
         {
             let prefix = "Dictionary of"
@@ -228,6 +258,8 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
             return FabricImage.self
         case .Points:
             return Satin.Points.self
+        case .Stream(elementType: let elementType):
+            return Self.streamValueType(of: elementType)
             
         case .Array(portType: let portType):
             return contiguousArrayMetatype(of: portType.type)
@@ -271,6 +303,8 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
             return "Image"
         case .Points:
             return "Points"
+        case .Stream(elementType: let type):
+            return "Stream of \(type.rawValue)"
         case .Array(portType: let type):
             return "Array of \(type.rawValue)"
         case .Dictionary(valueType: let type):
@@ -403,6 +437,15 @@ extension PortType {
         case .Points(let value):
             Self.appendLine(firstLinePrefix + "\(value.count) points, version \(value.version)", into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
 
+        case .Stream(let value):
+            let count: Swift.String
+            switch value.count
+            {
+            case .known(let known): count = "\(known)"
+            case .gpu(_, let capacity): count = "up to \(capacity)"
+            }
+            Self.appendLine(firstLinePrefix + "\(count) \(value.elementType.rawValue), \(value.attribute.layout.scalar)", into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
         case .Transform(let value):
             let columns: [PortValue] = [
                 .Vector4(value.columns.0),
@@ -532,6 +575,8 @@ extension PortType {
         case .Material:     return PassThroughNode<Material>.self
         case .Image:        return PassThroughNode<FabricImage>.self
         case .Points:       return PassThroughNode<Satin.Points>.self
+        case .Stream(elementType: let elementType):
+            return Self.streamParameterNodeClass(for: elementType)
         case .Array(portType: let elementType):
             return Self.arrayParameterNodeClass(for: elementType)
         case .Dictionary(valueType: let valueType):
@@ -565,6 +610,35 @@ extension PortType {
         case .Image:     return PassThroughNode<ContiguousArray<FabricImage>>.self
         case .Points:    return PassThroughNode<ContiguousArray<Satin.Points>>.self
         default:         return PassThroughNode<ContiguousArray<PortValue>>.self
+        }
+    }
+
+    private static func streamParameterNodeClass(for elementType: PortType) -> Node.Type?
+    {
+        switch elementType
+        {
+        case .Float:      return PassThroughNode<GPUStream<Float>>.self
+        case .Int:        return PassThroughNode<GPUStream<Int>>.self
+        case .Vector2:    return PassThroughNode<GPUStream<simd_float2>>.self
+        case .Vector3:    return PassThroughNode<GPUStream<simd_float3>>.self
+        case .Vector4:    return PassThroughNode<GPUStream<simd_float4>>.self
+        case .Quaternion: return PassThroughNode<GPUStream<simd_quatf>>.self
+        default:          return nil
+        }
+    }
+
+    /// The `GPUStream` type for an element type, or the boxed value for one a stream can't carry.
+    private static func streamValueType(of elementType: PortType) -> Any.Type
+    {
+        switch elementType
+        {
+        case .Float:      return GPUStream<Float>.self
+        case .Int:        return GPUStream<Int>.self
+        case .Vector2:    return GPUStream<simd_float2>.self
+        case .Vector3:    return GPUStream<simd_float3>.self
+        case .Vector4:    return GPUStream<simd_float4>.self
+        case .Quaternion: return GPUStream<simd_quatf>.self
+        default:          return AnyGPUStream.self
         }
     }
 

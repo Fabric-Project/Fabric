@@ -15,6 +15,8 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Depth (Visualize Depth)
 - [x] UV (Visual texture coordinates)
 - [x] Displace (Luminosity / RGB Based Displacement shader)
+- [x] MatCap (shading from a lit-sphere image, no lights)
+- Every material's Settings choose its Point Sprite: None (default, no sprite controls), Square, Disc (soft round points) or Image (an image on each point); Point Size appears beside the sprite controls when enabled; meshes of triangles are unaffected
 
 # Geometry
 
@@ -42,12 +44,23 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Tesselated Text (2D)
 - [x] Extruded Text (3D)
 - [x] Stroke Geometry
-- [x] Points (arrays → published points, with optional normals, colors, sizes, texture coordinates, custom attributes and strips)
+- [x] Points (streams → published points without copying, with optional normals, colors, sizes, texture coordinates, custom attributes and topology; equal counts, a GPU count draws indirectly)
 - [x] Points Geometry (published points → geometry, as points, lines or triangles)
-- [x] Points Compute (a Metal function writes points every frame on the GPU)
+- [x] Points Compute (a Metal function writes points every frame on the GPU, reading stream inputs; count from Count or an input)
 - [x] Points from Image (one point per pixel or step, colored by the image)
 - [x] Transform Points (moves positions and normals on the GPU, shares the rest)
-- [x] Stroke Points (points → ribbon triangles on the GPU, with joins and caps; no readback)
+- [x] Points to Line Geometry (points → ribbon geometry, GPU or CPU tessellator: joins, caps, trim, dashes, texture modes, layer depth, bent normals; pieces on the CPU)
+- [x] Array to Stream (array → typed GPU stream; Int clamps to 32 bits)
+- [x] Stream to Array (stream → array readback, Same Frame waits or Next Frame delivers later)
+- [x] Points to Streams (published points → streams without copying; a GPU count travels with every stream)
+- [x] Stream Compute (a Metal function writes typed streams from the streams it reads; count from Count or an input, GPU counts included)
+- [x] Image to Stream (an image's colors and texture coordinates as streams, every Step pixels)
+- [x] Stream Feedback (last frame's stream, to keep state such as particle positions; Initial on the first frame and on Reset)
+- [x] Stream Math (elementwise add, subtract, multiply, divide, multiply add, mix, min, max; B and C are streams or values)
+- [x] Stream Select (A where a condition stream is above a threshold, B elsewhere, such as respawning particles)
+- [x] Random Stream (seeded random elements between Minimum and Maximum, optionally new each frame)
+- [x] Stream Noise (a moving 3D noise or curl noise field sampled at each position)
+- [x] Stream Ramp (maps a float stream to colors between two)
 - [x] Super Shape (3D Supershape formula)
 - [x] Geometry Compose (Pixel Array → Geometry)
 - [x] Parametric Expression Geometry

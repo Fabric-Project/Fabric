@@ -49,6 +49,8 @@ open class AnyPort: Codable {
             case .Material: self.base = try ProxyPort<Material>(from: portDecoder)
             case .Image: self.base = try ProxyPort<FabricImage>(from: portDecoder)
             case .Points: self.base = try ProxyPort<Satin.Points>(from: portDecoder)
+            case .Stream(elementType: let elementType):
+                self.base = try Self.decodeStreamProxy(elementType: elementType, from: portDecoder)
             case .NumericVirtual, .Virtual: self.base = try ProxyPort<PortValue>(from: portDecoder)
             case .Array(portType: let elementType):
                 switch elementType {
@@ -92,6 +94,22 @@ open class AnyPort: Codable {
         try container.encode((base.parameter == nil) ? false : true, forKey: .isParameterPort)
         try container.encode(base is any ProxyPortProtocol, forKey: .isProxyPort)
         try self.base.encode(to: container.superEncoder(forKey: .base))
+    }
+
+    private static func decodeStreamProxy(elementType: PortType, from decoder: Decoder) throws -> Port
+    {
+        switch elementType
+        {
+        case .Float:      return try ProxyPort<GPUStream<Float>>(from: decoder)
+        case .Int:        return try ProxyPort<GPUStream<Int>>(from: decoder)
+        case .Vector2:    return try ProxyPort<GPUStream<simd_float2>>(from: decoder)
+        case .Vector3:    return try ProxyPort<GPUStream<simd_float3>>(from: decoder)
+        case .Vector4:    return try ProxyPort<GPUStream<simd_float4>>(from: decoder)
+        case .Quaternion: return try ProxyPort<GPUStream<simd_quatf>>(from: decoder)
+        default:
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath,
+                                                    debugDescription: "A stream can't carry \(elementType.rawValue)"))
+        }
     }
 
     private static func decodeDictionaryProxy(valueType: PortType, from decoder: Decoder) throws -> Port

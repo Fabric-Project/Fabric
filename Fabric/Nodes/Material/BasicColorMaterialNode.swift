@@ -20,13 +20,11 @@ public class BasicColorMaterialNode : BaseMaterialNode
         
         return  [
                     ("inputColor", ParameterPort(parameter:Float4Parameter("Color", .one, .zero, .one, .colorpicker, "Flat color applied to the entire surface (RGBA)")) ),
-                    ("inputPointSize", ParameterPort(parameter:FloatParameter("Point Size", 1.0, 0.5, 64.0, .slider, "Point Size") ) ),
 
                 ] + ports
     }
     
     public var inputColor:ParameterPort<simd_float4> { port(named: "inputColor") }
-    public var inputPointSize:ParameterPort<Float>   { port(named: "inputPointSize") }
 
     public override var material: BasicColorMaterial {
         return _material
@@ -45,12 +43,6 @@ public class BasicColorMaterialNode : BaseMaterialNode
             self.material.color = color
         }
         
-        if self.inputPointSize.valueDidChange,
-           let inputPointSize = self.inputPointSize.value
-        {
-            shouldOutput = true
-            self.material.pointSize = inputPointSize
-        }
         
         return shouldOutput
     }

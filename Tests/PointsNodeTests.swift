@@ -13,7 +13,12 @@ struct PointsNodeTests
         try #require(node.findPort(named: name) as NodePort<Value>?)
     }
 
-    @Test("Settings add each input in order, and the points carry what they were given")
+    private func stream<Element: GPUStreamElement>(_ values: ContiguousArray<Element>, _ harness: GraphExecutionTestHarness) throws -> GPUStream<Element>
+    {
+        try GPUStream(attribute: try Element.publishStream(values, allocator: harness.context.gpuAllocator).attribute)
+    }
+
+    @Test("Settings add each stream input in order, and the points carry the attributes wired to them")
     func settingsShapeTheInputsAndThePoints() throws
     {
         guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
@@ -21,10 +26,13 @@ struct PointsNodeTests
             hasNormals: false, hasColors: true, hasSizes: true, hasTexcoords: false, hasStrips: true,
             customAttributes: [PointsCustomAttribute(name: "heat", components: 1)]))
 
-        #expect(node.ports.map(\.name) == ["Positions", "Colors", "Sizes", "heat", "Strip Lengths", "Closed", "Points"])
+        #expect(node.ports.map(\.name) == ["Positions", "Colors", "Sizes", "heat", "Strip Starts", "Strip Lengths", "Strips Closed", "Indices", "Points"])
 
-        node.inputPositions.value = [[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0], [4, 0, 0]]
-        try input(node, "inputColors", as: ContiguousArray<simd_float4>.self).value = [[1, 0, 0, 1]]
+        let positions = ContiguousArray<simd_float3>([[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0], [4, 0, 0]])
+        node.inputPositions.value = try stream(positions, harness)
+        try input(node, "inputColors", as: GPUStream<simd_float4>.self).value = try stream(ContiguousArray(repeating: simd_float4(1, 0, 0, 1), count: 5), harness)
+        try input(node, "inputSizes", as: GPUStream<Float>.self).value = try stream(ContiguousArray<Float>(repeating: 2, count: 5), harness)
+        try input(node, "inputCustom.heat.1", as: GPUStream<Float>.self).value = try stream(ContiguousArray<Float>(repeating: 0.5, count: 5), harness)
         try input(node, "inputStripLengths", as: ContiguousArray<Int>.self).value = [3, 2]
         try harness.execute(node)
 
@@ -32,9 +40,6 @@ struct PointsNodeTests
         #expect(points.count == 5)
         #expect(points.attributes.map { $0.key } == [.position, .color, .size, .custom("heat")])
         #expect(points.slots.map { $0.index } == [.Position, .Color, .PointSize, .Custom0])
-        // One color given: it repeats for every point.
-        let colors = try #require(points.attribute(.color)).buffer.contents().bindMemory(to: simd_float4.self, capacity: 5)
-        #expect(colors[4] == simd_float4(1, 0, 0, 1))
         guard case let .strips(strips) = points.topology else
         {
             Issue.record("Strip Lengths makes strips")
@@ -80,8 +85,8 @@ struct PointsNodeTests
             let graph = Graph(context: harness.context)
             let points = PointsNode(context: harness.context, settings: PointsSettings(
                 hasNormals: false, hasColors: false, hasSizes: sizes != nil, hasTexcoords: false, hasStrips: false, customAttributes: []))
-            points.inputPositions.value = [[-0.5, 0, 0], [0.5, 0, 0]]
-            if let sizes { try input(points, "inputSizes", as: ContiguousArray<Float>.self).value = sizes }
+            points.inputPositions.value = try stream(ContiguousArray<simd_float3>([[-0.5, 0, 0], [0.5, 0, 0]]), harness)
+            if let sizes { try input(points, "inputSizes", as: GPUStream<Float>.self).value = try stream(sizes, harness) }
             let geometry = PointsGeometryNode(context: harness.context)
             let material = BasicColorMaterialNode(context: harness.context)
             let mesh = MeshNode(context: harness.context)

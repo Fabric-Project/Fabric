@@ -24,14 +24,12 @@ public class DisplacementMaterialNode: BaseMaterialNode
         return [
             ("inputTexture", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Color texture to apply to displaced geometry")),
             ("inputDisplacementTexture", NodePort<FabricImage>(name: "Displacement Image", kind: .Inlet, description: "Grayscale image for vertex displacement")),
-            ("inputPointSpriteTexture", NodePort<FabricImage>(name: "Point Sprite Image", kind: .Inlet, description: "Texture for point sprite rendering")),
         ] + ports
     }
 
     // Proxy Params
     public var inputTexture:NodePort<FabricImage> { port(named: "inputTexture") }
     public var inputDisplacementTexture:NodePort<FabricImage> { port(named: "inputDisplacementTexture") }
-    public var inputPointSpriteTexture:NodePort<FabricImage> { port(named: "inputPointSpriteTexture") }
     public var inputAmount:ParameterPort<Float> { port(named: "Amount") }
     public var inputLumaVsRGBAmount:ParameterPort<Float> { port(named: "Luma Vs RGB") }
     public var inputMinPointSize:ParameterPort<Float> { port(named: "Min Point Size") }
@@ -55,7 +53,6 @@ public class DisplacementMaterialNode: BaseMaterialNode
         material.setupShader()
         material.set("Displacement Texture Transform", matrix_identity_float4x4)
         material.set("Color Texture Transform", matrix_identity_float4x4)
-        material.set("Point Sprite Texture Transform", matrix_identity_float4x4)
         return material
     }
 
@@ -105,15 +102,6 @@ public class DisplacementMaterialNode: BaseMaterialNode
             let image = self.inputTexture.value
             self.material.set(image?.texture, index: FragmentTextureIndex.Custom0)
             self.material.set("Color Texture Transform",
-                              image?.textureTransform ?? matrix_identity_float4x4)
-            shouldOutput = true
-        }
-        
-        if self.inputPointSpriteTexture.valueDidChange
-        {
-            let image = self.inputPointSpriteTexture.value
-            self.material.set(image?.texture, index: FragmentTextureIndex.Custom1)
-            self.material.set("Point Sprite Texture Transform",
                               image?.textureTransform ?? matrix_identity_float4x4)
             shouldOutput = true
         }

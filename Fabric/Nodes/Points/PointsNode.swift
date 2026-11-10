@@ -58,7 +58,7 @@ public struct PointsSettings: NodeSettings
     public var hasColors: Bool
     public var hasSizes: Bool
     public var hasTexcoords: Bool
-    /// Adds Strip Lengths and Closed inputs, which split the points into separate strips.
+    /// Adds the topology: strip starts, lengths and closings, and indices.
     public var hasStrips: Bool
     /// In order: they take the custom slots in this order.
     public var customAttributes: [PointsCustomAttribute]
@@ -89,38 +89,50 @@ public struct PointsSettings: NodeSettings
 
 // MARK: - Node
 
-/// Builds published Points from arrays: positions, and the per-point inputs its settings add.
+/// Builds published Points from streams without copying: each attribute is a stream's own buffer.
 public final class PointsNode: Node
 {
     override public class var name: String { "Points" }
     override public class var nodeType: Node.NodeType { .Points }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Builds points from arrays: positions, and the normals, colors, sizes, texture coordinates, custom attributes and strips its settings add. An array shorter than Positions repeats its last value. Draw them with Points Geometry." }
+    override public class var nodeDescription: String { "Builds points from streams without copying them: positions, and the normals, colors, sizes, texture coordinates, custom attributes and topology its settings add. Every stream must have the same count; an unwired attribute is left out. Turn arrays into streams with Array to Stream. Draw the points with Points Geometry." }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
     {
         super.registerPorts(context: context) + [
-            ("inputPositions", NodePort<ContiguousArray<simd_float3>>(name: "Positions", kind: .Inlet, description: "One position per point")),
+            ("inputPositions", NodePort<GPUStream<simd_float3>>(name: "Positions", kind: .Inlet, description: "One position per point")),
             ("outputPoints", NodePort<Satin.Points>(name: "Points", kind: .Outlet, description: "The published points")),
         ]
     }
 
-    public var inputPositions: NodePort<ContiguousArray<simd_float3>> { port(named: "inputPositions") }
+    public var inputPositions: NodePort<GPUStream<simd_float3>> { port(named: "inputPositions") }
     public var outputPoints: NodePort<Satin.Points> { port(named: "outputPoints") }
 
     private static let normalsPortName = "inputNormals"
     private static let colorsPortName = "inputColors"
     private static let sizesPortName = "inputSizes"
     private static let texcoordsPortName = "inputTexcoords"
+    private static let stripStartsPortName = "inputStripStarts"
     private static let stripLengthsPortName = "inputStripLengths"
-    private static let closedPortName = "inputClosed"
+    private static let stripsClosedPortName = "inputStripsClosed"
+    private static let indicesPortName = "inputIndices"
     private static let customPortPrefix = "inputCustom."
-    /// The component count is part of the key, so a key's port type never changes: a changed
-    /// count is a new port, and the node only ever adds and removes ports.
+    /// The component count is part of the key, so a key's port type never changes.
     private static func customPortName(_ attribute: PointsCustomAttribute) -> String
     {
         customPortPrefix + attribute.name + "." + String(attribute.components)
+    }
+
+    private static func streamType(components: Int) -> PortType
+    {
+        switch components
+        {
+        case 1: return .Stream(elementType: .Float)
+        case 2: return .Stream(elementType: .Vector2)
+        case 3: return .Stream(elementType: .Vector3)
+        default: return .Stream(elementType: .Vector4)
+        }
     }
 
     // MARK: Settings
@@ -128,6 +140,7 @@ public final class PointsNode: Node
     private(set) var pointsSettings: PointsSettings
     /// Set by a settings change, so the next execute publishes even with unchanged inputs.
     private var settingsChanged = true
+    private var executionStatus: NodeStatus?
 
     public required init(context: Context)
     {
@@ -167,60 +180,76 @@ public final class PointsNode: Node
     {
         let settings = pointsSettings
         var wanted: [(name: String, displayName: String, portType: PortType, description: String)] = []
-        if settings.hasNormals { wanted.append((Self.normalsPortName, "Normals", .Array(portType: .Vector3), "One normal per point")) }
-        if settings.hasColors { wanted.append((Self.colorsPortName, "Colors", .Array(portType: .Color), "One color per point")) }
-        if settings.hasSizes { wanted.append((Self.sizesPortName, "Sizes", .Array(portType: .Float), "One size per point, multiplying a material's point size")) }
-        if settings.hasTexcoords { wanted.append((Self.texcoordsPortName, "Texture Coordinates", .Array(portType: .Vector2), "One texture coordinate per point")) }
+        if settings.hasNormals { wanted.append((Self.normalsPortName, "Normals", .Stream(elementType: .Vector3), "One normal per point")) }
+        if settings.hasColors { wanted.append((Self.colorsPortName, "Colors", .Stream(elementType: .Vector4), "One color per point")) }
+        if settings.hasSizes { wanted.append((Self.sizesPortName, "Sizes", .Stream(elementType: .Float), "One size per point, multiplying a material's point size")) }
+        if settings.hasTexcoords { wanted.append((Self.texcoordsPortName, "Texture Coordinates", .Stream(elementType: .Vector2), "One texture coordinate per point")) }
         for attribute in settings.customAttributes
         {
-            wanted.append((Self.customPortName(attribute), attribute.name, Self.customPortType(components: attribute.components),
+            wanted.append((Self.customPortName(attribute), attribute.name, Self.streamType(components: attribute.components),
                            "One \(attribute.name) per point"))
         }
         if settings.hasStrips
         {
+            wanted.append((Self.stripStartsPortName, "Strip Starts", .Array(portType: .Int),
+                           "Where each strip starts, in order. Empty: each starts where the last ended, the first at 0"))
             wanted.append((Self.stripLengthsPortName, "Strip Lengths", .Array(portType: .Int),
-                           "How many points each strip takes, in order. Empty draws one strip through every point"))
+                           "How many points each strip takes, in order. Empty, with no Indices: every point in order, unstripped"))
+            wanted.append((Self.stripsClosedPortName, "Strips Closed", .Array(portType: .Bool),
+                           "Whether each strip returns to its first point. A strip past the end of this is open"))
+            wanted.append((Self.indicesPortName, "Indices", .Array(portType: .Int),
+                           "Points in the order they connect, instead of strips when not empty. Not with a GPU count"))
         }
 
         let wantedNames = Set(wanted.map({ $0.name }))
-        let dynamicNames = [Self.normalsPortName, Self.colorsPortName, Self.sizesPortName, Self.texcoordsPortName, Self.stripLengthsPortName, Self.closedPortName]
+        let dynamicNames = [Self.normalsPortName, Self.colorsPortName, Self.sizesPortName, Self.texcoordsPortName,
+                            Self.stripStartsPortName, Self.stripLengthsPortName, Self.stripsClosedPortName, Self.indicesPortName]
         for port in ports
         {
             guard let registryName = registryKey(of: port),
                   dynamicNames.contains(registryName) || registryName.hasPrefix(Self.customPortPrefix)
             else { continue }
-            if !wantedNames.contains(registryName), !(registryName == Self.closedPortName && settings.hasStrips)
-            {
-                removePort(port)
-            }
+            if !wantedNames.contains(registryName) { removePort(port) }
         }
 
-        for port in wanted
+        for port in wanted where findPort(named: port.name) == nil
         {
-            if findPort(named: port.name) == nil
-            {
-                addDynamicPort(port.portType.makeFreshPort(name: port.displayName, kind: .Inlet, description: port.description), name: port.name)
-            }
-        }
-        if settings.hasStrips, findPort(named: Self.closedPortName) == nil
-        {
-            addDynamicPort(ParameterPort(parameter: BoolParameter("Closed", false, .button, "When enabled, every strip returns to its first point")),
-                           name: Self.closedPortName)
+            addDynamicPort(port.portType.makeFreshPort(name: port.displayName, kind: .Inlet, description: port.description), name: port.name)
         }
 
-        let order = ["inputPositions"] + wanted.map({ $0.name }) + (settings.hasStrips ? [Self.closedPortName] : []) + ["outputPoints"]
+        let order = ["inputPositions"] + wanted.map({ $0.name }) + ["outputPoints"]
         let ordered: [Port] = order.compactMap { name in let port: Port? = findPort(named: name); return port }
         if ordered.count == ports.count { reorderPorts(ordered) }
     }
 
-    private static func customPortType(components: Int) -> PortType
+    // MARK: Status
+
+    override public func deriveStatuses() -> [NodeStatus]
     {
-        switch components
+        executionStatus.map { [$0] } ?? []
+    }
+
+    private func setExecutionStatus(_ status: NodeStatus?)
+    {
+        guard status != executionStatus else { return }
+        executionStatus = status
+        subtitleSubject.send()
+    }
+
+    private enum AssemblyProblem: Error
+    {
+        case partialStream
+        case countsDiffer(String)
+        case stripsWithGPUCount
+
+        var message: String
         {
-        case 1: return .Array(portType: .Float)
-        case 2: return .Array(portType: .Vector2)
-        case 3: return .Array(portType: .Vector3)
-        default: return .Array(portType: .Vector4)
+            switch self
+            {
+            case .partialStream: return "Positions covers only part of its buffer; Points can't draw part of a stream yet"
+            case .countsDiffer(let name): return "\(name) has a different count from Positions"
+            case .stripsWithGPUCount: return "Strips or Indices can't be used with a count the GPU wrote"
+            }
         }
     }
 
@@ -234,16 +263,27 @@ public final class PointsNode: Node
         guard settingsChanged || ports.contains(where: { $0.kind == .Inlet && $0.valueDidChange }) else { return }
         settingsChanged = false
 
-        let positions = inputPositions.value ?? []
-        guard !positions.isEmpty else
+        guard let positions = inputPositions.value, positions.count.capacity > 0 else
         {
-            outputPoints.send(nil, force: true)
+            setExecutionStatus(nil)
+            outputPoints.send(nil)
             return
         }
 
         do
         {
-            outputPoints.send(try makePoints(positions: positions), force: true)
+            outputPoints.send(try makePoints(positions: positions))
+            setExecutionStatus(nil)
+        }
+        catch let problem as AssemblyProblem
+        {
+            setExecutionStatus(.error(problem.message))
+            outputPoints.send(nil)
+        }
+        catch let problem as PointsError
+        {
+            setExecutionStatus(.error("These streams can't make points: \(problem)"))
+            outputPoints.send(nil)
         }
         catch
         {
@@ -251,91 +291,97 @@ public final class PointsNode: Node
         }
     }
 
-    private func makePoints(positions: ContiguousArray<simd_float3>) throws -> Satin.Points
+    private func makePoints(positions: GPUStream<simd_float3>) throws -> Satin.Points
     {
-        let allocator = context.gpuAllocator
+        // Points count every element of the position attribute; a shorter view needs a count it lacks.
         let count = positions.count
-        let settings = pointsSettings
-        var attributes: [(PointAttribute, PublishedAttribute)] = [
-            (.position, try PublishedAttribute.publishing(positions, scalar: .float32, components: 3, allocator: allocator, label: "Positions")),
-        ]
+        if case .known(let known) = count, known != positions.attribute.count { throw AssemblyProblem.partialStream }
 
+        let settings = pointsSettings
+        var attributes: [(PointAttribute, PublishedAttribute)] = [(.position, positions.attribute)]
         if settings.hasNormals
         {
-            let normals = Self.padded(arrayValue(Self.normalsPortName, as: simd_float3.self), to: count, filler: [0, 0, 1])
-            attributes.append((.normal, try PublishedAttribute.publishing(normals, scalar: .float32, components: 3, allocator: allocator, label: "Normals")))
+            try appendAttribute(.normal, portName: Self.normalsPortName, displayName: "Normals", as: simd_float3.self, count: count, to: &attributes)
         }
         if settings.hasColors
         {
-            let colors = Self.padded(arrayValue(Self.colorsPortName, as: simd_float4.self), to: count, filler: [1, 1, 1, 1])
-            attributes.append((.color, try PublishedAttribute.publishing(colors, scalar: .float32, components: 4, allocator: allocator, label: "Colors")))
+            try appendAttribute(.color, portName: Self.colorsPortName, displayName: "Colors", as: simd_float4.self, count: count, to: &attributes)
         }
         if settings.hasSizes
         {
-            let sizes = Self.padded(arrayValue(Self.sizesPortName, as: Float.self), to: count, filler: 1)
-            attributes.append((.size, try PublishedAttribute.publishing(sizes, scalar: .float32, components: 1, allocator: allocator, label: "Sizes")))
+            try appendAttribute(.size, portName: Self.sizesPortName, displayName: "Sizes", as: Float.self, count: count, to: &attributes)
         }
         if settings.hasTexcoords
         {
-            let texcoords = Self.padded(arrayValue(Self.texcoordsPortName, as: simd_float2.self), to: count, filler: .zero)
-            attributes.append((.texcoord, try PublishedAttribute.publishing(texcoords, scalar: .float32, components: 2, allocator: allocator, label: "Texture Coordinates")))
+            try appendAttribute(.texcoord, portName: Self.texcoordsPortName, displayName: "Texture Coordinates", as: simd_float2.self, count: count, to: &attributes)
         }
         for custom in settings.customAttributes
         {
             let portName = Self.customPortName(custom)
-            let attribute: PublishedAttribute
             switch custom.components
             {
-            case 1:
-                attribute = try PublishedAttribute.publishing(Self.padded(arrayValue(portName, as: Float.self), to: count, filler: 0),
-                                                              scalar: .float32, components: 1, allocator: allocator, label: custom.name)
-            case 2:
-                attribute = try PublishedAttribute.publishing(Self.padded(arrayValue(portName, as: simd_float2.self), to: count, filler: .zero),
-                                                              scalar: .float32, components: 2, allocator: allocator, label: custom.name)
-            case 3:
-                attribute = try PublishedAttribute.publishing(Self.padded(arrayValue(portName, as: simd_float3.self), to: count, filler: .zero),
-                                                              scalar: .float32, components: 3, allocator: allocator, label: custom.name)
-            default:
-                attribute = try PublishedAttribute.publishing(Self.padded(arrayValue(portName, as: simd_float4.self), to: count, filler: .zero),
-                                                              scalar: .float32, components: 4, allocator: allocator, label: custom.name)
+            case 1: try appendAttribute(.custom(custom.name), portName: portName, displayName: custom.name, as: Float.self, count: count, to: &attributes)
+            case 2: try appendAttribute(.custom(custom.name), portName: portName, displayName: custom.name, as: simd_float2.self, count: count, to: &attributes)
+            case 3: try appendAttribute(.custom(custom.name), portName: portName, displayName: custom.name, as: simd_float3.self, count: count, to: &attributes)
+            default: try appendAttribute(.custom(custom.name), portName: portName, displayName: custom.name, as: simd_float4.self, count: count, to: &attributes)
             }
-            attributes.append((.custom(custom.name), attribute))
         }
 
-        return try Satin.Points(attributes: attributes, topology: topology(pointCount: count), bounds: .of(positions))
+        let topology = topology()
+        switch count
+        {
+        case .known:
+            return try Satin.Points(attributes: attributes, topology: topology, bounds: .unknown)
+        case let .gpu(arguments, _):
+            guard case .implicit = topology else { throw AssemblyProblem.stripsWithGPUCount }
+            return try Satin.Points(attributes: attributes, topology: .implicit, bounds: .unknown,
+                                    drawArguments: arguments)
+        }
     }
 
-    /// Strips from Strip Lengths, in order, stopping at the last point; every point when there are none.
-    private func topology(pointCount: Int) -> PointTopology
+    /// Adds the stream wired to `portName`, if any. It must carry the same count as Positions: the
+    /// same number, or the same GPU count reference.
+    private func appendAttribute<Element: GPUStreamElement>(_ key: PointAttribute,
+                                                            portName: String,
+                                                            displayName: String,
+                                                            as _: Element.Type,
+                                                            count: GPUStreamCount,
+                                                            to attributes: inout [(PointAttribute, PublishedAttribute)]) throws
+    {
+        guard let stream = (findPort(named: portName) as NodePort<GPUStream<Element>>?)?.value else { return }
+        guard stream.count == count else { throw AssemblyProblem.countsDiffer(displayName) }
+        attributes.append((key, stream.attribute))
+    }
+
+    /// Indices when there are any; else strips from Strip Starts, Strip Lengths and Strips Closed;
+    /// else every point in order. Points rejects strips out of order or range, and indices past the end.
+    private func topology() -> PointTopology
     {
         guard pointsSettings.hasStrips else { return .implicit }
-        let lengths = arrayValue(Self.stripLengthsPortName, as: Int.self)
-        let closed = (findPort(named: Self.closedPortName) as ParameterPort<Bool>?)?.value ?? false
-        guard !lengths.isEmpty else { return .strips([PointStrip(range: 0 ..< pointCount, closed: closed)]) }
-        var strips = ContiguousArray<PointStrip>()
-        var start = 0
-        for length in lengths where start < pointCount
+        let indices = intArray(Self.indicesPortName)
+        if !indices.isEmpty
         {
-            let end = min(start + max(length, 0), pointCount)
-            strips.append(PointStrip(range: start ..< end, closed: closed))
-            start = end
+            return .indexed(ContiguousArray(indices.map { UInt32(clamping: $0) }))
+        }
+        let lengths = intArray(Self.stripLengthsPortName)
+        guard !lengths.isEmpty else { return .implicit }
+        let starts = intArray(Self.stripStartsPortName)
+        let closed = (findPort(named: Self.stripsClosedPortName) as NodePort<ContiguousArray<Bool>>?)?.value ?? []
+        var strips = ContiguousArray<PointStrip>()
+        var nextStart = 0
+        for (index, length) in lengths.enumerated()
+        {
+            let start = index < starts.count ? max(starts[index], 0) : nextStart
+            let end = start + max(length, 0)
+            strips.append(PointStrip(range: start ..< end, closed: index < closed.count && closed[index]))
+            nextStart = end
         }
         return .strips(strips)
     }
 
-    private func arrayValue<Element: PortValueRepresentable>(_ portName: String, as _: Element.Type) -> ContiguousArray<Element>
+    private func intArray(_ portName: String) -> ContiguousArray<Int>
     {
-        (findPort(named: portName) as NodePort<ContiguousArray<Element>>?)?.value ?? []
-    }
-
-    /// `values` cut or extended to `count`: past its end, its last value repeats, or `filler` when empty.
-    private static func padded<Value>(_ values: ContiguousArray<Value>, to count: Int, filler: Value) -> ContiguousArray<Value>
-    {
-        if values.count == count { return values }
-        if values.count > count { return ContiguousArray(values.prefix(count)) }
-        var result = values
-        result.append(contentsOf: repeatElement(values.last ?? filler, count: count - values.count))
-        return result
+        (findPort(named: portName) as NodePort<ContiguousArray<Int>>?)?.value ?? []
     }
 
     // MARK: Settings View
@@ -397,22 +443,35 @@ struct PointsSettingsView: View
 
     var body: some View
     {
+        PointsSettingsForm(settings: $model.settings,
+                           caption: "Positions are always an input. Turn on the other per-point streams these points carry.")
+    }
+}
+
+/// The toggles and custom attributes of a `PointsSettings`, for every node that takes one.
+struct PointsSettingsForm: View
+{
+    @Binding var settings: PointsSettings
+    let caption: String
+
+    var body: some View
+    {
         VStack(alignment: .leading)
         {
-            Text("Positions are always an input. Turn on the other per-point inputs these points carry.")
+            Text(caption)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Toggle("Normals", isOn: $model.settings.hasNormals)
-            Toggle("Colors", isOn: $model.settings.hasColors)
-            Toggle("Sizes", isOn: $model.settings.hasSizes)
-            Toggle("Texture Coordinates", isOn: $model.settings.hasTexcoords)
-            Toggle("Strips", isOn: $model.settings.hasStrips)
+            Toggle("Normals", isOn: $settings.hasNormals)
+            Toggle("Colors", isOn: $settings.hasColors)
+            Toggle("Sizes", isOn: $settings.hasSizes)
+            Toggle("Texture Coordinates", isOn: $settings.hasTexcoords)
+            Toggle("Strips", isOn: $settings.hasStrips)
 
             Divider()
 
-            PointsCustomAttributesEditor(attributes: $model.settings.customAttributes)
+            PointsCustomAttributesEditor(attributes: $settings.customAttributes)
         }
         .padding()
     }

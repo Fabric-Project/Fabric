@@ -40,7 +40,17 @@ struct DisplacementMaterialNodeTests {
         #expect(transform.value == .textureVerticalFlip)
         #expect(node.material.parameters.params.count == 8)
         #expect(Set(node.material.parameters.params.map(\.label)).count == 8)
-        #expect(node.ports.count == 13)
+        #expect(node.ports.count == 12)
+        #expect(node.inputPointSize == nil)
+        node.setSettings(MaterialSettings(pointSprite: .disc))
+        let size = try #require(node.inputPointSize)
+        size.value = 3
+        _ = node.evaluate(material: node.material, atTime: 0)
+        #expect(node.material.get("Point Size", as: FloatParameter.self)?.value == 3)
+        #expect(node.ports.filter { $0.kind == .Inlet }.suffix(2).first === size)
+        node.setSettings(MaterialSettings(pointSprite: .none))
+        _ = node.evaluate(material: node.material, atTime: 0)
+        #expect(node.material.get("Point Size", as: FloatParameter.self)?.value == 1)
         #expect(!node.ports.contains { $0.portType == .Transform })
     }
 

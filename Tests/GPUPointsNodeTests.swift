@@ -9,10 +9,11 @@ import Satin
 @Suite("GPU points nodes")
 struct GPUPointsNodeTests
 {
-    /// Runs `node` once, committing the frame, and returns what it published. Its kernel
-    /// compiles on this first execution.
+    /// Enables `node`, which compiles its kernel, runs it once, committing the frame, and returns
+    /// what it published.
     private func executeUntilPublished(_ node: BaseGPUPointsNode, _ harness: GraphExecutionTestHarness) throws -> Satin.Points?
     {
+        try node.enableExecution(renderer: harness.renderer)
         let commandBuffer = try #require(harness.renderer.commandQueue.makeCommandBuffer())
         try node.execute(renderer: harness.renderer, executionInfo: harness.makeExecutionInfo(frameNumber: 0),
                          renderPassDescriptor: MTLRenderPassDescriptor(), commandBuffer: commandBuffer)
@@ -135,8 +136,8 @@ struct GPUPointsNodeTests
     {
         guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
         let node = PointsComputeNode(context: harness.context, settings: PointsComputeSettings(
-            hasNormals: false, hasColors: false, hasSizes: false, hasTexcoords: false, customAttributes: [],
-            kernelSource: "void pointsCompute(uint id, constant PointsComputeUniforms &uniforms, thread PointsComputeOutput &point) { point.nope = 1; }"))
+            hasNormals: false, hasColors: false, hasSizes: false, hasTexcoords: false, customAttributes: [], streamInputs: [], countSource: "",
+            kernelSource: "void pointsCompute(uint id, constant PointsComputeUniforms &uniforms, thread const PointsComputeInputs &inputs, thread PointsComputeOutput &point) { point.nope = 1; }"))
         #expect(try executeUntilPublished(node, harness) == nil)
         if case .error = node.status {} else { Issue.record("The compile error is the node's status") }
     }
@@ -149,7 +150,7 @@ struct GPUPointsNodeTests
                                                                 PointsCustomAttribute(name: "1st", components: 1),
                                                                 PointsCustomAttribute(name: "color", components: 4),
                                                                 PointsCustomAttribute(name: "heat_2", components: 2)],
-                                             kernelSource: "").normalized()
+                                             streamInputs: [], countSource: "", kernelSource: "").normalized()
         #expect(settings.customAttributes == [PointsCustomAttribute(name: "heat_2", components: 2)])
     }
 
@@ -160,17 +161,14 @@ struct GPUPointsNodeTests
         let graph = Graph(context: harness.context)
         let compute = PointsComputeNode(context: harness.context)
         compute.inputCount.value = 64
-        let stroke = StrokePointsNode(context: harness.context)
+        let stroke = PointsToLineGeometryNode(context: harness.context)
         stroke.inputWidth.value = 0.05
-        let geometry = PointsGeometryNode(context: harness.context)
-        geometry.inputPrimitiveType.value = "Triangle"
         let material = BasicColorMaterialNode(context: harness.context)
         let mesh = MeshNode(context: harness.context)
         mesh.inputCullingMode.value = "None"
-        for graphNode in [compute, stroke, geometry, material, mesh] as [Node] { graph.addNode(graphNode) }
+        for graphNode in [compute, stroke, material, mesh] as [Node] { graph.addNode(graphNode) }
         graph.connect(compute.outputPoints, to: stroke.inputPoints)
-        graph.connect(stroke.outputPoints, to: geometry.inputPoints)
-        graph.connect(geometry.outputGeometry, to: mesh.inputGeometry)
+        graph.connect(stroke.outputGeometry, to: mesh.inputGeometry)
         graph.connect(material.outputMaterial, to: mesh.inputMaterial)
         let renderer = harness.graphRenderer(for: graph)
         try renderer.startExecution()
@@ -181,7 +179,7 @@ struct GPUPointsNodeTests
         {
             let texture = try harness.execute(graph: graph, executionInfo: harness.makeExecutionInfo(frameNumber: frameNumber), drawScene: true)
             let lit = try hasLitPixels(texture, harness)
-            drew = stroke.outputPoints.value != nil && lit
+            drew = stroke.outputGeometry.value != nil && lit
         }
         #expect(drew)
         #expect(stroke.status == nil)

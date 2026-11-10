@@ -84,6 +84,23 @@ public final class FabricImage: Identifiable, Equatable
         return simd_float2(transformed.x, transformed.y)
     }
 
+    /// The image's size as it is presented, in whole pixels: at least 1 by 1.
+    public var presentationPixelSize: (width: Int, height: Int)
+    {
+        (max(Int(presentationSize.width.rounded()), 1), max(Int(presentationSize.height.rounded()), 1))
+    }
+
+    /// Metal for kernels that read an image as it is presented rather than as it is stored.
+    /// `fabricStoredPixel(uv, textureTransform, storedSize)` is the stored pixel under canonical
+    /// presentation coordinate `uv` (0–1, top left), for `image.read`.
+    public static let presentationSamplingSource = """
+    static uint2 fabricStoredPixel(float2 uv, float4x4 textureTransform, uint2 storedSize) {
+        const float2 stored = (textureTransform * float4(uv, 0.0, 1.0)).xy;
+        const float2 size = float2(storedSize);
+        return uint2(clamp(floor(stored * size), float2(0.0), size - 1.0));
+    }
+    """
+
     /// A Core Image view of the texture in Fabric's canonical presentation orientation.
     public var presentationCIImage: CIImage?
     {

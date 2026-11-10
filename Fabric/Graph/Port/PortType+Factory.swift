@@ -29,6 +29,8 @@ extension PortType
         case .Material:   return try NodePort<Satin.Material>.init(from: decoder)
         case .Image:      return try NodePort<FabricImage>.init(from: decoder)
         case .Points:     return try NodePort<Satin.Points>.init(from: decoder)
+        case .Stream(elementType: let elementType):
+            return try Self.streamPort(elementType: elementType, decoder: decoder)
         case .NumericVirtual: return try NumericVirtualPort.init(from: decoder)
         case .Virtual:    return try NodePort<PortValue>.init(from: decoder)
 
@@ -37,6 +39,22 @@ extension PortType
 
         case .Dictionary(valueType: let valueType):
             return try Self.dictionaryPort(dictionaryType: type, valueType: valueType, isParameterPort: isParameterPort, decoder: decoder)
+        }
+    }
+
+    private static func streamPort(elementType: PortType, decoder: Decoder) throws -> Port
+    {
+        switch elementType
+        {
+        case .Float:      return try NodePort<GPUStream<Float>>.init(from: decoder)
+        case .Int:        return try NodePort<GPUStream<Int>>.init(from: decoder)
+        case .Vector2:    return try NodePort<GPUStream<simd_float2>>.init(from: decoder)
+        case .Vector3:    return try NodePort<GPUStream<simd_float3>>.init(from: decoder)
+        case .Vector4:    return try NodePort<GPUStream<simd_float4>>.init(from: decoder)
+        case .Quaternion: return try NodePort<GPUStream<simd_quatf>>.init(from: decoder)
+        default:
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath,
+                                                    debugDescription: "A stream can't carry \(elementType.rawValue)"))
         }
     }
 
@@ -222,12 +240,30 @@ extension PortType
         case .Material:   return NodePort<Satin.Material>(name: name, kind: kind, description: description, id: id)
         case .Image:      return NodePort<FabricImage>(name: name, kind: kind, description: description, id: id)
         case .Points:     return NodePort<Satin.Points>(name: name, kind: kind, description: description, id: id)
+        case .Stream(elementType: let elementType):
+            return Self.makeFreshStreamPort(elementType: elementType, name: name, kind: kind, description: description, id: id)
         case .NumericVirtual: return NumericVirtualPort(name: name, kind: kind, description: description, id: id)
         case .Virtual:    return NodePort<PortValue>(name: name, kind: kind, description: description, id: id)
         case .Array(portType: let elementType):
             return Self.makeFreshArrayPort(elementType: elementType, name: name, kind: kind, description: description, id: id)
         case .Dictionary(valueType: let valueType):
             return Self.makeFreshDictionaryPort(dictionaryType: self, valueType: valueType, name: name, kind: kind, description: description, id: id)
+        }
+    }
+
+    private static func makeFreshStreamPort(elementType: PortType, name: String, kind: PortKind, description: String, id: UUID) -> Port
+    {
+        switch elementType
+        {
+        case .Float:      return NodePort<GPUStream<Float>>(name: name, kind: kind, description: description, id: id)
+        case .Int:        return NodePort<GPUStream<Int>>(name: name, kind: kind, description: description, id: id)
+        case .Vector2:    return NodePort<GPUStream<simd_float2>>(name: name, kind: kind, description: description, id: id)
+        case .Vector3:    return NodePort<GPUStream<simd_float3>>(name: name, kind: kind, description: description, id: id)
+        case .Vector4:    return NodePort<GPUStream<simd_float4>>(name: name, kind: kind, description: description, id: id)
+        case .Quaternion: return NodePort<GPUStream<simd_quatf>>(name: name, kind: kind, description: description, id: id)
+        default:
+            // A stream can't carry this element type; keep the declared type so it saves as written.
+            return DeclaredNodePort<PortValue>(declaredPortType: .Stream(elementType: elementType), name: name, kind: kind, description: description, id: id)
         }
     }
 

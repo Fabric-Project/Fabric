@@ -561,21 +561,20 @@ struct GraphExecutionTests {
         expectEqual(transmissionTransform.value, quarterTurn)
         expectEqual(clearcoatSurfaceTransform.value, .textureVerticalFlip)
 
-        let displacementNode = DisplacementMaterialNode(context: harness.context)
+        let displacementNode = DisplacementMaterialNode(context: harness.context, settings: MaterialSettings(pointSprite: .image))
         displacementNode.inputDisplacementTexture.send(flippedImage, force: true)
         displacementNode.inputTexture.send(rotatedImage, force: true)
-        displacementNode.inputPointSpriteTexture.send(flippedImage, force: true)
+        let pointSpriteImage: NodePort<FabricImage> = try #require(displacementNode.findPort(named: "inputPointSpriteImage"))
+        pointSpriteImage.send(flippedImage, force: true)
         try harness.execute(displacementNode)
 
         let displacementTransform = try #require(displacementNode.material.parameters.get("displacementTextureTransform",
                                                                                            as: Float4x4Parameter.self))
         let colorTransform = try #require(displacementNode.material.parameters.get("colorTextureTransform",
                                                                                     as: Float4x4Parameter.self))
-        let pointSpriteTransform = try #require(displacementNode.material.parameters.get("pointSpriteTextureTransform",
-                                                                                          as: Float4x4Parameter.self))
         expectEqual(displacementTransform.value, .textureVerticalFlip)
         expectEqual(colorTransform.value, quarterTurn)
-        expectEqual(pointSpriteTransform.value, .textureVerticalFlip)
+        expectEqual(displacementNode.material.pointSpriteTextureTransform, .textureVerticalFlip)
 
         let graph = Graph(context: harness.context)
         let planeNode = PlaneGeometryNode(context: harness.context)

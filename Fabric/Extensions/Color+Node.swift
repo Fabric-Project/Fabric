@@ -23,6 +23,11 @@ extension Color {
         Color("NodePointColor", bundle: Bundle.module)
     }
 
+    /// Color for stream nodes and ports
+    public static var nodeStream: Color {
+        Color("NodeStreamColor", bundle: Bundle.module)
+    }
+
     /// Color for camera nodes
     public static var nodeCamera: Color {
         Color("NodeCameraColor", bundle: Bundle.module)

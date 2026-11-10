@@ -12,13 +12,7 @@ import LanguageSupport
 @MainActor
 @Observable final class LiveImageNodeEditorModel
 {
-    struct ShaderDiagnostic: Hashable {
-        let line: Int
-        let column: Int
-        let category: Message.Category
-        let summary: String
-        let context: String
-    }
+    typealias ShaderDiagnostic = MetalCompileDiagnostic
 
     var content: String
     private weak var node: LiveImageNode?
@@ -77,111 +71,8 @@ import LanguageSupport
             return
         }
 
-        self.parseErrorString(errorDescription)
-    }
-
-    private func parseErrorString(_ errorText: String) {
-        let parsedDiagnostics = self.parseShaderLog(errorText)
-        if parsedDiagnostics.isEmpty {
-            let fallbackSummary = errorText.components(separatedBy: .newlines).first(where: { $0.isEmpty == false }) ?? "Shader compilation failed."
-            let message = Message(category: .error,
-                                  length: max(1, fallbackSummary.count),
-                                  summary: fallbackSummary,
-                                  description: AttributedString(errorText))
-            let location = TextLocation(zeroBasedLine: 0, column: 0)
-            self.messages.insert(TextLocated(location: location, entity: message))
-            self.diagnostics = [.init(line: 0, column: 0, category: .error, summary: fallbackSummary, context: "")]
-            return
-        }
-
-        self.diagnostics = parsedDiagnostics
-        for diagnostic in parsedDiagnostics {
-            let message = Message(category: diagnostic.category,
-                                  length: max(1, diagnostic.context.count),
-                                  summary: diagnostic.summary,
-                                  description: AttributedString(diagnostic.context))
-            let location = TextLocation(zeroBasedLine: max(0, diagnostic.line), column: max(0, diagnostic.column))
-            self.messages.insert(TextLocated(location: location, entity: message))
-        }
-    }
-
-    private func parseShaderLog(_ log: String) -> [ShaderDiagnostic] {
-        // SourceShader logs typically look like:
-        // program_source:12:9: error: use of undeclared identifier 'foo'
-        let primaryPattern = #"program_source:(\d+):(\d+):\s*(error|warning|note):\s*([^\n]+)(?:\n([^\n]*))?"#
-        let fallbackPattern = #"[^:\n]+:(\d+):(\d+):\s*(error|warning|note):\s*([^\n]+)(?:\n([^\n]*))?"#
-
-        var parsed = self.parseShaderLog(log, regexPattern: primaryPattern)
-        if parsed.isEmpty {
-            parsed = self.parseShaderLog(log, regexPattern: fallbackPattern)
-        }
-        return parsed
-    }
-
-    private func parseShaderLog(_ log: String, regexPattern: String) -> [ShaderDiagnostic] {
-        guard let regex = try? NSRegularExpression(pattern: regexPattern) else {
-            return []
-        }
-
-        let matches = regex.matches(in: log, range: NSRange(log.startIndex..., in: log))
-        var diagnostics: [ShaderDiagnostic] = []
-
-        for match in matches {
-            guard let lineRange = Range(match.range(at: 1), in: log),
-                  let columnRange = Range(match.range(at: 2), in: log),
-                  let typeRange = Range(match.range(at: 3), in: log),
-                  let summaryRange = Range(match.range(at: 4), in: log) else {
-                continue
-            }
-
-            let context: String
-            if match.range(at: 5).location != NSNotFound,
-               let contextRange = Range(match.range(at: 5), in: log) {
-                context = String(log[contextRange]).trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-            else {
-                context = ""
-            }
-
-            let rawLine = Int(log[lineRange]) ?? 1
-            let rawColumn = Int(log[columnRange]) ?? 1
-            let category = self.messageCategory(for: String(log[typeRange]))
-            let summary = String(log[summaryRange]).trimmingCharacters(in: .whitespacesAndNewlines)
-
-            let remappedLine = self.remapCompiledErrorLine(sourceSubstring: context) ?? max(0, rawLine - 1)
-            let diagnostic = ShaderDiagnostic(line: remappedLine,
-                                              column: max(0, rawColumn - 1),
-                                              category: category,
-                                              summary: summary,
-                                              context: context)
-            diagnostics.append(diagnostic)
-        }
-
-        return diagnostics
-    }
-
-    private func remapCompiledErrorLine(sourceSubstring: String) -> Int? {
-        guard sourceSubstring.isEmpty == false else { return nil }
-        let sourceLines = self.content.components(separatedBy: .newlines)
-
-        for (lineIndex, sourceLine) in sourceLines.enumerated() {
-            if sourceLine.localizedStandardContains(sourceSubstring) {
-                return lineIndex
-            }
-        }
-        return nil
-    }
-
-    private func messageCategory(for label: String) -> Message.Category {
-        let normalized = label.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        switch normalized {
-        case "warning":
-            return .warning
-        case "note":
-            return .informational
-        default:
-            return .error
-        }
+        self.diagnostics = MetalCompileDiagnostics.diagnostics(fromLog: errorDescription, editedSource: self.content)
+        self.messages = MetalCompileDiagnostics.messages(for: self.diagnostics)
     }
 }
 

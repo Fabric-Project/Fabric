@@ -59,6 +59,7 @@ public indirect enum PortValue : PortValueRepresentable
     case Material(Satin.Material)
     case Image(FabricImage)
     case Points(Satin.Points)
+    case Stream(AnyGPUStream)
     case Array(ContiguousArray<PortValue>)
     case Dictionary(Swift.Dictionary<Swift.String, PortValue>)
     
